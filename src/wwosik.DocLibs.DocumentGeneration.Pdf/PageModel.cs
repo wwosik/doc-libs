@@ -14,6 +14,11 @@ internal sealed record RectItem(double X, double Y, double Width, double Height,
 /// <summary>A PNG or JPEG; <see cref="Key"/> identifies the image so it is embedded once however often it is used.</summary>
 internal sealed record ImageItem(object Key, ReadOnlyMemory<byte> Content, ImageFormat Format, double X, double Y, double Width, double Height) : PageItem;
 
+/// <summary>
+/// An outline in page coordinates, filled and stroked; <see cref="Dash"/> alternates dash and gap lengths in points.
+/// </summary>
+internal sealed record ShapeItem(IReadOnlyList<PathSegment> Path, string? Fill, string? Stroke, double Width, IReadOnlyList<double>? Dash, bool RoundJoins) : PageItem;
+
 /// <summary>A clickable area: an absolute URL, or <c>#anchor</c> for a heading in the document.</summary>
 internal sealed record LinkItem(double X, double Y, double Width, double Height, string Target) : PageItem;
 

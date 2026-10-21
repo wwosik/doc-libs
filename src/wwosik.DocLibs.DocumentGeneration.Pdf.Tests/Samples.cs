@@ -11,10 +11,13 @@ internal static class Samples
 
     public static readonly TimeProvider FixedTime = new Fixed(new DateTimeOffset(2026, 3, 9, 12, 0, 0, TimeSpan.Zero));
 
-    /// <summary>The built-in templates, by their front-matter name, for theories.</summary>
-    public static TheoryData<string> BuiltInTemplates => ["neutral"];
+    /// <summary>The made-up brand of <c>Samples/brand-sample</c>: colours, footer text, all four images, Liberation Serif with PT Sans Narrow in tables.</summary>
+    public static readonly Brand Brand = BrandPack.Load(Path("brand-sample"));
 
-    public static PdfTemplateOptions BuiltIn(string name) => PdfTemplateOptions.Create(name)!;
+    /// <summary>The neutral and the sample brand, by their front-matter name, for theories.</summary>
+    public static TheoryData<string> BuiltInTemplates => ["neutral", "sample"];
+
+    public static PdfTemplateOptions BuiltIn(string name) => new BrandPdfTemplateOptions { Brand = name == "sample" ? Brand : Brand.Neutral };
 
     public static string Path(string name) => System.IO.Path.Combine(AppContext.BaseDirectory, "Samples", name);
 
@@ -64,5 +67,13 @@ internal static class Samples
         public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
 
         public override DateTimeOffset GetUtcNow() => now;
+    }
+
+    /// <summary>A code-block renderer from a function.</summary>
+    public static ICodeBlockRenderer Renderer(Func<CodeBlockRequest, CodeBlockGraphic?> render) => new FunctionRenderer(render);
+
+    private sealed class FunctionRenderer(Func<CodeBlockRequest, CodeBlockGraphic?> render) : ICodeBlockRenderer
+    {
+        public CodeBlockGraphic? Render(CodeBlockRequest request) => render(request);
     }
 }

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Mermaid diagrams for the wwosik.DocLibs document generators: vector graphics in PDFs and editable shapes in decks, in a brand's colours and fonts. Built on Mermaider; no browser or Node.js needed.</Description>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Mermaider" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration\wwosik.DocLibs.DocumentGeneration.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Diagrams.Tests" />
+  </ItemGroup>
+
+</Project>

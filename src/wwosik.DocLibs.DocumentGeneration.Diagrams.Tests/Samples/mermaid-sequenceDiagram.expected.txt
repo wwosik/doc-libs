@@ -1,0 +1,38 @@
+drawing 301.57 x 512
+roundrect fill=F1F7F8 stroke=9AC8CC w=1.25 at 38.78 240 size 224.01 78 r=10
+path fill=CAE2E4 stroke=9AC8CC w=1.25 : M 38.78 262 L 38.78 250 C 38.78 243.33 42.11 240 48.78 240 L 85.06 240 L 85.06 262 Z
+text 61.92 255.2 middle size=12 color=06373B : **"loop"**
+text 150.79 255.9 middle size=14 color=06373B : **"Every chapter"**
+path fill=none stroke=DBDBDB w=1.25 dash=4,4 : M 78.78 70 L 78.78 442
+path fill=none stroke=DBDBDB w=1.25 dash=4,4 : M 218.78 70 L 218.78 442
+path fill=none stroke=6B7280 w=1.5 : M 78.78 114 L 218.78 114
+path fill=6B7280 stroke=6B7280 w=1 : M 208.78 109.5 L 218.78 114 L 208.78 118.5 Z
+roundrect fill=FFFFFF stroke=6B7280 w=1.5 at 89.61 89.2 size 118.35 21.6 r=10.8
+text 148.78 104.2 middle size=12 color=000000 : "Asks for the report"
+path fill=none stroke=6B7280 w=1.5 dash=5,4 : M 218.78 164 L 78.78 164
+path fill=6B7280 stroke=6B7280 w=1 : M 88.78 168.5 L 78.78 164 L 88.78 159.5 Z
+roundrect fill=FFFFFF stroke=6B7280 w=1.5 at 82.77 139.2 size 132.03 21.6 r=10.8
+text 148.78 154.2 middle size=12 color=000000 : "Sends the Markdown"
+path fill=none stroke=6B7280 w=1.5 : M 78.78 298 L 218.78 298
+path fill=none stroke=6B7280 w=1.25 : M 208.78 293.5 L 218.78 298 L 208.78 302.5
+roundrect fill=FFFFFF stroke=6B7280 w=1.5 at 113.2 273.2 size 71.15 21.6 r=10.8
+text 148.78 288.2 middle size=12 color=000000 : "Progress"
+path fill=none stroke=6B7280 w=1.5 : M 78.78 348 L 218.78 348
+path fill=6B7280 stroke=6B7280 w=1 : M 208.78 343.5 L 218.78 348 L 208.78 352.5 Z
+roundrect fill=FFFFFF stroke=6B7280 w=1.5 at 125.52 323.2 size 46.53 21.6 r=10.8
+text 148.78 338.2 middle size=12 color=000000 : "Done"
+roundrect fill=E9F3F4 stroke=9AC8CC w=1 at 30 174 size 241.57 38 r=4
+rect fill=0E7C86 stroke=none at 30 174 size 3 38
+text 152.29 197.2 middle size=12 color=06373B : "The brand comes from front matter"
+roundrect fill=E6F4F5 stroke=0E7C86 w=1.25 at 38.78 30 size 80 40 r=8
+text 78.78 54.9 middle size=14 color=000000 : "App"
+roundrect fill=E6F4F5 stroke=0E7C86 w=1.25 at 174.77 30 size 88.02 40 r=8
+ellipse fill=none stroke=2C333D w=1.6 round at 195.17 41.9 size 7.2 7.2
+path fill=none stroke=2C333D w=1.6 round : M 191.77 58 C 191.77 51.5 205.77 51.5 205.77 58
+text 212.77 54.9 start size=14 color=000000 : "User"
+roundrect fill=E6F4F5 stroke=0E7C86 w=1.25 at 38.78 442 size 80 40 r=8
+text 78.78 466.9 middle size=14 color=000000 : "App"
+roundrect fill=E6F4F5 stroke=0E7C86 w=1.25 at 174.77 442 size 88.02 40 r=8
+ellipse fill=none stroke=2C333D w=1.6 round at 195.17 453.9 size 7.2 7.2
+path fill=none stroke=2C333D w=1.6 round : M 191.77 470 C 191.77 463.5 205.77 463.5 205.77 470
+text 212.77 466.9 start size=14 color=000000 : "User"

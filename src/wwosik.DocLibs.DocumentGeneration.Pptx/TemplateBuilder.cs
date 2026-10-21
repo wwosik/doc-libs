@@ -7,9 +7,9 @@ using DocumentFormat.OpenXml.Packaging;
 namespace wwosik.DocLibs.DocumentGeneration.Pptx;
 
 /// <summary>
-/// The built-in 16:9 template, one master design for every <see cref="Brand"/>: title top left in the brand's
-/// primary colour, a footer line with slide number, footer text and date, the logo bottom right, and the layouts
-/// <c>title</c>, <c>obj</c>, <c>titleOnly</c> and <c>secHead</c>. Geometry follows a common 16:9 corporate layout.
+/// The built-in 16:9 template, one master design for every brand: title top left in the brand's primary colour and
+/// font, a footer line with slide number, footer text and date, the logo bottom right, and the layouts <c>title</c>,
+/// <c>obj</c>, <c>titleOnly</c> and <c>secHead</c>. Images keep their aspect ratio within fixed boxes.
 /// Written as XML here so it can be reviewed like code.
 /// </summary>
 internal static class TemplateBuilder
@@ -43,7 +43,11 @@ internal static class TemplateBuilder
     private const string LayoutEnd = "</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>";
     private const string White = "FFFFFF";
 
-    // Geometry in EMU, from a common 16:9 corporate layout.
+    // Geometry in EMU.
+    private const long SlideWidth = 12192000;
+    private const long SlideHeight = 6858000;
+    private const long SubtitleTop = 4480560;
+    private const long SubtitleBottom = SubtitleTop + 1005840;
     private const long Left = 912283;
     private const long Width = 10896600;
     private const long TitleTop = 256032;
@@ -61,10 +65,15 @@ internal static class TemplateBuilder
     private const string MasterLogoRelationship = "rId6";
     private const string LogoRelationship = "rId2";
     private const string ArtworkRelationship = "rId3";
-    private const string ClaimRelationship = "rId4";
+    private const string TaglineRelationship = "rId4";
+
+    // Boxes images are fitted into: x, y, width, height, and where in the box a narrower or flatter image sits.
+    private static readonly ImageBox CoverLogoBox = new(10137562, 359861, 1586924, 1122823, Top: true);
+    private static readonly ImageBox TaglineBox = new(9700000, 6087210, 2103309, 475637, Top: false);
+    private static readonly ImageBox FooterLogoBox = new(10986386, 6165304, 815143, 576752, Top: false);
 
     /// <summary>Writes the template for <paramref name="brand"/> as a <c>.pptx</c> without slides.</summary>
-    public static void Write(Stream output, Brand brand, bool showClaim)
+    public static void Write(Stream output, ResolvedBrand brand, bool showTagline)
     {
         using var package = PresentationDocument.Create(output, PresentationDocumentType.Presentation);
         var presentation = package.AddPresentationPart();
@@ -75,33 +84,33 @@ internal static class TemplateBuilder
         Feed(presentation.AddNewPart<PresentationPropertiesPart>("rId4"), $"<p:presentationPr {Namespaces}/>");
 
         var logo = brand.Logo is { } logoBytes ? Image(master, MasterLogoRelationship, logoBytes) : null;
-        var claim = showClaim ? brand.Claim : null;
+        var tagline = showTagline ? brand.Tagline : null;
         var layouts = new (string Xml, Action<SlideLayoutPart> AddImages)[]
         {
-            (TitleLayout(brand, claim is not null), layout =>
+            (TitleLayout(brand, tagline), layout =>
             {
                 if (logo is not null)
                 {
                     layout.AddPart(logo, LogoRelationship);
                 }
 
-                if (brand.Artwork is { } artwork)
+                if (brand.CoverArtwork is { } artwork)
                 {
                     Image(layout, ArtworkRelationship, artwork);
                 }
 
-                if (claim is not null)
+                if (tagline is not null)
                 {
-                    Image(layout, ClaimRelationship, claim);
+                    Image(layout, TaglineRelationship, tagline);
                 }
             }),
             (ContentLayout, _ => { }),
             (TitleOnlyLayout, _ => { }),
             (SectionLayout(brand), layout =>
             {
-                if (brand.WhiteLogo is { } whiteLogo)
+                if (brand.LogoOnDark is { } logoOnDark)
                 {
-                    Image(layout, LogoRelationship, whiteLogo);
+                    Image(layout, LogoRelationship, logoOnDark);
                 }
             }),
         };
@@ -115,19 +124,20 @@ internal static class TemplateBuilder
         }
 
         Feed(theme, Theme(brand));
-        Feed(master, Master(brand, logo is not null));
+        Feed(master, Master(brand));
         Feed(presentation, Presentation);
     }
 
-    private static ImagePart Image(OpenXmlPartContainer container, string id, byte[] png)
+    private static ImagePart Image(OpenXmlPartContainer container, string id, byte[] image)
     {
+        var type = ImageInfo.Read(image)?.Format == ImageFormat.Jpeg ? ImagePartType.Jpeg : ImagePartType.Png;
         var part = container switch
         {
-            SlideMasterPart master => master.AddImagePart(ImagePartType.Png, id),
-            SlideLayoutPart layout => layout.AddImagePart(ImagePartType.Png, id),
+            SlideMasterPart master => master.AddImagePart(type, id),
+            SlideLayoutPart layout => layout.AddImagePart(type, id),
             _ => throw new ArgumentException("Images go on masters and layouts only.", nameof(container)),
         };
-        using var stream = new MemoryStream(png);
+        using var stream = new MemoryStream(image);
         part.FeedData(stream);
         return part;
     }
@@ -145,12 +155,12 @@ internal static class TemplateBuilder
         + $"<p:defaultTextStyle><a:defPPr><a:defRPr lang=\"en-US\"/></a:defPPr>{Level(1, 0, 0, null, 1800)}</p:defaultTextStyle>"
         + "</p:presentation>";
 
-    private static string Theme(Brand brand) =>
+    private static string Theme(ResolvedBrand brand) =>
         $"<a:theme xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" name=\"{brand.Name}\"><a:themeElements>"
         + $"<a:clrScheme name=\"{brand.Name}\">{ColorScheme(brand.ThemeColors)}</a:clrScheme>"
-        + "<a:fontScheme name=\"Arial\">"
-        + "<a:majorFont><a:latin typeface=\"Arial\"/><a:ea typeface=\"\"/><a:cs typeface=\"\"/></a:majorFont>"
-        + "<a:minorFont><a:latin typeface=\"Arial\"/><a:ea typeface=\"\"/><a:cs typeface=\"\"/></a:minorFont>"
+        + $"<a:fontScheme name=\"{Escape(brand.FontFamily)}\">"
+        + $"<a:majorFont><a:latin typeface=\"{Escape(brand.FontFamily)}\"/><a:ea typeface=\"\"/><a:cs typeface=\"\"/></a:majorFont>"
+        + $"<a:minorFont><a:latin typeface=\"{Escape(brand.FontFamily)}\"/><a:ea typeface=\"\"/><a:cs typeface=\"\"/></a:minorFont>"
         + "</a:fontScheme>"
         + $"<a:fmtScheme name=\"{brand.Name}\">"
         + "<a:fillStyleLst>" + Repeat(SolidPlaceholder, 3) + "</a:fillStyleLst>"
@@ -171,7 +181,7 @@ internal static class TemplateBuilder
     private const string SolidPlaceholder = "<a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill>";
 
     // Header row in the brand colour with white bold text, light banded rows, thin lines.
-    private static string TableStyles(Brand brand)
+    private static string TableStyles(ResolvedBrand brand)
     {
         var line = $"<a:ln w=\"6350\" cmpd=\"sng\"><a:solidFill><a:srgbClr val=\"{brand.TableLine}\"/></a:solidFill></a:ln>";
         var borders = string.Concat(new[] { "left", "right", "top", "bottom", "insideH", "insideV" }.Select(side => $"<a:{side}>{line}</a:{side}>"));
@@ -185,7 +195,7 @@ internal static class TemplateBuilder
             + "</a:tblStyle></a:tblStyleLst>";
     }
 
-    private static string Master(Brand brand, bool hasLogo) =>
+    private static string Master(ResolvedBrand brand) =>
         $"<p:sldMaster {Namespaces}><p:cSld>"
         + "<p:bg><p:bgPr><a:solidFill><a:schemeClr val=\"bg1\"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>"
         + "<p:spTree>" + GroupHeader
@@ -194,7 +204,7 @@ internal static class TemplateBuilder
         + FooterPlaceholder(4, "Date Placeholder 3", $"<p:ph type=\"dt\" sz=\"half\" idx=\"{DateIndex}\"/>", Box(DateLeft(brand), FooterTop, DateWidth, FooterHeight), brand.Footer, slideNumber: false)
         + FooterPlaceholder(5, "Slide Number Placeholder 4", $"<p:ph type=\"sldNum\" sz=\"quarter\" idx=\"{SlideNumberIndex}\"/>", Box(Left, FooterTop, 302400, FooterHeight), brand.Footer, slideNumber: true)
         + FooterText(6, brand, brand.Footer)
-        + (hasLogo ? Picture(7, "Logo", MasterLogoRelationship, 10986386, 6165304, 815143, 576752) : string.Empty)
+        + (brand.Logo is { } logo ? Picture(7, "Logo", MasterLogoRelationship, FooterLogoBox.Fit(logo)) : string.Empty)
         + "</p:spTree></p:cSld>"
         + ClrMap
         + "<p:sldLayoutIdLst>"
@@ -215,10 +225,10 @@ internal static class TemplateBuilder
         + $"<p:otherStyle><a:defPPr><a:defRPr lang=\"en-US\"/></a:defPPr>{Level(1, 0, 0, null, 1800)}</p:otherStyle>"
         + "</p:txStyles></p:sldMaster>";
 
-    // The cover: large title, subtitle, logo top right, artwork and claim bottom right; no footer line.
-    private static string TitleLayout(Brand brand, bool hasClaim) =>
+    // The cover: large title, subtitle, logo top right, artwork and tagline bottom right; no footer line.
+    private static string TitleLayout(ResolvedBrand brand, byte[]? tagline) =>
         $"<p:sldLayout {Namespaces} type=\"title\" preserve=\"1\" showMasterSp=\"0\"><p:cSld name=\"Title Slide\"><p:spTree>" + GroupHeader
-        + (brand.Artwork is not null ? Artwork(2) : string.Empty)
+        + (brand.CoverArtwork is { } artwork ? Picture(2, "Artwork", ArtworkRelationship, Artwork(artwork)) : string.Empty)
         + Placeholder(
             3,
             "Title 1",
@@ -231,12 +241,12 @@ internal static class TemplateBuilder
             4,
             "Subtitle 2",
             "<p:ph type=\"subTitle\" idx=\"1\"/>",
-            Box(Left, 4480560, Width, 1005840),
+            Box(Left, SubtitleTop, Width, SubtitleBottom - SubtitleTop),
             string.Empty,
             null,
             "<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"2000\"><a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill></a:defRPr></a:lvl1pPr></a:lstStyle>")
-        + (brand.Logo is not null ? Picture(5, "Logo", LogoRelationship, 10137562, 359861, 1586924, 1122823) : string.Empty)
-        + (hasClaim ? Picture(6, "Claim", ClaimRelationship, 10176934, 6087210, 1626375, 475637) : string.Empty)
+        + (brand.Logo is { } logo ? Picture(5, "Logo", LogoRelationship, CoverLogoBox.Fit(logo)) : string.Empty)
+        + (tagline is not null ? Picture(6, "Tagline", TaglineRelationship, TaglineBox.Fit(tagline)) : string.Empty)
         + LayoutEnd;
 
     private static readonly string ContentLayout =
@@ -252,8 +262,8 @@ internal static class TemplateBuilder
         + FooterPlaceholders(3, null)
         + LayoutEnd;
 
-    // Section divider: brand gradient, white title and footer line, white logo.
-    private static string SectionLayout(Brand brand) =>
+    // Section divider: brand gradient, white title and footer line, the logo for dark backgrounds.
+    private static string SectionLayout(ResolvedBrand brand) =>
         $"<p:sldLayout {Namespaces} type=\"secHead\" preserve=\"1\" showMasterSp=\"0\"><p:cSld name=\"Section Header\">"
         + "<p:bg><p:bgPr><a:gradFill rotWithShape=\"1\"><a:gsLst>"
         + string.Concat(brand.Gradient.Select((color, i) =>
@@ -278,10 +288,10 @@ internal static class TemplateBuilder
             $"<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"2400\"><a:solidFill><a:srgbClr val=\"{White}\"/></a:solidFill></a:defRPr></a:lvl1pPr></a:lstStyle>")
         + FooterPlaceholders(4, White)
         + FooterText(6, brand, White)
-        + (brand.WhiteLogo is not null ? Picture(7, "Logo", LogoRelationship, 10986386, 6165304, 815143, 576752) : string.Empty)
+        + (brand.LogoOnDark is { } logoOnDark ? Picture(7, "Logo", LogoRelationship, FooterLogoBox.Fit(logoOnDark)) : string.Empty)
         + LayoutEnd;
 
-    private static long DateLeft(Brand brand) => brand.FooterText is null ? FooterTextLeft : DateWithFooterTextLeft;
+    private static long DateLeft(ResolvedBrand brand) => brand.FooterText is null ? FooterTextLeft : DateWithFooterTextLeft;
 
     private static string Box(long x, long y, long cx, long cy) =>
         $"<a:xfrm><a:off x=\"{x}\" y=\"{y}\"/><a:ext cx=\"{cx}\" cy=\"{cy}\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>";
@@ -314,29 +324,37 @@ internal static class TemplateBuilder
             : "<a:p><a:endParaRPr lang=\"en-US\"/></a:p>")
         + "</p:txBody></p:sp>";
 
-    private static string FooterText(int id, Brand brand, string color) =>
+    private static string FooterText(int id, ResolvedBrand brand, string color) =>
         brand.FooterText is not { } text
             ? string.Empty
             : $"<p:sp><p:nvSpPr><p:cNvPr id=\"{id}\" name=\"Footer Text\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr userDrawn=\"1\"/></p:nvSpPr>"
                 + $"<p:spPr>{Box(FooterTextLeft, FooterTop, FooterTextWidth, FooterHeight)}<a:noFill/></p:spPr>"
                 + "<p:txBody><a:bodyPr wrap=\"none\" lIns=\"0\" tIns=\"0\" rIns=\"0\" bIns=\"0\" anchor=\"ctr\"><a:noAutofit/></a:bodyPr><a:lstStyle/>"
-                + $"<a:p><a:pPr algn=\"l\"/><a:r><a:rPr lang=\"de-DE\" sz=\"{FooterSize}\"><a:solidFill><a:srgbClr val=\"{color}\"/></a:solidFill>{TextFont}</a:rPr>"
+                + $"<a:p><a:pPr algn=\"l\"/><a:r><a:rPr lang=\"en-US\" sz=\"{FooterSize}\"><a:solidFill><a:srgbClr val=\"{color}\"/></a:solidFill>{TextFont}</a:rPr>"
                 + $"<a:t>{SecurityElement.Escape(text)}</a:t></a:r></a:p></p:txBody></p:sp>";
 
-    private static string Picture(int id, string name, string relationshipId, long x, long y, long cx, long cy) =>
+    private static string Picture(int id, string name, string relationshipId, (long X, long Y, long Width, long Height) box) =>
         $"<p:pic><p:nvPicPr><p:cNvPr id=\"{id}\" name=\"{name}\"/><p:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></p:cNvPicPr><p:nvPr userDrawn=\"1\"/></p:nvPicPr>"
         + $"<p:blipFill><a:blip r:embed=\"{relationshipId}\"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>"
-        + $"<p:spPr>{Box(x, y, cx, cy)}</p:spPr></p:pic>";
+        + $"<p:spPr>{Box(box.X, box.Y, box.Width, box.Height)}</p:spPr></p:pic>";
 
-    // The wave as on the corporate cover: the upper left part of the image, tilted and clipped to a quadrilateral.
-    private static string Artwork(int id) =>
-        $"<p:pic><p:nvPicPr><p:cNvPr id=\"{id}\" name=\"Artwork\"/><p:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></p:cNvPicPr><p:nvPr userDrawn=\"1\"/></p:nvPicPr>"
-        + $"<p:blipFill rotWithShape=\"1\"><a:blip r:embed=\"{ArtworkRelationship}\"/><a:srcRect r=\"44748\" b=\"46413\"/><a:stretch/></p:blipFill>"
-        + "<p:spPr><a:xfrm rot=\"21061222\"><a:off x=\"2647948\" y=\"2970822\"/><a:ext cx=\"9962517\" cy=\"4579780\"/></a:xfrm>"
-        + "<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l=\"l\" t=\"t\" r=\"r\" b=\"b\"/><a:pathLst><a:path w=\"7471888\" h=\"3434835\">"
-        + "<a:moveTo><a:pt x=\"7471888\" y=\"0\"/></a:moveTo><a:lnTo><a:pt x=\"6929115\" y=\"3434835\"/></a:lnTo>"
-        + "<a:lnTo><a:pt x=\"0\" y=\"2339896\"/></a:lnTo><a:lnTo><a:pt x=\"0\" y=\"0\"/></a:lnTo><a:close/></a:path></a:pathLst></a:custGeom>"
-        + "</p:spPr></p:pic>";
+    // In the bottom right corner, at most as wide as the slide and as high as the band below the subtitle, so that it
+    // never covers the cover's text.
+    private static (long X, long Y, long Width, long Height) Artwork(byte[] image)
+    {
+        var info = ImageInfo.Read(image)!.Value;
+        var ratio = (double)info.Height / info.Width;
+        var (width, height) = ((double)SlideWidth, SlideWidth * ratio);
+        if (height > SlideHeight - SubtitleBottom)
+        {
+            height = SlideHeight - SubtitleBottom;
+            width = height / ratio;
+        }
+
+        return (SlideWidth - (long)width, SlideHeight - (long)height, (long)width, (long)height);
+    }
+
+    private static string Escape(string text) => SecurityElement.Escape(text);
 
     private static string Level(int n, long marL, long indent, string? bullet, int size) =>
         $"<a:lvl{n}pPr marL=\"{marL}\" indent=\"{indent}\" algn=\"l\" defTabSz=\"914400\" rtl=\"0\" eaLnBrk=\"1\" latinLnBrk=\"0\" hangingPunct=\"1\">"
@@ -345,4 +363,16 @@ internal static class TemplateBuilder
         + $"<a:defRPr sz=\"{size}\" kern=\"1200\"><a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill>{TextFont}</a:defRPr></a:lvl{n}pPr>";
 
     private static string Repeat(string value, int count) => string.Concat(Enumerable.Repeat(value, count));
+
+    // An image is fitted into the box keeping its aspect ratio, aligned right, and to the top or bottom.
+    private sealed record ImageBox(long X, long Y, long Width, long Height, bool Top)
+    {
+        public (long X, long Y, long Width, long Height) Fit(byte[] image)
+        {
+            var info = ImageInfo.Read(image)!.Value;
+            var scale = Math.Min((double)this.Width / info.Width, (double)this.Height / info.Height);
+            var (width, height) = ((long)(info.Width * scale), (long)(info.Height * scale));
+            return (this.X + this.Width - width, this.Top ? this.Y : this.Y + this.Height - height, width, height);
+        }
+    }
 }

@@ -1,6 +1,4 @@
-﻿using wwosik.DocLibs.DocumentConversions;
-
-namespace wwosik.DocLibs.DocumentGeneration.Pdf;
+﻿namespace wwosik.DocLibs.DocumentGeneration.Pdf;
 
 /// <summary>Options for <see cref="PdfGenerator.Generate"/>.</summary>
 public sealed record PdfOptions
@@ -8,8 +6,14 @@ public sealed record PdfOptions
     /// <summary>The default options: neutral design, A4 portrait, code blocks stay code.</summary>
     public static PdfOptions Default { get; } = new();
 
-    /// <summary>The design and its features. Default: neutral. Front matter in the Markdown overrides it.</summary>
-    public PdfTemplateOptions Template { get; init; } = new NeutralPdfTemplateOptions();
+    /// <summary>The design and its features. Default: the neutral brand. Front matter in the Markdown overrides it.</summary>
+    public PdfTemplateOptions Template { get; init; } = new BrandPdfTemplateOptions();
+
+    /// <summary>
+    /// The brands front matter may select by name (<c>template: acme</c>), besides <c>neutral</c> and the brand of
+    /// <see cref="Template"/>. Names must be unique. Default: none.
+    /// </summary>
+    public IReadOnlyList<Brand> Brands { get; init; } = [];
 
     /// <summary>The paper size. Default <see cref="PdfPageSize.A4"/>.</summary>
     public PdfPageSize PageSize { get; init; } = PdfPageSize.A4;
@@ -18,10 +22,11 @@ public sealed record PdfOptions
     public PdfOrientation Orientation { get; init; } = PdfOrientation.Portrait;
 
     /// <summary>
-    /// Called with the language and the code of every fenced code block. A returned PNG or JPEG is placed like a
-    /// Markdown image; <see langword="null"/> keeps the block as code. This is how diagrams such as Mermaid get in.
+    /// Asked in order for every fenced code block; the first graphic wins. A drawing is drawn as vector graphics in the
+    /// brand's diagram font, an image (PNG or JPEG) is placed like a Markdown image, and a block no renderer takes
+    /// stays code. This is how diagrams such as Mermaid get in. Default: none.
     /// </summary>
-    public Func<string, string, DocumentResource?>? RenderCodeBlock { get; init; }
+    public IReadOnlyList<ICodeBlockRenderer> CodeBlockRenderers { get; init; } = [];
 
     /// <summary>
     /// Called with each text element (grapheme cluster) that has a character the font of its text lacks — so

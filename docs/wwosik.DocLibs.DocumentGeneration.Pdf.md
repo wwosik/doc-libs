@@ -1,7 +1,7 @@
-# wwosik.DocLibs.DocumentGeneration.Pdf
+﻿# wwosik.DocLibs.DocumentGeneration.Pdf
 
-Generates PDF/A-2b documents from Markdown, in the built-in neutral design, with embedded
-Liberation fonts. Cross-platform, AOT-compatible, no Office or browser needed. Depends on Markdig,
+Generates PDF/A-2b documents from Markdown, in the built-in design in a brand's colours, fonts and
+images, with embedded fonts (Liberation by default). Cross-platform, AOT-compatible, no Office or browser needed. Depends on Markdig,
 PdfPig and [wwosik.DocLibs.DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md).
 
 ```csharp
@@ -14,11 +14,11 @@ var document = new MarkdownDocument(
     new Dictionary<string, string> { [MetadataKeys.Author] = "DocLibs" });
 
 using var output = File.Create("report.pdf");
-PdfGenerator.Generate(document, output);                                    // neutral, A4 portrait
+PdfGenerator.Generate(document, output);                                    // neutral brand, A4 portrait
 
 PdfGenerator.Generate(document, output, new PdfOptions
 {
-    Template = new NeutralPdfTemplateOptions { ShowDate = false },
+    Template = new BrandPdfTemplateOptions { Brand = BrandPack.Load("brands/acme"), ShowDate = false },
     PageSize = PdfPageSize.Letter,
     Orientation = PdfOrientation.Landscape,
 });
@@ -39,10 +39,11 @@ PdfGenerator.Generate(document, output, new PdfOptions
 
 | Option | Default | |
 | ------ | ------- | --- |
-| `Template` | `NeutralPdfTemplateOptions` | `NeutralPdfTemplateOptions { ShowDate }`, `true` by default |
+| `Template` | `BrandPdfTemplateOptions` with `Brand.Neutral` | `BrandPdfTemplateOptions { Brand, ShowDate, ShowTagline }`, both `true` by default |
+| `Brands` | none | brands front matter may select, see [Brands](wwosik.DocLibs.DocumentGeneration.md#brands) |
 | `PageSize` | `A4` | `A4`, `A3`, `Letter` |
 | `Orientation` | `Portrait` | `Portrait`, `Landscape` |
-| `RenderCodeBlock` | none | see [Diagrams](#diagrams) |
+| `CodeBlockRenderers` | none | see [Diagrams](#diagrams) |
 | `ReplaceUnsupported` | none (throws) | see [Characters the fonts lack](#characters-the-fonts-lack) |
 | `TimeProvider` | `TimeProvider.System` | the date of generation in the footer |
 
@@ -55,8 +56,8 @@ The shared syntax and rules are in
 
 | Key | Values | Templates |
 | --- | ------ | --------- |
-| `template` | `neutral` | all |
-| `showDate` | `true`, `false` | neutral |
+| `template` | `neutral`, the brand of `Template`, or a brand in `PdfOptions.Brands` | all |
+| `showDate`, `showTagline` | `true`, `false` | all |
 | `pageSize` | `A4`, `A3`, `Letter` | all |
 | `orientation` | `portrait`, `landscape` | all |
 | `title`, `author` | text | all |
@@ -66,13 +67,13 @@ The shared syntax and rules are in
 - **Cover page** when the document starts with a `#` heading: the title in 30 pt bold in the brand
   colour at about a quarter of the page height, the paragraphs up to the next heading as subtitle,
   the brand's logo top right, its artwork across the bottom (at most 42 % of the page height) and
-  its claim bottom right — the neutral brand has none of these. No header or footer on the
+  its tagline bottom right (`ShowTagline`) — the neutral brand has none of these. No header or footer on the
   cover. Anything else in the first section (lists, tables, images) starts the content on page 2.
   A document that does not start with `#` has no cover.
 - **Content pages:** margins 20 mm left and right; header with the document title (8 pt) left and
   the logo right; footer with the footer text, the date (`ShowDate`, `dd.MM.yyyy`) and "n / m"
   right. Page numbers count the cover.
-- **Body text** 10.5 pt Liberation Sans, line height 1.35. Headings bold in the brand colour,
+- **Body text** 10.5 pt in the brand's regular face (Liberation Sans by default), line height 1.35. Headings bold in the brand colour,
   20 / 16 / 13.5 / 12 / 11 / 10.5 pt.
 
 | Markdown | PDF |
@@ -84,7 +85,7 @@ The shared syntax and rules are in
 | Lists | Hanging indent of 18 pt per level, `•` / `–` alternating by level, numbers from the list's start value. |
 | Code blocks | Liberation Mono 9 pt on light grey, wrapped by characters. |
 | Quotes | Indented, grey, with a rule on the left per quote level. |
-| Tables | 9.5 pt; full content width. Each column gets at least its longest word, the rest is shared in proportion to the content. Header row in the brand table colour with white bold text, banded rows, thin lines, alignment from the Markdown. A row that doesn't fit moves to the next page and the header row repeats there; a row taller than a page splits at line boundaries. |
+| Tables | 9.5 pt, in the brand's table fonts if it has them; full content width. Each column gets at least its longest word, the rest is shared in proportion to the content. Header row in the brand table colour with white bold text, banded rows, thin lines, alignment from the Markdown. A row that doesn't fit moves to the next page and the header row repeats there; a row taller than a page splits at line boundaries. |
 | Images | Natural size at 96 DPI, `"scale=N.N"` in the title multiplies it; scaled down to the content width and page height, never up; centred; moved to the next page if they don't fit. |
 | `---` | A thin line. |
 | `**bold**`, `*italic*`, `~~strike~~`, `` `code` `` | Font face; strike as a line through. |
@@ -92,6 +93,12 @@ The shared syntax and rules are in
 | Raw HTML | Written out as text. HTML comments are dropped. |
 
 ## Fonts
+
+A brand's own fonts replace Liberation Sans, and Liberation Mono too when the brand has mono
+faces; they are embedded the same way and follow the same glyph rules. Table fonts, if the brand
+has them, draw table cells — see [Table fonts](wwosik.DocLibs.DocumentGeneration.md#table-fonts).
+Requirements and licensing: [Brands → Fonts](wwosik.DocLibs.DocumentGeneration.md#fonts). The rest of this chapter is about the
+bundled fonts.
 
 - **Liberation Sans** (regular, bold, italic, bold italic) and **Liberation Mono** (regular, bold),
   version 2.1.5, SIL Open Font License 1.1 (`Fonts/OFL.txt`, shipped in the package). They have the
@@ -103,10 +110,12 @@ The shared syntax and rules are in
   throw, unless `ReplaceUnsupported` replaces them. Liberation Mono covers a little less than Sans
   (e.g. not `‖` U+2016, `ȷ` U+0237 or the spaces `U+2000`–`U+2006`), so the same
   character can be fine in body text and missing in code.
-- **To change the family:** replace the files under `Fonts/` and the six names in
-  `FontSet.Liberation`.
+- **To change the default family:** replace the files under `Fonts/` and the six names in
+  `FontSet.Liberation` (its table faces are the text faces). For one client, give its brand fonts instead.
 - PdfPig writes TrueType fonts as simple fonts of at most 255 distinct characters. The renderer
-  adds the same font again when a copy is full, so documents with more characters work.
+  adds the same font again when a copy is full, so documents with more characters work. Copies
+  are kept per file, not per face: faces sharing a file (tables without fonts of their own) share
+  its embedded copies.
 
 ## PDF/A
 
@@ -149,9 +158,22 @@ new PdfOptions { ReplaceUnsupported = c => c switch { "✓" => "[x]", "✗" => "
 
 ## Diagrams
 
-`PdfOptions.RenderCodeBlock` is called with the language and the code of every fenced code block.
-A returned `DocumentResource` (PNG or JPEG) is placed like a Markdown image; `null` keeps the
-block as code. The library renders nothing itself and starts no process.
+`PdfOptions.CodeBlockRenderers` are asked in order about every fenced code block, and the first
+graphic wins. A block no renderer takes stays code. For Mermaid, add
+`new MermaidRenderer()` from
+[wwosik.DocLibs.DocumentGeneration.Diagrams](wwosik.DocLibs.DocumentGeneration.Diagrams.md). A
+renderer can return:
+
+- a **`DrawingGraphic`**, drawn as vector paths (fill, stroke, dashes, cubic curves) straight
+  into the page. It is placed like an image: centred, at 0.75 pt per pixel, shrunk to the content
+  width and the page height, never enlarged, and moved to the next page if it does not fit. Its
+  text is set in the table faces (the text faces without table fonts), embedded and checked for
+  glyphs like any other text. A line wider than its room shrinks down to 70 %. Colours are device
+  RGB without transparency, so the PDF stays PDF/A-2b.
+- an **`ImageGraphic`**, a PNG or JPEG placed like a Markdown image.
+
+The request carries the language, the code, the brand the document is generated in (after front
+matter) and the block's line in the Markdown.
 
 ## Known limits
 

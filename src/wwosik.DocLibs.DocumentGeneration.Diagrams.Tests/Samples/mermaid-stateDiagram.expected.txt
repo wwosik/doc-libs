@@ -1,0 +1,37 @@
+drawing 210.52 x 656.5
+roundrect fill=F1F7F8 stroke=9AC8CC w=1.25 at 27.06 338.1 size 149.15 248.4 r=12
+path fill=CAE2E4 stroke=none : M 27.06 366.1 L 27.06 350.1 C 27.06 342.1 31.06 338.1 39.06 338.1 L 164.21 338.1 C 172.21 338.1 176.21 342.1 176.21 350.1 L 176.21 366.1 Z
+path fill=none stroke=9AC8CC w=1.25 : M 27.06 366.1 L 176.21 366.1
+path fill=none stroke=6B7280 w=1.5 : M 101.64 40 L 101.64 70
+path fill=6B7280 stroke=6B7280 w=1 : M 106.14 60 L 101.64 70 L 97.14 60 Z
+path fill=none stroke=6B7280 w=1.5 : M 89.56 112.2 L 89.56 132.2 C 89.56 137.53 86.9 140.2 81.56 140.2 L 54.2 140.2 C 48.87 140.2 46.2 142.87 46.2 148.2 L 46.2 168.05 C 46.2 173.38 48.87 176.05 54.2 176.05 L 78.9 176.05 C 84.24 176.05 86.9 178.72 86.9 184.05 L 86.9 204.05
+path fill=6B7280 stroke=6B7280 w=1 : M 91.4 194.05 L 86.9 204.05 L 82.4 194.05 Z
+path fill=none stroke=6B7280 w=1.5 : M 116.37 204.05 L 116.37 184.05 C 116.37 178.72 119.03 176.05 124.37 176.05 L 149.07 176.05 C 154.4 176.05 157.07 173.38 157.07 168.05 L 157.07 148.2 C 157.07 142.87 154.4 140.2 149.07 140.2 L 121.71 140.2 C 116.37 140.2 113.71 137.53 113.71 132.2 L 113.71 112.2
+path fill=6B7280 stroke=6B7280 w=1 : M 109.21 122.2 L 113.71 112.2 L 118.21 122.2 Z
+path fill=none stroke=6B7280 w=1.5 : M 101.56 246 L 101.56 338
+path fill=6B7280 stroke=6B7280 w=1 : M 106.06 328 L 101.56 338 L 97.06 328 Z
+path fill=none stroke=6B7280 w=1.5 : M 101.56 418 L 101.56 448
+path fill=6B7280 stroke=6B7280 w=1 : M 106.06 438 L 101.56 448 L 97.06 438 Z
+path fill=none stroke=6B7280 w=1.5 : M 101.56 490.5 L 101.56 520.5
+path fill=6B7280 stroke=6B7280 w=1 : M 106.06 510.5 L 101.56 520.5 L 97.06 510.5 Z
+path fill=none stroke=6B7280 w=1.5 : M 101.56 586.5 L 101.56 616.5
+path fill=6B7280 stroke=6B7280 w=1 : M 106.06 606.5 L 101.56 616.5 L 97.06 606.5 Z
+text 39.06 357 start size=14 color=06373B : **"Published"**
+roundrect fill=FFFFFF stroke=6B7280 w=1.5 at 20.2 147.32 size 52 21.6 r=10.8
+text 46.21 162.33 middle size=12 color=000000 max=36 : "submit"
+roundrect fill=FFFFFF stroke=6B7280 w=1.5 at 124.23 147.32 size 65.68 21.6 r=10.8
+text 157.07 162.33 middle size=12 color=000000 max=49.68 : "changes"
+roundrect fill=FFFFFF stroke=6B7280 w=1.5 at 69.4 287.27 size 64.31 21.6 r=10.8
+text 101.56 302.28 middle size=12 color=000000 max=48.31 : "approve"
+ellipse fill=0E7C86 stroke=none at 91.64 18 size 20 20
+roundrect fill=E6F4F5 stroke=0E7C86 w=1.25 at 65.42 70 size 72.42 42.2 r=14
+text 101.64 96 middle size=14 color=000000 max=56.42 : "Draft"
+roundrect fill=E6F4F5 stroke=0E7C86 w=1.25 at 57.44 204.05 size 88.38 42.2 r=14
+text 101.64 230.05 middle size=14 color=000000 max=72.38 : "Review"
+ellipse fill=none stroke=0E7C86 w=2 at 91.64 618.5 size 20 20
+ellipse fill=0E7C86 stroke=none at 95.64 622.5 size 12 12
+ellipse fill=0E7C86 stroke=none at 91.64 396.1 size 20 20
+roundrect fill=E6F4F5 stroke=0E7C86 w=1.25 at 66.22 448.1 size 70.83 42.2 r=14
+text 101.64 474.1 middle size=14 color=000000 max=54.83 : "Live"
+roundrect fill=E6F4F5 stroke=0E7C86 w=1.25 at 51.06 520.3 size 101.15 42.2 r=14
+text 101.64 546.3 middle size=14 color=000000 max=85.15 : "Archived"

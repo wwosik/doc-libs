@@ -1,0 +1,31 @@
+drawing 1202 x 374
+roundrect fill=0E7C86 stroke=none at 24 33.5 size 9 9 r=2
+text 40 44.3 start size=18 color=000000 : **"Release plan"**
+roundrect fill=F5F5F5 stroke=none at 24 72 size 1154 246 r=12
+path fill=none stroke=DBDBDB w=1 : M 198 80 L 198 318
+text 198 342.2 middle size=12 color=5C5C5C : "Jan 5"
+path fill=none stroke=DBDBDB w=1 : M 348 80 L 348 318
+text 348 342.2 middle size=12 color=5C5C5C : "Jan 12"
+path fill=none stroke=DBDBDB w=1 : M 498 80 L 498 318
+text 498 342.2 middle size=12 color=5C5C5C : "Jan 19"
+path fill=none stroke=DBDBDB w=1 : M 648 80 L 648 318
+text 648 342.2 middle size=12 color=5C5C5C : "Jan 26"
+path fill=none stroke=DBDBDB w=1 : M 798 80 L 798 318
+text 798 342.2 middle size=12 color=5C5C5C : "Feb 2"
+path fill=none stroke=DBDBDB w=1 : M 948 80 L 948 318
+text 948 342.2 middle size=12 color=5C5C5C : "Feb 9"
+path fill=none stroke=DBDBDB w=1 : M 1098 80 L 1098 318
+text 1098 342.2 middle size=12 color=5C5C5C : "Feb 16"
+path fill=none stroke=6B7280 w=1.25 : M 198 318 L 1098 318
+text 38 104.2 start size=12 color=2C333D : **"BUILD"**
+path fill=none stroke=BEC5CE w=1.25 : M 94.24 100 L 184 100
+text 38 140.9 start size=14 color=000000 : "Design"
+roundrect fill=64748B stroke=none at 198 126 size 214.29 20 r=6
+text 38 176.9 start size=14 color=000000 : "Implement"
+roundrect fill=64748B stroke=none at 412.29 162 size 428.57 20 r=6
+text 38 212.2 start size=12 color=06373B : **"SHIP"**
+path fill=none stroke=9AC8CC w=1.25 : M 84.6 208 L 184 208
+text 38 248.9 start size=14 color=000000 : "Verify"
+roundrect fill=0E7C86 stroke=none at 862.29 234 size 150 20 r=6
+path fill=0E7C86 stroke=none : M 1098 272 L 1106 280 L 1098 288 L 1090 280 Z
+text 1114 284.9 start size=14 color=000000 : "Release"

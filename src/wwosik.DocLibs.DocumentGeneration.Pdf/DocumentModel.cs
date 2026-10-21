@@ -10,6 +10,9 @@ internal enum RunStyle
     Italic = 2,
     Code = 4,
     Strike = 8,
+
+    /// <summary>Set by the layout, never by the parser: text in a table cell, drawn in the table faces.</summary>
+    Table = 16,
 }
 
 /// <summary>Text in one style; the text <c>"\n"</c> alone is a line break. <see cref="Link"/> is a URL or <c>#anchor</c>.</summary>
@@ -48,6 +51,9 @@ internal sealed record TableBlock(IReadOnlyList<IReadOnlyList<IReadOnlyList<Text
 internal sealed record ImageBlock(DocumentResource Resource, ImageInfo Info, double Scale) : Block;
 
 internal sealed record RuleBlock : Block;
+
+/// <summary>A vector drawing from a code-block renderer.</summary>
+internal sealed record DrawingBlock(Drawing Drawing) : Block;
 
 /// <summary>The cover: the first <c>#</c> heading and the paragraphs up to the next heading.</summary>
 internal sealed record Cover(IReadOnlyList<TextRun> Title, IReadOnlyList<IReadOnlyList<TextRun>> Subtitle, string? Anchor);

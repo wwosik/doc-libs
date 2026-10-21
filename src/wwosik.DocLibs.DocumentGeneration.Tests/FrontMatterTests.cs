@@ -23,10 +23,10 @@ public class FrontMatterTests
     [Fact]
     public void Syntax_AllowsComments_BlankLines_Quotes_DotsAndAnyCase()
     {
-        var front = FrontMatter.Read("---\r\n# comment\r\n\r\nTITLE: \"Plan: 2027\"\r\nauthor: 'Team VT'\r\n...\r\nbody\r\n", DocumentFormat.Pdf);
+        var front = FrontMatter.Read("---\r\n# comment\r\n\r\nTITLE: \"Plan: 2027\"\r\nauthor: 'Team Docs'\r\n...\r\nbody\r\n", DocumentFormat.Pdf);
 
         Assert.Equal("Plan: 2027", front.Title);
-        Assert.Equal("Team VT", front.Author);
+        Assert.Equal("Team Docs", front.Author);
         Assert.Equal("body\r\n", front.Body);
     }
 

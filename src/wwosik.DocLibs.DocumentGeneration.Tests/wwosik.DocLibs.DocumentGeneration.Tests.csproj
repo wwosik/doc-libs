@@ -15,4 +15,9 @@
     <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration\wwosik.DocLibs.DocumentGeneration.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Samples\**" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Samples\brand-sample\**" LogicalName="Brand.%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
 </Project>

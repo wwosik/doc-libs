@@ -187,7 +187,7 @@ public class LayoutTests
     [Fact]
     public void Replacement_AlsoGivesTheTitle()
     {
-        var engine = new LayoutEngine(new FakeMetrics(), A4, new Design(Brand.Neutral, ShowClaim: false, null, HeaderTitle: "Done ✓"), _ => "[x]");
+        var engine = new LayoutEngine(new FakeMetrics(), A4, new Design(ResolvedBrand.Neutral, ShowTagline: false, null, HeaderTitle: "Done ✓"), _ => "[x]");
 
         var layout = engine.Run(new DocumentModel(null, [new ParagraphBlock([Run("text")])]));
 
@@ -226,8 +226,92 @@ public class LayoutTests
         Assert.All(lines.Skip(1), l => Assert.StartsWith("e\u0301", l, StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void Drawing_IsShrunkToTheContentWidth_WithItsLinesAndDashes()
+    {
+        var drawing = new Drawing(2000, 100, [new DrawingShape(DrawingPath.Rectangle(0, 0, 2000, 100), null, "000000", 4) { Dash = [8, 4] }]);
+
+        var layout = Engine().Run(new DocumentModel(null, [new DrawingBlock(drawing)]));
+
+        var shape = Assert.Single(layout.Pages[0].Items.OfType<ShapeItem>());
+        var scale = A4.ContentWidth / 2000;
+        Assert.Equal((Math.Round(A4.Left, 6), A4.Top), Point(shape.Path[0]));
+        Assert.Equal(A4.Right, ((LineTo)shape.Path[1]).X, 6);
+        Assert.Equal(A4.Top + (100 * scale), ((LineTo)shape.Path[2]).Y, 6);
+        Assert.Equal(4 * scale, shape.Width, 6);
+        Assert.Equal([Math.Round(8 * scale, 6), Math.Round(4 * scale, 6)], shape.Dash!.Select(d => Math.Round(d, 6)));
+    }
+
+    [Fact]
+    public void SmallDrawing_IsCentred_AtAPixelPerThreeQuarterPoint()
+    {
+        var drawing = new Drawing(100, 40, [new DrawingShape(DrawingPath.Rectangle(0, 0, 100, 40), "FF0000", null, 0)]);
+
+        var layout = Engine().Run(new DocumentModel(null, [new DrawingBlock(drawing)]));
+
+        var shape = Assert.Single(layout.Pages[0].Items.OfType<ShapeItem>());
+        Assert.Equal((Math.Round(A4.Left + ((A4.ContentWidth - 75) / 2), 6), A4.Top), Point(shape.Path[0]));
+        Assert.Equal((Math.Round(A4.Left + ((A4.ContentWidth + 75) / 2), 6), A4.Top), Point(shape.Path[1]));
+    }
+
+    [Fact]
+    public void TallDrawing_FitsThePage_AndMovesToTheNextOneIfNeeded()
+    {
+        var drawing = new Drawing(100, 5000, [new DrawingShape(DrawingPath.Rectangle(0, 0, 100, 5000), "FF0000", null, 0)]);
+
+        var layout = Engine().Run(new DocumentModel(null, [new ParagraphBlock([Run("before")]), new DrawingBlock(drawing)]));
+
+        var shape = Assert.Single(layout.Pages[1].Items.OfType<ShapeItem>());
+        Assert.Equal(A4.Top, ((MoveTo)shape.Path[0]).Y, 6);
+        Assert.Equal(A4.Bottom, ((LineTo)shape.Path[2]).Y, 6);
+    }
+
+    [Theory]
+    [InlineData(50, 10.5)]  // 75 pt of text in 37.5 pt: shrunk, but not below 70 %
+    [InlineData(90, 13.5)]  // in 67.5 pt: shrunk to fit
+    [InlineData(200, 15)]   // fits
+    public void Labels_ShrinkToTheirRoom_DownTo70Percent(double room, double size)
+    {
+        var text = new DrawingText(100, 50, "abcdefghij", 20, "111111") { Anchor = TextAnchor.Middle, MaxWidth = room };
+
+        var layout = Engine().Run(new DocumentModel(null, [new DrawingBlock(new Drawing(200, 100, [text]))]));
+
+        var item = Assert.Single(layout.Pages[0].Items.OfType<TextItem>(), t => t.Text == "abcdefghij");
+        var left = A4.Left + ((A4.ContentWidth - 150) / 2);
+        Assert.Equal(size, item.Size, 6);
+        Assert.Equal(left + 75 - (10 * size * 0.5 / 2), item.X, 6);
+        Assert.Equal(A4.Top + 37.5, item.Baseline, 6);
+        Assert.Equal(("111111", FontFace.TableRegular), (item.Color, item.Face));
+    }
+
+    [Fact]
+    public void LabelSpans_FollowEachOther_InTheirFaces()
+    {
+        var text = new DrawingText(0, 20, [new DrawingSpan("ab", Bold: true), new DrawingSpan("cd")], 20, "111111");
+        var mono = new DrawingText(0, 40, "x", 20, "111111") { Mono = true };
+
+        var layout = Engine().Run(new DocumentModel(null, [new DrawingBlock(new Drawing(100, 50, [text, mono]))]));
+
+        var items = layout.Pages[0].Items.OfType<TextItem>().Where(t => t.Text is "ab" or "cd" or "x").ToList();
+        Assert.Equal([FontFace.TableBold, FontFace.TableRegular, FontFace.Mono], items.Select(i => i.Face));
+        Assert.Equal(items[0].X + (2 * 15 * 0.5), items[1].X, 6);
+    }
+
+    [Fact]
+    public void LabelCharacters_TheFontLacks_Throw()
+    {
+        var drawing = new Drawing(100, 50, [new DrawingText(0, 20, "done ✓", 12, "111111")]);
+
+        var error = Assert.Throws<DocumentConversionException>(() => Engine().Run(new DocumentModel(null, [new DrawingBlock(drawing)])));
+
+        Assert.Contains("(TableRegular)", error.Reason, StringComparison.Ordinal);
+    }
+
+    private static (double X, double Y) Point(PathSegment segment) =>
+        segment.Points.Select(p => (Math.Round(p.X, 6), Math.Round(p.Y, 6))).Single();
+
     private static LayoutEngine Engine(string? date = null, Func<string, string>? replace = null) =>
-        new(new FakeMetrics(), A4, new Design(Brand.Neutral, ShowClaim: false, date, HeaderTitle: null), replace);
+        new(new FakeMetrics(), A4, new Design(ResolvedBrand.Neutral, ShowTagline: false, date, HeaderTitle: null), replace);
 
     private static TextRun Run(string text) => new(text, RunStyle.None);
 

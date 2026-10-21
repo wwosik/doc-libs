@@ -29,6 +29,7 @@ internal sealed class DeckWriter
     private readonly P.Presentation presentation;
     private readonly PptxOptions options;
     private readonly string? date;
+    private readonly string? tableFont;
     private readonly long slideWidth;
     private readonly long slideHeight;
     private readonly string tableStyleId;
@@ -40,11 +41,15 @@ internal sealed class DeckWriter
     private uint nextSlideId = 256;
 
     /// <summary>Opens the deck for writing. Layouts named in <paramref name="names"/> win over the lookup by type.</summary>
-    /// <remarks><paramref name="date"/> is the text for the date placeholder, or <see langword="null"/> for no date.</remarks>
-    public DeckWriter(PresentationDocument package, PptxOptions options, PptxLayoutNames? names, string? date)
+    /// <remarks>
+    /// <paramref name="date"/> is the text for the date placeholder, or <see langword="null"/> for no date;
+    /// <paramref name="tableFont"/> the family of table text, or <see langword="null"/> for the theme font.
+    /// </remarks>
+    public DeckWriter(PresentationDocument package, PptxOptions options, PptxLayoutNames? names, string? date, string? tableFont = null)
     {
         this.options = options;
         this.date = date;
+        this.tableFont = tableFont;
         this.presentationPart = package.PresentationPart ?? throw Damaged("it has no presentation part.");
         this.presentation = this.presentationPart.Presentation ?? throw Damaged("ppt/presentation.xml is empty.");
         this.RemoveSlides();
@@ -169,15 +174,16 @@ internal sealed class DeckWriter
         {
             placed = this.Table(canvas, table, new Rect(area.X, y, area.W, 0));
         }
-        else if (slide.Image is { } image)
+        else if (slide.Image is not null || slide.Drawing is not null)
         {
             var room = area.Bottom - y - (captionHeight > 0 ? captionHeight + Gap : 0);
-            placed = this.Picture(canvas, image, new Rect(area.X, y, area.W, Math.Max(room, area.H / 4)));
+            var box = new Rect(area.X, y, area.W, Math.Max(room, area.H / 4));
+            placed = slide.Image is { } image ? this.Picture(canvas, image, box) : this.Drawing(canvas, slide.Drawing!, box);
         }
 
         if (slide.Below.Count > 0)
         {
-            this.TextBox(canvas, new Rect(area.X, placed.Bottom + Gap, area.W, captionHeight), slide.Below, CaptionSize, center: slide.Image is not null);
+            this.TextBox(canvas, new Rect(area.X, placed.Bottom + Gap, area.W, captionHeight), slide.Below, CaptionSize, center: slide.Image is not null || slide.Drawing is not null);
         }
 
         return canvas;
@@ -292,7 +298,8 @@ internal sealed class DeckWriter
     }
 
     // In placeholders the template's levels supply indents and bullets; in text boxes and cells they are explicit.
-    private A.Paragraph Paragraph(Canvas canvas, TextParagraph paragraph, bool explicitBullets, int? size, CellAlignment alignment = CellAlignment.Default)
+    // `font` is the family of all but code runs; null leaves them in the theme font.
+    private A.Paragraph Paragraph(Canvas canvas, TextParagraph paragraph, bool explicitBullets, int? size, CellAlignment alignment = CellAlignment.Default, string? font = null)
     {
         var level = Math.Min(paragraph.Level, 8);
         var properties = new A.ParagraphProperties();
@@ -347,7 +354,7 @@ internal sealed class DeckWriter
         var result = new A.Paragraph(properties);
         foreach (var run in paragraph.Runs)
         {
-            result.Append(run.IsBreak ? new A.Break() : this.Run(canvas, run, size));
+            result.Append(run.IsBreak ? new A.Break() : this.Run(canvas, run, size, font));
         }
 
         var end = new A.EndParagraphRunProperties();
@@ -360,7 +367,7 @@ internal sealed class DeckWriter
         return result;
     }
 
-    private A.Run Run(Canvas canvas, TextRun run, int? size)
+    private A.Run Run(Canvas canvas, TextRun run, int? size, string? font = null)
     {
         var properties = new A.RunProperties();
         if (run.Style.HasFlag(RunStyle.Bold))
@@ -386,6 +393,10 @@ internal sealed class DeckWriter
         if (run.Style.HasFlag(RunStyle.Code))
         {
             properties.Append(new A.LatinFont { Typeface = this.options.CodeFont });
+        }
+        else if (font is not null)
+        {
+            properties.Append(new A.LatinFont { Typeface = font });
         }
 
         if (run.Link is { } link && canvas.Hyperlink(link) is { } relationshipId)
@@ -431,6 +442,16 @@ internal sealed class DeckWriter
         return placed;
     }
 
+    // Fitted into the box like a picture: centred, scaled down, never up.
+    private Rect Drawing(Canvas canvas, Drawing drawing, Rect box)
+    {
+        var fit = Math.Min(1.0, Math.Min(box.W / (drawing.Width * EmuPerPixel), box.H / (drawing.Height * EmuPerPixel)));
+        var width = (long)(drawing.Width * EmuPerPixel * fit);
+        var placed = new Rect(box.X + ((box.W - width) / 2), box.Y, width, (long)(drawing.Height * EmuPerPixel * fit));
+        canvas.Add(DrawingWriter.Group(drawing, placed.X, placed.Y, EmuPerPixel * fit, canvas.NextId, this.tableFont, this.options.CodeFont));
+        return placed;
+    }
+
     private Rect Table(Canvas canvas, SlideTable table, Rect box)
     {
         var columns = table.Alignments.Count;
@@ -455,7 +476,7 @@ internal sealed class DeckWriter
             var tableRow = new A.TableRow { Height = rowHeight };
             for (var c = 0; c < columns; c++)
             {
-                var paragraph = this.Paragraph(canvas, new TextParagraph(row[c]), explicitBullets: true, size, table.Alignments[c]);
+                var paragraph = this.Paragraph(canvas, new TextParagraph(row[c]), explicitBullets: true, size, table.Alignments[c], this.tableFont);
                 tableRow.Append(new A.TableCell(new A.TextBody(new A.BodyProperties(), new A.ListStyle(), paragraph), new A.TableCellProperties()));
             }
 
@@ -608,7 +629,7 @@ internal sealed class DeckWriter
         yield return length;
     }
 
-    private static string XmlSafe(string text) =>
+    internal static string XmlSafe(string text) =>
         text.Any(c => char.IsControl(c) && c != '\t') ? new string(text.Where(c => !char.IsControl(c) || c == '\t').ToArray()) : text;
 
     private static DocumentConversionException Damaged(string reason) =>

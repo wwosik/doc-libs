@@ -15,16 +15,16 @@ public class TemplateTests
     [Fact]
     public void DefaultTemplate_IsNeutral()
     {
-        Assert.IsType<NeutralTemplateOptions>(PptxOptions.Default.Template);
+        Assert.IsType<BrandTemplateOptions>(PptxOptions.Default.Template);
         using var package = Samples.Open(Samples.Generate(Samples.Markdown(Sections)));
 
-        Assert.Equal("Neutral", package.PresentationPart!.SlideMasterParts.Single().ThemePart!.Theme!.Name!.Value);
+        Assert.Equal("neutral", package.PresentationPart!.SlideMasterParts.Single().ThemePart!.Theme!.Name!.Value);
     }
 
     [Fact]
     public void BuiltInTemplate_CarriesNothingButDesign()
     {
-        using var package = Samples.Open(Samples.TemplateBytes(new NeutralTemplateOptions()));
+        using var package = Samples.Open(Samples.TemplateBytes(new BrandTemplateOptions()));
 
         Assert.Empty(package.PresentationPart!.SlideParts);
         Assert.Null(package.CustomFilePropertiesPart);
@@ -35,7 +35,7 @@ public class TemplateTests
     [Fact]
     public void NeutralTemplate_HasNoImages()
     {
-        using var package = Samples.Open(Samples.TemplateBytes(new NeutralTemplateOptions()));
+        using var package = Samples.Open(Samples.TemplateBytes(new BrandTemplateOptions()));
 
         Assert.Empty(Media(package));
         Assert.Empty(PictureNames(Cover(package)));
@@ -79,7 +79,7 @@ public class TemplateTests
     [Fact]
     public void TemplateWithoutSectionLayout_UsesTheTitleLayoutForDividers()
     {
-        var edited = Samples.EditedTemplate(new NeutralTemplateOptions(), master => Samples.RemoveLayout(master, P.SlideLayoutValues.SectionHeader));
+        var edited = Samples.EditedTemplate(new BrandTemplateOptions(), master => Samples.RemoveLayout(master, P.SlideLayoutValues.SectionHeader));
 
         var pptx = Samples.Generate(Samples.Markdown(Sections), new PptxOptions { Template = new CustomTemplateOptions(new MemoryStream(edited)) });
 
@@ -91,7 +91,7 @@ public class TemplateTests
     [Fact]
     public void SectionLayoutWithoutTitlePlaceholder_TakesTheTitleInItsBody_AndTheSubtitleBelow()
     {
-        var edited = Samples.EditedTemplate(new NeutralTemplateOptions(), master =>
+        var edited = Samples.EditedTemplate(new BrandTemplateOptions(), master =>
         {
             var section = master.SlideLayoutParts.Single(l => l.SlideLayout!.Type!.Value == P.SlideLayoutValues.SectionHeader).SlideLayout!;
             section.Descendants<P.Shape>().Single(s => s.Descendants<P.PlaceholderShape>().Any(p => p.Type?.Value == P.PlaceholderValues.Title)).Remove();
@@ -124,7 +124,7 @@ public class TemplateTests
     [Fact]
     public void ShowDateFalse_LeavesTheDateOut()
     {
-        var options = new NeutralTemplateOptions { ShowDate = false };
+        var options = new BrandTemplateOptions { ShowDate = false };
 
         using var package = Samples.Open(Samples.Generate(Samples.Markdown(Sections), new PptxOptions { Template = options }));
 
@@ -135,7 +135,7 @@ public class TemplateTests
     [Fact]
     public void CallerTemplate_NeverGetsADate()
     {
-        var template = Samples.TemplateBytes(new NeutralTemplateOptions());
+        var template = Samples.TemplateBytes(new BrandTemplateOptions());
 
         using var package = Samples.Open(Samples.Generate(Samples.Markdown(Sections), new PptxOptions { Template = new CustomTemplateOptions(new MemoryStream(template)) }));
 
@@ -145,7 +145,7 @@ public class TemplateTests
     [Fact]
     public void LayoutNames_PickLayoutsInATemplateWithoutLayoutTypes()
     {
-        var untyped = Samples.EditedTemplate(new NeutralTemplateOptions(), master =>
+        var untyped = Samples.EditedTemplate(new BrandTemplateOptions(), master =>
         {
             foreach (var layout in master.SlideLayoutParts)
             {
@@ -180,7 +180,7 @@ public class TemplateTests
     [Fact]
     public void UnknownLayoutName_ThrowsListingTheLayouts()
     {
-        var template = Samples.TemplateBytes(new NeutralTemplateOptions());
+        var template = Samples.TemplateBytes(new BrandTemplateOptions());
         var options = new PptxOptions
         {
             Template = new CustomTemplateOptions(new MemoryStream(template)) { Layouts = new PptxLayoutNames { Content = "Titel und Inhalt" } },

@@ -1,0 +1,44 @@
+drawing 402.17 x 789.09
+roundrect fill=F1F7F8 stroke=9AC8CC w=1.25 at 16 433.69 size 370.17 204.4 r=12
+path fill=CAE2E4 stroke=none : M 16 461.69 L 16 445.69 C 16 437.69 20 433.69 28 433.69 L 374.17 433.69 C 382.17 433.69 386.17 437.69 386.17 445.69 L 386.17 461.69 Z
+path fill=none stroke=9AC8CC w=1.25 : M 16 461.69 L 386.17 461.69
+path fill=none stroke=6B7280 w=1.5 : M 201.09 58.2 L 201.09 98
+path fill=6B7280 stroke=6B7280 w=1 : M 205.59 88 L 201.09 98 L 196.59 88 Z
+path fill=none stroke=6B7280 w=1.5 : M 176.51 221 L 176.51 265.64 C 176.51 270.97 173.85 273.64 168.51 273.64 L 123.55 273.64 C 118.22 273.64 115.55 276.3 115.55 281.64 L 115.55 337.49
+path fill=6B7280 stroke=6B7280 w=1 : M 120.05 327.49 L 115.55 337.49 L 111.05 327.49 Z
+path fill=none stroke=6B7280 w=1.5 dash=5,4 : M 225.66 221 L 225.66 265.64 C 225.66 270.97 228.33 273.64 233.66 273.64 L 278.62 273.64 C 283.95 273.64 286.62 276.3 286.62 281.64 L 286.62 337.49
+path fill=6B7280 stroke=6B7280 w=1 : M 291.12 327.49 L 286.62 337.49 L 282.12 327.49 Z
+path fill=none stroke=6B7280 w=3 : M 154 379.5 L 154 489.5
+path fill=6B7280 stroke=6B7280 w=1 : M 158.5 479.5 L 154 489.5 L 149.5 479.5 Z
+path fill=none stroke=6B7280 w=1.5 : M 238 393.5 L 238 489.5
+path fill=6B7280 stroke=6B7280 w=1 : M 242.5 479.5 L 238 489.5 L 233.5 479.5 Z
+path fill=none stroke=6B7280 w=1.5 : M 139 532 L 139 572
+path fill=6B7280 stroke=6B7280 w=1 : M 143.5 562 L 139 572 L 134.5 562 Z
+path fill=none stroke=6B7280 w=1.5 : M 223 532 L 223 539.5 C 223 544.5 225.5 547 230.5 547 L 269.5 547 C 274.83 547 277.5 549.67 277.5 555 L 277.5 572
+path fill=6B7280 stroke=6B7280 w=1 : M 282 562 L 277.5 572 L 273 562 Z
+path fill=none stroke=6B7280 w=1.5 : M 277.5 614 L 277.5 634 C 277.5 639.33 274.83 642 269.5 642 L 223 642 C 217.67 642 212.33 644.67 207 650 L 214.5 680
+text 28 452.59 start size=14 color=06373B : **"Output"**
+roundrect fill=FFFFFF stroke=6B7280 w=1.5 at 96.39 280.76 size 38.32 21.6 r=10.8
+text 115.55 295.76 middle size=12 color=000000 max=22.32 : "yes"
+roundrect fill=FFFFFF stroke=6B7280 w=1.5 at 270.88 280.76 size 31.48 21.6 r=10.8
+text 286.62 295.76 middle size=12 color=000000 max=15.48 : "no"
+roundrect fill=E6F4F5 stroke=0E7C86 w=1.25 at 114.6 16 size 172.97 42.2 r=8
+text 201.09 42 middle size=14 color=000000 max=156.97 : "Markdown document"
+path fill=E4F1F2 stroke=0A5C63 w=1.25 : M 201.09 98.2 L 274.8 171.92 L 201.09 245.64 L 127.37 171.92 Z
+text 201.09 176.82 middle size=14 color=000000 max=103.21 : "Has front matter?"
+roundrect fill=E6F4F5 stroke=0E7C86 w=1.25 at 45.03 337.49 size 141.05 42.2 r=8
+text 115.55 363.49 middle size=14 color=000000 max=125.05 : "Apply the brand"
+rect fill=EFEFF1 stroke=none at 222.08 344.49 size 129.08 42.2
+path fill=none stroke=4F545F w=1.25 : M 222.08 344.49 L 222.08 386.69
+path fill=none stroke=4F545F w=1.25 : M 351.16 344.49 L 351.16 386.69
+ellipse fill=EFEFF1 stroke=4F545F w=1.25 at 222.08 379.69 size 129.08 14
+ellipse fill=EFEFF1 stroke=4F545F w=1.25 at 222.08 337.49 size 129.08 14
+text 286.62 370.49 middle size=14 color=000000 max=113.08 : "Neutral brand"
+ellipse fill=E6F4F5 stroke=0E7C86 w=1.25 at 153.59 678.09 size 95 95
+text 201.09 730.49 middle size=14 color=000000 max=79 : "Done"
+roundrect fill=EFEFF1 stroke=4F545F w=1.75 at 121.98 489.69 size 131.48 42.2 r=21.1
+text 187.72 515.69 middle size=14 color=000000 max=115.48 : "Lay out pages"
+path fill=E6F4F5 stroke=0E7C86 w=1.25 : M 52 571.89 L 156.34 571.89 L 156.34 614.09 L 52 614.09 L 40 592.99 Z
+text 98.17 597.89 middle size=14 color=000000 max=92.34 : "PDF/A-2b"
+path fill=E6F4F5 stroke=0E7C86 w=1.25 : M 202.89 571.89 L 351.62 571.89 L 362.17 592.99 L 351.62 614.09 L 202.89 614.09 L 192.34 592.99 Z
+text 277.26 597.89 middle size=14 color=000000 max=145.83 : "PowerPoint deck"

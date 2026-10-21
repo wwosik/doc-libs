@@ -15,7 +15,7 @@ namespace wwosik.DocLibs.DocumentGeneration.Pptx;
 /// Turns Markdown into slides: the cover from the first <c>#</c>, a section divider per later <c>#</c>, one slide per
 /// <c>##</c>, and a slide per table or image.
 /// </summary>
-internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions options)
+internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions options, Brand brand, int lineOffset)
 {
     private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder()
         .UsePipeTables()
@@ -27,9 +27,13 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
     private SectionBuilder? section;
     private bool hasCover;
 
-    public static IReadOnlyList<Slide> Parse(MarkdownDocument document, PptxOptions options)
+    /// <remarks>
+    /// <paramref name="brand"/> is the brand code-block renderers draw in; <paramref name="lineOffset"/> the lines of
+    /// front matter cut off the Markdown, so renderers get the block's line in the original.
+    /// </remarks>
+    public static IReadOnlyList<Slide> Parse(MarkdownDocument document, PptxOptions options, Brand? brand = null, int lineOffset = 0)
     {
-        var parser = new DeckParser(document, options);
+        var parser = new DeckParser(document, options, brand ?? Brand.Neutral, lineOffset);
         foreach (var block in Markdown.Parse(document.Markdown, Pipeline))
         {
             parser.Block(block);
@@ -54,6 +58,11 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         }
     }
 
+    private CodeBlockGraphic? Render(FencedCodeBlock fenced) =>
+        options.CodeBlockRenderers.Count == 0 ? null : CodeBlockRenderers.Render(
+            options.CodeBlockRenderers,
+            new CodeBlockRequest(fenced.Info ?? string.Empty, fenced.Lines.ToString(), brand) { Line = fenced.Line + 1 + lineOffset });
+
     private void Walk(Block block, SectionBuilder target, int level, RunStyle style)
     {
         switch (block)
@@ -77,9 +86,16 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             case Table table:
                 target.Visual(this.Table(table), null);
                 break;
-            case FencedCodeBlock fenced when options.RenderCodeBlock is { } render
-                && render(fenced.Info ?? string.Empty, fenced.Lines.ToString()) is { } rendered:
-                target.Visual(null, new SlideImage(rendered, fenced.Info ?? string.Empty, 1.0));
+            case FencedCodeBlock fenced when this.Render(fenced) is { } rendered:
+                if (rendered is DrawingGraphic drawing)
+                {
+                    target.Visual(null, null, drawing.Drawing);
+                }
+                else if (rendered is ImageGraphic image)
+                {
+                    target.Visual(null, new SlideImage(image.Image, fenced.Info ?? string.Empty, 1.0));
+                }
+
                 break;
             case CodeBlock code:
                 foreach (var line in code.Lines.ToString().Split('\n'))
@@ -335,11 +351,14 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         private List<TextParagraph> below = [];
         private SlideTable? table;
         private SlideImage? image;
+        private Drawing? drawing;
         private bool titlePending = isTitle;
 
-        public void Text(TextParagraph paragraph) => (this.table is null && this.image is null ? this.above : this.below).Add(paragraph);
+        private bool HasVisual => this.table is not null || this.image is not null || this.drawing is not null;
 
-        public void Visual(SlideTable? newTable, SlideImage? newImage)
+        public void Text(TextParagraph paragraph) => (this.HasVisual ? this.below : this.above).Add(paragraph);
+
+        public void Visual(SlideTable? newTable, SlideImage? newImage, Drawing? newDrawing = null)
         {
             if (this.titlePending)
             {
@@ -347,13 +366,14 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
                 this.above = [];
                 this.titlePending = false;
             }
-            else if (this.table is not null || this.image is not null)
+            else if (this.HasVisual)
             {
                 this.FlushVisual();
             }
 
             this.table = newTable;
             this.image = newImage;
+            this.drawing = newDrawing;
         }
 
         public void Finish()
@@ -362,7 +382,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             {
                 slides.Add(new TitleSlide(title, this.above, isSection));
             }
-            else if (this.table is not null || this.image is not null)
+            else if (this.HasVisual)
             {
                 this.FlushVisual();
             }
@@ -374,11 +394,12 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
 
         private void FlushVisual()
         {
-            slides.Add(new VisualSlide(title, this.above, this.table, this.image, this.below));
+            slides.Add(new VisualSlide(title, this.above, this.table, this.image, this.below) { Drawing = this.drawing });
             this.above = [];
             this.below = [];
             this.table = null;
             this.image = null;
+            this.drawing = null;
         }
     }
 }

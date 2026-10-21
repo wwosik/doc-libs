@@ -1,0 +1,31 @@
+drawing 216.28 x 411.2
+path fill=none stroke=6B7280 w=1.5 : M 108.14 112 L 108.14 207.6
+path fill=none stroke=6B7280 w=1.5 : M 108.14 251.6 L 108.14 347.2
+roundrect fill=FFFFFF stroke=none at 20 20 size 176.28 92 r=8
+path fill=E6F4F5 stroke=none : M 20 56 L 20 28 C 20 22.67 22.67 20 28 20 L 188.28 20 C 193.61 20 196.28 22.67 196.28 28 L 196.28 56 Z
+path fill=none stroke=0E7C86 w=1.25 : M 20 56 L 196.28 56
+roundrect fill=none stroke=0E7C86 w=1.25 at 20 20 size 176.28 92 r=8
+path fill=none stroke=DBDBDB w=1 : M 32 84 L 184.28 84
+text 108.14 43.6 middle size=16 color=000000 : **"CUSTOMER"**
+text 36 74.2 start size=12 color=5C5C5C mono : "string"
+text 91.2 74.9 start size=14 color=000000 mono : "name"
+roundrect fill=CAE2E4 stroke=none at 149.2 62 size 31.08 16 r=4
+text 164.74 74.2 middle size=12 color=06373B : **"PK"**
+text 36 102.2 start size=12 color=5C5C5C mono : "string"
+text 91.2 102.9 start size=14 color=000000 mono : "email"
+roundrect fill=E6F4F5 stroke=0E7C86 w=1.25 at 48.14 207.6 size 120 44 r=8
+text 108.14 235.2 middle size=16 color=000000 : **"ORDER"**
+roundrect fill=E6F4F5 stroke=0E7C86 w=1.25 at 46.3 347.2 size 123.68 44 r=8
+text 108.14 374.8 middle size=16 color=000000 : **"LINE_ITEM"**
+path fill=none stroke=6B7280 w=1.5 round : M 114.64 121 L 101.64 121
+path fill=none stroke=6B7280 w=1.5 round : M 114.64 126 L 101.64 126
+path fill=none stroke=6B7280 w=1.5 round : M 100.64 207.6 L 108.14 194.6 L 115.64 207.6
+ellipse fill=FFFFFF stroke=6B7280 w=1.5 at 103.64 181.1 size 9 9
+path fill=none stroke=6B7280 w=1.5 round : M 114.64 260.6 L 101.64 260.6
+path fill=none stroke=6B7280 w=1.5 round : M 114.64 265.6 L 101.64 265.6
+path fill=none stroke=6B7280 w=1.5 round : M 100.64 347.2 L 108.14 334.2 L 115.64 347.2
+path fill=none stroke=6B7280 w=1.5 round : M 101.64 329.2 L 114.64 329.2
+roundrect fill=FFFFFF stroke=6B7280 w=1.5 at 80.77 149 size 54.74 21.6 r=10.8
+text 108.14 164 middle size=12 color=000000 max=38.74 : "places"
+roundrect fill=FFFFFF stroke=6B7280 w=1.5 at 75.98 288.6 size 64.31 21.6 r=10.8
+text 108.14 303.6 middle size=12 color=000000 max=48.31 : "contains"

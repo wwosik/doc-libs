@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Generates PDF/A documents from Markdown, in the built-in neutral design, with embedded Liberation fonts.</Description>
+    <Description>Generates PDF/A-2b documents from Markdown in a brand's colours, fonts and images, with embedded fonts (Liberation by default).</Description>
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 

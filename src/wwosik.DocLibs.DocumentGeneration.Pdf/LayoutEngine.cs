@@ -5,7 +5,7 @@ using wwosik.DocLibs.DocumentConversions;
 namespace wwosik.DocLibs.DocumentGeneration.Pdf;
 
 /// <summary>What the layout takes from the template and the document besides the blocks.</summary>
-internal sealed record Design(Brand Brand, bool ShowClaim, string? Date, string? HeaderTitle);
+internal sealed record Design(ResolvedBrand Brand, bool ShowTagline, string? Date, string? HeaderTitle);
 
 /// <summary>
 /// Puts the block model onto pages: greedy line breaking, page breaks, lists, tables with repeated header rows,
@@ -28,6 +28,8 @@ internal sealed class LayoutEngine
     private const double CoverTitleSize = 30;
     private const double CoverSubtitleSize = 13;
     private const double FooterSize = 8;
+    private const double PointsPerPixel = 0.75;
+    private const double MinLabelScale = 0.7;
     private const string Grey = "4B5563";
     private const string CodeBackground = "F3F4F6";
     private const string White = "FFFFFF";
@@ -145,6 +147,9 @@ internal sealed class LayoutEngine
                 break;
             case ImageBlock image:
                 this.Image(image, frame);
+                break;
+            case DrawingBlock drawing:
+                this.Drawing(drawing.Drawing, frame);
                 break;
             case RuleBlock:
                 this.Ensure(12);
@@ -305,6 +310,80 @@ internal sealed class LayoutEngine
         this.Gap(ParagraphGap, frame);
     }
 
+    // Placed like an image: centred, scaled down to the content width and the page height, never up.
+    private void Drawing(Drawing drawing, Frame frame)
+    {
+        if (drawing.Width <= 0 || drawing.Height <= 0)
+        {
+            return;
+        }
+
+        var fit = Math.Min(1.0, Math.Min(frame.Width / (drawing.Width * PointsPerPixel), (this.geometry.Bottom - this.geometry.Top) / (drawing.Height * PointsPerPixel)));
+        var scale = PointsPerPixel * fit;
+        var height = drawing.Height * scale;
+        this.Ensure(height);
+        var left = frame.Left + ((frame.Width - (drawing.Width * scale)) / 2);
+        var top = this.y;
+        (double X, double Y) Place(double x, double y) => (left + (x * scale), top + (y * scale));
+        foreach (var item in drawing.Items)
+        {
+            switch (item)
+            {
+                case DrawingShape shape:
+                    var path = shape.Path.Segments.Select(segment => segment switch
+                    {
+                        MoveTo m => (PathSegment)new MoveTo(Place(m.X, m.Y).X, Place(m.X, m.Y).Y),
+                        LineTo l => new LineTo(Place(l.X, l.Y).X, Place(l.X, l.Y).Y),
+                        CubicTo c => new CubicTo(Place(c.X1, c.Y1).X, Place(c.X1, c.Y1).Y, Place(c.X2, c.Y2).X, Place(c.X2, c.Y2).Y, Place(c.X, c.Y).X, Place(c.X, c.Y).Y),
+                        _ => segment,
+                    }).ToList();
+                    this.page.Items.Add(new ShapeItem(path, shape.Fill, shape.Stroke, shape.StrokeWidth * scale, shape.Dash?.Select(d => d * scale).ToList(), shape.RoundJoins));
+                    break;
+                case DrawingText text:
+                    var (x, baseline) = Place(text.X, text.Baseline);
+                    this.Label(text, x, baseline, scale);
+                    break;
+            }
+        }
+
+        this.Advance(height, frame);
+        this.Gap(ParagraphGap, frame);
+    }
+
+    // A drawing's text in the diagram faces (the table faces), shrunk to its room down to 70 %, then anchored.
+    private void Label(DrawingText text, double x, double baseline, double scale)
+    {
+        var spans = text.Spans
+            .Select(span =>
+            {
+                var face = text.Mono ? span.Bold ? FontFace.MonoBold : FontFace.Mono : span.Bold ? FontFace.TableBold : FontFace.TableRegular;
+                return (Text: this.Supported(Visible(span.Text), face), Face: face);
+            })
+            .Where(span => span.Text.Length > 0)
+            .ToList();
+        double Measure(double size) => spans.Sum(span => this.metrics.Width(span.Text, span.Face, size));
+
+        var size = text.Size * scale;
+        var width = Measure(size);
+        if (text.MaxWidth is { } room && width > room * scale)
+        {
+            size *= Math.Max(MinLabelScale, room * scale / width);
+            width = Measure(size);
+        }
+
+        x -= text.Anchor switch
+        {
+            TextAnchor.Middle => width / 2,
+            TextAnchor.End => width,
+            _ => 0,
+        };
+        foreach (var (spanText, face) in spans)
+        {
+            this.page.Items.Add(new TextItem(x, baseline, spanText, face, size, text.Color));
+            x += this.metrics.Width(spanText, face, size);
+        }
+    }
+
     private void Table(TableBlock table, Frame frame)
     {
         var columns = table.Alignments.Count;
@@ -316,12 +395,12 @@ internal sealed class LayoutEngine
         table = table with
         {
             Rows = [.. table.Rows.Select((row, r) => (IReadOnlyList<IReadOnlyList<TextRun>>)
-                [.. row.Select(cell => this.Supported(cell, r == 0 && table.HasHeader ? RunStyle.Bold : RunStyle.None))])],
+                [.. row.Select(cell => this.Supported(cell, CellStyle(table, r)))])],
         };
         var widths = this.ColumnWidths(table, frame.Width);
         var cells = table.Rows
             .Select((row, r) => Enumerable.Range(0, columns)
-                .Select(c => this.Wrap(row[c], widths[c] - (2 * CellPadding), TableSize, r == 0 && table.HasHeader ? RunStyle.Bold : RunStyle.None))
+                .Select(c => this.Wrap(row[c], widths[c] - (2 * CellPadding), TableSize, CellStyle(table, r)))
                 .ToList())
             .ToList();
         var lineHeight = TableSize * LineFactor;
@@ -410,6 +489,9 @@ internal sealed class LayoutEngine
         this.Advance(height, frame);
     }
 
+    // Cells are in the table faces; the header row is bold.
+    private static RunStyle CellStyle(TableBlock table, int row) => row == 0 && table.HasHeader ? RunStyle.Table | RunStyle.Bold : RunStyle.Table;
+
     private static double RowHeight(List<List<TextLine>> row, double lineHeight) =>
         (row.Max(c => Math.Max(1, c.Count)) * lineHeight) + (2 * CellPadding);
 
@@ -421,7 +503,7 @@ internal sealed class LayoutEngine
         var natural = new double[columns];
         for (var r = 0; r < table.Rows.Count; r++)
         {
-            var style = r == 0 && table.HasHeader ? RunStyle.Bold : RunStyle.None;
+            var style = CellStyle(table, r);
             for (var c = 0; c < columns; c++)
             {
                 var pieces = this.Pieces(table.Rows[r][c], TableSize, style);
@@ -482,7 +564,7 @@ internal sealed class LayoutEngine
         var width = this.geometry.Width;
         var height = this.geometry.Height;
         var margin = this.geometry.Left;
-        if (brand.Artwork is { } artwork && ImageInfo.Read(artwork) is { } art)
+        if (brand.CoverArtwork is { } artwork && ImageInfo.Read(artwork) is { } art)
         {
             var ratio = (double)art.Height / art.Width;
             var w = width;
@@ -516,11 +598,11 @@ internal sealed class LayoutEngine
             this.y += 4;
         }
 
-        if (this.design.ShowClaim && brand.Claim is { } claim && ImageInfo.Read(claim) is { } claimInfo)
+        if (this.design.ShowTagline && brand.Tagline is { } tagline && ImageInfo.Read(tagline) is { } taglineInfo)
         {
             var w = width * 0.17;
-            var h = w * claimInfo.Height / claimInfo.Width;
-            this.page.Items.Add(new ImageItem(claim, claim, claimInfo.Format, width - margin - w, height - (margin * 0.6) - h, w, h));
+            var h = w * taglineInfo.Height / taglineInfo.Width;
+            this.page.Items.Add(new ImageItem(tagline, tagline, taglineInfo.Format, width - margin - w, height - (margin * 0.6) - h, w, h));
         }
 
         if (brand.Logo is { } logo && ImageInfo.Read(logo) is { } logoInfo)
@@ -885,12 +967,16 @@ internal sealed class LayoutEngine
 
     private static FontFace Face(RunStyle style) => style.HasFlag(RunStyle.Code)
         ? style.HasFlag(RunStyle.Bold) ? FontFace.MonoBold : FontFace.Mono
-        : (style.HasFlag(RunStyle.Bold), style.HasFlag(RunStyle.Italic)) switch
+        : (style.HasFlag(RunStyle.Table), style.HasFlag(RunStyle.Bold), style.HasFlag(RunStyle.Italic)) switch
         {
-            (true, true) => FontFace.BoldItalic,
-            (true, false) => FontFace.Bold,
-            (false, true) => FontFace.Italic,
-            _ => FontFace.Regular,
+            (false, true, true) => FontFace.BoldItalic,
+            (false, true, false) => FontFace.Bold,
+            (false, false, true) => FontFace.Italic,
+            (false, false, false) => FontFace.Regular,
+            (true, true, true) => FontFace.TableBoldItalic,
+            (true, true, false) => FontFace.TableBold,
+            (true, false, true) => FontFace.TableItalic,
+            (true, false, false) => FontFace.TableRegular,
         };
 
     /// <summary>The column a block flows in, its text colour, and the x of the rule of each enclosing quote.</summary>

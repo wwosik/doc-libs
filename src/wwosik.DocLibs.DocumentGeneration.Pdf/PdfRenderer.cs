@@ -2,6 +2,12 @@
 using System.Text;
 using System.Xml.Linq;
 using UglyToad.PdfPig.Core;
+using UglyToad.PdfPig.Graphics.Core;
+using UglyToad.PdfPig.Graphics.Operations;
+using UglyToad.PdfPig.Graphics.Operations.General;
+using UglyToad.PdfPig.Graphics.Operations.PathConstruction;
+using UglyToad.PdfPig.Graphics.Operations.PathPainting;
+using UglyToad.PdfPig.Graphics.Operations.SpecialGraphicsState;
 using UglyToad.PdfPig.Outline;
 using UglyToad.PdfPig.Outline.Destinations;
 using UglyToad.PdfPig.Writer;
@@ -17,7 +23,8 @@ internal sealed class PdfRenderer
 
     private readonly PdfDocumentBuilder builder = new() { ArchiveStandard = PdfAStandard.A2B };
     private readonly FontSet fonts;
-    private readonly Dictionary<FontFace, List<FontSlot>> slots = [];
+    // By file, not by face: faces sharing a file (tables without fonts of their own) share its embedded copies.
+    private readonly Dictionary<byte[], List<FontSlot>> slots = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<object, PdfPageBuilder.AddedImage> images = new(ReferenceEqualityComparer.Instance);
 
     private PdfRenderer(FontSet fonts)
@@ -177,6 +184,9 @@ internal sealed class PdfRenderer
                 }
 
                 break;
+            case ShapeItem shape:
+                DrawShape(page, shape, height);
+                break;
             case LinkItem link:
                 var linkArea = new PdfRectangle(link.X, height - link.Y - link.Height, link.X + link.Width, height - link.Y);
                 if (link.Target.StartsWith('#'))
@@ -193,6 +203,52 @@ internal sealed class PdfRenderer
 
                 break;
         }
+    }
+
+    // PdfPig has no API for curves, so the path operators go straight into the page's content stream, inside q … Q
+    // so the colours and line state set here do not leak into what PdfPig writes next.
+    private static void DrawShape(PdfPageBuilder page, ShapeItem shape, double pageHeight)
+    {
+        var stroke = shape.Stroke is not null && shape.Width > 0;
+        if ((shape.Fill is null && !stroke) || shape.Path.Count == 0)
+        {
+            return;
+        }
+
+        var operations = page.CurrentStream.Operations;
+        operations.Add(Push.Value);
+        if (shape.Fill is { } fill)
+        {
+            var (r, g, b) = Rgb(fill);
+            operations.Add(new SetNonStrokeColorDeviceRgb(r / 255.0, g / 255.0, b / 255.0));
+        }
+
+        if (stroke)
+        {
+            var (r, g, b) = Rgb(shape.Stroke!);
+            operations.Add(new SetStrokeColorDeviceRgb(r / 255.0, g / 255.0, b / 255.0));
+            operations.Add(new SetLineWidth(shape.Width));
+            operations.Add(new SetLineJoin(shape.RoundJoins ? LineJoinStyle.Round : LineJoinStyle.Miter));
+            operations.Add(new SetLineCap(shape.RoundJoins ? LineCapStyle.Round : LineCapStyle.Butt));
+            if (shape.Dash is { Count: > 0 } dash)
+            {
+                operations.Add(new SetLineDashPattern([.. dash], 0));
+            }
+        }
+
+        foreach (var segment in shape.Path)
+        {
+            operations.Add(segment switch
+            {
+                MoveTo m => new BeginNewSubpath(m.X, pageHeight - m.Y),
+                LineTo l => new AppendStraightLineSegment(l.X, pageHeight - l.Y),
+                CubicTo c => new AppendDualControlPointBezierCurve(c.X1, pageHeight - c.Y1, c.X2, pageHeight - c.Y2, c.X, pageHeight - c.Y),
+                _ => CloseSubpath.Value,
+            });
+        }
+
+        operations.Add(shape.Fill is null ? StrokePath.Value : stroke ? FillPathNonZeroWindingAndStroke.Value : FillPathNonZeroWinding.Value);
+        operations.Add(Pop.Value);
     }
 
     // Writes the text segment by segment, each in a copy of the font that still has room for its characters.
@@ -229,16 +285,17 @@ internal sealed class PdfRenderer
 
     private FontSlot SlotFor(FontFace face, char character)
     {
-        if (!this.slots.TryGetValue(face, out var list))
+        var file = this.fonts.File(face);
+        if (!this.slots.TryGetValue(file, out var list))
         {
             list = [];
-            this.slots[face] = list;
+            this.slots[file] = list;
         }
 
         var slot = list.FirstOrDefault(s => s.Characters.Contains(character)) ?? list.FirstOrDefault(s => s.Characters.Count < CharactersPerFont);
         if (slot is null)
         {
-            slot = new FontSlot(this.builder.AddTrueTypeFont(this.fonts.File(face)));
+            slot = new FontSlot(this.builder.AddTrueTypeFont(file));
             list.Add(slot);
         }
 

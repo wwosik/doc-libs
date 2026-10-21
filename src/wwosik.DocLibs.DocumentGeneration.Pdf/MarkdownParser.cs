@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using System.Diagnostics;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using Markdig;
 using Markdig.Extensions.AutoIdentifiers;
@@ -16,7 +17,7 @@ namespace wwosik.DocLibs.DocumentGeneration.Pdf;
 /// Turns Markdown into the block model. A document that starts with a <c>#</c> heading gets a cover from it and
 /// the paragraphs up to the next heading; everything else flows as blocks.
 /// </summary>
-internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptions options)
+internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptions options, Brand brand, int lineOffset)
 {
     private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder()
         .UsePipeTables()
@@ -25,9 +26,13 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         .UseAutoIdentifiers(AutoIdentifierOptions.GitHub)
         .Build();
 
-    public static DocumentModel Parse(MarkdownDocument document, PdfOptions options)
+    /// <remarks>
+    /// <paramref name="brand"/> is the brand code-block renderers draw in; <paramref name="lineOffset"/> the lines of
+    /// front matter cut off the Markdown, so renderers get the block's line in the original.
+    /// </remarks>
+    public static DocumentModel Parse(MarkdownDocument document, PdfOptions options, Brand? brand = null, int lineOffset = 0)
     {
-        var parser = new MarkdownParser(document, options);
+        var parser = new MarkdownParser(document, options, brand ?? Brand.Neutral, lineOffset);
         var markdown = Markdown.Parse(document.Markdown, Pipeline);
         var blocks = markdown.ToList();
         Cover? cover = null;
@@ -76,9 +81,13 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
             case Table table:
                 target.Add(this.Table(table));
                 break;
-            case FencedCodeBlock fenced when options.RenderCodeBlock is { } render
-                && render(fenced.Info ?? string.Empty, fenced.Lines.ToString()) is { } rendered:
-                target.Add(this.Image(rendered, 1.0));
+            case FencedCodeBlock fenced when this.Render(fenced) is { } rendered:
+                target.Add(rendered switch
+                {
+                    DrawingGraphic drawing => new DrawingBlock(drawing.Drawing),
+                    ImageGraphic image => this.Image(image.Image, 1.0),
+                    _ => throw new UnreachableException(),
+                });
                 break;
             case Markdig.Syntax.CodeBlock code:
                 target.Add(new CodeBlock(code.Lines.ToString().Replace("\t", "    ", StringComparison.Ordinal).Split('\n')));
@@ -105,6 +114,11 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
                 break;
         }
     }
+
+    private CodeBlockGraphic? Render(FencedCodeBlock fenced) =>
+        options.CodeBlockRenderers.Count == 0 ? null : CodeBlockRenderers.Render(
+            options.CodeBlockRenderers,
+            new CodeBlockRequest(fenced.Info ?? string.Empty, fenced.Lines.ToString(), brand) { Line = fenced.Line + 1 + lineOffset });
 
     private List<Block> Children(ContainerBlock container)
     {

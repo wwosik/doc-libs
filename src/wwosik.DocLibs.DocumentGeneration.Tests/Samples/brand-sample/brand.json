@@ -1,0 +1,27 @@
+{
+  "name": "sample",
+  "footerText": "Sample Corporation",
+  "colors": {
+    "primary": "#0E7C86",
+    "link": "#B45309",
+    "table": { "header": "#0E7C86", "band": "#E6F4F5", "line": "#B8D8DB" },
+    "gradient": ["#0E7C86", "#5EB8BF"],
+    "diagram": { "palette": ["#0E7C86", "#B45309", "#5EB8BF", "#7C3AED", "#BE123C", "#4B5563"] }
+  },
+  "images": {
+    "logo": "logo.png",
+    "logoOnDark": "logo-on-dark.png",
+    "coverArtwork": "cover-artwork.png",
+    "tagline": "tagline.png"
+  },
+  "fonts": {
+    "regular": "fonts/LiberationSerif-Regular.ttf",
+    "bold": "fonts/LiberationSerif-Bold.ttf",
+    "italic": "fonts/LiberationSerif-Italic.ttf",
+    "boldItalic": "fonts/LiberationSerif-BoldItalic.ttf",
+    "table": {
+      "regular": "fonts/table/PT_Sans-Narrow-Web-Regular.ttf",
+      "bold": "fonts/table/PT_Sans-Narrow-Web-Bold.ttf"
+    }
+  }
+}

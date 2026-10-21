@@ -1,0 +1,27 @@
+drawing 614.9 x 432
+roundrect fill=0E7C86 stroke=none at 40 35.5 size 9 9 r=2
+text 56 46.3 start size=18 color=000000 : **"Revenue by region"**
+path fill=0E7C86 stroke=0A5C63 w=1.25 round : M 232 240 L 232 112 C 283.95 112 330.74 143.39 350.44 191.45 C 370.14 239.52 358.84 294.72 321.84 331.18 Z
+path fill=B45309 stroke=853D07 w=1.25 round : M 232 240 L 321.84 331.18 C 292.88 359.72 252.07 372.8 211.92 366.41 C 171.76 360.03 137.02 334.95 118.33 298.84 Z
+path fill=5EB8BF stroke=46888D w=1.25 round : M 232 240 L 118.33 298.84 C 94.03 251.9 101.08 194.84 136.09 155.23 Z
+path fill=7C3AED stroke=5C2BAF w=1.25 round : M 232 240 L 136.09 155.23 C 160.39 127.74 195.31 112 232 112 Z
+path fill=none stroke=6B7280 w=1.25 round : M 353.21 190.32 L 363.39 186.14
+text 374.49 186.49 start size=14 color=000000 : **"37.62%"**
+path fill=none stroke=6B7280 w=1.25 round : M 211.44 369.38 L 209.72 380.24
+text 207.83 396.99 end size=14 color=000000 : **"29.78%"**
+path fill=none stroke=6B7280 w=1.25 round : M 101.99 223.91 L 91.07 222.56
+text 79.17 225.99 end size=14 color=000000 : **"19.12%"**
+path fill=none stroke=6B7280 w=1.25 round : M 178.17 120.57 L 173.65 110.54
+text 168.72 104.5 end size=14 color=000000 : **"13.48%"**
+roundrect fill=0E7C86 stroke=none at 472 193 size 10 10 r=3
+text 490 202.9 start size=14 color=000000 : "North"
+text 535.21 202.2 start size=12 color=5C5C5C : "37.62%"
+roundrect fill=B45309 stroke=none at 472 221 size 10 10 r=3
+text 490 230.9 start size=14 color=000000 : "South"
+text 536.81 230.2 start size=12 color=5C5C5C : "29.78%"
+roundrect fill=5EB8BF stroke=none at 472 249 size 10 10 r=3
+text 490 258.9 start size=14 color=000000 : "East"
+text 528.83 258.2 start size=12 color=5C5C5C : "19.12%"
+roundrect fill=7C3AED stroke=none at 472 277 size 10 10 r=3
+text 490 286.9 start size=14 color=000000 : "West"
+text 531.22 286.2 start size=12 color=5C5C5C : "13.48%"

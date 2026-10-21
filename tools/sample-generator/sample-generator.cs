@@ -14,7 +14,7 @@ using UglyToad.PdfPig.Writer;
 
 // sample-generator: writes the self-made sample documents the test projects compare against.
 //
-//   ./run.sh sample-generator              .pdf, .docx, .pptx, .xlsx, .rtf, .txt, .zip
+//   ./run.sh sample-generator              .pdf, .docx, .pptx, .xlsx, .rtf, .txt, .zip, the images of the sample brand
 //   run.ps1 sample-generator --office      additionally .doc and .xls, saved by Word and Excel (Windows only)
 //
 // Everything is built in code, so the samples contain nothing but the text below. After
@@ -24,6 +24,7 @@ var office = args.Contains("--office");
 var root = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(SourcePath())!, "..", ".."));
 var main = Path.Combine(root, "src", "wwosik.DocLibs.DocumentConversions.Tests", "Samples");
 var windows = Path.Combine(root, "src", "wwosik.DocLibs.DocumentConversions.WindowsOnly.Tests", "Samples");
+var brand = Path.Combine(root, "src", "wwosik.DocLibs.DocumentGeneration.Tests", "Samples", "brand-sample");
 string[] generators =
 [
     Path.Combine(root, "src", "wwosik.DocLibs.DocumentGeneration.Pptx.Tests", "Samples"),
@@ -39,6 +40,11 @@ Write(Path.Combine(main, "sample.txt"), Encoding.UTF8.GetBytes("Plain text sampl
 Write(Path.Combine(main, "sample.zip"), Samples.Zip());
 Write(Path.Combine(windows, "sample.xlsx"), Samples.Xlsx());
 Write(Path.Combine(windows, "sample.rtf"), Encoding.ASCII.GetBytes(Samples.Rtf()));
+Directory.CreateDirectory(brand);
+Write(Path.Combine(brand, "logo.png"), Samples.BrandLogo);
+Write(Path.Combine(brand, "logo-on-dark.png"), Samples.BrandLogoOnDark);
+Write(Path.Combine(brand, "cover-artwork.png"), Samples.BrandArtwork);
+Write(Path.Combine(brand, "tagline.png"), Samples.BrandTagline);
 foreach (var generator in generators)
 {
     Directory.CreateDirectory(generator);
@@ -79,6 +85,24 @@ internal static class Samples
 
     public static readonly byte[] Chart = Png.Create(24, 16, (x, y) =>
         y >= 16 - (((x / 6) + 1) * 4) ? ((byte)(x < 12 ? 0xC0 : 0x30), (byte)(x < 12 ? 0x30 : 0xA0), (byte)0x30) : ((byte)0xFF, (byte)0xFF, (byte)0xFF));
+
+    // The made-up brand "sample": a teal mark with a bar, its white twin, diagonal bands, and a tagline strip.
+    public static readonly byte[] BrandLogo = Png.Create(240, 80, (x, y) =>
+        x < 80 ? ((byte)0x0E, (byte)0x7C, (byte)0x86) : y is > 30 and < 50 ? ((byte)0xF5, (byte)0x9E, (byte)0x0B) : ((byte)0xFF, (byte)0xFF, (byte)0xFF));
+
+    public static readonly byte[] BrandLogoOnDark = Png.Create(240, 80, (x, y) =>
+        x < 80 || y is > 30 and < 50 ? ((byte)0xFF, (byte)0xFF, (byte)0xFF) : ((byte)0x0E, (byte)0x7C, (byte)0x86));
+
+    public static readonly byte[] BrandArtwork = Png.Create(800, 300, (x, y) =>
+        ((x + (2 * y)) / 60 % 3) switch
+        {
+            0 => ((byte)0x0E, (byte)0x7C, (byte)0x86),
+            1 => ((byte)0x5E, (byte)0xB8, (byte)0xBF),
+            _ => ((byte)0xFF, (byte)0xFF, (byte)0xFF),
+        });
+
+    public static readonly byte[] BrandTagline = Png.Create(300, 60, (x, y) =>
+        y is > 20 and < 40 && x % 40 < 30 ? ((byte)0x0E, (byte)0x7C, (byte)0x86) : ((byte)0xFF, (byte)0xFF, (byte)0xFF));
 
     public static readonly byte[] Photo = Png.Create(20, 20, (x, y) => ((byte)(x * 12), (byte)(y * 12), 0x80));
 

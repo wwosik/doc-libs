@@ -20,9 +20,10 @@ public static class PptxGenerator
 
     /// <summary>Writes <paramref name="document"/> as a <c>.pptx</c> to <paramref name="output"/>.</summary>
     /// <exception cref="DocumentConversionException">
-    /// An image is not among the document's resources or not a PNG, JPEG or GIF, the front matter is invalid, a named
-    /// layout does not exist, or the template is damaged.
+    /// An image is not among the document's resources or not a PNG, JPEG or GIF, the front matter is invalid or names
+    /// an unknown brand, a named layout does not exist, or the template is damaged.
     /// </exception>
+    /// <exception cref="ArgumentException">The brand is invalid, or two of <see cref="PptxOptions.Brands"/> share a name.</exception>
     public static void Generate(MarkdownDocument document, Stream output, PptxOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -30,8 +31,8 @@ public static class PptxGenerator
         options ??= PptxOptions.Default;
 
         var frontMatter = FrontMatter.Read(document.Markdown, Format.Pptx);
-        var template = PptxTemplateOptions.Apply(frontMatter, options.Template ?? PptxOptions.Default.Template);
-        var slides = DeckParser.Parse(document with { Markdown = frontMatter.Body }, options);
+        var template = PptxTemplateOptions.Apply(frontMatter, options.Template ?? PptxOptions.Default.Template, options.Brands);
+        var slides = DeckParser.Parse(document with { Markdown = frontMatter.Body }, options, template.BrandValue, frontMatter.BodyLine);
         var date = template.ShowsDate
             ? options.TimeProvider.GetLocalNow().ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)
             : null;
@@ -48,7 +49,8 @@ public static class PptxGenerator
                 package.ChangeDocumentType(PresentationDocumentType.Presentation);
             }
 
-            new DeckWriter(package, options, template.LayoutNames, date).Write(slides);
+            var tableFont = template.BrandValue is { } brand ? ResolvedBrand.Resolve(brand).TableFontFamily : null;
+            new DeckWriter(package, options, template.LayoutNames, date, tableFont).Write(slides);
             WriteCoreProperties(
                 package,
                 frontMatter.Title ?? Title(document, slides),

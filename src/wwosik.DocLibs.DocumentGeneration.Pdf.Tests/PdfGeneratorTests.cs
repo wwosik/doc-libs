@@ -8,7 +8,7 @@ public class PdfGeneratorTests
 {
     private static readonly PdfOptions WithDiagrams = new()
     {
-        RenderCodeBlock = (language, code) => language == "mermaid" ? Samples.Image("photo.png") : null,
+        CodeBlockRenderers = [Samples.Renderer(request => request.Language == "mermaid" ? new ImageGraphic(Samples.Image("photo.png")) : null)],
     };
 
     [Theory]
@@ -61,9 +61,9 @@ public class PdfGeneratorTests
         }
 
         var document = Samples.Document("report.md");
-        using var fromFrontMatter = PdfDocument.Open(Samples.Generate(document with { Markdown = "---\ntitle: Override\nauthor: Team VT\n---\n" + document.Markdown }));
+        using var fromFrontMatter = PdfDocument.Open(Samples.Generate(document with { Markdown = "---\ntitle: Override\nauthor: Team Docs\n---\n" + document.Markdown }));
         Assert.Equal("Override", fromFrontMatter.Information.Title);
-        Assert.Equal("Team VT", fromFrontMatter.Information.Author);
+        Assert.Equal("Team Docs", fromFrontMatter.Information.Author);
     }
 
     [Fact]
@@ -263,11 +263,11 @@ public class PdfGeneratorTests
     }
 
     [Fact]
-    public void RenderCodeBlock_ReplacesTheBlock_AndNullKeepsTheCode()
+    public void CodeBlockRenderers_ReplaceTheBlock_AndNullKeepsTheCode()
     {
         var calls = new List<string>();
-        var keep = new PdfOptions { RenderCodeBlock = (language, code) => { calls.Add(language); return null; } };
-        var neutral = WithDiagrams with { Template = new NeutralPdfTemplateOptions() };
+        var keep = new PdfOptions { CodeBlockRenderers = [Samples.Renderer(request => { calls.Add(request.Language); return null; })] };
+        var neutral = WithDiagrams with { Template = new BrandPdfTemplateOptions() };
 
         var kept = Samples.RoundTrip(Samples.Generate(Samples.Markdown("## A\n\n```mermaid\ngraph TD;\n```\n"), keep));
         using var replaced = PdfDocument.Open(Samples.Generate(Samples.Markdown("## A\n\n```mermaid\ngraph TD;\n```\n"), neutral));
@@ -276,6 +276,39 @@ public class PdfGeneratorTests
         Assert.Contains("graph TD;", kept, StringComparison.Ordinal);
         Assert.Single(replaced.GetPage(1).GetImages());
         Assert.DoesNotContain("graph", replaced.GetPage(1).Text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Drawings_AreVectorPaths_WithCurvesDashesAndColours()
+    {
+        var circle = new DrawingShape(new DrawingPath([new MoveTo(10, 0), new CubicTo(15, 0, 20, 5, 20, 10), new LineTo(10, 10), new ClosePath()]), "0E7C86", "B45309", 2) { Dash = [4, 2] };
+        var options = new PdfOptions
+        {
+            CodeBlockRenderers = [Samples.Renderer(request => request.Language == "shape" ? new DrawingGraphic(new Drawing(40, 20, [circle, new DrawingText(0, 18, "Label", 12, "1F2937")])) : null)],
+        };
+
+        var pdf = Samples.Generate(Samples.Markdown("## A\n\n```shape\nx\n```\n"), options);
+
+        using var document = PdfDocument.Open(pdf);
+        var page = document.GetPage(1);
+        var path = Assert.Single(page.Paths, p => p.IsFilled && p.IsStroked);
+        Assert.Contains(path.SelectMany(s => s.Commands), c => c is UglyToad.PdfPig.Core.PdfSubpath.CubicBezierCurve);
+        Assert.Equal((1.5, true), ((double)path.LineWidth, path.LineDashPattern is { Array.Count: 2 })); // 2 px at 0.75 pt
+        Assert.Equal(14.0 / 255, path.FillColor!.ToRGBValues().r, 3);
+        Assert.Contains("Label", page.Text, StringComparison.Ordinal);
+        Assert.DoesNotContain("shape", page.Text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CodeBlockRenderers_GetTheBrandAndTheLineAfterFrontMatter()
+    {
+        CodeBlockRequest? seen = null;
+        var options = new PdfOptions { Brands = [Samples.Brand], CodeBlockRenderers = [Samples.Renderer(request => { seen = request; return null; })] };
+
+        Samples.Generate(Samples.Markdown("---\ntemplate: sample\n---\n## A\n\n```mermaid\ngraph TD;\n```\n"), options);
+
+        Assert.Equal(("mermaid", "graph TD;", 6), (seen!.Language, seen.Code, seen.Line));
+        Assert.Same(Samples.Brand, seen.Brand);
     }
 
     [Fact]

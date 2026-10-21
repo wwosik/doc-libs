@@ -53,10 +53,14 @@ internal sealed record TitleSlide(IReadOnlyList<TextRun> Title, IReadOnlyList<Te
 /// <summary>Text only, in the body placeholder of a title-and-content layout.</summary>
 internal sealed record ContentSlide(IReadOnlyList<TextRun> Title, IReadOnlyList<TextParagraph> Body) : Slide(Title);
 
-/// <summary>One table or one image, with text above it and a caption below it.</summary>
+/// <summary>One table, image or drawing, with text above it and a caption below it.</summary>
 internal sealed record VisualSlide(
     IReadOnlyList<TextRun> Title,
     IReadOnlyList<TextParagraph> Above,
     SlideTable? Table,
     SlideImage? Image,
-    IReadOnlyList<TextParagraph> Below) : Slide(Title);
+    IReadOnlyList<TextParagraph> Below) : Slide(Title)
+{
+    /// <summary>A vector drawing from a code-block renderer, drawn as a group of shapes.</summary>
+    public Drawing? Drawing { get; init; }
+}

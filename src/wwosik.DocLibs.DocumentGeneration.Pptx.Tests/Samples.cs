@@ -33,10 +33,13 @@ internal static class Samples
         return output.ToArray();
     }
 
-    /// <summary>The built-in templates, by their front-matter name, for theories.</summary>
-    public static TheoryData<string> BuiltInTemplates => ["neutral"];
+    /// <summary>The made-up brand of <c>Samples/brand-sample</c>: colours, footer text, all four images, Liberation Serif with PT Sans Narrow in tables.</summary>
+    public static readonly Brand Brand = BrandPack.Load(System.IO.Path.Combine(AppContext.BaseDirectory, "Samples", "brand-sample"));
 
-    public static PptxTemplateOptions BuiltIn(string name) => PptxTemplateOptions.Create(name)!;
+    /// <summary>The neutral and the sample brand, by their front-matter name, for theories.</summary>
+    public static TheoryData<string> BuiltInTemplates => ["neutral", "sample"];
+
+    public static PptxTemplateOptions BuiltIn(string name) => new BrandTemplateOptions { Brand = name == "sample" ? Brand : Brand.Neutral };
 
     public static byte[] TemplateBytes(PptxTemplateOptions template)
     {
@@ -112,5 +115,13 @@ internal static class Samples
         var directory = System.IO.Path.GetFullPath(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(caller)!, "..", "..", ".tmp", "review"));
         Directory.CreateDirectory(directory);
         File.WriteAllBytes(System.IO.Path.Combine(directory, name), content);
+    }
+
+    /// <summary>A code-block renderer from a function.</summary>
+    public static ICodeBlockRenderer Renderer(Func<CodeBlockRequest, CodeBlockGraphic?> render) => new FunctionRenderer(render);
+
+    private sealed class FunctionRenderer(Func<CodeBlockRequest, CodeBlockGraphic?> render) : ICodeBlockRenderer
+    {
+        public CodeBlockGraphic? Render(CodeBlockRequest request) => render(request);
     }
 }

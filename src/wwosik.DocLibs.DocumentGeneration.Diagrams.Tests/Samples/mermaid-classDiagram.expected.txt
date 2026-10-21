@@ -1,0 +1,37 @@
+drawing 812.48 x 333.6
+path fill=none stroke=6B7280 w=1.5 : M 212.18 160 L 212.18 166 C 212.18 170 210.18 172 206.18 172 L 115.12 172 C 109.79 172 107.12 174.67 107.12 180 L 107.12 257.6
+path fill=6B7280 stroke=6B7280 w=1 : M 212.18 160 L 216.68 166 L 212.18 172 L 207.68 166 Z
+path fill=none stroke=6B7280 w=1.5 : M 270.48 160 L 270.48 172 L 270.48 172 L 270.48 257.6
+path fill=FFFFFF stroke=6B7280 w=1.25 : M 270.48 160 L 274.98 166 L 270.48 172 L 265.98 166 Z
+path fill=none stroke=6B7280 w=1.5 dash=5,4 : M 328.78 160 L 328.78 166 C 328.78 170 330.78 172 334.78 172 L 425.84 172 C 431.17 172 433.84 174.67 433.84 180 L 433.84 257.6
+path fill=none stroke=6B7280 w=1.25 : M 438.34 247.6 L 433.84 257.6 L 429.34 247.6
+path fill=none stroke=6B7280 w=1.5 dash=5,4 : M 673.68 76 L 673.68 136
+path fill=FFFFFF stroke=6B7280 w=1.25 : M 679.18 86 L 673.68 76 L 668.18 86 Z
+roundrect fill=FFFFFF stroke=none at 153.88 40 size 233.2 120 r=8
+path fill=E6F4F5 stroke=none : M 153.88 76 L 153.88 48 C 153.88 42.67 156.55 40 161.88 40 L 379.08 40 C 384.41 40 387.08 42.67 387.08 48 L 387.08 76 Z
+path fill=none stroke=0E7C86 w=1.25 : M 153.88 76 L 387.08 76
+roundrect fill=none stroke=0E7C86 w=1.25 at 153.88 40 size 233.2 120 r=8
+path fill=none stroke=DBDBDB w=1 : M 165.88 104 L 375.08 104
+path fill=none stroke=0E7C86 w=1.25 : M 153.88 132 L 387.08 132
+text 270.48 63.6 middle size=16 color=000000 : **"Brand"**
+text 169.88 94.2 start size=12 color=5C5C5C mono : "String"
+text 371.08 94.9 end size=14 color=2C333D mono : **"+"**
+text 275.48 94.9 start size=14 color=000000 mono : "Name"
+text 169.88 122.2 start size=12 color=5C5C5C mono : "BrandColors"
+text 371.08 122.9 end size=14 color=2C333D mono : **"+"**
+text 275.48 122.9 start size=14 color=000000 mono : "Colors"
+text 169.88 150.2 start size=12 color=5C5C5C mono : "ResolvedBrand"
+text 371.08 150.9 end size=14 color=2C333D mono : **"+"**
+text 275.48 150.9 start size=14 color=000000 mono : "Resolve()"
+roundrect fill=E6F4F5 stroke=0E7C86 w=1.25 at 40 257.6 size 134.24 36 r=8
+text 107.12 281.2 middle size=16 color=000000 : **"BrandColors"**
+roundrect fill=E6F4F5 stroke=0E7C86 w=1.25 at 194.24 257.6 size 126.56 36 r=8
+text 257.52 281.2 middle size=16 color=000000 : **"BrandFonts"**
+roundrect fill=E6F4F5 stroke=0E7C86 w=1.25 at 340.8 257.6 size 186.08 36 r=8
+text 433.84 281.2 middle size=16 color=000000 : **"PptxBrandTemplate"**
+roundrect fill=E4F1F2 stroke=0A5C63 w=1.25 at 574.88 40 size 197.6 36 r=8
+text 673.68 63.6 middle size=16 color=000000 : **"ICodeBlockRenderer"**
+roundrect fill=E4F1F2 stroke=0A5C63 w=1.25 at 585.92 136 size 175.52 36 r=8
+text 673.68 159.6 middle size=16 color=000000 : **"MermaidRenderer"**
+roundrect fill=FFFFFF stroke=6B7280 w=1.5 at 248.58 198 size 43.79 21.6 r=10.8
+text 270.48 213 middle size=12 color=000000 max=27.79 : "fonts"

@@ -1,21 +1,26 @@
-﻿using wwosik.DocLibs.DocumentConversions;
-
-namespace wwosik.DocLibs.DocumentGeneration.Pptx;
+﻿namespace wwosik.DocLibs.DocumentGeneration.Pptx;
 
 /// <summary>Options for <see cref="PptxGenerator.Generate"/>.</summary>
 public sealed record PptxOptions
 {
-    /// <summary>The default options: built-in neutral template, code blocks stay code.</summary>
+    /// <summary>The default options: built-in master in the neutral brand, code blocks stay code.</summary>
     public static PptxOptions Default { get; } = new();
 
-    /// <summary>The template and its features. Default: the built-in neutral template. Front matter in the Markdown overrides it.</summary>
-    public PptxTemplateOptions Template { get; init; } = new NeutralTemplateOptions();
+    /// <summary>The template and its features. Default: the built-in master in the neutral brand. Front matter in the Markdown overrides it.</summary>
+    public PptxTemplateOptions Template { get; init; } = new BrandTemplateOptions();
 
     /// <summary>
-    /// Called with the language and the code of every fenced code block. A returned image is placed like a
-    /// Markdown image; <see langword="null"/> keeps the block as code. This is how diagrams such as Mermaid get in.
+    /// The brands front matter may select by name (<c>template: acme</c>), besides <c>neutral</c> and the brand of
+    /// <see cref="Template"/>. Names must be unique. Default: none.
     /// </summary>
-    public Func<string, string, DocumentResource?>? RenderCodeBlock { get; init; }
+    public IReadOnlyList<Brand> Brands { get; init; } = [];
+
+    /// <summary>
+    /// Asked in order for every fenced code block; the first graphic wins. A drawing becomes a group of editable
+    /// shapes, an image is placed like a Markdown image, and a block no renderer takes stays code. Either gets a
+    /// slide of its own, like a table. This is how diagrams such as Mermaid get in. Default: none.
+    /// </summary>
+    public IReadOnlyList<ICodeBlockRenderer> CodeBlockRenderers { get; init; } = [];
 
     /// <summary>The font of inline code and code blocks. Default <c>Consolas</c>.</summary>
     public string CodeFont { get; init; } = "Consolas";

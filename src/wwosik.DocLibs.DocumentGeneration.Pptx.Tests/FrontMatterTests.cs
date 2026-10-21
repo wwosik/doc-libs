@@ -17,19 +17,19 @@ public class FrontMatterTests
     [Fact]
     public void Keys_OverrideTheCallersValues()
     {
-        var options = new PptxOptions { Template = new NeutralTemplateOptions { ShowDate = true } };
+        var options = new PptxOptions { Template = new BrandTemplateOptions { ShowDate = true } };
 
         var template = Apply("---\nShowDate: FALSE\n---\n", options.Template);
 
-        Assert.Equal(new NeutralTemplateOptions { ShowDate = false }, template);
+        Assert.Equal(new BrandTemplateOptions { ShowDate = false }, template);
     }
 
     [Fact]
     public void TemplateKey_NamingTheCallersTemplate_KeepsItsValues()
     {
-        var template = Apply("---\ntemplate: Neutral\n---\n", new NeutralTemplateOptions { ShowDate = false });
+        var template = Apply("---\ntemplate: Neutral\n---\n", new BrandTemplateOptions { ShowDate = false });
 
-        Assert.Equal(new NeutralTemplateOptions { ShowDate = false }, template);
+        Assert.Equal(new BrandTemplateOptions { ShowDate = false }, template);
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public class FrontMatterTests
 
         var template = Apply("---\nshowDate: false\ntemplate: neutral\n---\n", custom);
 
-        Assert.Equal(new NeutralTemplateOptions { ShowDate = false }, template);
+        Assert.Equal(new BrandTemplateOptions { ShowDate = false }, template);
     }
 
     [Fact]
@@ -49,13 +49,13 @@ public class FrontMatterTests
 
         using var package = Samples.Open(Samples.Generate(Samples.Markdown("---\ntemplate: neutral\n---\n## A\n"), options));
 
-        Assert.Equal("Neutral", package.PresentationPart!.SlideMasterParts.Single().ThemePart!.Theme!.Name!.Value);
+        Assert.Equal("neutral", package.PresentationPart!.SlideMasterParts.Single().ThemePart!.Theme!.Name!.Value);
     }
 
     [Fact]
     public void LayoutKeys_NameTheLayoutsOfACallersTemplate()
     {
-        var template = Samples.TemplateBytes(new NeutralTemplateOptions());
+        var template = Samples.TemplateBytes(new BrandTemplateOptions());
         var options = new PptxOptions { Template = new CustomTemplateOptions(new MemoryStream(template)) };
 
         using var package = Samples.Open(Samples.Generate(Samples.Markdown("---\nlayouts.content: Title Only\n---\n## A\n\nText\n"), options));
@@ -83,8 +83,8 @@ public class FrontMatterTests
     }
 
     [Theory]
-    [InlineData("---\ncolour: blue\n---\n", "'colour' is not supported by the template 'neutral'. Valid keys: template, title, author, showDate.")]
-    [InlineData("---\nshowClaim: true\n---\n", "'showClaim' is not supported by the template 'neutral'")]
+    [InlineData("---\ncolour: blue\n---\n", "'colour' is not supported by the template 'neutral'. Valid keys: template, title, author, showDate, showTagline.")]
+    [InlineData("---\nshowLogo: true\n---\n", "'showLogo' is not supported by the template 'neutral'")]
     [InlineData("---\nlayouts.title: Cover\n---\n", "'layouts.title' is not supported by the template 'neutral'")]
     [InlineData("---\nshowDate: yes\n---\n", "'showDate' has the value 'yes'; expected 'true' or 'false'")]
     [InlineData("---\ntemplate: corporate\n---\n", "'template' has the value 'corporate'; expected 'neutral'")]

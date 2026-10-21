@@ -1,4 +1,4 @@
-# Test sample documents — never diff or normalize line endings
+# Test sample documents and fonts — never diff or normalize line endings
 *.pdf binary
 *.doc binary
 *.docx binary
@@ -12,3 +12,4 @@
 *.png binary
 *.jpg binary
 *.gif binary
+*.ttf binary

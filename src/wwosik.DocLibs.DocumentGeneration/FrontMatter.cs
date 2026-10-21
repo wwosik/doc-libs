@@ -18,15 +18,19 @@ internal sealed partial class FrontMatter
     private readonly List<KeyValuePair<string, string>> entries;
     private readonly DocumentFormat format;
 
-    private FrontMatter(string body, List<KeyValuePair<string, string>> entries, DocumentFormat format)
+    private FrontMatter(string body, List<KeyValuePair<string, string>> entries, DocumentFormat format, int bodyLine = 0)
     {
         this.Body = body;
+        this.BodyLine = bodyLine;
         this.entries = entries;
         this.format = format;
     }
 
     /// <summary>The Markdown without the front matter.</summary>
     public string Body { get; }
+
+    /// <summary>How many lines the front matter takes: a line of <see cref="Body"/> is that much further down the Markdown.</summary>
+    public int BodyLine { get; }
 
     public string? Title => this.Value(TitleKey);
 
@@ -47,7 +51,7 @@ internal sealed partial class FrontMatter
             var line = Line(lines[i]);
             if (line is "---" or "...")
             {
-                return new FrontMatter(string.Join('\n', lines[(i + 1)..]), entries, format);
+                return new FrontMatter(string.Join('\n', lines[(i + 1)..]), entries, format, i + 1);
             }
 
             if (line.Trim().Length == 0 || line.TrimStart().StartsWith('#'))

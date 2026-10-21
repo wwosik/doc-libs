@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Generates PowerPoint presentations (.pptx) from Markdown, in the built-in neutral design or on a caller's template.</Description>
+    <Description>Generates PowerPoint presentations (.pptx) from Markdown, on the built-in master in a brand's design or on a caller's template.</Description>
   </PropertyGroup>
 
   <ItemGroup>

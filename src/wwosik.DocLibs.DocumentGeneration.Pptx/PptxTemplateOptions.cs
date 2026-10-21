@@ -1,9 +1,10 @@
 ﻿namespace wwosik.DocLibs.DocumentGeneration.Pptx;
 
 /// <summary>
-/// The template a deck is built on: the built-in <see cref="NeutralTemplateOptions"/> or a caller's own via
-/// <see cref="CustomTemplateOptions"/>. Each carries only the features its template has.
-/// Front matter in the Markdown can override these values; see the package documentation for the keys.
+/// The template a deck is built on: the built-in master in a brand's design via <see cref="BrandTemplateOptions"/>,
+/// or a caller's own <c>.pptx</c> / <c>.potx</c> via <see cref="CustomTemplateOptions"/>. Each carries only the
+/// features its template has. Front matter in the Markdown can override these values; see the package documentation
+/// for the keys.
 /// </summary>
 public abstract record PptxTemplateOptions
 {
@@ -23,47 +24,87 @@ public abstract record PptxTemplateOptions
     /// <summary>Layouts to use by name instead of by type.</summary>
     internal virtual PptxLayoutNames? LayoutNames => null;
 
-    /// <summary>The built-in template with that front-matter name, with its defaults, or <see langword="null"/>.</summary>
-    internal static PptxTemplateOptions? Create(string name) => name.ToLowerInvariant() switch
-    {
-        "neutral" => new NeutralTemplateOptions(),
-        _ => null,
-    };
+    /// <summary>The brand front matter can name to keep these options, if any.</summary>
+    internal virtual Brand? BrandValue => null;
 
     /// <summary>A copy with the front-matter <paramref name="key"/> (one of <see cref="Keys"/>) set to <paramref name="value"/>.</summary>
     internal abstract PptxTemplateOptions With(FrontMatter source, string key, string value);
 
-    /// <summary>The caller's template with the front matter applied on top.</summary>
-    internal static PptxTemplateOptions Apply(FrontMatter frontMatter, PptxTemplateOptions template) =>
-        frontMatter.Apply(
+    /// <summary>
+    /// The caller's template with the front matter applied on top. <c>template</c> selects one of
+    /// <paramref name="brands"/>, <see cref="Brand.Neutral"/> or the template's own brand.
+    /// </summary>
+    internal static PptxTemplateOptions Apply(FrontMatter frontMatter, PptxTemplateOptions template, IReadOnlyList<Brand>? brands = null)
+    {
+        var registry = BrandRegistry.Of(template.BrandValue, brands);
+        return frontMatter.Apply(
             template,
-            (current, name) => Create(name) is { } chosen ? (chosen.GetType() == current.GetType() ? current : chosen) : null,
-            "'neutral'",
+            (current, name) => registry.Find(name) is not { } brand ? null
+                : current.BrandValue is not null && current.Name == brand.Name.ToLowerInvariant() ? current
+                : new BrandTemplateOptions { Brand = brand },
+            registry.Expected,
             current => current.Name,
             current => current.Keys,
             (current, key, value) => current.With(frontMatter, key, value));
+    }
 
     /// <summary>Writes the template as a <c>.pptx</c> or <c>.potx</c>.</summary>
     internal abstract void Write(Stream output);
 }
 
-/// <summary>The built-in neutral template: white, Arial, blue accents, no images and no footer text. The default.</summary>
-public sealed record NeutralTemplateOptions : PptxTemplateOptions
+/// <summary>
+/// The built-in master in the design of <see cref="Brand"/>: its colours, font family, footer text and images. A
+/// brand with its own <see cref="DocumentGeneration.Brand.Pptx"/> template is built on that template instead, which
+/// never gets a date. The default, with <see cref="DocumentGeneration.Brand.Neutral"/>.
+/// </summary>
+public sealed record BrandTemplateOptions : PptxTemplateOptions
 {
+    // Static, so that records with equal values stay equal.
+    private static readonly string[] FrontMatterKeys = ["showDate", "showTagline"];
+
+    /// <summary>The brand. Default <see cref="DocumentGeneration.Brand.Neutral"/>.</summary>
+    public Brand Brand { get; init; } = Brand.Neutral;
+
     /// <summary>The date of generation in the footer of every slide but the cover. Default <see langword="true"/>.</summary>
     public bool ShowDate { get; init; } = true;
 
-    internal override string Name => "neutral";
+    /// <summary>The brand's tagline bottom right on the cover, if it has one. Default <see langword="true"/>.</summary>
+    public bool ShowTagline { get; init; } = true;
 
-    private static readonly string[] FrontMatterKeys = ["showDate"];
+    internal override string Name => this.Brand.Name.ToLowerInvariant();
 
-    internal override IReadOnlyList<string> Keys => FrontMatterKeys;
+    internal override IReadOnlyList<string> Keys => this.Brand.Pptx is null ? FrontMatterKeys : [];
 
-    internal override bool ShowsDate => this.ShowDate;
+    internal override bool ShowsDate => this.ShowDate && this.Brand.Pptx is null;
 
-    internal override PptxTemplateOptions With(FrontMatter source, string key, string value) => this with { ShowDate = source.Bool(key, value) };
+    internal override Brand BrandValue => this.Brand;
 
-    internal override void Write(Stream output) => TemplateBuilder.Write(output, Brand.Neutral, showClaim: false);
+    internal override PptxLayoutNames? LayoutNames => this.Brand.Pptx is not { } pptx ? null : new PptxLayoutNames
+    {
+        Title = pptx.TitleLayout,
+        Content = pptx.ContentLayout,
+        TitleOnly = pptx.TitleOnlyLayout,
+        SectionHeader = pptx.SectionHeaderLayout,
+    };
+
+    internal override PptxTemplateOptions With(FrontMatter source, string key, string value) => key switch
+    {
+        "showTagline" => this with { ShowTagline = source.Bool(key, value) },
+        _ => this with { ShowDate = source.Bool(key, value) },
+    };
+
+    internal override void Write(Stream output)
+    {
+        var brand = ResolvedBrand.Resolve(this.Brand);
+        if (brand.Pptx is { } template)
+        {
+            output.Write(template.Content.Span);
+        }
+        else
+        {
+            TemplateBuilder.Write(output, brand, this.ShowTagline);
+        }
+    }
 }
 
 /// <summary>A caller's <c>.pptx</c> or <c>.potx</c> whose masters, layouts and theme the deck uses; its own slides are dropped.</summary>

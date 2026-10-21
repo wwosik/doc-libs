@@ -12,7 +12,7 @@ public class PptxGeneratorTests
 {
     private static readonly PptxOptions WithDiagrams = new()
     {
-        RenderCodeBlock = (language, code) => language == "mermaid" ? Samples.Image("photo.png") : null,
+        CodeBlockRenderers = [Samples.Renderer(request => request.Language == "mermaid" ? new ImageGraphic(Samples.Image("photo.png")) : null)],
     };
 
     [Theory]
@@ -77,7 +77,7 @@ public class PptxGeneratorTests
     [Fact]
     public void TemplateWithoutTitleOnlyLayout_StillGetsImageAndTableSlides()
     {
-        var edited = Samples.EditedTemplate(new NeutralTemplateOptions(), master => Samples.RemoveLayout(master, P.SlideLayoutValues.TitleOnly));
+        var edited = Samples.EditedTemplate(new BrandTemplateOptions(), master => Samples.RemoveLayout(master, P.SlideLayoutValues.TitleOnly));
 
         var pptx = Samples.Generate(Samples.Deck(), WithDiagrams with { Template = new CustomTemplateOptions(new MemoryStream(edited)) });
 
@@ -91,7 +91,7 @@ public class PptxGeneratorTests
     public void PotxTemplate_BecomesAPresentation()
     {
         using var template = new MemoryStream();
-        template.Write(Samples.TemplateBytes(new NeutralTemplateOptions()));
+        template.Write(Samples.TemplateBytes(new BrandTemplateOptions()));
         using (var package = PresentationDocument.Open(template, true))
         {
             package.ChangeDocumentType(PresentationDocumentType.Template);
@@ -148,16 +148,19 @@ public class PptxGeneratorTests
     }
 
     [Fact]
-    public void RenderCodeBlock_GetsLanguageAndCode_AndNullKeepsTheCode()
+    public void CodeBlockRenderers_GetLanguageAndCode_AndNullKeepsTheCode()
     {
         var calls = new List<(string Language, string Code)>();
         var options = new PptxOptions
         {
-            RenderCodeBlock = (language, code) =>
-            {
-                calls.Add((language, code));
-                return null;
-            },
+            CodeBlockRenderers =
+            [
+                Samples.Renderer(request =>
+                {
+                    calls.Add((request.Language, request.Code));
+                    return null;
+                }),
+            ],
         };
 
         var pptx = Samples.Generate(Samples.Markdown("## Code\n\n```mermaid\ngraph TD;\n  A-->B;\n```\n"), options);
@@ -165,6 +168,75 @@ public class PptxGeneratorTests
         Assert.Equal([("mermaid", "graph TD;\n  A-->B;")], calls);
         var back = new PptxConverter().Convert(new MemoryStream(pptx), ConversionOptions.Default);
         Assert.Equal("## Code\n\ngraph TD;\n\nA-->B;\n", back.Markdown);
+    }
+
+    [Fact]
+    public void Drawings_BecomeAGroupOfEditableShapes()
+    {
+        var drawing = new Drawing(200, 100,
+        [
+            new DrawingShape(DrawingPath.Rectangle(0, 0, 100, 50), "E6F4F5", "0E7C86", 1) { Kind = DrawingShapeKind.RoundedRectangle, CornerRadius = 10 },
+            new DrawingShape(new DrawingPath([new MoveTo(100, 25), new CubicTo(150, 25, 150, 75, 200, 75)]), null, "6B7280", 2) { Dash = [4, 2], RoundJoins = true },
+            new DrawingText(50, 30, [new DrawingSpan("Bold", Bold: true), new DrawingSpan(" node")], 16, "1F2937") { Anchor = TextAnchor.Middle },
+        ]);
+        var options = new PptxOptions { CodeBlockRenderers = [Samples.Renderer(request => new DrawingGraphic(drawing))] };
+
+        var pptx = Samples.Generate(Samples.Markdown("## Diagram\n\nAbove\n\n```x\ny\n```\n\nCaption\n"), options);
+
+        Samples.AssertValid(pptx);
+        using var package = Samples.Open(pptx);
+        var slide = Samples.Slides(package).Single().Slide!;
+        var group = Assert.Single(slide.CommonSlideData!.ShapeTree!.Elements<P.GroupShape>());
+        var shapes = group.Elements<P.Shape>().ToList();
+        Assert.Equal(3, shapes.Count);
+
+        var node = shapes[0].ShapeProperties!;
+        Assert.Equal(A.ShapeTypeValues.RoundRectangle, node.GetFirstChild<A.PresetGeometry>()!.Preset!.Value);
+        Assert.Equal("val 20000", node.GetFirstChild<A.PresetGeometry>()!.AdjustValueList!.GetFirstChild<A.ShapeGuide>()!.Formula!.Value); // 10 of 50
+        Assert.Equal("E6F4F5", node.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.Val!.Value);
+
+        var edge = shapes[1].ShapeProperties!;
+        Assert.NotNull(edge.GetFirstChild<A.CustomGeometry>()!.Descendants<A.CubicBezierCurveTo>().SingleOrDefault());
+        Assert.Equal(A.PathFillModeValues.None, edge.Descendants<A.Path>().Single().Fill!.Value);
+        Assert.Equal([200000, 100000], edge.GetFirstChild<A.Outline>()!.Descendants<A.DashStop>().SelectMany(d => new[] { d.DashLength!.Value, d.SpaceLength!.Value }));
+        Assert.NotNull(edge.GetFirstChild<A.Outline>()!.GetFirstChild<A.Round>());
+
+        var runs = shapes[2].Descendants<A.Run>().ToList();
+        Assert.Equal(["Bold", " node"], runs.Select(r => r.Text!.Text));
+        Assert.Equal([true, false], runs.Select(r => r.RunProperties!.Bold?.Value ?? false));
+        Assert.Equal(1200, runs[0].RunProperties!.FontSize!.Value); // 16 px at full size: 12 pt
+        Assert.Equal(A.TextAlignmentTypeValues.Center, shapes[2].Descendants<A.ParagraphProperties>().Single().Alignment!.Value);
+
+        var text = string.Join("|", slide.Descendants<A.Text>().Select(t => t.Text));
+        Assert.Contains("Above", text, StringComparison.Ordinal);
+        Assert.Contains("Caption", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LargeDrawings_AreScaledDownWithTheirText()
+    {
+        var drawing = new Drawing(4000, 100, [new DrawingText(0, 50, "Wide", 16, "1F2937")]);
+        var options = new PptxOptions { CodeBlockRenderers = [Samples.Renderer(request => new DrawingGraphic(drawing))] };
+
+        using var package = Samples.Open(Samples.Generate(Samples.Markdown("## Diagram\n\n```x\ny\n```\n"), options));
+
+        var group = Samples.Slides(package).Single().Slide!.Descendants<P.GroupShape>().Single();
+        var extents = group.GroupShapeProperties!.TransformGroup!.Extents!;
+        Assert.True(extents.Cx!.Value < 4000 * 9525, "Scaled down to the content area.");
+        var points = group.Descendants<A.RunProperties>().Single().FontSize!.Value / 100.0;
+        Assert.Equal(12.0 * extents.Cx.Value / (4000 * 9525), points, 1);
+    }
+
+    [Fact]
+    public void CodeBlockRenderers_GetTheBrandAndTheLineAfterFrontMatter()
+    {
+        CodeBlockRequest? seen = null;
+        var options = new PptxOptions { Brands = [Samples.Brand], CodeBlockRenderers = [Samples.Renderer(request => { seen = request; return null; })] };
+
+        Samples.Generate(Samples.Markdown("---\ntemplate: sample\n---\n## A\n\n```mermaid\ngraph TD;\n```\n"), options);
+
+        Assert.Equal(6, seen!.Line);
+        Assert.Same(Samples.Brand, seen.Brand);
     }
 
     [Fact]
