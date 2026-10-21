@@ -1,0 +1,51 @@
+# Publish all packages to nuget.org when a version tag (v1.2.3, v1.2.3-beta.1) is pushed. The tag is
+# the version; nothing in the repo holds one. Authenticates through nuget.org trusted publishing
+# (OIDC), so no API key is stored: the repository variable NUGET_USER names the nuget.org account
+# whose trusted publishing policy covers this repository and workflow.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  SOLUTION: src/wwosik.DocLibs.slnx
+  DOTNET_NOLOGO: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: nuget
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Version from tag
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - run: dotnet restore $SOLUTION
+      - run: dotnet build $SOLUTION --configuration Release --no-restore -p:Version=$VERSION
+      - run: dotnet test $SOLUTION --configuration Release --no-build
+      - run: dotnet pack $SOLUTION --configuration Release --no-build --output artifacts -p:Version=$VERSION
+
+      - uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      # --skip-duplicate keeps a re-run of the same tag from failing.
+      - run: >
+          dotnet nuget push "artifacts/*.nupkg"
+          --source https://api.nuget.org/v3/index.json
+          --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
+          --skip-duplicate

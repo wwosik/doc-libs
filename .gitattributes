@@ -1,0 +1,14 @@
+# Test sample documents — never diff or normalize line endings
+*.pdf binary
+*.doc binary
+*.docx binary
+*.ppt binary
+*.pptx binary
+*.xls binary
+*.xlsx binary
+*.msg binary
+*.rtf binary
+*.zip binary
+*.png binary
+*.jpg binary
+*.gif binary

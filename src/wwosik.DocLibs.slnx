@@ -1,0 +1,12 @@
+<Solution>
+  <Project Path="wwosik.DocLibs.DocumentConversions.Tests/wwosik.DocLibs.DocumentConversions.Tests.csproj" />
+  <Project Path="wwosik.DocLibs.DocumentConversions.WindowsOnly.Tests/wwosik.DocLibs.DocumentConversions.WindowsOnly.Tests.csproj" />
+  <Project Path="wwosik.DocLibs.DocumentConversions.WindowsOnly/wwosik.DocLibs.DocumentConversions.WindowsOnly.csproj" />
+  <Project Path="wwosik.DocLibs.DocumentConversions/wwosik.DocLibs.DocumentConversions.csproj" />
+  <Project Path="wwosik.DocLibs.DocumentGeneration.Pdf.Tests/wwosik.DocLibs.DocumentGeneration.Pdf.Tests.csproj" />
+  <Project Path="wwosik.DocLibs.DocumentGeneration.Pdf/wwosik.DocLibs.DocumentGeneration.Pdf.csproj" />
+  <Project Path="wwosik.DocLibs.DocumentGeneration.Pptx.Tests/wwosik.DocLibs.DocumentGeneration.Pptx.Tests.csproj" />
+  <Project Path="wwosik.DocLibs.DocumentGeneration.Pptx/wwosik.DocLibs.DocumentGeneration.Pptx.csproj" />
+  <Project Path="wwosik.DocLibs.DocumentGeneration.Tests/wwosik.DocLibs.DocumentGeneration.Tests.csproj" />
+  <Project Path="wwosik.DocLibs.DocumentGeneration/wwosik.DocLibs.DocumentGeneration.csproj" />
+</Solution>

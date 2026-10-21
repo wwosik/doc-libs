@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\wwosik.DocLibs.DocumentConversions\wwosik.DocLibs.DocumentConversions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Samples\**" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The Office-made samples double as detection samples for the OLE and RTF formats. -->
+    <None Include="..\wwosik.DocLibs.DocumentConversions.WindowsOnly.Tests\Samples\*.doc;..\wwosik.DocLibs.DocumentConversions.WindowsOnly.Tests\Samples\*.xls;..\wwosik.DocLibs.DocumentConversions.WindowsOnly.Tests\Samples\*.xlsx;..\wwosik.DocLibs.DocumentConversions.WindowsOnly.Tests\Samples\*.rtf" LinkBase="Samples" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

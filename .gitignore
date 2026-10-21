@@ -1,0 +1,22 @@
+# AI scratchpad
+/.tmp/
+
+# Secrets
+.env
+*.secrets.json
+
+# Editor / IDE
+.vs/
+.idea/
+*.user
+*.suo
+settings.local.json
+
+# .NET build output
+bin/
+obj/
+
+# Packed NuGet packages
+/artifacts/
+*.nupkg
+*.snupkg

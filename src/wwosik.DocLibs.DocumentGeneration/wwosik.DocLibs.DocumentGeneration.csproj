@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Shared parts of the wwosik.DocLibs document generators: the neutral brand, Markdown front matter and image headers.</Description>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\wwosik.DocLibs.DocumentConversions\wwosik.DocLibs.DocumentConversions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Tests" />
+    <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Pptx" />
+    <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Pptx.Tests" />
+    <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Pdf" />
+    <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Pdf.Tests" />
+  </ItemGroup>
+
+</Project>
