@@ -26,7 +26,8 @@
     <None Include="$(MSBuildThisFileDirectory)../README.md" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
 
-  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
+  <!-- Not for tests: deterministic source paths (/_/) break the [CallerFilePath] lookups in their Samples helpers. -->
+  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true' And '$(IsTestProject)' != 'true'">
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
