@@ -307,6 +307,97 @@ public class LayoutTests
         Assert.Contains("(TableRegular)", error.Reason, StringComparison.Ordinal);
     }
 
+    public static TheoryData<string> FollowingBlocks => ["drawing", "image", "table", "code", "list", "quote", "paragraph", "heading and drawing", "rule"];
+
+    [Theory]
+    [MemberData(nameof(FollowingBlocks))]
+    public void Headings_StayWithTheStartOfWhatFollows_WhereverThePageBreaks(string following)
+    {
+        for (var fillers = 0; fillers < 60; fillers++)
+        {
+            var layout = Engine().Run(new DocumentModel(null, [.. Filler(fillers), new HeadingBlock(2, [Run("Heading")], null), .. Following(following)]));
+
+            var heading = PageOf(layout, "Heading");
+            var content = following switch
+            {
+                "drawing" or "heading and drawing" => layout.Pages.ToList().FindIndex(p => p.Items.OfType<ShapeItem>().Any()),
+                "image" => layout.Pages.ToList().FindIndex(p => p.Items.OfType<ImageItem>().Any()),
+                "rule" => layout.Pages.ToList().FindIndex(p => p.Items.OfType<LineItem>().Any(l => l.Width == 0.75)),
+                _ => PageOf(layout, "first"),
+            };
+            Assert.True(heading == content, $"With {fillers} fillers the heading is on page {heading} and the {following} starts on page {content}.");
+            if (following == "heading and drawing")
+            {
+                Assert.Equal(heading, PageOf(layout, "Second"));
+            }
+        }
+    }
+
+    [Fact]
+    public void AVisualTooTallForItsHeading_IsShrunkToShareThePage()
+    {
+        var drawing = new Drawing(100, 5000, [new DrawingShape(DrawingPath.Rectangle(0, 0, 100, 5000), "FF0000", null, 0)]);
+
+        var layout = Engine().Run(new DocumentModel(null, [new ParagraphBlock([Run("before")]), new HeadingBlock(2, [Run("Heading")], null), new HeadingBlock(3, [Run("Second")], null), new DrawingBlock(drawing)]));
+
+        var shape = Assert.Single(layout.Pages[1].Items.OfType<ShapeItem>());
+        Assert.Equal(1, PageOf(layout, "Heading"));
+        Assert.Equal(1, PageOf(layout, "Second"));
+        Assert.Equal(A4.Bottom, Math.Round(((LineTo)shape.Path[2]).Y, 6));
+        Assert.True(((MoveTo)shape.Path[0]).Y > A4.Top + 30, "Below both headings.");
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(7)]
+    [InlineData(120)]
+    public void Paragraphs_NeverLeaveASingleLineOnAPage(int count)
+    {
+        for (var fillers = 0; fillers < 60; fillers++)
+        {
+            var layout = Engine().Run(new DocumentModel(null, [.. Filler(fillers), Lines(count)]));
+
+            var perPage = Enumerable.Range(0, count)
+                .Select(i => PageOf(layout, $"line{i:000}"))
+                .GroupBy(page => page)
+                .Select(g => g.Count())
+                .ToList();
+            Assert.True(perPage.All(n => n >= 2), $"With {fillers} fillers, {count} lines split as {string.Join('+', perPage)}.");
+            Assert.True(count > 3 || perPage.Count == 1, $"With {fillers} fillers, {count} lines split as {string.Join('+', perPage)}.");
+        }
+    }
+
+    [Fact]
+    public void ListMarkers_MoveWithTheirFirstLine()
+    {
+        for (var fillers = 0; fillers < 60; fillers++)
+        {
+            var layout = Engine().Run(new DocumentModel(null, [.. Filler(fillers), new ListBlock(false, 1, [[Lines(3)]])]));
+
+            Assert.Equal(PageOf(layout, "•"), PageOf(layout, "line000"));
+        }
+    }
+
+    // One word per line, through hard breaks.
+    private static ParagraphBlock Lines(int count) =>
+        new([.. Enumerable.Range(0, count).SelectMany(i => i == 0 ? [Run($"line{i:000}")] : new[] { TextRun.Break, Run($"line{i:000}") })]);
+
+    private static IEnumerable<Block> Following(string kind) => kind switch
+    {
+        "drawing" => [new DrawingBlock(new Drawing(400, 300, [new DrawingShape(DrawingPath.Rectangle(0, 0, 400, 300), "FF0000", null, 0)]))],
+        "image" => [new ImageBlock(new DocumentResource("i.png", "image/png", new byte[1]), new ImageInfo(ImageFormat.Png, 400, 300), 1)],
+        "table" => [Table(["first", "b"], ["c", "d"], ["e", "f"])],
+        "code" => [new CodeBlock(["first", "second", "third"])],
+        "list" => [new ListBlock(false, 1, [[new ParagraphBlock([Run("first"), TextRun.Break, Run("x"), TextRun.Break, Run("y"), TextRun.Break, Run("z")])]])],
+        "quote" => [new QuoteBlock([new ParagraphBlock([Run("first"), TextRun.Break, Run("x"), TextRun.Break, Run("y")])])],
+        "paragraph" => [new ParagraphBlock([Run("first"), TextRun.Break, Run("x"), TextRun.Break, Run("y")])],
+        "heading and drawing" => [new HeadingBlock(3, [Run("Second")], null), .. Following("drawing")],
+        _ => [new RuleBlock()],
+    };
+
     private static (double X, double Y) Point(PathSegment segment) =>
         segment.Points.Select(p => (Math.Round(p.X, 6), Math.Round(p.Y, 6))).Single();
 

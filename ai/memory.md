@@ -77,6 +77,14 @@ same change that made it untrue — a stale fact here is worse than a missing on
   changes on an update. Types outside `MermaidRenderer.Supported` are refused by Mermaider's
   `AllowedDiagrams` with a `MermaidParseException` "… is not in the allowed set", which the
   renderer turns into "stay code" — the message match is the only way to tell it apart.
+- **PDF page breaks (plan 00004):** a heading reserves `KeepHeight` of the blocks after it (the
+  start of a paragraph, list, code or table; a whole visual; chained headings), and visuals below
+  headings are capped at a page minus those headings (`chainTop`). `KeepHeight` must measure
+  exactly what is later drawn, so paragraphs, headings and tables are replaced and wrapped once
+  and cached by block reference (`paragraphs`, `headings`, `tables`) — which also keeps
+  `ReplaceUnsupported` to one call per element. `Paragraph` places lines in chunks with at least
+  two lines on each side of a break. `Ensure` has a 1e-6 tolerance because a capped visual fills
+  the page exactly.
 - **No PDF layout library** (PDFsharp/MigraDoc went AGPL with 6.5.0, QuestPDF and iText are
   paid or AGPL): the PDF generator has its own layout engine on PdfPig's writer. It works through
   `IFontMetrics`, so its tests use made-up widths.

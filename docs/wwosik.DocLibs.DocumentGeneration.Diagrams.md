@@ -1,4 +1,4 @@
-# wwosik.DocLibs.DocumentGeneration.Diagrams
+﻿# wwosik.DocLibs.DocumentGeneration.Diagrams
 
 Draws ` ```mermaid ` code blocks as diagrams in a brand's colours and font: **vector graphics** in
 PDFs and **editable PowerPoint shapes** in decks. It plugs into both generators as a code-block
@@ -87,8 +87,6 @@ A block of a type that is not drawn stays code in both modes.
   shrunk or overflows, and one in a narrower font leaves more room.
 - Wide diagrams, such as a gantt chart over several months, are scaled down to the page or slide
   width, text included.
-- A heading directly above a diagram can end up alone at the bottom of a PDF page, as above an
-  image: headings are kept only with two lines of what follows.
 - `letter-spacing` (gantt section titles) is ignored.
 - In decks, text boxes are sized by an estimate of half the font size per character, because
   decks have no font metrics.

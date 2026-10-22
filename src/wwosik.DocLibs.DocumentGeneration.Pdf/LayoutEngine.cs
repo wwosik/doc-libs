@@ -43,8 +43,15 @@ internal sealed class LayoutEngine
     private readonly List<LaidOutPage> pages = [];
     private readonly List<Bookmark> bookmarks = [];
     private readonly Dictionary<string, (int Page, double Y)> anchors = new(StringComparer.Ordinal);
+    private readonly Dictionary<IReadOnlyList<TextRun>, (double Width, List<TextLine> Lines)> paragraphs = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<TableBlock, (double Width, PreparedTable? Table)> tables = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<HeadingBlock, (double Width, List<TextRun> Runs, List<TextLine> Lines)> headings = new(ReferenceEqualityComparer.Instance);
     private LaidOutPage page = null!;
     private double y;
+
+    // Where the headings directly above the current block start, on page chainPage; null after any other block.
+    private double? chainTop;
+    private int chainPage;
 
     public LayoutEngine(IFontMetrics metrics, PageGeometry geometry, Design design, Func<string, string>? replaceUnsupported = null)
     {
@@ -69,10 +76,7 @@ internal sealed class LayoutEngine
         }
 
         var frame = new Frame(this.geometry.Left, this.geometry.ContentWidth, this.TextColor, []);
-        foreach (var block in model.Blocks)
-        {
-            this.Block(block, frame, 0);
-        }
+        this.Blocks(model.Blocks, frame, 0);
 
         // Replaced once, as the header shows it; without a replacement it is checked only where it is drawn.
         var title = this.design.HeaderTitle is { Length: > 0 } header && this.replaceUnsupported is not null
@@ -94,7 +98,8 @@ internal sealed class LayoutEngine
     // Starts a new page unless the height fits, or the page is still empty (then it overflows rather than loops).
     private void Ensure(double height)
     {
-        if (this.y + height > this.geometry.Bottom && !this.AtTop)
+        // A hair of tolerance: content sized to the exact room left (a visual below its headings) must fit.
+        if (this.y + height > this.geometry.Bottom + 1e-6 && !this.AtTop)
         {
             this.NewPage();
         }
@@ -118,12 +123,21 @@ internal sealed class LayoutEngine
         }
     }
 
-    private void Block(Block block, Frame frame, int listLevel)
+    private void Blocks(IReadOnlyList<Block> blocks, Frame frame, int listLevel)
+    {
+        for (var i = 0; i < blocks.Count; i++)
+        {
+            this.Block(blocks[i], frame, listLevel, blocks, i + 1);
+        }
+    }
+
+    // `siblings` from `next` on are the blocks after this one, which a heading is kept with.
+    private void Block(Block block, Frame frame, int listLevel, IReadOnlyList<Block> siblings, int next)
     {
         switch (block)
         {
             case HeadingBlock heading:
-                this.Heading(heading, frame);
+                this.Heading(heading, frame, siblings, next);
                 break;
             case ParagraphBlock paragraph:
                 this.Paragraph(paragraph.Runs, frame, null, ParagraphGap);
@@ -135,12 +149,7 @@ internal sealed class LayoutEngine
                 this.Code(code, frame);
                 break;
             case QuoteBlock quote:
-                var inner = new Frame(frame.Left + QuoteIndent, frame.Width - QuoteIndent, Grey, [.. frame.QuoteRules, frame.Left + 3]);
-                foreach (var child in quote.Blocks)
-                {
-                    this.Block(child, inner, listLevel);
-                }
-
+                this.Blocks(quote.Blocks, QuoteFrame(frame), listLevel);
                 break;
             case TableBlock table:
                 this.Table(table, frame);
@@ -157,23 +166,37 @@ internal sealed class LayoutEngine
                 this.Advance(12, frame);
                 break;
         }
+
+        if (block is not HeadingBlock)
+        {
+            this.chainTop = null;
+        }
     }
 
-    private void Heading(HeadingBlock heading, Frame frame)
+    private static Frame QuoteFrame(Frame frame) =>
+        new(frame.Left + QuoteIndent, frame.Width - QuoteIndent, Grey, [.. frame.QuoteRules, frame.Left + 3]);
+
+    private void Heading(HeadingBlock heading, Frame frame, IReadOnlyList<Block> siblings, int next)
     {
-        var size = HeadingSizes[Math.Clamp(heading.Level, 1, 6) - 1];
+        var size = HeadingSize(heading);
         if (heading.Level == 1 && !this.AtTop)
         {
             this.NewPage();
         }
 
         this.Gap(size * 0.8, frame);
-        var runs = this.Supported(heading.Runs, RunStyle.Bold);
-        var lines = this.Wrap(runs, frame.Width, size, RunStyle.Bold);
-        var height = lines.Count * size * LineFactor;
+        var (runs, lines) = this.HeadingLines(heading, frame.Width);
+        var height = (lines.Count * size * LineFactor) + (size * 0.35);
 
-        // Kept with the first lines of what follows.
-        this.Ensure(height + (2 * BodySize * LineFactor));
+        // Kept with the start of what follows: further headings and their content included.
+        var above = this.ChainHeight + height;
+        this.Ensure(height + this.KeepHeight(siblings, next, frame, above));
+        if (this.chainTop is null || this.chainPage != this.pages.Count)
+        {
+            this.chainTop = this.y;
+            this.chainPage = this.pages.Count;
+        }
+
         this.Mark(runs, heading.Level - 1, heading.Anchor);
         foreach (var line in lines)
         {
@@ -182,6 +205,76 @@ internal sealed class LayoutEngine
 
         this.Gap(size * 0.35, frame);
     }
+
+    private static double HeadingSize(HeadingBlock heading) => HeadingSizes[Math.Clamp(heading.Level, 1, 6) - 1];
+
+    // Replaced and wrapped once per heading and width, like paragraphs.
+    private (List<TextRun> Runs, List<TextLine> Lines) HeadingLines(HeadingBlock heading, double width)
+    {
+        if (this.headings.TryGetValue(heading, out var cached) && cached.Width == width)
+        {
+            return (cached.Runs, cached.Lines);
+        }
+
+        var runs = this.Supported(heading.Runs, RunStyle.Bold);
+        var lines = this.Wrap(runs, width, HeadingSize(heading), RunStyle.Bold);
+        this.headings[heading] = (width, runs, lines);
+        return (runs, lines);
+    }
+
+    // The height of the headings directly above, on this page.
+    private double ChainHeight => this.chainTop is { } top && this.chainPage == this.pages.Count ? this.y - top : 0;
+
+    // The tallest a visual may be: a page, less the headings it is kept with.
+    private double VisualRoom => this.geometry.Bottom - this.geometry.Top - this.ChainHeight;
+
+    // How much of the blocks from `next` on must share the page with a heading above them. `above` is the height of
+    // that heading and the ones before it, which a visual must leave room for.
+    private double KeepHeight(IReadOnlyList<Block> siblings, int next, Frame frame, double above)
+    {
+        if (next >= siblings.Count)
+        {
+            return 0;
+        }
+
+        switch (siblings[next])
+        {
+            case HeadingBlock { Level: 1 }:
+                return 0;
+            case HeadingBlock heading:
+                var size = HeadingSize(heading);
+                var height = (size * 0.8) + (this.HeadingLines(heading, frame.Width).Lines.Count * size * LineFactor) + (size * 0.35);
+                return height + this.KeepHeight(siblings, next + 1, frame, above + height);
+            case ParagraphBlock paragraph:
+                return KeepLines(this.ParagraphLines(paragraph.Runs, frame.Width).Count) * BodySize * LineFactor;
+            case ListBlock { Items.Count: > 0 } list:
+                var inner = frame with { Left = frame.Left + ListIndent, Width = frame.Width - ListIndent };
+                return list.Items[0] is [ParagraphBlock first, ..]
+                    ? KeepLines(this.ParagraphLines(first.Runs, inner.Width).Count) * BodySize * LineFactor
+                    : Math.Max(BodySize * LineFactor, this.KeepHeight(list.Items[0], 0, inner, above));
+            case QuoteBlock quote:
+                return this.KeepHeight(quote.Blocks, 0, QuoteFrame(frame), above);
+            case CodeBlock code:
+                return code.Lines.Count switch
+                {
+                    <= 1 => (2 * CodePadding) + (CodeSize * LineFactor),
+                    _ => CodePadding + (2 * CodeSize * LineFactor),
+                };
+            case TableBlock table:
+                return this.Prepare(table, frame.Width) is { } prepared ? prepared.KeepHeight : 0;
+            case ImageBlock image:
+                return Math.Min(this.ImageSize(image, frame).Height, this.geometry.Bottom - this.geometry.Top - above);
+            case DrawingBlock drawing:
+                return Math.Min(DrawingScale(drawing.Drawing, frame, this.geometry) * drawing.Drawing.Height, this.geometry.Bottom - this.geometry.Top - above);
+            case RuleBlock:
+                return 12;
+            default:
+                return 0;
+        }
+    }
+
+    // The lines of a paragraph that must stay together at its start: all of a short one, else two.
+    private static int KeepLines(int lines) => lines <= 3 ? Math.Max(1, lines) : 2;
 
     private void Mark(IReadOnlyList<TextRun> title, int level, string? anchor)
     {
@@ -197,27 +290,69 @@ internal sealed class LayoutEngine
         }
     }
 
-    // A marker (bullet or number) goes right-aligned before the first line.
+    // A marker (bullet or number) goes right-aligned before the first line. A page break inside the paragraph leaves
+    // at least two lines on either side: no orphan at the bottom, no widow at the top.
     private void Paragraph(IReadOnlyList<TextRun> runs, Frame frame, string? marker, double gapAfter)
     {
-        var lines = this.Wrap(this.Supported(runs, RunStyle.None), frame.Width, BodySize, RunStyle.None);
+        var lines = this.ParagraphLines(runs, frame.Width);
         if (lines.Count == 0 && marker is not null)
         {
-            lines.Add(new TextLine([], 0));
+            lines = [new TextLine([], 0)];
         }
 
-        for (var i = 0; i < lines.Count; i++)
+        var lineHeight = BodySize * LineFactor;
+        var placed = 0;
+        while (placed < lines.Count)
         {
-            if (i == 0 && marker is not null)
+            var room = (int)Math.Floor((this.geometry.Bottom - this.y) / lineHeight);
+            var rest = lines.Count - placed;
+            var take = rest;
+            if (room < rest)
             {
-                this.Ensure(BodySize * LineFactor);
-                this.Marker(marker, frame);
+                take = rest - room < 2 ? rest - 2 : room;
+                if (take < 2)
+                {
+                    if (!this.AtTop)
+                    {
+                        this.NewPage();
+                        continue;
+                    }
+
+                    take = Math.Min(rest, Math.Max(1, room)); // a page too small for the rule
+                }
             }
 
-            this.Line(lines[i], frame, frame.Left, BodySize, frame.Color);
+            for (var i = placed; i < placed + take; i++)
+            {
+                if (i == 0 && marker is not null)
+                {
+                    this.Marker(marker, frame);
+                }
+
+                this.Line(lines[i], frame, frame.Left, BodySize, frame.Color);
+            }
+
+            placed += take;
+            if (placed < lines.Count)
+            {
+                this.NewPage();
+            }
         }
 
         this.Gap(gapAfter, frame);
+    }
+
+    // Wrapped once per paragraph and width: headings measure what follows them with the very lines it is drawn in.
+    private List<TextLine> ParagraphLines(IReadOnlyList<TextRun> runs, double width)
+    {
+        if (this.paragraphs.TryGetValue(runs, out var cached) && cached.Width == width)
+        {
+            return cached.Lines;
+        }
+
+        var lines = this.Wrap(this.Supported(runs, RunStyle.None), width, BodySize, RunStyle.None);
+        this.paragraphs[runs] = (width, lines);
+        return lines;
     }
 
     private void Marker(string marker, Frame frame)
@@ -254,7 +389,7 @@ internal sealed class LayoutEngine
                         this.Marker(marker, inner);
                     }
 
-                    this.Block(item[b], inner, item[b] is ListBlock ? level + 1 : level);
+                    this.Block(item[b], inner, item[b] is ListBlock ? level + 1 : level, item, b + 1);
                 }
             }
         }
@@ -298,17 +433,33 @@ internal sealed class LayoutEngine
 
     private void Image(ImageBlock image, Frame frame)
     {
-        // 96 DPI: a pixel is 0.75 pt.
-        var width = image.Info.Width * 0.75 * image.Scale;
-        var height = image.Info.Height * 0.75 * image.Scale;
-        var fit = Math.Min(1.0, Math.Min(frame.Width / width, (this.geometry.Bottom - this.geometry.Top) / height));
-        width *= fit;
-        height *= fit;
+        var (width, height) = this.ImageSize(image, frame);
+        if (height > this.VisualRoom)
+        {
+            // Smaller still, to share a page with the headings above it.
+            width *= this.VisualRoom / height;
+            height = this.VisualRoom;
+        }
+
         this.Ensure(height);
         this.page.Items.Add(new ImageItem(image.Resource, image.Resource.Content, image.Info.Format, frame.Left + ((frame.Width - width) / 2), this.y, width, height));
         this.Advance(height, frame);
         this.Gap(ParagraphGap, frame);
     }
+
+    // 96 DPI: a pixel is 0.75 pt. Scaled down to the content width and the page height, never up.
+    private (double Width, double Height) ImageSize(ImageBlock image, Frame frame)
+    {
+        var width = image.Info.Width * PointsPerPixel * image.Scale;
+        var height = image.Info.Height * PointsPerPixel * image.Scale;
+        var fit = Math.Min(1.0, Math.Min(frame.Width / width, (this.geometry.Bottom - this.geometry.Top) / height));
+        return (width * fit, height * fit);
+    }
+
+    private static double DrawingScale(Drawing drawing, Frame frame, PageGeometry geometry) =>
+        drawing.Width <= 0 || drawing.Height <= 0 ? 0 : PointsPerPixel * Math.Min(
+            1.0,
+            Math.Min(frame.Width / (drawing.Width * PointsPerPixel), (geometry.Bottom - geometry.Top) / (drawing.Height * PointsPerPixel)));
 
     // Placed like an image: centred, scaled down to the content width and the page height, never up.
     private void Drawing(Drawing drawing, Frame frame)
@@ -318,8 +469,12 @@ internal sealed class LayoutEngine
             return;
         }
 
-        var fit = Math.Min(1.0, Math.Min(frame.Width / (drawing.Width * PointsPerPixel), (this.geometry.Bottom - this.geometry.Top) / (drawing.Height * PointsPerPixel)));
-        var scale = PointsPerPixel * fit;
+        var scale = DrawingScale(drawing, frame, this.geometry);
+        if (drawing.Height * scale > this.VisualRoom)
+        {
+            scale = this.VisualRoom / drawing.Height;
+        }
+
         var height = drawing.Height * scale;
         this.Ensure(height);
         var left = frame.Left + ((frame.Width - (drawing.Width * scale)) / 2);
@@ -384,32 +539,53 @@ internal sealed class LayoutEngine
         }
     }
 
+    // Replaced, measured and wrapped once per table and width, so a heading above it measures what is drawn.
+    private PreparedTable? Prepare(TableBlock table, double width)
+    {
+        if (this.tables.TryGetValue(table, out var cached) && cached.Width == width)
+        {
+            return cached.Table;
+        }
+
+        PreparedTable? prepared = null;
+        var columns = table.Alignments.Count;
+        if (columns > 0 && table.Rows.Count > 0)
+        {
+            var supported = table with
+            {
+                Rows = [.. table.Rows.Select((row, r) => (IReadOnlyList<IReadOnlyList<TextRun>>)
+                    [.. row.Select(cell => this.Supported(cell, CellStyle(table, r)))])],
+            };
+            var widths = this.ColumnWidths(supported, width);
+            var cells = supported.Rows
+                .Select((row, r) => Enumerable.Range(0, columns)
+                    .Select(c => this.Wrap(row[c], widths[c] - (2 * CellPadding), TableSize, CellStyle(supported, r)))
+                    .ToList())
+                .ToList();
+            var lineHeight = TableSize * LineFactor;
+            var headerHeight = supported.HasHeader ? RowHeight(cells[0], lineHeight) : 0;
+
+            // The header and the start of the first row stay together; a first row taller than that may split.
+            var firstRow = RowHeight(cells[supported.HasHeader ? Math.Min(1, cells.Count - 1) : 0], lineHeight);
+            prepared = new PreparedTable(widths, cells, headerHeight + Math.Min(firstRow, (3 * lineHeight) + (2 * CellPadding)));
+        }
+
+        this.tables[table] = (width, prepared);
+        return prepared;
+    }
+
     private void Table(TableBlock table, Frame frame)
     {
-        var columns = table.Alignments.Count;
-        if (columns == 0 || table.Rows.Count == 0)
+        if (this.Prepare(table, frame.Width) is not { } prepared)
         {
             return;
         }
 
-        table = table with
-        {
-            Rows = [.. table.Rows.Select((row, r) => (IReadOnlyList<IReadOnlyList<TextRun>>)
-                [.. row.Select(cell => this.Supported(cell, CellStyle(table, r)))])],
-        };
-        var widths = this.ColumnWidths(table, frame.Width);
-        var cells = table.Rows
-            .Select((row, r) => Enumerable.Range(0, columns)
-                .Select(c => this.Wrap(row[c], widths[c] - (2 * CellPadding), TableSize, CellStyle(table, r)))
-                .ToList())
-            .ToList();
+        var (widths, cells, keepHeight) = prepared;
         var lineHeight = TableSize * LineFactor;
         var header = table.HasHeader ? cells[0] : null;
         var headerHeight = header is null ? 0 : RowHeight(header, lineHeight);
-
-        // The header and the start of the first row stay together; a first row taller than that may split.
-        var firstRow = RowHeight(cells[header is null ? 0 : Math.Min(1, cells.Count - 1)], lineHeight);
-        this.Ensure(headerHeight + Math.Min(firstRow, (3 * lineHeight) + (2 * CellPadding)));
+        this.Ensure(keepHeight);
         for (var r = 0; r < cells.Count; r++)
         {
             var isHeader = header is not null && r == 0;
@@ -978,6 +1154,9 @@ internal sealed class LayoutEngine
             (true, false, true) => FontFace.TableItalic,
             (true, false, false) => FontFace.TableRegular,
         };
+
+    /// <summary>A table with its text replaced, its column widths, its wrapped cells, and the height its start needs.</summary>
+    private sealed record PreparedTable(double[] Widths, List<List<List<TextLine>>> Cells, double KeepHeight);
 
     /// <summary>The column a block flows in, its text colour, and the x of the rule of each enclosing quote.</summary>
     private readonly record struct Frame(double Left, double Width, string Color, IReadOnlyList<double> QuoteRules);

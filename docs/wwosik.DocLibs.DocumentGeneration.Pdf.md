@@ -80,8 +80,8 @@ The shared syntax and rules are in
 | -------- | --- |
 | First `#` (at the very start) | The cover page. |
 | Every other `#` | Starts a new page. |
-| `#`–`######` | Headings, kept on the same page as the first lines of what follows; each is a bookmark (nested by level, the cover title on top) and the target of `[x](#heading-id)` links (GitHub-style ids). |
-| Paragraphs | Greedy line breaking at spaces; a word wider than the line is broken by characters; `\` hard breaks kept. Left-aligned, no hyphenation. |
+| `#`–`######` | Headings, kept on the same page as the start of what follows (see [Page breaks](#page-breaks)); each is a bookmark (nested by level, the cover title on top) and the target of `[x](#heading-id)` links (GitHub-style ids). |
+| Paragraphs | Greedy line breaking at spaces; a word wider than the line is broken by characters; `\` hard breaks kept. Left-aligned, no hyphenation. No single line at the top or bottom of a page (see [Page breaks](#page-breaks)). |
 | Lists | Hanging indent of 18 pt per level, `•` / `–` alternating by level, numbers from the list's start value. |
 | Code blocks | Liberation Mono 9 pt on light grey, wrapped by characters. |
 | Quotes | Indented, grey, with a rule on the left per quote level. |
@@ -91,6 +91,24 @@ The shared syntax and rules are in
 | `**bold**`, `*italic*`, `~~strike~~`, `` `code` `` | Font face; strike as a line through. |
 | Links | Brand link colour, underlined, with a link annotation. Absolute URLs open; `#id` jumps to the heading; anything else stays text. |
 | Raw HTML | Written out as text. HTML comments are dropped. |
+
+## Page breaks
+
+- **Headings stay with what follows them.** A heading (levels 2–6; `#` always starts a page)
+  moves to the next page unless the start of the next block fits below it:
+  - a paragraph or list: its first two lines, or the whole paragraph if it has three lines or
+    fewer;
+  - code: its first two lines;
+  - a table: its header row and the start of its first row;
+  - an image or a diagram: all of it, because they are never split;
+  - another heading: that heading and the start of what follows it, so a chain of headings moves
+    together.
+- **A visual too tall for one page together with its headings** is scaled down further until
+  they fit on one page together.
+- **No widows or orphans.** Where a page break falls inside a paragraph (body text, list items,
+  quotes), at least two lines stay on each side of it. A paragraph of two or three lines moves
+  whole. The list marker moves with the first line. Code blocks and table rows follow their own
+  rules: code breaks between any lines, and table rows as described above.
 
 ## Fonts
 
