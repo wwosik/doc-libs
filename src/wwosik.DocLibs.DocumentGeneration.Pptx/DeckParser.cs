@@ -72,11 +72,23 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
 
         var title = this.Runs(heading.Inline, imagesAsText: true);
         var isTitle = heading.Level == 1;
-        var attributes = isTitle ? null : Attributes(title);
-        if (attributes is null && (isTitle || !blocks.Any(UsesLayouts)))
+        var attributes = Attributes(title);
+        if (isTitle && attributes is { Dark: true } or { Kicker: not null })
         {
-            var section = new SectionBuilder(this.slides, title, isTitle, isTitle && this.hasCover);
-            this.hasCover |= isTitle;
+            throw Error("A '#' heading takes only the attributes layout=\"…\" and .closing; .dark and kicker=\"…\" go on '##' headings.");
+        }
+
+        if (!isTitle && attributes is { Closing: true })
+        {
+            throw Error("{.closing} goes on a '#' heading: the closing slide.");
+        }
+
+        // `layout="…"` alone keeps a plain slide plain, on the layout asked for.
+        if (attributes is not ({ Dark: true } or { Kicker: not null }) && (isTitle || !blocks.Any(UsesLayouts)))
+        {
+            var closing = attributes?.Closing ?? false;
+            var section = new SectionBuilder(this.slides, title, isTitle, isTitle && this.hasCover && !closing, attributes?.Layout, closing);
+            this.hasCover |= isTitle && !closing;
             foreach (var block in blocks)
             {
                 this.Walk(block, section, 0, RunStyle.None);
@@ -92,7 +104,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             this.Walk(block, flow, 0, RunStyle.None);
         }
 
-        this.slides.Add(new FlowSlide(title, attributes?.Kicker, attributes?.Dark ?? false, flow.Finish()));
+        this.slides.Add(new FlowSlide(title, attributes?.Kicker, attributes?.Dark ?? false, flow.Finish()) { Layout = attributes?.Layout });
     }
 
     // Takes the attributes off the end of the title, which is then shorter by them.
@@ -169,7 +181,11 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
                 }
                 else if (rendered is ImageGraphic image)
                 {
-                    target.Visual(null, new SlideImage(image.Image, fenced.Info ?? string.Empty, 1.0));
+                    target.Visual(null, [new SlideImage(image.Image, fenced.Info ?? string.Empty, 1.0)]);
+                }
+                else if (rendered is ChartGraphic chart)
+                {
+                    target.Visual(null, null, chart: chart.Chart);
                 }
 
                 break;
@@ -238,19 +254,27 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         }
     }
 
-    // Splits the paragraph at images: text before and after becomes paragraphs, each image a visual.
+    // Splits the paragraph at images: text before and after becomes paragraphs, each image a visual. A paragraph of
+    // nothing but two or more images is one visual: a row of them, side by side.
     private void Paragraph(ContainerInline? inline, ITarget target, ParagraphKind kind, int level, int start, RunStyle style)
     {
         var collector = new RunCollector(this, imagesAsText: false);
         collector.Add(inline, style, null);
+        var images = collector.Pieces.OfType<SlideImage>().ToList();
+        if (images.Count >= 2 && collector.Pieces.OfType<List<TextRun>>().All(runs => Trim(runs).Count == 0))
+        {
+            target.Visual(null, images);
+            return;
+        }
+
         var first = true;
         foreach (var piece in collector.Pieces)
         {
             if (piece is SlideImage image)
             {
-                target.Visual(null, image);
+                target.Visual(null, [image]);
             }
-            else if (piece is List<TextRun> runs && Trim(runs) is { Count: > 0 } trimmed)
+            else if (piece is List<TextRun> runs && Trim(Colour(runs)) is { Count: > 0 } trimmed)
             {
                 target.Text(new TextParagraph(trimmed, first ? kind : ParagraphKind.Plain, level, start));
                 first = false;
@@ -279,8 +303,17 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
     {
         var collector = new RunCollector(this, imagesAsText);
         collector.Add(inline, style, null);
-        return Trim(collector.Pieces.OfType<List<TextRun>>().SelectMany(r => r).ToList());
+        return Trim(Colour(collector.Pieces.OfType<List<TextRun>>().SelectMany(r => r).ToList()));
     }
+
+    // `[words]{.success}`: the words bold, in that status colour.
+    private static List<TextRun> Colour(List<TextRun> runs) => ColouredWords.Apply(
+        runs,
+        r => r.Text,
+        r => r.Style.HasFlag(RunStyle.Code),
+        (r, text) => r with { Text = text },
+        (r, category) => r with { Style = r.Style | RunStyle.Bold, Colour = category },
+        Format.Pptx);
 
     private void Container(CustomContainer container, FlowCollector target)
     {
@@ -298,6 +331,9 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             case "panel":
                 target.Add(new PanelBlock(arguments == "dark", this.Flow(container)));
                 break;
+            case "columns":
+                target.Add(this.Columns(container, arguments));
+                break;
             case "statement":
                 if (container.FirstOrDefault() is not ParagraphBlock lead)
                 {
@@ -312,6 +348,36 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
 
                 break;
         }
+    }
+
+    // Its parts, split at thematic breaks (`---` after a blank line), side by side.
+    private ColumnsBlock Columns(CustomContainer container, string arguments)
+    {
+        var parts = new List<List<Block>> { new() };
+        foreach (var child in container)
+        {
+            if (child is ThematicBreakBlock)
+            {
+                parts.Add([]);
+            }
+            else
+            {
+                parts[^1].Add(child);
+            }
+        }
+
+        if (parts.Count is not (2 or 3) || parts.Any(p => p.Count == 0))
+        {
+            throw Error("A '::: columns' holds two or three columns, separated by a line '---' with a blank line before it.");
+        }
+
+        var widths = arguments.Length > 0 ? LayoutSyntax.ColumnWidths(arguments)! : Enumerable.Repeat(1, parts.Count).ToList();
+        if (widths.Count != parts.Count)
+        {
+            throw Error($"'::: columns {arguments}' gives {widths.Count} widths for {parts.Count} columns.");
+        }
+
+        return new ColumnsBlock(widths, parts.Select(p => (IReadOnlyList<FlowBlock>)this.Flow(p)).ToList());
     }
 
     // A list of `**Title** – text` items, or a `###` heading before each card's blocks.
@@ -529,11 +595,11 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         var url = link.GetDynamicUrl?.Invoke() ?? link.Url ?? string.Empty;
         var resource = document.FindResource(url)
             ?? throw new DocumentConversionException(Format.Pptx, $"The image '{url}' is not among the document's resources.");
-        var scale = link.Title is { } title && ScalePattern().Match(title) is { Success: true } match
+        double? scale = link.Title is { } title && ScalePattern().Match(title) is { Success: true } match
             && double.TryParse(match.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && value > 0
             ? value
-            : 1.0;
-        return new SlideImage(resource, AltText(link), scale);
+            : null;
+        return new SlideImage(resource, AltText(link), scale, link.Title is { } words && CaptionPattern().IsMatch(words));
     }
 
     private static string AltText(ContainerInline container) =>
@@ -544,6 +610,9 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
     [GeneratedRegex(@"scale\s*=\s*([0-9]+(?:\.[0-9]+)?)", RegexOptions.CultureInvariant)]
     private static partial Regex ScalePattern();
 
+    [GeneratedRegex(@"(?<![\w-])caption(?![\w-])", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex CaptionPattern();
+
     [GeneratedRegex(@"^\s*(?:[–—:]|-(?=\s))?\s*", RegexOptions.CultureInvariant)]
     private static partial Regex SeparatorPattern();
 
@@ -552,7 +621,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
     {
         void Text(TextParagraph paragraph);
 
-        void Visual(SlideTable? table, SlideImage? image, Drawing? drawing = null);
+        void Visual(SlideTable? table, IReadOnlyList<SlideImage>? images, Drawing? drawing = null, ChartSpec? chart = null);
     }
 
     /// <summary>Collects runs, cut into pieces at images unless images count as their alt text.</summary>
@@ -645,24 +714,25 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
     }
 
     /// <summary>Collects the text and visuals of one heading's section and turns them into slides.</summary>
-    private sealed class SectionBuilder(List<Slide> slides, IReadOnlyList<TextRun> title, bool isTitle, bool isSection) : ITarget
+    private sealed class SectionBuilder(List<Slide> slides, IReadOnlyList<TextRun> title, bool isTitle, bool isSection, string? layout, bool closing) : ITarget
     {
         private List<TextParagraph> above = [];
         private List<TextParagraph> below = [];
         private SlideTable? table;
-        private SlideImage? image;
+        private IReadOnlyList<SlideImage>? images;
         private Drawing? drawing;
+        private ChartSpec? chart;
         private bool titlePending = isTitle;
 
-        private bool HasVisual => this.table is not null || this.image is not null || this.drawing is not null;
+        private bool HasVisual => this.table is not null || this.images is not null || this.drawing is not null || this.chart is not null;
 
         public void Text(TextParagraph paragraph) => (this.HasVisual ? this.below : this.above).Add(paragraph);
 
-        public void Visual(SlideTable? newTable, SlideImage? newImage, Drawing? newDrawing = null)
+        public void Visual(SlideTable? newTable, IReadOnlyList<SlideImage>? newImages, Drawing? newDrawing = null, ChartSpec? newChart = null)
         {
             if (this.titlePending)
             {
-                slides.Add(new TitleSlide(title, this.above, isSection));
+                slides.Add(new TitleSlide(title, this.above, isSection) { Layout = layout, Closing = closing });
                 this.above = [];
                 this.titlePending = false;
             }
@@ -672,15 +742,16 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             }
 
             this.table = newTable;
-            this.image = newImage;
+            this.images = newImages;
             this.drawing = newDrawing;
+            this.chart = newChart;
         }
 
         public void Finish()
         {
             if (this.titlePending)
             {
-                slides.Add(new TitleSlide(title, this.above, isSection));
+                slides.Add(new TitleSlide(title, this.above, isSection) { Layout = layout, Closing = closing });
             }
             else if (this.HasVisual)
             {
@@ -688,18 +759,19 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             }
             else
             {
-                slides.Add(new ContentSlide(title, this.above));
+                slides.Add(new ContentSlide(title, this.above) { Layout = layout });
             }
         }
 
         private void FlushVisual()
         {
-            slides.Add(new VisualSlide(title, this.above, this.table, this.image, this.below) { Drawing = this.drawing });
+            slides.Add(new VisualSlide(title, this.above, this.table, this.images, this.below) { Drawing = this.drawing, Chart = this.chart, Layout = layout });
             this.above = [];
             this.below = [];
             this.table = null;
-            this.image = null;
+            this.images = null;
             this.drawing = null;
+            this.chart = null;
         }
     }
 
@@ -723,8 +795,12 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             this.text.Add(paragraph);
         }
 
-        public void Visual(SlideTable? table, SlideImage? image, Drawing? drawing = null) =>
-            this.Add(table is not null ? new TableBlock(table) : image is not null ? new ImageBlock(image) : new DrawingBlock(drawing!));
+        public void Visual(SlideTable? table, IReadOnlyList<SlideImage>? images, Drawing? drawing = null, ChartSpec? chart = null) =>
+            this.Add(table is not null ? new TableBlock(table)
+                : images is [var image] ? new ImageBlock(image)
+                : images is not null ? new ImageRowBlock(images)
+                : chart is not null ? new ChartBlock(chart)
+                : new DrawingBlock(drawing!));
 
         public void Add(FlowBlock block)
         {

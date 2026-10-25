@@ -19,6 +19,7 @@
   <ItemGroup>
     <None Include="Samples\**" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\wwosik.DocLibs.DocumentGeneration.Tests\Samples\brand-sample\**" Link="Samples\brand-sample\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\wwosik.DocLibs.DocumentGeneration.Diagrams.Tests\Samples\diagrams.md" Link="Samples\diagrams.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

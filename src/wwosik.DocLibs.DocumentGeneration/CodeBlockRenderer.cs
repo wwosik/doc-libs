@@ -28,7 +28,10 @@ public sealed record CodeBlockRequest(string Language, string Code, Brand Brand)
     public int Line { get; init; }
 }
 
-/// <summary>What a <see cref="ICodeBlockRenderer"/> returns: a <see cref="DrawingGraphic"/> or an <see cref="ImageGraphic"/>.</summary>
+/// <summary>
+/// What a <see cref="ICodeBlockRenderer"/> returns: a <see cref="DrawingGraphic"/>, an <see cref="ImageGraphic"/> or a
+/// <see cref="ChartGraphic"/>.
+/// </summary>
 public abstract record CodeBlockGraphic
 {
     private protected CodeBlockGraphic()
@@ -43,6 +46,64 @@ public sealed record DrawingGraphic(Drawing Drawing) : CodeBlockGraphic;
 /// <summary>An image, placed like a Markdown image: PNG or JPEG for PDFs; PNG, JPEG or GIF for decks.</summary>
 /// <param name="Image">The image.</param>
 public sealed record ImageGraphic(DocumentResource Image) : CodeBlockGraphic;
+
+/// <summary>
+/// A chart: decks write it as a native, editable PowerPoint chart from <paramref name="Chart"/>; PDFs draw
+/// <paramref name="Drawing"/>, the same chart as vectors.
+/// </summary>
+/// <param name="Chart">The chart's kind, labels and data.</param>
+/// <param name="Drawing">The chart drawn in the brand's colours and fonts.</param>
+public sealed record ChartGraphic(ChartSpec Chart, Drawing Drawing) : CodeBlockGraphic;
+
+/// <summary>A bar, line or area chart: categories along the horizontal axis, one series per value column.</summary>
+/// <param name="Kind">Bars (vertical), lines or areas.</param>
+/// <param name="Categories">The labels of the horizontal axis.</param>
+/// <param name="Series">The series, each with one value per category.</param>
+public sealed record ChartSpec(ChartKind Kind, IReadOnlyList<string> Categories, IReadOnlyList<ChartSeries> Series)
+{
+    /// <summary>Bars stacked on each other, or areas on top of each other, rather than side by side or overlapping.</summary>
+    public bool Stacked { get; init; }
+
+    /// <summary>The chart's title; <see langword="null"/>: none.</summary>
+    public string? Title { get; init; }
+
+    /// <summary>The unit of the values, shown with the value axis (<c>k</c>, <c>%</c>, <c>EUR</c>); <see langword="null"/>: none.</summary>
+    public string? Unit { get; init; }
+
+    /// <summary>The colours of the series, upper-case RGB hex without <c>#</c>, in order; they repeat when there are more series.</summary>
+    public IReadOnlyList<string> Colors { get; init; } = [];
+
+    /// <inheritdoc/>
+    public bool Equals(ChartSpec? other) =>
+        other is not null && this.Kind == other.Kind && this.Stacked == other.Stacked && this.Title == other.Title && this.Unit == other.Unit
+        && this.Categories.SequenceEqual(other.Categories) && this.Series.SequenceEqual(other.Series) && this.Colors.SequenceEqual(other.Colors);
+
+    /// <inheritdoc/>
+    public override int GetHashCode() => HashCode.Combine(this.Kind, this.Title, this.Categories.Count, this.Series.Count);
+}
+
+/// <summary>One series of a chart: its name, from the column header, and a value per category (<see langword="null"/> where empty).</summary>
+public sealed record ChartSeries(string Name, IReadOnlyList<double?> Values)
+{
+    /// <inheritdoc/>
+    public bool Equals(ChartSeries? other) => other is not null && this.Name == other.Name && this.Values.SequenceEqual(other.Values);
+
+    /// <inheritdoc/>
+    public override int GetHashCode() => HashCode.Combine(this.Name, this.Values.Count);
+}
+
+/// <summary>The kinds of chart.</summary>
+public enum ChartKind
+{
+    /// <summary>Vertical bars, clustered or stacked.</summary>
+    Bar,
+
+    /// <summary>Lines with markers.</summary>
+    Line,
+
+    /// <summary>Filled areas, overlapping or stacked.</summary>
+    Area,
+}
 
 /// <summary>Asks the renderers in order.</summary>
 internal static class CodeBlockRenderers

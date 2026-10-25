@@ -3,6 +3,8 @@
   <Project Path="wwosik.DocLibs.DocumentConversions.WindowsOnly.Tests/wwosik.DocLibs.DocumentConversions.WindowsOnly.Tests.csproj" />
   <Project Path="wwosik.DocLibs.DocumentConversions.WindowsOnly/wwosik.DocLibs.DocumentConversions.WindowsOnly.csproj" />
   <Project Path="wwosik.DocLibs.DocumentConversions/wwosik.DocLibs.DocumentConversions.csproj" />
+  <Project Path="wwosik.DocLibs.DocumentGeneration.Charts.Tests/wwosik.DocLibs.DocumentGeneration.Charts.Tests.csproj" />
+  <Project Path="wwosik.DocLibs.DocumentGeneration.Charts/wwosik.DocLibs.DocumentGeneration.Charts.csproj" />
   <Project Path="wwosik.DocLibs.DocumentGeneration.Diagrams.Tests/wwosik.DocLibs.DocumentGeneration.Diagrams.Tests.csproj" />
   <Project Path="wwosik.DocLibs.DocumentGeneration.Diagrams/wwosik.DocLibs.DocumentGeneration.Diagrams.csproj" />
   <Project Path="wwosik.DocLibs.DocumentGeneration.Pdf.Tests/wwosik.DocLibs.DocumentGeneration.Pdf.Tests.csproj" />

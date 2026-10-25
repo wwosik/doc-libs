@@ -55,7 +55,8 @@ drawn.
 | `LogoOnDark` | PPTX section dividers (on the gradient) | none |
 | `CoverArtwork` | Cover bottom right: PDF — page width, ≤ 42 % of the height; PPTX — slide width, below the subtitle | none |
 | `Tagline` | Cover bottom right, over the artwork; `ShowTagline` turns it off | none |
-| `Pptx` | A `.pptx` / `.potx` decks are built on instead of the built-in master (see the PPTX docs) | none |
+| `Pptx` | A `.pptx` / `.potx` decks are built on instead of the built-in master (see the PPTX docs); with `ClosingLayout` (the closing slide's layout by name) and `Tone` (`Auto`, `Light`, `Dark`: whether its slides are dark) | none |
+| `SlideColors` | Colours of decks where they differ from PDFs (see [Slide colours](#slide-colours)) | `Colors` |
 
 - **Colours** are `#RRGGBB` or `RRGGBB`. **Images** are PNG or JPEG and keep their aspect ratio:
   logos and taglines are fitted into fixed boxes, aligned right.
@@ -64,6 +65,15 @@ drawn.
   (`The brand 'acme': Colors.Primary 'teal' is not a colour; …`).
 - `Brand.Neutral` (`neutral`) is the default: dark titles, blue accents, no fonts of its own, no
   images, no footer text. Records compare by value, images and fonts by content.
+
+### Slide colours
+
+`Brand.SlideColors` is a second `BrandColors` for decks: every optional colour it leaves `null`
+comes from `Brand.Colors`, so a brand states only what differs — typically a lighter `Primary` and
+`Highlight` for a template with dark slides, where the green or blue that suits white pages is too
+dark. PDFs never read them. Decks use them everywhere: the built-in master, flow-slide colours,
+diagrams and charts. On dark slides, diagrams take white text and lines, nodes in a dark shade of the
+slide primary and the slide highlight as accent, unless `SlideColors.Diagram` names its own.
 
 ### Fonts
 
@@ -160,12 +170,17 @@ paths relative to the pack.
       "family": "Acme Sans Condensed"
     }
   },
-  "pptx": { "template": "template.potx", "layouts": { "title": "Title Slide", "content": "Title and Content", "titleOnly": "Title Only", "sectionHeader": "Section Header" } }
+  "slideColors": { "primary": "#7FB3FF", "highlight": "#FFC94D" },
+  "pptx": {
+    "template": "template.potx",
+    "tone": "dark",
+    "layouts": { "title": "Title Slide", "content": "Title and Content", "titleOnly": "Title Only", "sectionHeader": "Section Header", "closing": "Closing" }
+  }
 }
 ```
 
 Every key but `name` and `colors.primary` is optional (inside `fonts`, the four text faces are
-required, and inside `fonts.table` its `regular` and `bold`); `colors` also takes `footer` and `theme` (12 colours), as in the table above. `//` comments and trailing commas are allowed.
+required, and inside `fonts.table` its `regular` and `bold`); `colors` also takes `footer` and `theme` (12 colours), as in the table above. `slideColors` takes the same keys as `colors`, all optional; `pptx.tone` is `auto` (the default), `light` or `dark`. `//` comments and trailing commas are allowed.
 
 | Load from | Call |
 | --------- | ---- |
@@ -227,8 +242,11 @@ public interface ICodeBlockRenderer
   generator's format, with the same message and the renderer's exception as `InnerException`, so
   every problem in a document has one exception type. A `DocumentConversionException` from a
   renderer is passed on as it is.
-- **`CodeBlockGraphic`** is a `DrawingGraphic(Drawing)` or an `ImageGraphic(DocumentResource)`.
-  The renderers are asked in order and the first graphic wins.
+- **`CodeBlockGraphic`** is a `DrawingGraphic(Drawing)`, an `ImageGraphic(DocumentResource)` or a
+  `ChartGraphic(ChartSpec, Drawing)`: a bar, line or area chart (`ChartSpec`: `Kind`, `Categories`,
+  `Series` of `ChartSeries(Name, Values)`, `Stacked`, `Title`, `Unit`, `Colors`) that decks write as
+  a native chart and PDFs draw as its `Drawing`. The renderers are asked in order and the first
+  graphic wins.
 - **`Drawing(Width, Height, Items)`** is a vector drawing in CSS pixels (0.75 pt each) from the top
   left, with colours as `RRGGBB`. Records compare by content.
   - `DrawingShape(Path, Fill, Stroke, StrokeWidth)` has `Dash`, `RoundJoins`, and `Kind`
@@ -246,8 +264,10 @@ provides `MermaidRenderer`. Any other diagram language can plug in the same way.
 ## Slide layouts in Markdown
 
 The PPTX generator draws [layouts](wwosik.DocLibs.DocumentGeneration.Pptx.md#layouts) from Markdown:
-heading attributes (`## Title {.dark kicker="Label"}`), `:::` containers (`cards`, `rows`,
-`panel`, `statement`), GitHub alerts (`> [!NOTE]`), tag lists of code spans and `==marked==` text.
+heading attributes (`## Title {.dark kicker="Label" layout="Name"}`, `# Thank you {.closing}`),
+`:::` containers (`cards`, `rows`, `panel`, `statement`, `columns`), GitHub alerts (`> [!NOTE]`),
+tag lists of code spans, `==marked==` text, `[words]{.success}` in a status colour, and paragraphs of
+only images, side by side.
 The PDF generator accepts the same Markdown, so one source serves both, and shows it plainly: see
 [its documentation](wwosik.DocLibs.DocumentGeneration.Pdf.md#slide-layouts). Both reject the same
 mistakes — unknown heading attributes, containers and alerts — with a `DocumentConversionException`
@@ -269,6 +289,10 @@ The categories are `success`, `info`, `warning`, `danger` and `neutral`; decks t
 in the brand's colour for it (`Colors.Labels`), and a label no key names is neutral. Labels match
 exactly. An unknown category or a label in two categories throws, in both generators; PDFs show the
 labels as code.
+
+`[words]{.success}` — a bracketed span with exactly one category class — sets the words bold in that
+category's colour, in decks and PDFs; on dark slides the colour is lightened halfway to white. Code
+is never read for it, and any other brackets and braces stay text. An unknown category throws.
 
 ## Front matter
 

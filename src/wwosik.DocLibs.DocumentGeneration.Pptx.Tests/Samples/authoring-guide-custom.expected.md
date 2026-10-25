@@ -15,7 +15,9 @@ a title that states the point, then a few short lines.
 | Text before the first heading, `---`, HTML comments | Nothing: they are dropped. |
 
 - **Keep slides short:** at most about six bullets of one line each, or one table, image or
-  diagram with a sentence. Nothing is split across slides: too much text runs off the slide.
+  diagram with a sentence. What does not fit is set smaller, and what still does not fit continues
+  on a further slide with the same title; long tables repeat their header row. Better: split long
+  content yourself, into slides whose titles say what each one shows.
 - **A table, an image or a diagram gets a slide of its own,** titled like its section; text before
   it goes above, text after it below as a caption. A second one in the same section gets a further
   slide with the same title. Slides that use [layouts](#layouts) keep several on one slide.
@@ -24,9 +26,14 @@ a title that states the point, then a few short lines.
   quote (`>`) is italic. A code block is set in a monospace font.
 - **Tables:** up to about six columns and eight rows; column widths follow the content, alignment
   follows the `:--`/`--:` markers. A row whose first cell is `==marked==` is highlighted.
-- **Images** (PNG, JPEG, GIF) are referenced by the path given to you, keep their size and are
-  only scaled down to fit; `![Chart](chart.png "scale=0.5")` halves the size.
+- **Images** (PNG, JPEG, GIF) are referenced by the path given to you and fill the room they have,
+  keeping their shape; `![Chart](chart.png "scale=1")` stops one from growing beyond its own size.
+  **Several images in one paragraph** (`![Orders](orders.png) ![Sales](sales.png)`) stand side by
+  side on one slide, equally wide: the way to show two charts together. `"caption"` in an image's
+  title (`![Orders by month](orders.png "caption")`) puts its alt text under it.
 - `==text==` marks text like a highlighter pen.
+- `[words]{.success}` sets a few words bold in a status colour: `.success`, `.info`, `.warning`,
+  `.danger` or `.neutral` — for a verdict inside a sentence, such as `[on schedule]{.success}`.
 
 ## Layouts
 
@@ -38,11 +45,13 @@ is fine.
 | -------- | ------------ |
 | `## Title {kicker="Label"}` | A small label above the title: the chapter or topic. |
 | `## Title {.dark}` | The slide on a dark background; both: `{.dark kicker="Label"}`. Use it for one key message, not for many slides. |
+| `# Thank you {.closing}` | The last slide, on the design's closing layout. |
 | `::: cards` … `:::` with one `###` per card | Two to four boxes side by side: parallel points, options, figures. A line that is only `**bold**` right after the `###` is a big figure. |
 | `::: cards` around one list of `- **Title** – text` | The same, one card per item. |
 | `::: rows` around one list of `- **Term** – text` | Term on the left, explanation on the right, with rules: benefits, definitions. |
 | `::: panel` (or `::: panel dark`) … `:::` | A box behind its content, light or dark. |
 | `::: statement` … `:::` | Its first paragraph large and bold: the one sentence to remember. |
+| `::: columns` … `---` … `:::` | Two or three columns side by side, split by `---` lines (with a blank line before each): text beside a chart. `::: columns 1:2` makes the second twice as wide. |
 | `> [!NOTE]` or `> [!TIP]` | A callout with a bar in the main colour. |
 | `> [!IMPORTANT]`, `> [!WARNING]` or `> [!CAUTION]` | A callout with a bar in the highlight colour. |
 | A line of only code spans: `` `Orders` `Invoices` `Stock` `` | Tags, as chips. At least two. |
@@ -70,10 +79,13 @@ of memory per plan.
 
 - **Nesting:** a longer fence holds a shorter one, `:::: panel` around `::: cards` … `:::` and
   `::::`.
-- **Rules:** attributes `{…}` only on `##` headings; in `::: cards` nothing before the first `###`;
+- **Rules:** attributes `{…}` on `##` headings, and on `#` only `.closing` and `layout`; in `::: cards`
+  nothing before the first `###`;
   `::: rows` holds exactly one list; every item of a `cards` or `rows` list starts with
   `**bold**`.
-- Layout slides are not split either: three or four cards with one or two lines each fill a slide.
+- Layout slides that do not fit are set smaller, then continued on a further slide between their
+  blocks; cards, a panel or columns stay together. Three or four cards with one or two lines each
+  fill a slide.
 
 ## Front matter
 
@@ -96,6 +108,8 @@ author: Planning team
 | `layouts.content` | The name of the template's layout for text slides. |
 | `layouts.titleOnly` | The name of the template's layout for table, image and layout slides. |
 | `layouts.sectionHeader` | The name of the template's layout for section dividers. |
+| `layouts.closing` | The name of the template's layout for the closing slide. |
+| `listBullets` | `always` to show bullets on every list level, also where the design's first level has none; `template` (the default) leaves it to the design. |
 | `labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral` | The [status labels](#layouts) in that category, separated by `;`: `labels.success: Done; Delivered`. |
 
 An unknown key, a key given twice or an invalid value is an error that lists the valid keys.

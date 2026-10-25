@@ -86,13 +86,22 @@ string guide = PptxGenerator.AuthoringGuide(options);   // starts at "##"
 | Front matter (see below) | Options, never a slide. |
 | Text before the first heading, thematic breaks, HTML comments | Ignored. |
 
-- **Images** keep their natural size (96 DPI) and are only scaled down to fit. `"scale=N.N"` in
-  the image title multiplies the natural size, still within the free area. Images are centred.
-- **Tables** span the content width; column widths follow the length of their content, cell
-  alignment follows the Markdown, and the template's default table style applies.
-- **Slide number and date:** every slide but the cover gets the layout's slide number placeholder,
-  if it has one, and — with `ShowDate` — its date placeholder with the date of generation
-  (`dd.MM.yyyy`, from `PptxOptions.TimeProvider`).
+- **Images** fill the room they have, keeping their aspect ratio, scaled down or up — up to
+  `PptxOptions.MaxImageUpscale` times their natural size (96 DPI; default 4). `"scale=N.N"` in the
+  image title caps it per image (`scale=1`: never beyond natural size). Images are centred.
+- **Images side by side:** a paragraph of nothing but two or more images (`![A](a.png) ![B](b.png)`)
+  is one visual: the images in cells of equal width across the content width, each fitted into its
+  cell; more than four wrap into further rows. `"caption"` in an image's title puts its alt text
+  under it (14 pt, centred).
+- **Tables** span the content width. Every column is at least as wide as its longest word (numbers
+  never break), measured by character class and bold; the rest of the width goes to the columns by
+  the length of their text. A table whose words do not fit steps its font down from 16 pt (14 pt
+  from 7 rows, 12 pt from 11) to 10 pt before anything wraps inside a word. Cell alignment follows
+  the Markdown, and the template's default table style applies.
+- **Slide number, date and footer text:** every slide but the cover (and the closing slide) gets the
+  layout's slide number placeholder, if it has one, and — with `ShowDate` — its date placeholder
+  with the date of generation (`dd.MM.yyyy`, from `PptxOptions.TimeProvider`). On a brand's own
+  template, `Brand.FooterText` goes into the layout's footer placeholder (`ShowFooter`, default on).
 
 ## Layouts
 
@@ -111,6 +120,7 @@ as plain Markdown.
 | `::: rows` around one list of `- **Term** – text` | The term in bold in the left third, the text beside it, a rule above each row and below the last. |
 | `::: panel` or `::: panel dark` | A box behind its blocks, in the band colour or, dark, in the primary colour with white text. |
 | `::: statement` | Its first paragraph large and bold; the rest of the container follows as normal blocks. |
+| `::: columns` (or `::: columns 1:2`) … `---` … `:::` | Two or three columns side by side, split at `---` lines (a blank line before each, or Markdown reads the line above as a heading); widths equal or in the ratio given. Each column stacks its blocks: text beside an image or a chart. |
 | `> [!NOTE]`, `> [!TIP]` | A band with a bar on the left in the primary colour (not italic). |
 | `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]` | The same with the bar in the highlight colour. |
 | A paragraph of only code spans: `` `a` `b` `c` `` (at least two) | Outlined chips in the code font, flowing and wrapping. |
@@ -119,17 +129,22 @@ as plain Markdown.
 | `==text==` | Bold, on a light tint of the highlight colour, like a highlighter pen — on every slide. |
 | A table row whose first cell is all `==…==` | The row filled in a light tint of the highlight colour — on every slide. |
 | A table cell that is one code span, on a flow slide | A status label: bold, its cell in a light tint of its category's colour. Front matter assigns labels to categories (`labels.success: Done`, see [wwosik.DocLibs.DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md#slide-layouts-in-markdown)); others are neutral. |
+| `[words]{.success}` (`.info`, `.warning`, `.danger`, `.neutral`) | The words bold in that status colour — on every slide. |
+| `## Title {layout="Name"}`, `# Title {layout="Name"}` | The slide on the template's layout of that name (case-insensitive), on a brand's own or a caller's template. Plain slides stay plain: text goes into the layout's body placeholder. |
+| `# Thank you {.closing}` | The closing slide: on `PptxBrandTemplate.ClosingLayout` / `Layouts.Closing`, else a layout named like *Closing*, *End* or *Thank you*, else the cover's (the section layout on the built-in master). Title and subtitle go into the layout's placeholders if it has them; no footer. |
 
 - **What makes a flow slide:** heading attributes, a `:::` container or an alert anywhere in the
   section, or a tag paragraph as a block of its own. Code-span lists outside containers stay
   bullet lists, code-only table cells on other slides stay code.
 - **Containers nest** with longer fences: `:::: panel` around `::: cards` … `:::` and `::::`.
-- **Heading attributes** count only as a trailing `{…}` on a `##` heading made of `.class` and
-  `key="value"` tokens; other braces (`## Sets {a, b}`) stay in the title. On `#` headings they are
-  text.
+- **Heading attributes** count only as a trailing `{…}` made of `.class` and `key="value"` tokens;
+  other braces (`## Sets {a, b}`) stay in the title. `##` headings take `.dark`, `kicker` and
+  `layout`; `#` headings take `layout` and `.closing`.
 - **Mistakes throw** `DocumentConversionException`: an unknown attribute or a key given twice, an
-  unknown container (the message lists `cards, rows, panel, statement`), arguments on a container
-  other than `panel dark`, content before the first `###` in `::: cards`, a `::: rows` that is not
+  unknown container (the message lists `cards, rows, panel, statement, columns`), arguments on a
+  container other than `panel dark` and a `columns` ratio, a `columns` without two or three parts,
+  `layout="…"` naming no layout of the template (or used on the built-in master), `.closing` on a
+  `##` or `.dark` / `kicker` on a `#`, `[words]{.x}` with an unknown colour, content before the first `###` in `::: cards`, a `::: rows` that is not
   one list, an item of `cards` or `rows` that does not start with bold text, an unknown alert.
 - **Colours** come from the brand: titles of cards and rows, chips and statements in `Primary`
   (also the dark background), kickers and figures in `Link`, panels and callouts in `TableBand`,
@@ -141,7 +156,34 @@ as plain Markdown.
   the title-only layout with a background override and white text on everything the generator
   writes; the template's own master graphics stay as they are.
 - **Sizes** on flow slides: text 16 pt, inside cards 14 pt, card titles 16 pt, figures 32 pt,
-  statements 26 pt, kickers and chips 12 pt.
+  statements 26 pt, kickers and chips 12 pt. Images, drawings and charts share the height the other
+  blocks leave, each at least a quarter of the slide.
+
+### Dark templates
+
+A brand's own template whose slides are dark (`PptxBrandTemplate.Tone`; `Auto` reads it from the
+master's title colour, else its background) gets the dark palette on every slide: white text on
+translucent veils (white at 10 % for boxes, cards' outlines at 35 %, dark panels black at 35 %),
+kickers, figures and `==marked==` text in the highlight colour, callout bars in the highlight and
+the warning colour, status labels and highlighted rows as translucent fills, tables with a black
+veil on the header and white veils on every other row, chips outlined in white, diagrams with white
+text on nodes in a dark shade of the primary colour, charts with white text. Every text keeps a
+contrast ratio of at least 4.5 over a dark background. The colours are the brand's
+[slide colours](wwosik.DocLibs.DocumentGeneration.md#slide-colours).
+
+## Fitting
+
+Nothing the generator places ends below the content area. Each slide is measured first (text by an
+estimate of each character's width, wrapped between words); what does not fit is set smaller:
+
+| Slide | Shrinks | Then continues on further slides |
+| ----- | ------- | -------------------------------- |
+| Text | The body placeholder gets `normAutofit` with a font scale, 2 pt per step, to 12 pt — PowerPoint keeps it fitted when edited | Between top-level list items (a nested list stays with its item) |
+| Table, image or drawing | Text 18 → 12 pt, captions to 10 pt, the table to 10 pt; an image gives up height first, to a quarter of the area | Tables between rows, the header row on each slide; text above on the first, below on the last |
+| Flow | Every size by an eighth, twice (16 → 12 pt text), gaps halved | Between blocks; paragraphs, rows of `::: rows`, labelled tags and table rows split, cards, panels, callouts and columns stay whole |
+
+Continuation slides keep the title and kicker; `PptxOptions.ContinuationSuffix` (e.g. `" (cont.)"`)
+marks them. A single block too big for a slide of its own is shrunk and left as it is.
 
 ## Templates
 
@@ -150,14 +192,19 @@ template.
 
 | Options | Template | Features |
 | ------- | -------- | -------- |
-| `BrandTemplateOptions` (default) | The built-in master in `Brand`'s design — by default `Brand.Neutral`: white, Arial, dark titles, blue accents, no images, no footer text | `Brand`, `ShowDate` (default on), `ShowTagline` (default on), `EmbedFonts` (default on) |
+| `BrandTemplateOptions` (default) | The built-in master in `Brand`'s design — by default `Brand.Neutral`: white, Arial, dark titles, blue accents, no images, no footer text | `Brand`, `ShowDate` (default on), `ShowTagline` (default on), `EmbedFonts` (default on), `ShowFooter` (default on; brand templates) |
 | `CustomTemplateOptions(stream)` | A caller's `.pptx` or `.potx` | `Layouts` (layout names) |
+
+Every template takes `PptxOptions.ListBullets`: `Template` (default) leaves the bullets of text slides
+to the template's styles, `Always` writes Markdown's bullets on every level — for templates whose
+level-1 style has none.
 
 Brands — colours, fonts, images, brand packs, and how front matter picks one from
 `PptxOptions.Brands` — are described in
 [wwosik.DocLibs.DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md#brands). A brand with
 its own `Pptx` template is built on that template, exactly like `CustomTemplateOptions` with the
-brand's layout names; such decks never get a date and take no `showDate` / `showTagline`.
+brand's layout names; such decks never get a date and take no `showDate` / `showTagline`, but
+they get the brand's footer text, its tone and its closing layout (`PptxBrandTemplate.ClosingLayout`).
 
 ### The built-in template
 
@@ -226,7 +273,9 @@ author: Team Docs
 | `template` | `neutral`, the brand of `Template`, or a brand in `PptxOptions.Brands` | all — switches to that brand on the built-in master, also replacing a caller's custom template |
 | `showDate`, `showTagline` | `true`, `false` | brands on the built-in master |
 | `embedFonts` | `true`, `false` | brands on the built-in master or their own `Pptx` template |
-| `layouts.title`, `layouts.content`, `layouts.titleOnly`, `layouts.sectionHeader` | layout name | custom |
+| `showFooter` | `true`, `false` | brands with their own `Pptx` template |
+| `listBullets` | `template`, `always` | all |
+| `layouts.title`, `layouts.content`, `layouts.titleOnly`, `layouts.sectionHeader`, `layouts.closing` | layout name | custom |
 | `title`, `author` | text | all — the core properties |
 
 - `template` naming the template the caller chose keeps the caller's values; naming another one
@@ -235,7 +284,7 @@ author: Team Docs
   key, a line that is not `key: value`, or a block that is never closed throws, naming the key and
   listing the keys valid for that template.
 
-## Diagrams
+## Diagrams and charts
 
 `PptxOptions.CodeBlockRenderers` are asked in order about every fenced code block, and the first
 graphic wins. A block no renderer takes stays code. For Mermaid, add
@@ -253,19 +302,30 @@ and the text after it as a caption. A renderer can return:
   character, down to 70 %.
 - an **`ImageGraphic`**, a PNG, JPEG or GIF placed like a Markdown image, with the language as
   alt text.
+- a **`ChartGraphic`**, written as a **native PowerPoint chart** (a chart part with its data in an
+  embedded workbook, so *Edit Data* works): clustered or stacked columns, lines with markers,
+  overlapping or stacked areas; series in the chart's colours, text in the brand's table font, the
+  value axis from zero for bars and areas, gridlines light grey (on dark slides white at 30 %). It
+  fills the width it has, at most 5:8 tall. `ChartRenderer` from
+  [wwosik.DocLibs.DocumentGeneration.Charts](wwosik.DocLibs.DocumentGeneration.Charts.md) makes
+  them from `chart` blocks.
+
+Drawings are enlarged at most by half, so that their text keeps a sensible size.
 
 ## Known limits
 
-- Text heights above and below images and tables are estimated, not measured, so a long caption
-  can overlap the slide's bottom edge. The same goes for flow slides: an overfull one runs past the
-  content area, and is not split. Overfull placeholders rely on the template's autofit, which
-  PowerPoint applies only once the text is edited — very long cover or divider titles overflow.
-- Text in text boxes takes the theme's text colour, not the layout's: a subtitle placed in a text
-  box on a dark caller layout stays dark.
+- Text heights are estimated from character widths, not measured with the font, so fitting is
+  generous but not exact: a font much wider than the estimate can still overflow. Very long cover
+  or divider titles are not fitted.
+- The tone of a brand template is read from its colours; a photographic background is not looked
+  at. A template whose title colour does not tell needs `PptxBrandTemplate.Tone`. Caller templates
+  are taken as light.
+- On light slides, text in text boxes takes the theme's text colour, not the layout's: a subtitle
+  placed in a text box on a dark caller layout stays dark.
 - The footer text sits in a box of fixed width without wrapping; a long one runs into the date.
 - A caller template's own body style is used as it is; one made for hand-written slides (level 1
   bold, no bullets on levels 1–2) suits Markdown less well than the built-in template.
-- No speaker notes, no charts, no SVG images, no merged table cells.
+- No speaker notes, no SVG images, no merged table cells. Charts are bar, line and area only.
 - Embedded fonts are a PowerPoint feature. Viewers that ignore them — LibreOffice without
   libeot, Google Slides — substitute a font of their own, as for a deck without embedded fonts.
   PowerPoint Online honours them only partly.

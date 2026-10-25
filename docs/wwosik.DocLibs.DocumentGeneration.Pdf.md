@@ -213,6 +213,9 @@ renderer can return:
   glyphs like any other text. A line wider than its room shrinks down to 70 %. Colours are device
   RGB without transparency, so the PDF stays PDF/A-2b.
 - an **`ImageGraphic`**, a PNG or JPEG placed like a Markdown image.
+- a **`ChartGraphic`**: its `Drawing` is drawn like a `DrawingGraphic` (decks write the chart
+  natively). `ChartRenderer` from
+  [wwosik.DocLibs.DocumentGeneration.Charts](wwosik.DocLibs.DocumentGeneration.Charts.md) makes them.
 
 The request carries the language, the code, the brand the document is generated in (after front
 matter) and the block's line in the Markdown. A renderer that throws fails the generation with a
@@ -223,13 +226,17 @@ matter) and the block's line in the Markdown. A renderer that throws fails the g
 Markdown written for the PPTX generator's
 [layouts](wwosik.DocLibs.DocumentGeneration.Pptx.md#layouts) works here too, shown plainly:
 
-- **Heading attributes** at the end of a `##` heading (`{.dark kicker="Label"}`) are checked and
-  dropped; the kicker is not shown.
-- **Containers** (`::: cards`, `rows`, `panel`, `statement`) show their content as normal blocks: a
-  card's `###` is a heading, a short-form list a list.
+- **Heading attributes** at the end of a `##` heading (`{.dark kicker="Label" layout="Name"}`) and of
+  a `#` heading (`{.closing}`) are checked and dropped; the kicker is not shown.
+- **Containers** (`::: cards`, `rows`, `panel`, `statement`, `columns`) show their content as normal
+  blocks: a card's `###` is a heading, a short-form list a list, the columns of `::: columns` one
+  after the other without the `---` between them.
 - **Alerts** (`> [!NOTE]` …) are quotes that start with their kind in bold ("Note", "Warning").
 - **`==marked==`** text is bold; tags and status labels stay code spans. `labels.<category>` front
   matter is checked and otherwise ignored.
+- **`[words]{.success}`** sets the words bold in that status colour (`Colors.Labels`), as in decks.
+- **A paragraph of only images** is a row: the images side by side in cells of equal width across
+  the text width, each scaled down to its cell, the row moved to the next page whole.
 - Unknown attributes, containers and alerts throw, as in decks.
 
 ## Known limits

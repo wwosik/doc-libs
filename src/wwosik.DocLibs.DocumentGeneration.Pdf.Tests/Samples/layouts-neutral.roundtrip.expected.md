@@ -63,7 +63,9 @@ Booking revision, rule version, parameter revision, and a revision per reference
 
 ### Status model
 
-Status Moved on by Created System
+Status Moved on by
+
+Created System
 
 WaitingForApproval Human
 
@@ -84,8 +86,20 @@ The race in the old system happened with a broker.
 
 ### Status and next steps
 
-Part Status Host, storage, identifiers Done Intake and validation Done Work queue and detail pages In review Engine and results Next Important
+Part Status Host, storage, identifiers Done
+
+Intake and validation Done
+
+Work queue and detail pages In review Engine and results Next
+
+Important
 
 Then a shadow run: Harbour calculates the same bookings, and the results are compared.
+
+### Two views
+
+Before: every change waited for the weekly release.
+
+After: changes ship the same day, behind a switch, and the old path stays until the numbers agree.
 
 09.03.2026 3 / 3

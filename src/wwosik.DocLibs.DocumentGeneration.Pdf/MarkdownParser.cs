@@ -44,7 +44,7 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
                 start++;
             }
 
-            cover = new Cover(parser.Runs(first.Inline), subtitle, Anchor(first));
+            cover = new Cover(WithoutAttributes(parser.Runs(first.Inline)), subtitle, Anchor(first));
         }
 
         var result = new List<Block>();
@@ -76,13 +76,17 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         {
             case Markdig.Syntax.HeadingBlock heading:
                 var runs = this.Runs(heading.Inline);
-                target.Add(new HeadingBlock(heading.Level, heading.Level == 2 ? WithoutAttributes(runs) : runs, Anchor(heading)));
+                target.Add(new HeadingBlock(heading.Level, heading.Level <= 2 ? WithoutAttributes(runs) : runs, Anchor(heading)));
                 break;
             case CustomContainer container:
                 LayoutSyntax.CheckContainer(container.Info ?? string.Empty, container.Arguments?.Trim() ?? string.Empty, DocumentFormat.Pdf);
                 foreach (var child in container)
                 {
-                    this.Add(child, target);
+                    // The `---` between the columns of `::: columns` only separates them; the columns follow one another.
+                    if (child is not ThematicBreakBlock || container.Info != "columns")
+                    {
+                        this.Add(child, target);
+                    }
                 }
 
                 break;
@@ -113,6 +117,7 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
                 {
                     DrawingGraphic drawing => new DrawingBlock(drawing.Drawing),
                     ImageGraphic image => this.Image(image.Image, 1.0),
+                    ChartGraphic chart => new DrawingBlock(chart.Drawing),
                     _ => throw new UnreachableException(),
                 });
                 break;
@@ -159,25 +164,33 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         return children;
     }
 
-    // Splits the paragraph at images: text before and after becomes paragraphs, each image a block of its own.
+    // Splits the paragraph at images: text before and after becomes paragraphs, each image a block of its own. A
+    // paragraph of nothing but two or more images is one row of them.
     private void Paragraph(ContainerInline? inline, List<Block> target)
     {
         var collector = new RunCollector(this);
         collector.Add(inline, RunStyle.None, null);
+        if (collector.Pieces.OfType<ImageBlock>().ToList() is { Count: >= 2 } images
+            && collector.Pieces.OfType<List<TextRun>>().All(runs => Trim(runs).Count == 0))
+        {
+            target.Add(new ImageRowBlock(images));
+            return;
+        }
+
         foreach (var piece in collector.Pieces)
         {
             if (piece is ImageBlock image)
             {
                 target.Add(image);
             }
-            else if (piece is List<TextRun> runs && Trim(runs) is { Count: > 0 } trimmed)
+            else if (piece is List<TextRun> runs && Trim(Colour(runs)) is { Count: > 0 } trimmed)
             {
                 target.Add(new ParagraphBlock(trimmed));
             }
         }
     }
 
-    // Slide settings at the end of a `##` heading (`{.dark kicker="…"}`) are checked like in decks, then dropped.
+    // Slide settings at the end of a `#` or `##` heading (`{.dark kicker="…"}`) are checked like in decks, then dropped.
     private static List<TextRun> WithoutAttributes(List<TextRun> runs)
     {
         if (runs.Count == 0 || runs[^1] is not { IsBreak: false, Style: RunStyle.None, Link: null } last)
@@ -198,8 +211,17 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
     {
         var collector = new RunCollector(this, imagesAsText: true);
         collector.Add(inline, RunStyle.None, null);
-        return Trim(collector.Pieces.OfType<List<TextRun>>().SelectMany(r => r).ToList());
+        return Trim(Colour(collector.Pieces.OfType<List<TextRun>>().SelectMany(r => r).ToList()));
     }
+
+    // `[words]{.success}`: the words bold, in that status colour.
+    private static List<TextRun> Colour(List<TextRun> runs) => ColouredWords.Apply(
+        runs,
+        r => r.Text,
+        r => r.Style.HasFlag(RunStyle.Code),
+        (r, text) => r with { Text = text },
+        (r, category) => r with { Style = r.Style | RunStyle.Bold, Colour = category },
+        DocumentFormat.Pdf);
 
     private static List<TextRun> Trim(List<TextRun> runs)
     {

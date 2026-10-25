@@ -12,7 +12,7 @@ same change that made it untrue — a stale fact here is worse than a missing on
 - Scaffolded on 2026-10-21 from the `projekt-init` catalog (`core`, `spec-workflow`,
   `dotnet-solution` adapted to a library layout, `tools-dotnet`; CI written for GitHub Actions).
   The code, samples and docs here are neutral, and must stay so.
-- `src/wwosik.DocLibs.slnx` holds six packages, each with a `.Tests` sibling:
+- `src/wwosik.DocLibs.slnx` holds seven packages, each with a `.Tests` sibling:
   - `wwosik.DocLibs.DocumentConversions` — cross-platform: PDF, DOCX, PPTX to Markdown, JIRA
     wiki markup; PdfPig only.
   - `wwosik.DocLibs.DocumentConversions.WindowsOnly` — Office automation for `.doc`, `.rtf`,
@@ -25,6 +25,8 @@ same change that made it untrue — a stale fact here is worse than a missing on
     authoring guides (`AuthoringGuides`).
   - `wwosik.DocLibs.DocumentGeneration.Diagrams` — `MermaidRenderer`: Mermaider (MIT) writes SVG,
     `SvgDrawing` turns it into a `Drawing`. Depends only on the shared package.
+  - `wwosik.DocLibs.DocumentGeneration.Charts` — `ChartRenderer`: `chart` blocks (settings, `---`,
+    CSV) → `ChartGraphic(ChartSpec, Drawing)`. Depends only on the shared package.
   - `wwosik.DocLibs.DocumentGeneration.Pptx` — Markdown → `.pptx`; Markdig and the Open XML SDK.
   - `wwosik.DocLibs.DocumentGeneration.Pdf` — Markdown → PDF/A-2b; Markdig and PdfPig, own
     layout engine, bundled Liberation fonts.
@@ -169,12 +171,40 @@ same change that made it untrue — a stale fact here is worse than a missing on
   GitHub at the release tag (`GITHUB_REF_NAME` when `GITHUB_REF_TYPE` is `tag`, else `main`) and
   adding a line pointing to the repo. `CHANGELOG.md` is packed next to it.
 
+- **Text is measured by `TextMetrics`** (plan 00011): ems per character class, ×1.08 bold, wrapped
+  between words. Table columns are at least their longest word; the table font steps down to 10 pt
+  before words break. `EstimateLines` uses it too, so every height in decks is this estimate.
+- **Fitting (plan 00013):** `DeckWriter.Write` passes each slide through `Fit` (`DeckWriter.Fitting.cs`)
+  before writing: measured without a canvas, shrunk by steps (content: `normAutofit` font scale to
+  12 pt; visual: text and table sizes; flow: `FlowStyle.Scale` 1 → 0.75), then split into parts with
+  the same title (`Pack` over units: list groups, table rows with the header, rows/tag items, whole
+  blocks). A slide that fits goes through unchanged — keep it that way, existing decks must not move.
+- **Dark templates (plan 00010):** `PptxBrandTemplate.Tone` (`Auto` = `TemplateTone.Detect`: master
+  title colour via colour map and theme, else solid background) picks `SlidePalette.ForDark`, which
+  sets `DarkSlides`: every flow slide gets `FlowStyle.Dark`, text boxes and tables an explicit white,
+  fills are translucent (`SlideColor.Alpha`). Mermaid and charts get `ResolvedBrand.DarkSlideBrand`,
+  so diagrams are drawn for the dark slides. `SlideColors` merge over `Colors` per property
+  (`ResolvedBrand.SlideBrand`, cached per brand); PDFs never see them. The generator now parses
+  after opening the template, because the tone decides the renderers' brand.
+- **`[words]{.success}`** is found by `ColouredWords` (shared) in the runs' text after Markdig, with
+  code masked — Markdig leaves an unresolved `[…]` as text. Both generators call it.
+- **Charts (plan 00016):** `ChartWriter` writes the chart part as an XML string (schema order matters:
+  the validator checks it) and the data as an embedded `.xlsx` (`Sheet1`, categories in column A).
+  Bars and areas get `c:min` at zero. PDFs draw the `Drawing` the renderer made.
+
 ## Traps
 
 - **The built-in master's relationship ids are fixed:** layouts 1–4 are `rId1`–`rId4`, the theme
   `rId5`, the master logo `rId6`; layout 5 (*Title Only Dark*) is `rId7`
   (`TemplateBuilder.LayoutRelationship`). It shares the section layout's `LogoOnDark` image part,
   so the media count and image numbering of existing decks did not change.
+- **`brand-dark` is built at test time** (`DarkTemplate` in the PPTX tests) from the built-in master:
+  gradient background, white text styles, a footer placeholder and two copied layouts. There is no
+  binary sample for it.
+- **The PowerPoint export (`.tmp/scripts/export.ps1`) hangs** while another PowerPoint instance has a
+  dialog open; with no PowerPoint running it works.
+- **A `---` right after a paragraph line is a setext heading,** not a thematic break: the columns of
+  `::: columns` need a blank line before each `---`.
 - **PdfPig's subsetter crashes on some fonts** (`ArgumentOutOfRangeException` in
   `TrueTypeGlyphTableSubsetter`): DejaVu Sans Mono does, which is why the sample brand's mono face
   is Inconsolata. A brand whose font hits it cannot be used for PDFs; decks are unaffected.

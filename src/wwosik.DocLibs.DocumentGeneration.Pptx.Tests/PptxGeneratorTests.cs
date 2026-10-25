@@ -137,14 +137,26 @@ public class PptxGeneratorTests
     }
 
     [Fact]
-    public void Images_KeepTheirNaturalSize_ScaledByTheTitle()
+    public void Images_FillTheirRoom_UpToTheScaleInTheirTitle()
     {
         using var package = Samples.Open(Samples.Generate(Samples.Deck(), WithDiagrams));
         var slides = Samples.Slides(package);
 
-        // diagram.png is 480 px wide, photo.png 20 px at scale 8; 9525 EMU per pixel.
-        Assert.Equal(480 * 9525, PictureWidth(slides[4]));
+        // diagram.png is 480 px wide at scale=1.5, photo.png 20 px at scale=8; 9525 EMU per pixel.
+        Assert.InRange(PictureWidth(slides[4]), (480 * 9525) + 1, (long)(480 * 1.5 * 9525));
         Assert.Equal(160 * 9525, PictureWidth(slides[5]));
+    }
+
+    [Fact]
+    public void AnImageWithoutScale_IsEnlargedToItsRoom_UpToMaxImageUpscale()
+    {
+        var markdown = Samples.Markdown("## Picture\n\n![Chart](photo.png)\n", Samples.Image("photo.png"));
+
+        using var enlarged = Samples.Open(Samples.Generate(markdown));
+        using var natural = Samples.Open(Samples.Generate(markdown, new PptxOptions { MaxImageUpscale = 1 }));
+
+        Assert.Equal(20 * 4 * 9525, PictureWidth(Samples.Slides(enlarged)[0])); // 20 px, enlarged 4 times
+        Assert.Equal(20 * 9525, PictureWidth(Samples.Slides(natural)[0]));
     }
 
     [Fact]
@@ -204,7 +216,7 @@ public class PptxGeneratorTests
         var runs = shapes[2].Descendants<A.Run>().ToList();
         Assert.Equal(["Bold", " node"], runs.Select(r => r.Text!.Text));
         Assert.Equal([true, false], runs.Select(r => r.RunProperties!.Bold?.Value ?? false));
-        Assert.Equal(1200, runs[0].RunProperties!.FontSize!.Value); // 16 px at full size: 12 pt
+        Assert.Equal(1800, runs[0].RunProperties!.FontSize!.Value); // 16 px enlarged by half: 18 pt
         Assert.Equal(A.TextAlignmentTypeValues.Center, shapes[2].Descendants<A.ParagraphProperties>().Single().Alignment!.Value);
 
         var text = string.Join("|", slide.Descendants<A.Text>().Select(t => t.Text));

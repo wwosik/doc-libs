@@ -17,6 +17,7 @@ internal sealed class LayoutEngine
     private const double BodySize = 10.5;
     private const double LineFactor = 1.35;
     private const double ParagraphGap = 6;
+    private const double RowGap = 12;
     private const double ListItemGap = 2;
     private const double ListIndent = 18;
     private const double MarkerGap = 5;
@@ -157,6 +158,9 @@ internal sealed class LayoutEngine
             case ImageBlock image:
                 this.Image(image, frame);
                 break;
+            case ImageRowBlock row:
+                this.ImageRow(row, frame);
+                break;
             case DrawingBlock drawing:
                 this.Drawing(drawing.Drawing, frame);
                 break;
@@ -264,6 +268,8 @@ internal sealed class LayoutEngine
                 return this.Prepare(table, frame.Width) is { } prepared ? prepared.KeepHeight : 0;
             case ImageBlock image:
                 return Math.Min(this.ImageSize(image, frame).Height, this.geometry.Bottom - this.geometry.Top - above);
+            case ImageRowBlock row:
+                return Math.Min(this.RowSizes(row, frame).Max(s => s.Height), this.geometry.Bottom - this.geometry.Top - above);
             case DrawingBlock drawing:
                 return Math.Min(DrawingScale(drawing.Drawing, frame, this.geometry) * drawing.Drawing.Height, this.geometry.Bottom - this.geometry.Top - above);
             case RuleBlock:
@@ -445,6 +451,32 @@ internal sealed class LayoutEngine
         this.page.Items.Add(new ImageItem(image.Resource, image.Resource.Content, image.Info.Format, frame.Left + ((frame.Width - width) / 2), this.y, width, height));
         this.Advance(height, frame);
         this.Gap(ParagraphGap, frame);
+    }
+
+    // Side by side in cells of equal width, top-aligned, each centred in its cell; the row moves to the next page whole.
+    private void ImageRow(ImageRowBlock row, Frame frame)
+    {
+        var sizes = this.RowSizes(row, frame);
+        var height = sizes.Max(s => s.Height);
+        var shrink = height > this.VisualRoom ? this.VisualRoom / height : 1.0;
+        height *= shrink;
+        this.Ensure(height);
+        var cell = (frame.Width - ((row.Images.Count - 1) * RowGap)) / row.Images.Count;
+        for (var i = 0; i < row.Images.Count; i++)
+        {
+            var (width, imageHeight) = (sizes[i].Width * shrink, sizes[i].Height * shrink);
+            var image = row.Images[i];
+            this.page.Items.Add(new ImageItem(image.Resource, image.Resource.Content, image.Info.Format, frame.Left + (i * (cell + RowGap)) + ((cell - width) / 2), this.y, width, imageHeight));
+        }
+
+        this.Advance(height, frame);
+        this.Gap(ParagraphGap, frame);
+    }
+
+    private List<(double Width, double Height)> RowSizes(ImageRowBlock row, Frame frame)
+    {
+        var cell = frame with { Width = (frame.Width - ((row.Images.Count - 1) * RowGap)) / row.Images.Count };
+        return row.Images.Select(image => this.ImageSize(image, cell)).ToList();
     }
 
     // 96 DPI: a pixel is 0.75 pt. Scaled down to the content width and the page height, never up.
@@ -852,6 +884,15 @@ internal sealed class LayoutEngine
 
     private double Baseline(double size) => this.y + (size * 1.05);
 
+    private string LabelColour(LabelCategory category) => category switch
+    {
+        LabelCategory.Success => this.design.Brand.Labels.Success,
+        LabelCategory.Info => this.design.Brand.Labels.Info,
+        LabelCategory.Warning => this.design.Brand.Labels.Warning,
+        LabelCategory.Danger => this.design.Brand.Labels.Danger,
+        _ => this.design.Brand.Labels.Neutral,
+    };
+
     // Places one line at x; links get their colour, an underline and a link area; struck text a line through it.
     private void Line(TextLine line, Frame frame, double x, double size, string color, bool advance = true, bool keepOnPage = false)
     {
@@ -864,7 +905,7 @@ internal sealed class LayoutEngine
         var baseline = this.Baseline(size);
         foreach (var piece in Merge(line.Pieces))
         {
-            var pieceColor = piece.Link is not null ? this.design.Brand.Link : color;
+            var pieceColor = piece.Colour is { } category ? this.LabelColour(category) : piece.Link is not null ? this.design.Brand.Link : color;
             this.page.Items.Add(new TextItem(x, baseline, piece.Text, piece.Face, piece.Size, pieceColor));
             if (piece.Link is { } link && !piece.IsSpace)
             {
@@ -894,7 +935,7 @@ internal sealed class LayoutEngine
         foreach (var piece in pieces)
         {
             if (current is not null && current.Face == piece.Face && current.Size == piece.Size && current.Link == piece.Link
-                && current.Style.HasFlag(RunStyle.Strike) == piece.Style.HasFlag(RunStyle.Strike))
+                && current.Colour == piece.Colour && current.Style.HasFlag(RunStyle.Strike) == piece.Style.HasFlag(RunStyle.Strike))
             {
                 current = current with { Text = current.Text + piece.Text, Width = current.Width + piece.Width, IsSpace = current.IsSpace && piece.IsSpace };
             }
@@ -1036,12 +1077,12 @@ internal sealed class LayoutEngine
                 {
                     var word = text[start..i];
                     this.CheckGlyphs(word, face);
-                    pieces.Add(new Piece(word, style, run.Link, face, pieceSize, this.metrics.Width(word, face, pieceSize), IsSpace: false, IsBreak: false));
+                    pieces.Add(new Piece(word, style, run.Link, face, pieceSize, this.metrics.Width(word, face, pieceSize), IsSpace: false, IsBreak: false) { Colour = run.Colour });
                 }
 
                 if (i < text.Length)
                 {
-                    pieces.Add(new Piece(" ", style, run.Link, face, pieceSize, this.metrics.Width(" ", face, pieceSize), IsSpace: true, IsBreak: false));
+                    pieces.Add(new Piece(" ", style, run.Link, face, pieceSize, this.metrics.Width(" ", face, pieceSize), IsSpace: true, IsBreak: false) { Colour = run.Colour });
                 }
 
                 start = i + 1;
@@ -1163,6 +1204,10 @@ internal sealed class LayoutEngine
 }
 
 /// <summary>A measured piece of a line: a word, a space or a break.</summary>
-internal sealed record Piece(string Text, RunStyle Style, string? Link, FontFace Face, double Size, double Width, bool IsSpace, bool IsBreak);
+internal sealed record Piece(string Text, RunStyle Style, string? Link, FontFace Face, double Size, double Width, bool IsSpace, bool IsBreak)
+{
+    /// <summary>The status colour of <c>[words]{.success}</c>.</summary>
+    public LabelCategory? Colour { get; init; }
+}
 
 internal sealed record TextLine(List<Piece> Pieces, double Width);

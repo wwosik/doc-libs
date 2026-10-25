@@ -17,6 +17,8 @@
     <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Pdf.Tests" />
     <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Diagrams" />
     <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Diagrams.Tests" />
+    <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Charts" />
+    <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Charts.Tests" />
   </ItemGroup>
 
 </Project>

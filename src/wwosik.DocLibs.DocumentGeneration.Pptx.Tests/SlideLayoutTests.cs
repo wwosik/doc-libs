@@ -39,7 +39,7 @@ public class SlideLayoutTests
 
         var layouts = Samples.Slides(package).Select(Samples.LayoutName).ToList();
 
-        Assert.Equal(["Title Slide", "Title Only", "Title Only", "Title Only", "Title Only", "Title Only", "Title Only Dark", "Title Only"], layouts);
+        Assert.Equal(["Title Slide", "Title Only", "Title Only", "Title Only", "Title Only", "Title Only", "Title Only Dark", "Title Only", "Title Only"], layouts);
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public class SlideLayoutTests
     [Theory]
     [InlineData("## T {.wide}\n", "Unknown heading attribute '.wide'")]
     [InlineData("## T {kicker=\"a\" kicker=\"b\"}\n", "name kicker twice")]
-    [InlineData("## T\n\n::: card\n- **a** b\n:::\n", "Unknown container '::: card'. Valid containers: cards, rows, panel, statement.")]
+    [InlineData("## T\n\n::: card\n- **a** b\n:::\n", "Unknown container '::: card'. Valid containers: cards, rows, panel, statement, columns.")]
     [InlineData("## T\n\n::: cards dark\n- **a** b\n:::\n", "takes no arguments")]
     [InlineData("## T\n\n::: cards\nText first\n\n### Card\n:::\n", "each card starts with a ### heading")]
     [InlineData("## T\n\n::: rows\n- plain item\n:::\n", "starts with **bold** text")]

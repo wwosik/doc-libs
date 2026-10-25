@@ -106,6 +106,7 @@ internal sealed record BrandManifest(
     string? Name,
     string? FooterText,
     BrandManifest.ColorsSection? Colors,
+    BrandManifest.ColorsSection? SlideColors,
     BrandManifest.ImagesSection? Images,
     BrandManifest.FontsSection? Fonts,
     BrandManifest.PptxSection? Pptx)
@@ -121,35 +122,8 @@ internal sealed record BrandManifest(
         {
             Name = this.Name ?? throw Missing("name"),
             FooterText = this.FooterText,
-            Colors = new BrandColors
-            {
-                Primary = colors.Primary ?? throw Missing("colors.primary"),
-                Link = colors.Link,
-                Footer = colors.Footer,
-                TableHeader = colors.Table?.Header,
-                TableBand = colors.Table?.Band,
-                TableLine = colors.Table?.Line,
-                Gradient = colors.Gradient,
-                Theme = colors.Theme,
-                Diagram = colors.Diagram is not { } diagram ? null : new BrandDiagramColors
-                {
-                    Text = diagram.Text,
-                    Line = diagram.Line,
-                    Accent = diagram.Accent,
-                    Surface = diagram.Surface,
-                    Border = diagram.Border,
-                    Palette = diagram.Palette,
-                },
-                Highlight = colors.Highlight,
-                Labels = colors.Labels is not { } labels ? null : new BrandLabelColors
-                {
-                    Success = labels.Success,
-                    Info = labels.Info,
-                    Warning = labels.Warning,
-                    Danger = labels.Danger,
-                    Neutral = labels.Neutral,
-                },
-            },
+            Colors = ToColors(colors, colors.Primary ?? throw Missing("colors.primary")),
+            SlideColors = this.SlideColors is not { } slides ? null : ToColors(slides, slides.Primary ?? colors.Primary!),
             Logo = Image("images.logo", this.Images?.Logo),
             LogoOnDark = Image("images.logoOnDark", this.Images?.LogoOnDark),
             CoverArtwork = Image("images.coverArtwork", this.Images?.CoverArtwork),
@@ -178,9 +152,48 @@ internal sealed record BrandManifest(
                 ContentLayout = pptx.Layouts?.Content,
                 TitleOnlyLayout = pptx.Layouts?.TitleOnly,
                 SectionHeaderLayout = pptx.Layouts?.SectionHeader,
+                ClosingLayout = pptx.Layouts?.Closing,
+                Tone = pptx.Tone switch
+                {
+                    null or "auto" => SlideTone.Auto,
+                    "light" => SlideTone.Light,
+                    "dark" => SlideTone.Dark,
+                    var other => throw new InvalidDataException($"{BrandPack.ManifestFile}: 'pptx.tone' is '{other}'; expected 'auto', 'light' or 'dark'."),
+                },
             },
         };
     }
+
+    private static BrandColors ToColors(ColorsSection colors, string primary) =>
+        new()
+        {
+            Primary = primary,
+            Link = colors.Link,
+            Footer = colors.Footer,
+            TableHeader = colors.Table?.Header,
+            TableBand = colors.Table?.Band,
+            TableLine = colors.Table?.Line,
+            Gradient = colors.Gradient,
+            Theme = colors.Theme,
+            Diagram = colors.Diagram is not { } diagram ? null : new BrandDiagramColors
+            {
+                Text = diagram.Text,
+                Line = diagram.Line,
+                Accent = diagram.Accent,
+                Surface = diagram.Surface,
+                Border = diagram.Border,
+                Palette = diagram.Palette,
+            },
+            Highlight = colors.Highlight,
+            Labels = colors.Labels is not { } labels ? null : new BrandLabelColors
+            {
+                Success = labels.Success,
+                Info = labels.Info,
+                Warning = labels.Warning,
+                Danger = labels.Danger,
+                Neutral = labels.Neutral,
+            },
+        };
 
     private static byte[] File(Func<string, Stream?> openFile, string key, string path)
     {
@@ -234,9 +247,9 @@ internal sealed record BrandManifest(
 
     internal sealed record TableFontsSection(string? Regular, string? Bold, string? Italic, string? BoldItalic, string? Family);
 
-    internal sealed record PptxSection(string? Template, LayoutsSection? Layouts);
+    internal sealed record PptxSection(string? Template, LayoutsSection? Layouts, string? Tone);
 
-    internal sealed record LayoutsSection(string? Title, string? Content, string? TitleOnly, string? SectionHeader);
+    internal sealed record LayoutsSection(string? Title, string? Content, string? TitleOnly, string? SectionHeader, string? Closing);
 }
 
 [JsonSourceGenerationOptions(

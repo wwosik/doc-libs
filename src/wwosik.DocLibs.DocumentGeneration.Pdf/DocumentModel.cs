@@ -18,6 +18,9 @@ internal enum RunStyle
 /// <summary>Text in one style; the text <c>"\n"</c> alone is a line break. <see cref="Link"/> is a URL or <c>#anchor</c>.</summary>
 internal sealed record TextRun(string Text, RunStyle Style, string? Link = null)
 {
+    /// <summary>From <c>[words]{.success}</c>: the words in that status colour.</summary>
+    public LabelCategory? Colour { get; init; }
+
     public static TextRun Break { get; } = new("\n", RunStyle.None);
 
     public bool IsBreak => this.Text == "\n";
@@ -49,6 +52,9 @@ internal sealed record TableBlock(IReadOnlyList<IReadOnlyList<IReadOnlyList<Text
 
 /// <summary>A PNG or JPEG; <see cref="Scale"/> multiplies its natural size.</summary>
 internal sealed record ImageBlock(DocumentResource Resource, ImageInfo Info, double Scale) : Block;
+
+/// <summary>A paragraph of nothing but images: side by side across the text width, in cells of equal width.</summary>
+internal sealed record ImageRowBlock(IReadOnlyList<ImageBlock> Images) : Block;
 
 internal sealed record RuleBlock : Block;
 

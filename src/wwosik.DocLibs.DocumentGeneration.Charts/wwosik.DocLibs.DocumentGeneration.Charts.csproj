@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Bar, line and area charts from data in Markdown for the wwosik.DocLibs document generators: native, editable charts in decks and vector charts in PDFs, in a brand's colours and fonts.</Description>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration\wwosik.DocLibs.DocumentGeneration.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="AuthoringGuide\*.md" LogicalName="AuthoringGuide.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Charts.Tests" />
+  </ItemGroup>
+
+</Project>

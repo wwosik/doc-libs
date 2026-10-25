@@ -33,7 +33,7 @@ public static class PptxGenerator
 
         var frontMatter = FrontMatter.Read(document.Markdown, Format.Pptx);
         var template = PptxTemplateOptions.Apply(frontMatter, options.Template ?? PptxOptions.Default.Template, options.Brands);
-        var slides = DeckParser.Parse(document with { Markdown = frontMatter.Body }, options, template.BrandValue, frontMatter.BodyLine);
+        var labels = frontMatter.Labels();
         var date = template.ShowsDate
             ? options.TimeProvider.GetLocalNow().ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)
             : null;
@@ -50,10 +50,32 @@ public static class PptxGenerator
                 package.ChangeDocumentType(PresentationDocumentType.Presentation);
             }
 
-            var resolved = template.BrandValue is { } brand ? ResolvedBrand.Resolve(brand) : null;
-            var palette = resolved is null ? SlidePalette.Scheme : SlidePalette.From(resolved);
+            // A brand's own template may have dark slides; the built-in master and caller templates are taken as light.
+            var brand = template.BrandValue;
+            var tone = brand?.Pptx is not { } own ? SlideTone.Light
+                : own.Tone == SlideTone.Auto ? TemplateTone.Detect(package.PresentationPart!)
+                : own.Tone;
+            var dark = tone == SlideTone.Dark;
+            var slides = DeckParser.Parse(
+                document with { Markdown = frontMatter.Body },
+                options,
+                brand is null ? null : dark ? ResolvedBrand.DarkSlideBrand(brand) : ResolvedBrand.SlideBrand(brand),
+                frontMatter.BodyLine);
+            var resolved = brand is null ? null : ResolvedBrand.ForSlides(brand);
+            var palette = resolved is null ? SlidePalette.Scheme : dark ? SlidePalette.ForDark(resolved) : SlidePalette.From(resolved);
             var codeFont = options.CodeFont ?? resolved?.CodeFontFamily ?? PptxOptions.DefaultCodeFont;
-            new DeckWriter(package, options, template.LayoutNames, date, resolved?.TableFontFamily, palette, frontMatter.Labels(), codeFont).Write(slides);
+            new DeckWriter(
+                package,
+                options,
+                template.LayoutNames,
+                date,
+                resolved?.TableFontFamily,
+                palette,
+                labels,
+                codeFont,
+                template.FooterText,
+                template.IsBuiltIn,
+                (template.ListBulletsOverride ?? options.ListBullets) == ListBullets.Always).Write(slides);
             if (template.EmbedsFonts && resolved?.Fonts is { } fonts)
             {
                 FontEmbedding.Embed(package.PresentationPart!, fonts, codeFont);
@@ -95,7 +117,28 @@ public static class PptxGenerator
                 ["diagrams"] = AuthoringGuides.Renderers(options.CodeBlockRenderers),
                 ["frontMatter"] = AuthoringGuides.FrontMatter(registry.Expected, [.. template.Keys.Select(k => (k, KeyMeanings[k])), Labels]),
                 ["characters"] = Characters(brand?.Fonts, codeFont),
+                ["templateLayouts"] = TemplateLayouts(brand?.Pptx),
             });
+    }
+
+    // A brand's own template: its layouts by name, for `layout="…"`.
+    private static string TemplateLayouts(PptxBrandTemplate? template)
+    {
+        if (template is null)
+        {
+            return string.Empty;
+        }
+
+        using var package = PresentationDocument.Open(new MemoryStream(template.Content.ToArray()), isEditable: false);
+        var names = package.PresentationPart?.SlideMasterParts
+            .SelectMany(m => m.SlideLayoutParts)
+            .Select(l => l.SlideLayout?.CommonSlideData?.Name?.Value)
+            .OfType<string>()
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToList() ?? [];
+        return names.Count == 0 ? string.Empty
+            : "**Layouts of this design.** `layout=\"Name\"` after a `#` or `##` heading puts that slide on one of these: "
+                + string.Join(", ", names.Select(n => $"`{n}`")) + ". Use them where a slide needs it, such as a layout for long titles.";
     }
 
     private static readonly Dictionary<string, string> KeyMeanings = new(StringComparer.Ordinal)
@@ -107,6 +150,9 @@ public static class PptxGenerator
         ["layouts.content"] = "The name of the template's layout for text slides.",
         ["layouts.titleOnly"] = "The name of the template's layout for table, image and layout slides.",
         ["layouts.sectionHeader"] = "The name of the template's layout for section dividers.",
+        ["layouts.closing"] = "The name of the template's layout for the closing slide.",
+        ["showFooter"] = "`true` or `false`: the design's footer text on every slide but the cover. Default `true`.",
+        ["listBullets"] = "`always` to show bullets on every list level, also where the design's first level has none; `template` (the default) leaves it to the design.",
     };
 
     private static readonly (string, string) Labels = (

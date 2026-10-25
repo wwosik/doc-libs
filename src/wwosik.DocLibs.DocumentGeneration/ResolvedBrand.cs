@@ -37,6 +37,8 @@ internal sealed partial record ResolvedBrand(
     private const string FollowedLink = "6D28D9";
 
     private static readonly ConditionalWeakTable<Brand, ResolvedBrand> Cache = new();
+    private static readonly ConditionalWeakTable<Brand, Brand> SlideBrands = new();
+    private static readonly ConditionalWeakTable<Brand, Brand> DarkSlideBrands = new();
 
     public static ResolvedBrand Neutral => Resolve(Brand.Neutral);
 
@@ -56,6 +58,42 @@ internal sealed partial record ResolvedBrand(
         ArgumentNullException.ThrowIfNull(brand);
         return Cache.TryGetValue(brand, out var resolved) ? resolved : Cache.GetValue(brand, Create);
     }
+
+    /// <summary>
+    /// The brand as decks draw it: <see cref="Brand.Colors"/> with <see cref="Brand.SlideColors"/> laid over them. The
+    /// brand itself when it has no slide colours; else one derived brand per instance, so that its resolution is cached.
+    /// </summary>
+    public static Brand SlideBrand(Brand brand) =>
+        brand.SlideColors is null ? brand : SlideBrands.GetValue(brand, b => b with { Colors = Merge(b.SlideColors!, b.Colors), SlideColors = null });
+
+    /// <summary>The resolved colours, fonts and images of <see cref="SlideBrand"/>.</summary>
+    public static ResolvedBrand ForSlides(Brand brand) => Resolve(SlideBrand(brand));
+
+    /// <summary>
+    /// <see cref="SlideBrand"/> for slides that are dark: diagrams with white text and lines, nodes in a dark shade of
+    /// the primary colour and the highlight as accent — unless the slide colours name diagram colours of their own.
+    /// </summary>
+    public static Brand DarkSlideBrand(Brand brand) => DarkSlideBrands.GetValue(brand, original =>
+    {
+        var slides = SlideBrand(original);
+        var resolved = Resolve(slides);
+        var own = original.SlideColors?.Diagram;
+        return slides with
+        {
+            Colors = slides.Colors with
+            {
+                Diagram = new BrandDiagramColors
+                {
+                    Text = own?.Text ?? "FFFFFF",
+                    Line = own?.Line ?? "D1D5DB",
+                    Accent = own?.Accent ?? resolved.Highlight,
+                    Surface = own?.Surface ?? Shade(resolved.Primary, 0.45),
+                    Border = own?.Border ?? resolved.Highlight,
+                    Palette = own?.Palette ?? slides.Colors.Diagram?.Palette,
+                },
+            },
+        };
+    });
 
     /// <summary>Whether <paramref name="name"/> can name a brand.</summary>
     public static bool IsValidName(string? name) => name is not null && NamePattern().IsMatch(name);
@@ -132,6 +170,45 @@ internal sealed partial record ResolvedBrand(
         return ColorPattern().IsMatch(hex)
             ? hex.ToUpperInvariant()
             : throw Invalid(brand, property, $"'{value}' is not a colour; expected '#RRGGBB' or 'RRGGBB'");
+    }
+
+    // Each optional colour of `slides` that is not set, from `pdf`; diagram and label colours one by one.
+    private static BrandColors Merge(BrandColors slides, BrandColors pdf) => new()
+    {
+        Primary = slides.Primary,
+        Link = slides.Link ?? pdf.Link,
+        Footer = slides.Footer ?? pdf.Footer,
+        TableHeader = slides.TableHeader ?? pdf.TableHeader,
+        TableBand = slides.TableBand ?? pdf.TableBand,
+        TableLine = slides.TableLine ?? pdf.TableLine,
+        Gradient = slides.Gradient ?? pdf.Gradient,
+        Theme = slides.Theme ?? pdf.Theme,
+        Diagram = slides.Diagram is null ? pdf.Diagram : pdf.Diagram is null ? slides.Diagram : new BrandDiagramColors
+        {
+            Text = slides.Diagram.Text ?? pdf.Diagram.Text,
+            Line = slides.Diagram.Line ?? pdf.Diagram.Line,
+            Accent = slides.Diagram.Accent ?? pdf.Diagram.Accent,
+            Surface = slides.Diagram.Surface ?? pdf.Diagram.Surface,
+            Border = slides.Diagram.Border ?? pdf.Diagram.Border,
+            Palette = slides.Diagram.Palette ?? pdf.Diagram.Palette,
+        },
+        Highlight = slides.Highlight ?? pdf.Highlight,
+        Labels = slides.Labels is null ? pdf.Labels : pdf.Labels is null ? slides.Labels : new BrandLabelColors
+        {
+            Success = slides.Labels.Success ?? pdf.Labels.Success,
+            Info = slides.Labels.Info ?? pdf.Labels.Info,
+            Warning = slides.Labels.Warning ?? pdf.Labels.Warning,
+            Danger = slides.Labels.Danger ?? pdf.Labels.Danger,
+            Neutral = slides.Labels.Neutral ?? pdf.Labels.Neutral,
+        },
+    };
+
+    // The colour at `share` of itself on black: a darker shade.
+    internal static string Shade(string color, double share)
+    {
+        var rgb = int.Parse(color, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        int Channel(int shift) => (int)Math.Round(((rgb >> shift) & 0xFF) * share);
+        return string.Create(CultureInfo.InvariantCulture, $"{Channel(16):X2}{Channel(8):X2}{Channel(0):X2}");
     }
 
     // The colour at `share` on white.

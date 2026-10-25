@@ -31,6 +31,36 @@ public sealed record PptxOptions
     /// <summary>The code font without a brand mono family or <see cref="CodeFont"/>.</summary>
     internal const string DefaultCodeFont = "Consolas";
 
+    /// <summary>
+    /// How far an image is enlarged at most to fill the room it has, as a multiple of its natural size (a pixel is
+    /// 1/96 inch). Default <c>4</c>, so that small images do not turn into blurs; <c>1</c> never enlarges. An image's own
+    /// <c>scale=</c> in its title wins.
+    /// </summary>
+    public double MaxImageUpscale { get; init; } = 4.0;
+
+    /// <summary>
+    /// Text added to the title of a slide that continues the one before because its content did not fit, such as
+    /// <c>" (cont.)"</c>. Default <see langword="null"/>: the same title.
+    /// </summary>
+    public string? ContinuationSuffix { get; init; }
+
+    /// <summary>
+    /// Whether text slides write Markdown's bullets on every list level (<see cref="ListBullets.Always"/>), or leave
+    /// level 1 to the template's style (<see cref="ListBullets.Template"/>, the default), which some templates draw
+    /// without a bullet. Front matter <c>listBullets: always</c> overrides it.
+    /// </summary>
+    public ListBullets ListBullets { get; init; }
+
     /// <summary>The clock for the date of generation in the footer. Default <see cref="TimeProvider.System"/>.</summary>
     public TimeProvider TimeProvider { get; init; } = TimeProvider.System;
+}
+
+/// <summary>Who decides the bullets of lists on text slides.</summary>
+public enum ListBullets
+{
+    /// <summary>The template's styles: Markdown's bullets only where the template has bullets.</summary>
+    Template,
+
+    /// <summary>Markdown's bullets on every level, whatever the template's styles say.</summary>
+    Always,
 }

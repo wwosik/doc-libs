@@ -15,6 +15,13 @@ public sealed record Brand
     /// <summary>The colours. Default: <see cref="BrandColors.Neutral"/>.</summary>
     public BrandColors Colors { get; init; } = BrandColors.Neutral;
 
+    /// <summary>
+    /// The colours of decks, when they differ from those of PDFs — for example a lighter primary colour for a template
+    /// with dark slides. Every optional property left <see langword="null"/> takes the value from <see cref="Colors"/>.
+    /// <see langword="null"/> (the default): decks use <see cref="Colors"/>. PDFs never use these.
+    /// </summary>
+    public BrandColors? SlideColors { get; init; }
+
     /// <summary>The fonts. <see langword="null"/>: Liberation Sans and Mono in PDFs, Arial in decks.</summary>
     public BrandFonts? Fonts { get; init; }
 
@@ -279,12 +286,41 @@ public sealed record PptxBrandTemplate(ReadOnlyMemory<byte> Content)
     /// <summary>The layout for section dividers.</summary>
     public string? SectionHeaderLayout { get; init; }
 
+    /// <summary>
+    /// The layout of the closing slide, which a last <c>#</c> heading with <c>{.closing}</c> asks for. <see langword="null"/>:
+    /// a layout named like a closing slide (<c>Closing</c>, <c>End</c>, <c>Thank you</c>), else the title layout.
+    /// </summary>
+    public string? ClosingLayout { get; init; }
+
+    /// <summary>
+    /// Whether the template's slides are light or dark, which sets the colours of everything the generator draws on
+    /// them. Default <see cref="SlideTone.Auto"/>: read from the template.
+    /// </summary>
+    public SlideTone Tone { get; init; }
+
     /// <inheritdoc/>
     public bool Equals(PptxBrandTemplate? other) =>
         other is not null && this.Content.Span.SequenceEqual(other.Content.Span)
         && this.TitleLayout == other.TitleLayout && this.ContentLayout == other.ContentLayout
-        && this.TitleOnlyLayout == other.TitleOnlyLayout && this.SectionHeaderLayout == other.SectionHeaderLayout;
+        && this.TitleOnlyLayout == other.TitleOnlyLayout && this.SectionHeaderLayout == other.SectionHeaderLayout
+        && this.ClosingLayout == other.ClosingLayout && this.Tone == other.Tone;
 
     /// <inheritdoc/>
     public override int GetHashCode() => HashCode.Combine(this.Content.Length, this.TitleLayout, this.ContentLayout);
+}
+
+/// <summary>Whether the slides of a brand's PowerPoint template are light or dark.</summary>
+public enum SlideTone
+{
+    /// <summary>
+    /// Read from the template: dark when its master's title text is light, or else its master background is dark.
+    /// Photographic backgrounds are not looked at; set <see cref="Dark"/> when the text colour does not tell.
+    /// </summary>
+    Auto,
+
+    /// <summary>Light slides: dark text, boxes in light tints of the brand's colours.</summary>
+    Light,
+
+    /// <summary>Dark slides: white text, boxes as translucent veils over the background.</summary>
+    Dark,
 }

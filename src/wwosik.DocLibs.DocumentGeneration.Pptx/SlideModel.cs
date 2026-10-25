@@ -21,6 +21,9 @@ internal enum RunStyle
 /// <summary>Text in one style; the text <c>"\n"</c> alone is a line break.</summary>
 internal sealed record TextRun(string Text, RunStyle Style, string? Link = null)
 {
+    /// <summary>From <c>[words]{.success}</c>: the words in that status colour.</summary>
+    public LabelCategory? Colour { get; init; }
+
     public static TextRun Break { get; } = new("\n", RunStyle.None);
 
     public bool IsBreak => this.Text == "\n";
@@ -51,29 +54,45 @@ internal sealed record SlideTable(
     bool HasHeader,
     IReadOnlyList<bool> Highlighted);
 
-internal sealed record SlideImage(DocumentResource Resource, string AltText, double Scale);
+/// <summary>
+/// An image. <see cref="Scale"/>, from <c>scale=</c> in its title, caps how far it is enlarged (<c>1</c>: never beyond its
+/// natural size); <see langword="null"/>: up to <see cref="PptxOptions.MaxImageUpscale"/>. <see cref="Caption"/>, from
+/// <c>caption</c> in its title: the alt text goes under it.
+/// </summary>
+internal sealed record SlideImage(DocumentResource Resource, string AltText, double? Scale, bool Caption = false);
 
-internal abstract record Slide(IReadOnlyList<TextRun> Title);
+internal abstract record Slide(IReadOnlyList<TextRun> Title)
+{
+    /// <summary>The template's layout the heading asked for (<c>layout="…"</c>); <see langword="null"/>: by the kind of slide.</summary>
+    public string? Layout { get; init; }
+}
 
 /// <summary>
 /// From a <c>#</c> heading: title plus the text that follows it as subtitle. The first one is the cover, every
 /// later one a section divider.
 /// </summary>
-internal sealed record TitleSlide(IReadOnlyList<TextRun> Title, IReadOnlyList<TextParagraph> Subtitle, bool IsSection) : Slide(Title);
+internal sealed record TitleSlide(IReadOnlyList<TextRun> Title, IReadOnlyList<TextParagraph> Subtitle, bool IsSection) : Slide(Title)
+{
+    /// <summary>From <c># … {.closing}</c>: the closing slide, on the template's closing layout, without a footer.</summary>
+    public bool Closing { get; init; }
+}
 
 /// <summary>Text only, in the body placeholder of a title-and-content layout.</summary>
 internal sealed record ContentSlide(IReadOnlyList<TextRun> Title, IReadOnlyList<TextParagraph> Body) : Slide(Title);
 
-/// <summary>One table, image or drawing, with text above it and a caption below it.</summary>
+/// <summary>One table, drawing, image or row of images side by side, with text above it and a caption below it.</summary>
 internal sealed record VisualSlide(
     IReadOnlyList<TextRun> Title,
     IReadOnlyList<TextParagraph> Above,
     SlideTable? Table,
-    SlideImage? Image,
+    IReadOnlyList<SlideImage>? Images,
     IReadOnlyList<TextParagraph> Below) : Slide(Title)
 {
     /// <summary>A vector drawing from a code-block renderer, drawn as a group of shapes.</summary>
     public Drawing? Drawing { get; init; }
+
+    /// <summary>A chart from a code-block renderer, written as a native chart.</summary>
+    public ChartSpec? Chart { get; init; }
 }
 
 /// <summary>
@@ -95,6 +114,15 @@ internal sealed record TableBlock(SlideTable Table) : FlowBlock;
 internal sealed record ImageBlock(SlideImage Image) : FlowBlock;
 
 internal sealed record DrawingBlock(Drawing Drawing) : FlowBlock;
+
+/// <summary>A chart, written as a native PowerPoint chart.</summary>
+internal sealed record ChartBlock(ChartSpec Chart) : FlowBlock;
+
+/// <summary>A paragraph of nothing but images: side by side, sharing the width equally.</summary>
+internal sealed record ImageRowBlock(IReadOnlyList<SlideImage> Images) : FlowBlock;
+
+/// <summary><c>::: columns</c>: its parts, split at <c>---</c>, side by side with widths in the ratio of <see cref="Widths"/>.</summary>
+internal sealed record ColumnsBlock(IReadOnlyList<int> Widths, IReadOnlyList<IReadOnlyList<FlowBlock>> Columns) : FlowBlock;
 
 /// <summary><c>::: cards</c>: boxes side by side.</summary>
 internal sealed record CardsBlock(IReadOnlyList<Card> Cards) : FlowBlock;

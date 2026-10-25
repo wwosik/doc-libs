@@ -96,6 +96,16 @@ public partial class AuthoringGuideTests
         Samples.AssertMatchesExpected($"authoring-guide-{template}", PptxGenerator.AuthoringGuide(Options(template)));
     }
 
+    [Fact]
+    public void ABrandsOwnTemplate_ListsItsLayoutsForTheLayoutAttribute()
+    {
+        var guide = PptxGenerator.AuthoringGuide(DarkTemplate.Options);
+
+        Assert.Contains($"`{DarkTemplate.TwoLineLayout}`", guide, StringComparison.Ordinal);
+        Assert.Contains("layout=\"Name\"", guide, StringComparison.Ordinal);
+        Assert.DoesNotContain("Layouts of this design", PptxGenerator.AuthoringGuide(), StringComparison.Ordinal);
+    }
+
     internal static List<string> Examples(string guide) =>
         [.. ExamplePattern().Matches(guide).Select(m => m.Groups["body"].Value + "\n")];
 

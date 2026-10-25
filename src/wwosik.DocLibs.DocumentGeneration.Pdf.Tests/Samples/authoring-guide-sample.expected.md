@@ -18,6 +18,8 @@ headings that say what a section is about, lists where items really are parallel
 - Lists nest with indentation; `1.` lists are numbered from their first number.
 - `**bold**`, `*italic*`, `~~strike~~`, `` `code` `` and links work. A link needs an absolute URL
   (`https://…`) or a heading anchor (`[see costs](#costs)`); anything else stays text.
+- `[words]{.success}` sets a few words bold in a status colour: `.success`, `.info`, `.warning`,
+  `.danger` or `.neutral`.
 - A quote (`>`) is indented and grey. A code block is set in a monospace font on a grey
   background, long lines wrapped.
 - **Tables** span the page width; columns get the room their content needs, alignment follows the
@@ -25,14 +27,15 @@ headings that say what a section is about, lists where items really are parallel
   them to about six columns: wider tables squeeze their words.
 - **Images** (PNG or JPEG) are referenced by the path given to you, keep their size and are only
   scaled down to fit; `![Chart](chart.png "scale=0.5")` halves the size. They are never split and
-  move to the next page if needed.
+  move to the next page if needed. Several images in one paragraph stand side by side, equally
+  wide.
 - HTML is printed as text, not interpreted: do not use it. HTML comments are dropped.
 
 ## Syntax written for slides
 
 Markdown written for decks works here too and is shown plainly, so one text can serve both:
-`## Title {kicker="…"}` drops the attributes, `::: cards`, `rows`, `panel` and `statement` show
-their content as normal text, `==marked==` text is bold, and an alert (`> [!NOTE]`, `[!TIP]`,
+`## Title {kicker="…"}` drops the attributes, `::: cards`, `rows`, `panel`, `statement` and
+`columns` show their content as normal text, one part after the other, `==marked==` text is bold, and an alert (`> [!NOTE]`, `[!TIP]`,
 `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`) is a quote that starts with its kind in bold. For a
 PDF alone, write plain Markdown; alerts are fine for notes and warnings. Unknown containers,
 attributes and alerts are errors, as in decks.

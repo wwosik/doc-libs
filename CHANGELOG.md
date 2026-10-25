@@ -7,6 +7,49 @@ plus a counter for a further release within the same hour. The version says noth
 compatibility, so this file does. Read the sections between your version and the new one before
 updating, breaking changes first.
 
+## Unreleased
+
+### Breaking changes
+
+- **Images in decks get bigger.** They fill the room they have, enlarged up to
+  `PptxOptions.MaxImageUpscale` (default 4) times their natural size, no longer only shrunk.
+  `"scale=1"` in an image's title, or `MaxImageUpscale = 1`, keeps the old size. Drawings (diagrams)
+  are enlarged up to 1.5 times.
+- **Two or more images in one paragraph share a slide,** side by side; before, each got a slide of
+  its own. Put them in separate paragraphs to keep that.
+- **Overfull slides change:** text, tables and layout slides that do not fit are now set smaller and,
+  if still too long, continued on further slides with the same title. Slides that fit are unchanged.
+- **Table columns and row heights in decks change** where the old estimate was off: every column is
+  at least as wide as its longest word, and the font steps down before words break.
+- **Decks on brand templates with dark slides change colour:** everything the generator draws is
+  white on translucent fills. `PptxBrandTemplate.Tone = SlideTone.Light` keeps the old colours.
+- **Decks on a brand's own template get its footer text** in the footer placeholder.
+  `BrandTemplateOptions.ShowFooter = false` or front matter `showFooter: false` turns it off.
+- **Markdown that generated before can now fail or look different:** `layout="…"` and `.closing` are
+  heading attributes (also on `#` headings, where braces were text before); `::: columns` is a
+  container; `[words]{.success}`-shaped spans are coloured, and one with an unknown category throws.
+- **`ICodeBlockRenderer` may return a third graphic,** `ChartGraphic`. Code that switches over
+  `CodeBlockGraphic` needs a case for it.
+
+### New
+
+- **Dark templates:** `PptxBrandTemplate.Tone` (`Auto` reads the template), a dark palette with a
+  contrast ratio of at least 4.5 for every text, and diagrams drawn for dark slides.
+- **Slide colours:** `Brand.SlideColors` (brand pack key `slideColors`) — colours for decks where they
+  differ from PDFs.
+- **Images side by side** from a paragraph of images, with captions on request (`"caption"` in the
+  title), in decks and PDFs; **`::: columns`** for text beside an image or two charts side by side.
+- **Fitting:** shrinking and continuation slides; `PptxOptions.ContinuationSuffix`.
+- **Brand templates:** footer text, `layout="Name"` per slide, a closing slide from
+  `# … {.closing}` (`PptxBrandTemplate.ClosingLayout`, `PptxLayoutNames.Closing`, front matter
+  `layouts.closing`), and `PptxOptions.ListBullets` / front matter `listBullets: always` for bullets
+  on level 1.
+- **Coloured words:** `[words]{.success}`, `.info`, `.warning`, `.danger`, `.neutral`, in decks and
+  PDFs.
+- **New package `wwosik.DocLibs.DocumentGeneration.Charts`:** `ChartRenderer` turns `chart` blocks
+  into native, editable bar, line and area charts in decks and vector charts in PDFs.
+- **Fixed:** a table cell that is all `==marked==` no longer squeezes its column.
+
 ## 2610.25.13
 
 ### Breaking changes

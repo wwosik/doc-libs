@@ -30,6 +30,21 @@ public abstract record PptxTemplateOptions
     /// <summary>Whether the deck embeds the brand's fonts.</summary>
     internal virtual bool EmbedsFonts => false;
 
+    /// <summary>The text for the template's footer placeholder; <see langword="null"/>: none written.</summary>
+    internal virtual string? FooterText => null;
+
+    /// <summary>Whether this is the built-in master, which picks its layouts itself.</summary>
+    internal virtual bool IsBuiltIn => false;
+
+    /// <summary>Front matter <c>listBullets</c>, which wins over <see cref="PptxOptions.ListBullets"/>.</summary>
+    internal ListBullets? ListBulletsOverride { get; init; }
+
+    // `listBullets` is taken by every template; the other keys by the template's own `With`.
+    private protected PptxTemplateOptions WithListBullets(FrontMatter source, string key, string value) =>
+        this with { ListBulletsOverride = source.OneOf(key, value, ("template", ListBullets.Template), ("always", ListBullets.Always)) };
+
+    private protected const string ListBulletsKey = "listBullets";
+
     /// <summary>A copy with the front-matter <paramref name="key"/> (one of <see cref="Keys"/>) set to <paramref name="value"/>.</summary>
     internal abstract PptxTemplateOptions With(FrontMatter source, string key, string value);
 
@@ -63,8 +78,8 @@ public abstract record PptxTemplateOptions
 public sealed record BrandTemplateOptions : PptxTemplateOptions
 {
     // Static, so that records with equal values stay equal.
-    private static readonly string[] FrontMatterKeys = ["showDate", "showTagline", "embedFonts"];
-    private static readonly string[] OwnTemplateKeys = ["embedFonts"];
+    private static readonly string[] FrontMatterKeys = ["showDate", "showTagline", "embedFonts", ListBulletsKey];
+    private static readonly string[] OwnTemplateKeys = ["embedFonts", "showFooter", ListBulletsKey];
 
     /// <summary>The brand. Default <see cref="DocumentGeneration.Brand.Neutral"/>.</summary>
     public Brand Brand { get; init; } = Brand.Neutral;
@@ -82,11 +97,22 @@ public sealed record BrandTemplateOptions : PptxTemplateOptions
     /// </summary>
     public bool EmbedFonts { get; init; } = true;
 
+    /// <summary>
+    /// On a brand's own <c>Pptx</c> template: <see cref="Brand.FooterText"/> in the template's footer placeholder, on
+    /// every slide but the cover and the closing slide. Default <see langword="true"/>. The built-in master always shows
+    /// the footer text it has.
+    /// </summary>
+    public bool ShowFooter { get; init; } = true;
+
     internal override string Name => this.Brand.Name.ToLowerInvariant();
 
     internal override IReadOnlyList<string> Keys => this.Brand.Pptx is null ? FrontMatterKeys : OwnTemplateKeys;
 
     internal override bool EmbedsFonts => this.EmbedFonts;
+
+    internal override string? FooterText => this.Brand.Pptx is not null && this.ShowFooter ? this.Brand.FooterText : null;
+
+    internal override bool IsBuiltIn => this.Brand.Pptx is null;
 
     internal override bool ShowsDate => this.ShowDate && this.Brand.Pptx is null;
 
@@ -98,10 +124,13 @@ public sealed record BrandTemplateOptions : PptxTemplateOptions
         Content = pptx.ContentLayout,
         TitleOnly = pptx.TitleOnlyLayout,
         SectionHeader = pptx.SectionHeaderLayout,
+        Closing = pptx.ClosingLayout,
     };
 
     internal override PptxTemplateOptions With(FrontMatter source, string key, string value) => key switch
     {
+        ListBulletsKey => this.WithListBullets(source, key, value),
+        "showFooter" => this with { ShowFooter = source.Bool(key, value) },
         "showTagline" => this with { ShowTagline = source.Bool(key, value) },
         "embedFonts" => this with { EmbedFonts = source.Bool(key, value) },
         _ => this with { ShowDate = source.Bool(key, value) },
@@ -109,7 +138,7 @@ public sealed record BrandTemplateOptions : PptxTemplateOptions
 
     internal override void Write(Stream output)
     {
-        var brand = ResolvedBrand.Resolve(this.Brand);
+        var brand = ResolvedBrand.ForSlides(this.Brand);
         if (brand.Pptx is { } template)
         {
             output.Write(template.Content.Span);
@@ -133,7 +162,7 @@ public sealed record CustomTemplateOptions(Stream Template) : PptxTemplateOption
 
     internal override string Name => "custom";
 
-    private static readonly string[] FrontMatterKeys = ["layouts.title", "layouts.content", "layouts.titleOnly", "layouts.sectionHeader"];
+    private static readonly string[] FrontMatterKeys = ["layouts.title", "layouts.content", "layouts.titleOnly", "layouts.sectionHeader", "layouts.closing", ListBulletsKey];
 
     internal override IReadOnlyList<string> Keys => FrontMatterKeys;
 
@@ -141,6 +170,11 @@ public sealed record CustomTemplateOptions(Stream Template) : PptxTemplateOption
 
     internal override PptxTemplateOptions With(FrontMatter source, string key, string value)
     {
+        if (key == ListBulletsKey)
+        {
+            return this.WithListBullets(source, key, value);
+        }
+
         var layouts = this.Layouts ?? new PptxLayoutNames();
         return this with
         {
@@ -149,6 +183,7 @@ public sealed record CustomTemplateOptions(Stream Template) : PptxTemplateOption
                 "layouts.title" => layouts with { Title = value },
                 "layouts.content" => layouts with { Content = value },
                 "layouts.titleOnly" => layouts with { TitleOnly = value },
+                "layouts.closing" => layouts with { Closing = value },
                 _ => layouts with { SectionHeader = value },
             },
         };
@@ -175,4 +210,10 @@ public sealed record PptxLayoutNames
 
     /// <summary>Section dividers, from every later <c>#</c> heading.</summary>
     public string? SectionHeader { get; init; }
+
+    /// <summary>
+    /// The closing slide, from a <c>#</c> heading with <c>{.closing}</c>. <see langword="null"/>: a layout named like a
+    /// closing slide (<c>Closing</c>, <c>End</c>, <c>Thank you</c>), else the cover's.
+    /// </summary>
+    public string? Closing { get; init; }
 }

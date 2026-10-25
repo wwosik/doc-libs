@@ -110,3 +110,13 @@ The race in the old system happened with a broker.
 
 > [!IMPORTANT]
 > **Then a shadow run:** Harbour calculates the same bookings, and the results are compared.
+
+## Two views {kicker="Columns"}
+
+::: columns 1:2
+**Before:** every change waited for the weekly release.
+
+---
+
+**After:** changes ship the same day, behind a switch, and the old path stays until the numbers agree.
+:::

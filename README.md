@@ -7,9 +7,10 @@ stream out, no Office or browser needed (except for the legacy Office formats).
 | ------- | ------------ |
 | `wwosik.DocLibs.DocumentConversions` | `.pdf`, `.docx` and `.pptx` to Markdown with their images; Markdown ↔ JIRA wiki markup. AOT-compatible. |
 | `wwosik.DocLibs.DocumentConversions.WindowsOnly` | `.doc`, `.rtf`, `.xls` and `.xlsx` to Markdown through Office automation. Windows with Word and Excel only. |
-| `wwosik.DocLibs.DocumentGeneration.Pptx` | Markdown to PowerPoint (`.pptx`), in your brand's design with its fonts embedded, or on your own `.pptx` / `.potx` template. Cards, panels, callouts, tags and dark slides from plain Markdown syntax. |
+| `wwosik.DocLibs.DocumentGeneration.Pptx` | Markdown to PowerPoint (`.pptx`), in your brand's design with its fonts embedded, or on your own `.pptx` / `.potx` template — also templates with dark slides. Cards, columns, panels, callouts, tags and images side by side from plain Markdown syntax; what does not fit is shrunk or continued. |
 | `wwosik.DocLibs.DocumentGeneration.Pdf` | Markdown to PDF/A-2b in your brand's design, with embedded fonts, bookmarks, links and tables. AOT-compatible. |
 | `wwosik.DocLibs.DocumentGeneration.Diagrams` | Mermaid diagrams for both generators: vector graphics in PDFs, editable shapes in decks, in your brand's colours and font. AOT-compatible; built on [Mermaider](https://github.com/nullean/mermaider) (MIT). |
+| `wwosik.DocLibs.DocumentGeneration.Charts` | Bar, line and area charts from CSV in a `chart` block: native, editable charts in decks, vector charts in PDFs, in your brand's colours. AOT-compatible. |
 | `wwosik.DocLibs.DocumentGeneration` | Brands (colours, fonts, logo, footer, cover images), brand packs and the drawing model, shared by both generators. Comes along as their dependency. |
 
 ## Quick start

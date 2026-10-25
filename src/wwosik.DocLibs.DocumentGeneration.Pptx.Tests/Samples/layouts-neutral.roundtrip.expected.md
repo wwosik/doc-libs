@@ -143,3 +143,11 @@ we need compare-and-swap anyway
 | Engine and results | Next |
 
 Then a shadow run: Harbour calculates the same bookings, and the results are compared.
+
+## Two views
+
+Columns
+
+Before: every change waited for the weekly release.
+
+After: changes ship the same day, behind a switch, and the old path stays until the numbers agree.

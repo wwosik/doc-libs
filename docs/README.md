@@ -10,7 +10,7 @@ the other pages pointing into the repo on GitHub at the release's tag.
 
 The generators also describe themselves to whoever writes the Markdown:
 `PptxGenerator.AuthoringGuide(options)` and `PdfGenerator.AuthoringGuide(options)`, built from
-`AuthoringGuide/*.md` in each generator package and the Diagrams package. A change to the Markdown
+`AuthoringGuide/*.md` in each generator package and the Diagrams and Charts packages. A change to the Markdown
 syntax, front matter, layouts, diagrams or fonts updates those guides in the same change; their
 tests generate every example and compare the guides with `authoring-guide-*.expected.md`.
 
@@ -23,6 +23,8 @@ tests generate every example and compare the guides with `authoring-guide-*.expe
 - [wwosik.DocLibs.DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md): what the generators
   share — brands (`Brand`, `BrandPack`), drawings and code-block renderers, front matter, image
   headers.
+- [wwosik.DocLibs.DocumentGeneration.Charts](wwosik.DocLibs.DocumentGeneration.Charts.md): bar,
+  line and area charts from CSV in `chart` blocks — native charts in decks, vectors in PDFs.
 - [wwosik.DocLibs.DocumentGeneration.Diagrams](wwosik.DocLibs.DocumentGeneration.Diagrams.md):
   Mermaid diagrams as vector graphics in PDFs and editable shapes in decks, through Mermaider.
 - [wwosik.DocLibs.DocumentGeneration.Pptx](wwosik.DocLibs.DocumentGeneration.Pptx.md): Markdown to
