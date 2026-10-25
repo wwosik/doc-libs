@@ -9,7 +9,8 @@ namespace wwosik.DocLibs.DocumentGeneration.Pptx;
 /// <summary>
 /// The built-in 16:9 template, one master design for every brand: title top left in the brand's primary colour and
 /// font, a footer line with slide number, footer text and date, the logo bottom right, and the layouts <c>title</c>,
-/// <c>obj</c>, <c>titleOnly</c> and <c>secHead</c>. Images keep their aspect ratio within fixed boxes.
+/// <c>obj</c>, <c>titleOnly</c>, <c>secHead</c> and <see cref="DarkLayoutName"/>. Images keep their aspect ratio within
+/// fixed boxes.
 /// Written as XML here so it can be reviewed like code.
 /// </summary>
 internal static class TemplateBuilder
@@ -24,6 +25,11 @@ internal static class TemplateBuilder
     public const uint DateIndex = 2;
 
     public const uint SlideNumberIndex = 4;
+
+    /// <summary>The name of the layout for dark flow slides.</summary>
+    public const string DarkLayoutName = "Title Only Dark";
+
+    private const int LayoutCount = 5;
 
     private const string Namespaces =
         "xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
@@ -85,6 +91,7 @@ internal static class TemplateBuilder
 
         var logo = brand.Logo is { } logoBytes ? Image(master, MasterLogoRelationship, logoBytes) : null;
         var tagline = showTagline ? brand.Tagline : null;
+        ImagePart? logoOnDarkPart = null;
         var layouts = new (string Xml, Action<SlideLayoutPart> AddImages)[]
         {
             (TitleLayout(brand, tagline), layout =>
@@ -110,14 +117,21 @@ internal static class TemplateBuilder
             {
                 if (brand.LogoOnDark is { } logoOnDark)
                 {
-                    Image(layout, LogoRelationship, logoOnDark);
+                    logoOnDarkPart = Image(layout, LogoRelationship, logoOnDark);
+                }
+            }),
+            (DarkLayout(brand), layout =>
+            {
+                if (logoOnDarkPart is not null)
+                {
+                    layout.AddPart(logoOnDarkPart, LogoRelationship);
                 }
             }),
         };
 
         for (var i = 0; i < layouts.Length; i++)
         {
-            var layout = master.AddNewPart<SlideLayoutPart>("rId" + (i + 1).ToString(CultureInfo.InvariantCulture));
+            var layout = master.AddNewPart<SlideLayoutPart>(LayoutRelationship(i + 1));
             layout.AddPart(master, "rId1");
             layouts[i].AddImages(layout);
             Feed(layout, layouts[i].Xml);
@@ -127,6 +141,10 @@ internal static class TemplateBuilder
         Feed(master, Master(brand));
         Feed(presentation, Presentation);
     }
+
+    // The master's relationships: layouts 1–4 as rId1–rId4, the theme rId5, the logo rId6, later layouts from rId7.
+    private static string LayoutRelationship(int number) =>
+        "rId" + (number <= 4 ? number : number + 2).ToString(CultureInfo.InvariantCulture);
 
     private static ImagePart Image(OpenXmlPartContainer container, string id, byte[] image)
     {
@@ -208,7 +226,7 @@ internal static class TemplateBuilder
         + "</p:spTree></p:cSld>"
         + ClrMap
         + "<p:sldLayoutIdLst>"
-        + string.Concat(Enumerable.Range(1, 4).Select(i => $"<p:sldLayoutId id=\"{2147483648L + i}\" r:id=\"rId{i}\"/>"))
+        + string.Concat(Enumerable.Range(1, LayoutCount).Select(i => $"<p:sldLayoutId id=\"{2147483648L + i}\" r:id=\"{LayoutRelationship(i)}\"/>"))
         + "</p:sldLayoutIdLst>"
         + "<p:txStyles>"
         + "<p:titleStyle><a:lvl1pPr algn=\"l\" defTabSz=\"914400\" rtl=\"0\" eaLnBrk=\"1\" latinLnBrk=\"0\" hangingPunct=\"1\">"
@@ -289,6 +307,25 @@ internal static class TemplateBuilder
         + FooterPlaceholders(4, White)
         + FooterText(6, brand, White)
         + (brand.LogoOnDark is { } logoOnDark ? Picture(7, "Logo", LogoRelationship, FooterLogoBox.Fit(logoOnDark)) : string.Empty)
+        + LayoutEnd;
+
+    // Dark flow slides (`## Title {.dark}`): the title-only layout on the primary colour, with white title and footer
+    // line and the logo for dark backgrounds. Found by its name; its type is `cust` so that lookups by type skip it.
+    private static string DarkLayout(ResolvedBrand brand) =>
+        $"<p:sldLayout {Namespaces} type=\"cust\" preserve=\"1\" showMasterSp=\"0\"><p:cSld name=\"{DarkLayoutName}\">"
+        + $"<p:bg><p:bgPr><a:solidFill><a:srgbClr val=\"{brand.Primary}\"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>"
+        + "<p:spTree>" + GroupHeader
+        + Placeholder(
+            2,
+            "Title 1",
+            "<p:ph type=\"title\"/>",
+            null,
+            string.Empty,
+            null,
+            $"<a:lstStyle><a:lvl1pPr><a:defRPr><a:solidFill><a:srgbClr val=\"{White}\"/></a:solidFill></a:defRPr></a:lvl1pPr></a:lstStyle>")
+        + FooterPlaceholders(3, White)
+        + FooterText(5, brand, White)
+        + (brand.LogoOnDark is { } logoOnDark ? Picture(6, "Logo", LogoRelationship, FooterLogoBox.Fit(logoOnDark)) : string.Empty)
         + LayoutEnd;
 
     private static long DateLeft(ResolvedBrand brand) => brand.FooterText is null ? FooterTextLeft : DateWithFooterTextLeft;

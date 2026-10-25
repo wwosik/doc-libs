@@ -45,8 +45,10 @@ drawn.
 | `Colors.TableHeader` / `TableBand` / `TableLine` | Header row (white bold text) / every other row / grid | `Primary` / `Primary` at 10 % on white / `D1D5DB` |
 | `Colors.Gradient` | PPTX section dividers, left to right, ≥ 2 colours | `Primary` → `Link`, or → `Primary` at 60 % on white when they are equal |
 | `Colors.Diagram` | Diagrams: `Text`, `Line`, `Accent`, `Surface`, `Border`, `Palette` (see [Diagrams](wwosik.DocLibs.DocumentGeneration.Diagrams.md#colours-and-font)) | text colour, `Footer`, `Primary`, `TableBand`, `Primary`, theme accents 1–6 |
+| `Colors.Highlight` | Slides: `==marked==` text (a light tint behind it), highlighted table rows, the bar of important callouts | theme accent 2 |
+| `Colors.Labels` | Slides: status labels in tables by category — `Success`, `Info`, `Warning`, `Danger`, `Neutral`; the cell gets a light tint of the colour (see [Slide layouts in Markdown](#slide-layouts-in-markdown)) | `16A34A`, `Link`, `D97706`, `DC2626`, `9CA3AF` |
 | `Colors.Theme` | The 12 PowerPoint theme colours (dark 1, light 1, dark 2, light 2, accents 1–6, hyperlink, followed hyperlink) | black, white, `Primary`, `TableBand`, `Primary`, five neutral accents, `Link`, violet |
-| `Fonts` | PDF text (embedded); the PPTX theme font family (named only) | Liberation Sans and Mono in PDFs, Arial in decks |
+| `Fonts` | PDF text (embedded as subsets); the PPTX theme font family and code (embedded whole, see [Fonts](#fonts)) | Liberation Sans and Mono in PDFs, Arial and Consolas in decks |
 | `Fonts.Table` | Table cells, typically a condensed cut (see [Table fonts](#table-fonts)) | the text faces |
 | `FooterText` | Footer of every page and slide but the cover | none |
 | `Logo` | Cover top right; PDF page header right; slide footer right | none |
@@ -67,19 +69,35 @@ drawn.
 
 `BrandFonts` takes **four required text faces** — `Regular`, `Bold`, `Italic`, `BoldItalic` — and
 optional `Mono` and `MonoBold` (`MonoBold` falls back to `Mono`; without either, code stays in
-Liberation Mono). Nothing is synthesized: a missing face is an error.
+Liberation Mono in PDFs and in `PptxOptions.CodeFont`, else Consolas, in decks). Nothing is
+synthesized: a missing face is an error.
 
 - **TrueType outlines only:** `.ttf`, or `.otf` with TrueType (`glyf`) outlines. Fonts with CFF
   (PostScript) outlines and font collections are rejected — convert them to TrueType first.
 - **PDF:** the faces are embedded as subsets, exactly like the bundled Liberation fonts, and the
   same glyph rules hold: a character the brand's face lacks throws, unless
   `PdfOptions.ReplaceUnsupported` replaces it.
-- **PPTX:** the theme's heading and body font is `Family` — by default the typographic family
-  name (else the family name) in the regular face's `name` table. Nothing is embedded;
-  PowerPoint substitutes a font that is not installed.
-- **Licensing is yours to check.** The library does not read a font's embedding permissions
-  (`OS/2 fsType`). Embedding a font in a PDF needs a licence that allows it; do not use fonts
-  whose licence restricts embedding.
+- **PPTX:** the theme's heading and body font is `Family` — by default the family name (name
+  ID 1, else the typographic family name, ID 16) in the regular face's `name` table. Name ID 1
+  is the name Windows groups the four faces under, and the name PowerPoint finds an embedded
+  font by; for a condensed or light cut it can differ from the typographic name (e.g. `Acme Sans
+  Cond`, not `Acme Sans Condensed`). Code is set in the mono family (its name ID 1) unless
+  `PptxOptions.CodeFont` names another font.
+- **PPTX, embedded:** by default (`EmbedFonts`, front matter `embedFonts`) a deck carries its
+  brand's fonts, so it shows them where they are not installed. Each face is written as
+  PowerPoint does: an uncompressed Embedded OpenType in a font part, listed in
+  `p:embeddedFontLst` under its family name.
+  - The text family is always embedded. The table and mono families are embedded only when a
+    slide uses them, because each family adds about 0.2 MB per face before compression.
+  - Faces are embedded whole, not as subsets, so the deck can be edited with any character.
+    Each file is embedded once; a face that falls back to another (a table italic to the table
+    regular) is not listed as a face of its own.
+  - A face whose `OS/2 fsType` is *restricted licence embedding* (2) is left out, and the whole
+    family with it if it is the regular face. The deck then only names the family.
+  - Viewers that ignore embedded fonts substitute their own, as without embedding.
+- **Licensing is yours to check.** Apart from the restricted flag in decks, the library does not
+  read a font's embedding permissions (`OS/2 fsType`). Embedding a font in a PDF or a deck needs a
+  licence that allows it; do not use fonts whose licence restricts embedding.
 
 #### Table fonts
 
@@ -88,15 +106,17 @@ condensed cut of the text family, so wide tables fit without smaller text.
 
 - **`Regular` and `Bold` are required** (cells, and header rows and bold text); `Italic` falls back
   to `Regular` and `BoldItalic` to `Bold` — to the upright face of the table family, never to the
-  text italics. `Family` defaults to the name in `Regular`'s `name` table.
+  text italics. `Family` defaults to the name in `Regular`'s `name` table, read like the text
+  family's.
 - Checked like the text faces (TrueType outlines only); errors name the property
   (`Fonts.Table.Bold has CFF (PostScript) outlines…`). Table fonts need brand text fonts: they
   live inside `BrandFonts`.
 - **PDF:** cells are measured and drawn in the table faces at the usual 9.5 pt; inline code in a
   cell stays mono. Each distinct file is embedded once, also when faces share one.
-- **PPTX:** every run in a table cell but code names the table family (`a:latin`); nothing is
-  embedded. This applies to the built-in master and to a brand's own `Pptx` template, never to
-  `CustomTemplateOptions`, which has no brand. Row heights are still estimated by character
+- **PPTX:** every run in a table cell but code names the table family (`a:latin`), which is
+  embedded like the text family when a table or diagram uses it. This applies to the built-in
+  master and to a brand's own `Pptx` template, never to `CustomTemplateOptions`, which has no
+  brand. Row heights are still estimated by character
   count, so a condensed font only leaves rows roomier.
 - **Without table fonts** tables use the text faces and decks write no table font, exactly as
   before.
@@ -124,7 +144,9 @@ paths relative to the pack.
     "link": "#0B5FFF",
     "table": { "header": "#0B5FFF", "band": "#E7EFFF", "line": "#C9D3E0" },
     "gradient": ["#0B5FFF", "#3FC1FF"],
-    "diagram": { "text": "#1F2937", "line": "#6B7280", "accent": "#0B5FFF", "surface": "#E7EFFF", "border": "#0B5FFF", "palette": ["#0B5FFF", "#3FC1FF", "#F59E0B"] }
+    "diagram": { "text": "#1F2937", "line": "#6B7280", "accent": "#0B5FFF", "surface": "#E7EFFF", "border": "#0B5FFF", "palette": ["#0B5FFF", "#3FC1FF", "#F59E0B"] },
+    "highlight": "#3FC1FF",
+    "labels": { "success": "#16A34A", "info": "#0B5FFF", "warning": "#F59E0B", "danger": "#DC2626", "neutral": "#9CA3AF" }
   },
   "images": { "logo": "logo.png", "logoOnDark": "logo-on-dark.png", "coverArtwork": "cover.png", "tagline": "tagline.png" },
   "fonts": {
@@ -191,12 +213,20 @@ Fenced code blocks can become graphics in both generators through `ICodeBlockRen
 public interface ICodeBlockRenderer
 {
     CodeBlockGraphic? Render(CodeBlockRequest request);   // null: leave the block as code
+    string? AuthoringGuide => null;                       // its section of the generators' authoring guides
 }
 ```
 
 - **`CodeBlockRequest`**: `Language` (the info string), `Code`, `Brand` (the brand the document is
   generated in, after front matter) and `Line` (of the opening fence, from 1, front matter
   included).
+- **`AuthoringGuide`** is what a Markdown writer needs to know about the blocks the renderer
+  takes, as Markdown under a `##` heading of its own. The generators' `AuthoringGuide(options)`
+  includes the sections of the renderers in the options; a renderer without one adds nothing.
+- **A renderer that throws** fails the generation with a `DocumentConversionException` in the
+  generator's format, with the same message and the renderer's exception as `InnerException`, so
+  every problem in a document has one exception type. A `DocumentConversionException` from a
+  renderer is passed on as it is.
 - **`CodeBlockGraphic`** is a `DrawingGraphic(Drawing)` or an `ImageGraphic(DocumentResource)`.
   The renderers are asked in order and the first graphic wins.
 - **`Drawing(Width, Height, Items)`** is a vector drawing in CSS pixels (0.75 pt each) from the top
@@ -212,6 +242,33 @@ public interface ICodeBlockRenderer
 
 [wwosik.DocLibs.DocumentGeneration.Diagrams](wwosik.DocLibs.DocumentGeneration.Diagrams.md)
 provides `MermaidRenderer`. Any other diagram language can plug in the same way.
+
+## Slide layouts in Markdown
+
+The PPTX generator draws [layouts](wwosik.DocLibs.DocumentGeneration.Pptx.md#layouts) from Markdown:
+heading attributes (`## Title {.dark kicker="Label"}`), `:::` containers (`cards`, `rows`,
+`panel`, `statement`), GitHub alerts (`> [!NOTE]`), tag lists of code spans and `==marked==` text.
+The PDF generator accepts the same Markdown, so one source serves both, and shows it plainly: see
+[its documentation](wwosik.DocLibs.DocumentGeneration.Pdf.md#slide-layouts). Both reject the same
+mistakes — unknown heading attributes, containers and alerts — with a `DocumentConversionException`
+in their format. Custom containers are block-level only in both: `::text::` stays text.
+
+Front matter can assign status labels — table cells that are one code span — to categories, one key
+per category with its labels separated by `;`:
+
+```markdown
+---
+labels.success: Done; Delivered
+labels.info: In review
+labels.warning: Next
+labels.neutral: Later
+---
+```
+
+The categories are `success`, `info`, `warning`, `danger` and `neutral`; decks tint a label's cell
+in the brand's colour for it (`Colors.Labels`), and a label no key names is neutral. Labels match
+exactly. An unknown category or a label in two categories throws, in both generators; PDFs show the
+labels as code.
 
 ## Front matter
 
@@ -230,8 +287,9 @@ title: Network expansion 2027
   allowed; values may be quoted (`"…"` or `'…'`). Keys and choice values are case-insensitive. It
   looks like YAML but is only this flat subset — no nesting, no lists.
 - An opening `---` followed by a blank line is a thematic break, not front matter.
-- **Shared keys:** `template` (applied first, whatever its position), `title`, `author`. The rest
-  are the generator's.
+- **Shared keys:** `template` (applied first, whatever its position), `title`, `author`, and
+  `labels.<category>` (see [Slide layouts in Markdown](#slide-layouts-in-markdown)). The rest are
+  the generator's.
 - `template` naming the template the caller chose keeps the caller's values; naming another one
   starts from that template's defaults.
 - **Mistakes throw** `DocumentConversionException` with the generator's format: a line that is not

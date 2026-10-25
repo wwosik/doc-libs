@@ -17,6 +17,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Fonts\*.ttf" LogicalName="Fonts.%(Filename)%(Extension)" />
     <None Include="Fonts\OFL.txt" Pack="true" PackagePath="Fonts\OFL.txt" />
+    <EmbeddedResource Include="AuthoringGuide\*.md" LogicalName="AuthoringGuide.%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

@@ -5,6 +5,15 @@ How the libraries actually work today — not how they are planned to work. Plan
 Anything here that stops matching the code is a bug: update it in the same change as the code,
 or delete it.
 
+Each package carries its page as `README.md`: `src/Directory.Build.props` packs it, with links to
+the other pages pointing into the repo on GitHub at the release's tag.
+
+The generators also describe themselves to whoever writes the Markdown:
+`PptxGenerator.AuthoringGuide(options)` and `PdfGenerator.AuthoringGuide(options)`, built from
+`AuthoringGuide/*.md` in each generator package and the Diagrams package. A change to the Markdown
+syntax, front matter, layouts, diagrams or fonts updates those guides in the same change; their
+tests generate every example and compare the guides with `authoring-guide-*.expected.md`.
+
 ## Packages
 
 - [wwosik.DocLibs.DocumentConversions](wwosik.DocLibs.DocumentConversions.md): `.pdf`, `.docx` and
@@ -17,9 +26,26 @@ or delete it.
 - [wwosik.DocLibs.DocumentGeneration.Diagrams](wwosik.DocLibs.DocumentGeneration.Diagrams.md):
   Mermaid diagrams as vector graphics in PDFs and editable shapes in decks, through Mermaider.
 - [wwosik.DocLibs.DocumentGeneration.Pptx](wwosik.DocLibs.DocumentGeneration.Pptx.md): Markdown to
-  `.pptx`, on the built-in master in a brand's design or on a caller's template. Cross-platform.
+  `.pptx`, on the built-in master in a brand's design or on a caller's template, with layouts —
+  cards, rows, panels, callouts, tags, dark slides — from Markdown, and the brand's fonts embedded.
+  Cross-platform.
 - [wwosik.DocLibs.DocumentGeneration.Pdf](wwosik.DocLibs.DocumentGeneration.Pdf.md): Markdown to
-  PDF/A-2b, in a brand's design, with embedded Liberation fonts. Cross-platform.
+  PDF/A-2b, in a brand's design, with embedded fonts (the brand's, else Liberation).
+  Cross-platform.
+
+## Versions
+
+The packages are published to nuget.org, and nowhere else.
+
+- **One version for all packages:** each release publishes all of them as `yyMM.d.H`, the date and
+  hour of the release in Europe/Berlin time, e.g. `2610.22.18`; a further release within the same
+  hour adds a counter (`2610.22.18.1`).
+- **Update them together:** reference every `wwosik.DocLibs.*` package at the same version, because
+  they are built and tested together. With central package management, use one property for all
+  of them.
+- **The version says nothing about compatibility.** Before updating, read
+  [CHANGELOG.md](../CHANGELOG.md) from your version on, breaking changes first. Each breaking
+  change says what to do. Every package also carries the changelog as `CHANGELOG.md`.
 
 ## Sample files and expected output
 

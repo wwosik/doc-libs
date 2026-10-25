@@ -11,7 +11,7 @@ internal static class Samples
 
     public static readonly TimeProvider FixedTime = new Fixed(new DateTimeOffset(2026, 3, 9, 12, 0, 0, TimeSpan.Zero));
 
-    /// <summary>The made-up brand of <c>Samples/brand-sample</c>: colours, footer text, all four images, Liberation Serif with PT Sans Narrow in tables.</summary>
+    /// <summary>The made-up brand of <c>Samples/brand-sample</c>: colours, footer text, all four images, Liberation Serif with PT Sans Narrow in tables and Inconsolata for code, a highlight and two label colours.</summary>
     public static readonly Brand Brand = BrandPack.Load(Path("brand-sample"));
 
     /// <summary>The neutral and the sample brand, by their front-matter name, for theories.</summary>

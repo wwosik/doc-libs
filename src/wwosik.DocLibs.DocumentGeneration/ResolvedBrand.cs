@@ -25,7 +25,9 @@ internal sealed partial record ResolvedBrand(
     byte[]? Tagline,
     ResolvedFonts? Fonts,
     PptxBrandTemplate? Pptx,
-    ResolvedDiagramColors Diagram)
+    ResolvedDiagramColors Diagram,
+    string Highlight,
+    ResolvedLabelColors Labels)
 {
     private const string Black = "000000";
     private const string White = "FFFFFF";
@@ -43,6 +45,9 @@ internal sealed partial record ResolvedBrand(
 
     /// <summary>The family name decks put in table cells; <see langword="null"/> when the brand has no table fonts.</summary>
     public string? TableFontFamily => this.Fonts is { HasTableFonts: true } fonts ? fonts.TableFamily : null;
+
+    /// <summary>The family name decks put on code; <see langword="null"/> when the brand has no mono font.</summary>
+    public string? CodeFontFamily => this.Fonts?.MonoFamily;
 
     /// <summary>Checks <paramref name="brand"/> and fills in its defaults. Cached per instance.</summary>
     /// <exception cref="ArgumentException">Something in the brand is invalid; the message names the property.</exception>
@@ -90,6 +95,15 @@ internal sealed partial record ResolvedBrand(
                 : palette.Count == 0 ? throw Invalid(brand, "Colors.Diagram.Palette", "needs at least one colour")
                 : palette.Select((c, i) => Color(brand, $"Colors.Diagram.Palette[{i}]", c)).ToArray());
 
+        var labels = colors.Labels;
+        string LabelColor(string name, string? value, string fallback) => value is null ? fallback : Color(brand, "Colors.Labels." + name, value);
+        var resolvedLabels = new ResolvedLabelColors(
+            LabelColor(nameof(BrandLabelColors.Success), labels?.Success, "16A34A"),
+            LabelColor(nameof(BrandLabelColors.Info), labels?.Info, link),
+            LabelColor(nameof(BrandLabelColors.Warning), labels?.Warning, "D97706"),
+            LabelColor(nameof(BrandLabelColors.Danger), labels?.Danger, "DC2626"),
+            LabelColor(nameof(BrandLabelColors.Neutral), labels?.Neutral, "9CA3AF"));
+
         return new ResolvedBrand(
             brand.Name.ToLowerInvariant(),
             theme,
@@ -107,7 +121,9 @@ internal sealed partial record ResolvedBrand(
             Image(brand, nameof(Brand.Tagline), brand.Tagline),
             brand.Fonts is null ? null : ResolveFonts(brand, brand.Fonts),
             brand.Pptx is { Content.IsEmpty: true } ? throw Invalid(brand, nameof(Brand.Pptx), "is empty") : brand.Pptx,
-            resolvedDiagram);
+            resolvedDiagram,
+            colors.Highlight is null ? theme[5] : Color(brand, "Colors.Highlight", colors.Highlight),
+            resolvedLabels);
     }
 
     private static string Color(Brand brand, string property, string? value)
@@ -119,7 +135,7 @@ internal sealed partial record ResolvedBrand(
     }
 
     // The colour at `share` on white.
-    private static string Mix(string color, double share)
+    internal static string Mix(string color, double share)
     {
         var rgb = int.Parse(color, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
         int Channel(int shift) => (int)Math.Round(255 - ((255 - ((rgb >> shift) & 0xFF)) * share));
@@ -148,12 +164,16 @@ internal sealed partial record ResolvedBrand(
         var italic = Required(nameof(BrandFonts.Italic), fonts.Italic);
         var boldItalic = Required(nameof(BrandFonts.BoldItalic), fonts.BoldItalic);
         var mono = Font(brand, "Fonts.Mono", fonts.Mono);
+        var monoFamily = mono is null ? null : TrueTypeInfo.FamilyName(mono);
         var family = Family(brand, "Fonts.Family", fonts.Family, regular);
         if (fonts.Table is not { } table)
         {
             return new ResolvedFonts(
                 regular, bold, italic, boldItalic, mono, Font(brand, "Fonts.MonoBold", fonts.MonoBold) ?? mono, family,
-                regular, bold, italic, boldItalic, family);
+                regular, bold, italic, boldItalic, family)
+            {
+                MonoFamily = monoFamily,
+            };
         }
 
         byte[] RequiredTable(string face, BrandFont? font) =>
@@ -167,7 +187,10 @@ internal sealed partial record ResolvedBrand(
             tableBold,
             Font(brand, "Fonts.Table.Italic", table.Italic) ?? tableRegular,
             Font(brand, "Fonts.Table.BoldItalic", table.BoldItalic) ?? tableBold,
-            Family(brand, "Fonts.Table.Family", table.Family, tableRegular));
+            Family(brand, "Fonts.Table.Family", table.Family, tableRegular))
+        {
+            MonoFamily = monoFamily,
+        };
     }
 
     private static string Family(Brand brand, string property, string? family, byte[] regular) =>
@@ -201,11 +224,15 @@ internal sealed partial record ResolvedBrand(
 }
 
 /// <summary>The diagram colours, upper-case RGB hex without <c>#</c>.</summary>
+/// <summary>Status label colours by category; see <see cref="BrandLabelColors"/>.</summary>
+internal sealed record ResolvedLabelColors(string Success, string Info, string Warning, string Danger, string Neutral);
+
 internal sealed record ResolvedDiagramColors(string Text, string Line, string Accent, string Surface, string Border, IReadOnlyList<string> Palette);
 
 /// <summary>
 /// The brand's font files and family names; <see langword="null"/> mono faces fall back to Liberation Mono. Without
 /// table fonts, the table faces are the very same arrays as the text faces, and the table family is the text family.
+/// A face that falls back to another is the very same array.
 /// </summary>
 internal sealed record ResolvedFonts(
     byte[] Regular,
@@ -221,6 +248,9 @@ internal sealed record ResolvedFonts(
     byte[] TableBoldItalic,
     string TableFamily)
 {
+    /// <summary>The family name of <see cref="Mono"/>, read from the font; <see langword="null"/> without it.</summary>
+    public string? MonoFamily { get; init; }
+
     /// <summary>Whether the brand has table fonts of its own.</summary>
     public bool HasTableFonts => !ReferenceEquals(this.TableRegular, this.Regular);
 }

@@ -32,26 +32,28 @@ public class BrandTests
     }
 
     [Fact]
-    public void BrandFonts_AreEmbedded_WithLiberationMonoForCode()
+    public void BrandFonts_AreEmbedded_WithTheBrandMonoForCode()
     {
         var raw = System.Text.Encoding.Latin1.GetString(Samples.Generate(Samples.Markdown(Markdown), Sample));
 
         Assert.Contains("LiberationSerif", raw, StringComparison.Ordinal);
-        Assert.Contains("LiberationMono", raw, StringComparison.Ordinal);
+        Assert.Contains("Inconsolata", raw, StringComparison.Ordinal);
+        Assert.DoesNotContain("LiberationMono", raw, StringComparison.Ordinal);
         Assert.DoesNotContain("LiberationSans", raw, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void BrandMono_ReplacesLiberationMono()
+    public void WithoutBrandMono_CodeIsLiberationMono()
     {
-        var serif = Samples.Brand.Fonts!;
-        var brand = Samples.Brand with { Fonts = serif with { Mono = serif.Regular } };
+        var fonts = Samples.Brand.Fonts!;
+        var brand = Samples.Brand with { Fonts = fonts with { Mono = null, MonoBold = null } };
 
         var raw = System.Text.Encoding.Latin1.GetString(Samples.Generate(
             Samples.Markdown(Markdown),
             new PdfOptions { Template = new BrandPdfTemplateOptions { Brand = brand } }));
 
-        Assert.DoesNotContain("LiberationMono", raw, StringComparison.Ordinal);
+        Assert.Contains("LiberationMono", raw, StringComparison.Ordinal);
+        Assert.DoesNotContain("Inconsolata", raw, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -67,7 +69,7 @@ public class BrandTests
         Assert.Contains("PTSans-NarrowBold", FontOf("Head"), StringComparison.Ordinal);
         Assert.Contains("PTSans-Narrow", FontOf("cell"), StringComparison.Ordinal);
         Assert.Contains("PTSans-Narrow", FontOf("slanted"), StringComparison.Ordinal); // no table italic: the upright face
-        Assert.Contains("LiberationMono", FontOf("code"), StringComparison.Ordinal);
+        Assert.Contains("Inconsolata", FontOf("code"), StringComparison.Ordinal);
     }
 
     [Fact]

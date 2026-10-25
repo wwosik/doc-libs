@@ -83,7 +83,7 @@ public class FrontMatterTests
     }
 
     [Theory]
-    [InlineData("---\ncolour: blue\n---\n", "'colour' is not supported by the template 'neutral'. Valid keys: template, title, author, showDate, showTagline.")]
+    [InlineData("---\ncolour: blue\n---\n", "'colour' is not supported by the template 'neutral'. Valid keys: template, title, author, showDate, showTagline, embedFonts.")]
     [InlineData("---\nshowLogo: true\n---\n", "'showLogo' is not supported by the template 'neutral'")]
     [InlineData("---\nlayouts.title: Cover\n---\n", "'layouts.title' is not supported by the template 'neutral'")]
     [InlineData("---\nshowDate: yes\n---\n", "'showDate' has the value 'yes'; expected 'true' or 'false'")]

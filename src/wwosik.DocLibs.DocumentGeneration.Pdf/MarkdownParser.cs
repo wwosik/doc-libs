@@ -2,7 +2,9 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Markdig;
+using Markdig.Extensions.Alerts;
 using Markdig.Extensions.AutoIdentifiers;
+using Markdig.Extensions.CustomContainers;
 using Markdig.Extensions.EmphasisExtras;
 using Markdig.Extensions.Tables;
 using Markdig.Renderers.Html;
@@ -19,12 +21,7 @@ namespace wwosik.DocLibs.DocumentGeneration.Pdf;
 /// </summary>
 internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptions options, Brand brand, int lineOffset)
 {
-    private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder()
-        .UsePipeTables()
-        .UseEmphasisExtras(EmphasisExtraOptions.Strikethrough)
-        .UseAutoLinks()
-        .UseAutoIdentifiers(AutoIdentifierOptions.GitHub)
-        .Build();
+    private static readonly MarkdownPipeline Pipeline = BuildPipeline();
 
     /// <remarks>
     /// <paramref name="brand"/> is the brand code-block renderers draw in; <paramref name="lineOffset"/> the lines of
@@ -59,12 +56,42 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         return new DocumentModel(cover, result);
     }
 
+    // The slide-layout syntax of the PPTX generator is accepted and shown plainly: custom containers without their
+    // inline form (`::text::`), which would take `std::vector::size` apart.
+    private static MarkdownPipeline BuildPipeline()
+    {
+        var builder = new MarkdownPipelineBuilder()
+            .UsePipeTables()
+            .UseEmphasisExtras(EmphasisExtraOptions.Strikethrough | EmphasisExtraOptions.Marked)
+            .UseAutoLinks()
+            .UseAutoIdentifiers(AutoIdentifierOptions.GitHub)
+            .UseAlertBlocks();
+        builder.BlockParsers.AddIfNotAlready<CustomContainerParser>();
+        return builder.Build();
+    }
+
     private void Add(Markdig.Syntax.Block block, List<Block> target)
     {
         switch (block)
         {
             case Markdig.Syntax.HeadingBlock heading:
-                target.Add(new HeadingBlock(heading.Level, this.Runs(heading.Inline), Anchor(heading)));
+                var runs = this.Runs(heading.Inline);
+                target.Add(new HeadingBlock(heading.Level, heading.Level == 2 ? WithoutAttributes(runs) : runs, Anchor(heading)));
+                break;
+            case CustomContainer container:
+                LayoutSyntax.CheckContainer(container.Info ?? string.Empty, container.Arguments?.Trim() ?? string.Empty, DocumentFormat.Pdf);
+                foreach (var child in container)
+                {
+                    this.Add(child, target);
+                }
+
+                break;
+            case AlertBlock alert:
+                LayoutSyntax.IsImportant(alert.Kind.ToString(), DocumentFormat.Pdf);
+                var kind = alert.Kind.ToString();
+                target.Add(new QuoteBlock([
+                    new ParagraphBlock([new TextRun(kind[..1].ToUpperInvariant() + kind[1..].ToLowerInvariant(), RunStyle.Bold)]),
+                    .. this.Children(alert)]));
                 break;
             case Markdig.Syntax.ParagraphBlock paragraph:
                 this.Paragraph(paragraph.Inline, target);
@@ -118,7 +145,8 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
     private CodeBlockGraphic? Render(FencedCodeBlock fenced) =>
         options.CodeBlockRenderers.Count == 0 ? null : CodeBlockRenderers.Render(
             options.CodeBlockRenderers,
-            new CodeBlockRequest(fenced.Info ?? string.Empty, fenced.Lines.ToString(), brand) { Line = fenced.Line + 1 + lineOffset });
+            new CodeBlockRequest(fenced.Info ?? string.Empty, fenced.Lines.ToString(), brand) { Line = fenced.Line + 1 + lineOffset },
+            DocumentFormat.Pdf);
 
     private List<Block> Children(ContainerBlock container)
     {
@@ -147,6 +175,23 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
                 target.Add(new ParagraphBlock(trimmed));
             }
         }
+    }
+
+    // Slide settings at the end of a `##` heading (`{.dark kicker="…"}`) are checked like in decks, then dropped.
+    private static List<TextRun> WithoutAttributes(List<TextRun> runs)
+    {
+        if (runs.Count == 0 || runs[^1] is not { IsBreak: false, Style: RunStyle.None, Link: null } last)
+        {
+            return runs;
+        }
+
+        var (text, attributes) = HeadingAttributes.Split(last.Text, DocumentFormat.Pdf);
+        if (attributes is null)
+        {
+            return runs;
+        }
+
+        return text.Length > 0 ? [.. runs[..^1], last with { Text = text }] : runs[..^1];
     }
 
     private List<TextRun> Runs(ContainerInline? inline)
@@ -270,7 +315,7 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
                         this.Text(code.Content, style | RunStyle.Code, link);
                         break;
                     case EmphasisInline emphasis:
-                        var added = emphasis.DelimiterChar == '~' ? RunStyle.Strike : emphasis.DelimiterCount >= 2 ? RunStyle.Bold : RunStyle.Italic;
+                        var added = emphasis.DelimiterChar == '~' ? RunStyle.Strike : emphasis.DelimiterChar == '=' || emphasis.DelimiterCount >= 2 ? RunStyle.Bold : RunStyle.Italic;
                         this.Add(emphasis, style | added, link);
                         break;
                     case LinkInline { IsImage: true } image when imagesAsText:

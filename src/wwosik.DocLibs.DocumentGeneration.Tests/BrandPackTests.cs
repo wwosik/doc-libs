@@ -24,7 +24,7 @@ public class BrandPackTests : IDisposable
         Assert.NotNull(brand.LogoOnDark);
         Assert.NotNull(brand.CoverArtwork);
         Assert.NotNull(brand.Tagline);
-        Assert.Null(brand.Fonts!.Mono);
+        Assert.Equal(File.ReadAllBytes(Path.Combine(Pack, "fonts", "mono", "Inconsolata-Regular.ttf")), brand.Fonts!.Mono!.Content.ToArray());
         Assert.Null(brand.Pptx);
         Assert.Equal("Liberation Serif", ResolvedBrand.Resolve(brand).FontFamily);
         Assert.Equal(File.ReadAllBytes(Path.Combine(Pack, "fonts", "table", "PT_Sans-Narrow-Web-Bold.ttf")), brand.Fonts.Table!.Bold.Content.ToArray());
@@ -44,6 +44,18 @@ public class BrandPackTests : IDisposable
         Assert.Equal(
             new BrandDiagramColors { Text = "#1", Line = "#2", Accent = "#3", Surface = "#4", Border = "#5", Palette = ["#6", "#7"] },
             brand.Colors.Diagram);
+    }
+
+    [Fact]
+    public void HighlightAndLabelColours_AreLoaded()
+    {
+        var brand = BrandPack.Load(Files("""
+            { "name": "a", "colors": { "primary": "#111111", "highlight": "#222222",
+              "labels": { "success": "#1", "info": "#2", "warning": "#3", "danger": "#4", "neutral": "#5" } } }
+            """));
+
+        Assert.Equal("#222222", brand.Colors.Highlight);
+        Assert.Equal(new BrandLabelColors { Success = "#1", Info = "#2", Warning = "#3", Danger = "#4", Neutral = "#5" }, brand.Colors.Labels);
     }
 
     [Fact]

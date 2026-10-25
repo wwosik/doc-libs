@@ -289,5 +289,45 @@ public class BrandTests
     public void Registry_RejectsABrandCalledNeutral() =>
         Assert.Throws<ArgumentException>(() => BrandRegistry.Of(null, [new Brand { Name = "neutral", FooterText = "x" }]));
 
+    [Fact]
+    public void HighlightAndLabels_DefaultToAccent2AndFixedColours_TheInfoLabelToTheLink()
+    {
+        var brand = ResolvedBrand.Resolve(new Brand { Name = "a", Colors = new BrandColors { Primary = "111111", Link = "#2233aa" } });
+
+        Assert.Equal("0F766E", brand.Highlight); // theme accent 2 of a derived theme
+        Assert.Equal(new ResolvedLabelColors("16A34A", "2233AA", "D97706", "DC2626", "9CA3AF"), brand.Labels);
+    }
+
+    [Fact]
+    public void Sample_HasItsOwnHighlight_AndTwoOfItsLabelColours()
+    {
+        var sample = ResolvedBrand.Resolve(BrandPack.Load(Sample(".")));
+
+        Assert.Equal("F59E0B", sample.Highlight);
+        Assert.Equal(new ResolvedLabelColors("15803D", "B45309", "D97706", "BE123C", "9CA3AF"), sample.Labels);
+    }
+
+    [Fact]
+    public void InvalidLabelColour_ThrowsNamingTheProperty()
+    {
+        var error = Assert.Throws<ArgumentException>(() => ResolvedBrand.Resolve(new Brand
+        {
+            Name = "a",
+            Colors = new BrandColors { Primary = "111111", Labels = new BrandLabelColors { Danger = "red" } },
+        }));
+
+        Assert.Contains("Colors.Labels.Danger", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MonoFamily_IsReadFromTheMonoFace()
+    {
+        var fonts = ResolvedBrand.Resolve(BrandPack.Load(Sample("."))).Fonts!;
+
+        Assert.Equal("Inconsolata", fonts.MonoFamily);
+        Assert.Equal("PT Sans Narrow", fonts.TableFamily); // name ID 1, which PowerPoint finds a font by
+        Assert.Null(ResolvedBrand.Resolve(Brand.Neutral).Fonts);
+    }
+
     private static string Sample(string path) => Path.Combine(AppContext.BaseDirectory, "Samples", "brand-sample", path);
 }

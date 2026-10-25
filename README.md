@@ -7,7 +7,7 @@ stream out, no Office or browser needed (except for the legacy Office formats).
 | ------- | ------------ |
 | `wwosik.DocLibs.DocumentConversions` | `.pdf`, `.docx` and `.pptx` to Markdown with their images; Markdown ↔ JIRA wiki markup. AOT-compatible. |
 | `wwosik.DocLibs.DocumentConversions.WindowsOnly` | `.doc`, `.rtf`, `.xls` and `.xlsx` to Markdown through Office automation. Windows with Word and Excel only. |
-| `wwosik.DocLibs.DocumentGeneration.Pptx` | Markdown to PowerPoint (`.pptx`), in your brand's design or on your own `.pptx` / `.potx` template. |
+| `wwosik.DocLibs.DocumentGeneration.Pptx` | Markdown to PowerPoint (`.pptx`), in your brand's design with its fonts embedded, or on your own `.pptx` / `.potx` template. Cards, panels, callouts, tags and dark slides from plain Markdown syntax. |
 | `wwosik.DocLibs.DocumentGeneration.Pdf` | Markdown to PDF/A-2b in your brand's design, with embedded fonts, bookmarks, links and tables. AOT-compatible. |
 | `wwosik.DocLibs.DocumentGeneration.Diagrams` | Mermaid diagrams for both generators: vector graphics in PDFs, editable shapes in decks, in your brand's colours and font. AOT-compatible; built on [Mermaider](https://github.com/nullean/mermaider) (MIT). |
 | `wwosik.DocLibs.DocumentGeneration` | Brands (colours, fonts, logo, footer, cover images), brand packs and the drawing model, shared by both generators. Comes along as their dependency. |
@@ -55,6 +55,13 @@ Markdown can pick among the brands you register with `template: acme` in its fro
 [Brands](https://github.com/wwosik/doc-libs/blob/main/docs/wwosik.DocLibs.DocumentGeneration.md#brands)
 for every option and for how to ship a client's brand as its own package.
 
+## When others write the Markdown
+
+If people or AI agents write the Markdown your service turns into documents, hand them the
+generator's authoring guide: `PptxGenerator.AuthoringGuide(options)` or
+`PdfGenerator.AuthoringGuide(options)` returns Markdown describing exactly what those options
+accept — headings, layouts, front matter, diagrams, and the characters the brand's fonts lack.
+
 ## Building
 
 ```
@@ -67,8 +74,11 @@ On Windows, use `./run.ps1` with the same verbs. Needs the .NET 10 SDK.
 
 ## Releases
 
-Pushing a tag `v<version>` (e.g. `v1.2.0`) builds, tests and publishes every package to
-nuget.org with that version — see [.github/workflows/](.github/workflows/).
+Pushing a tag `v<version>` builds, tests and publishes every package to nuget.org with that
+version — see [.github/workflows/](.github/workflows/). Versions are the release's date and hour,
+`yyMM.d.H` (e.g. `2610.22.18`), with `.r` added for a further release in the same hour; they say
+nothing about compatibility, so read [CHANGELOG.md](CHANGELOG.md) before updating, breaking
+changes first.
 
 ## License
 

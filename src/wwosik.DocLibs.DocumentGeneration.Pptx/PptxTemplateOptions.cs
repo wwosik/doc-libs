@@ -27,6 +27,9 @@ public abstract record PptxTemplateOptions
     /// <summary>The brand front matter can name to keep these options, if any.</summary>
     internal virtual Brand? BrandValue => null;
 
+    /// <summary>Whether the deck embeds the brand's fonts.</summary>
+    internal virtual bool EmbedsFonts => false;
+
     /// <summary>A copy with the front-matter <paramref name="key"/> (one of <see cref="Keys"/>) set to <paramref name="value"/>.</summary>
     internal abstract PptxTemplateOptions With(FrontMatter source, string key, string value);
 
@@ -60,7 +63,8 @@ public abstract record PptxTemplateOptions
 public sealed record BrandTemplateOptions : PptxTemplateOptions
 {
     // Static, so that records with equal values stay equal.
-    private static readonly string[] FrontMatterKeys = ["showDate", "showTagline"];
+    private static readonly string[] FrontMatterKeys = ["showDate", "showTagline", "embedFonts"];
+    private static readonly string[] OwnTemplateKeys = ["embedFonts"];
 
     /// <summary>The brand. Default <see cref="DocumentGeneration.Brand.Neutral"/>.</summary>
     public Brand Brand { get; init; } = Brand.Neutral;
@@ -71,9 +75,18 @@ public sealed record BrandTemplateOptions : PptxTemplateOptions
     /// <summary>The brand's tagline bottom right on the cover, if it has one. Default <see langword="true"/>.</summary>
     public bool ShowTagline { get; init; } = true;
 
+    /// <summary>
+    /// The brand's fonts embedded in the deck, so that it shows them where they are not installed: every family the
+    /// deck uses, whole faces, except faces whose licence restricts embedding. Default <see langword="true"/>;
+    /// <see langword="false"/> only names the families. No effect for a brand without fonts.
+    /// </summary>
+    public bool EmbedFonts { get; init; } = true;
+
     internal override string Name => this.Brand.Name.ToLowerInvariant();
 
-    internal override IReadOnlyList<string> Keys => this.Brand.Pptx is null ? FrontMatterKeys : [];
+    internal override IReadOnlyList<string> Keys => this.Brand.Pptx is null ? FrontMatterKeys : OwnTemplateKeys;
+
+    internal override bool EmbedsFonts => this.EmbedFonts;
 
     internal override bool ShowsDate => this.ShowDate && this.Brand.Pptx is null;
 
@@ -90,6 +103,7 @@ public sealed record BrandTemplateOptions : PptxTemplateOptions
     internal override PptxTemplateOptions With(FrontMatter source, string key, string value) => key switch
     {
         "showTagline" => this with { ShowTagline = source.Bool(key, value) },
+        "embedFonts" => this with { EmbedFonts = source.Bool(key, value) },
         _ => this with { ShowDate = source.Bool(key, value) },
     };
 

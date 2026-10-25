@@ -67,7 +67,7 @@ public class BrandTests
     [Fact]
     public void WithoutBrandFonts_TheThemeKeepsArial()
     {
-        using var package = Samples.Open(Samples.TemplateBytes(new BrandTemplateOptions()));
+        using var package = Samples.Open(Samples.TemplateBytes(new BrandTemplateOptions { Brand = Brand.Neutral }));
 
         var fonts = package.PresentationPart!.SlideMasterParts.Single().ThemePart!.Theme!.ThemeElements!.FontScheme!;
         Assert.Equal("Arial", fonts.MajorFont!.LatinFont!.Typeface!.Value);
@@ -85,7 +85,7 @@ public class BrandTests
             var runs = Samples.Slides(package).SelectMany(s => s.Slide!.Descendants<A.Table>()).SelectMany(t => t.Descendants<A.Run>()).ToList();
 
             Assert.All(runs.Where(r => r.Text!.Text != "code"), r => Assert.Equal("PT Sans Narrow", r.RunProperties!.GetFirstChild<A.LatinFont>()!.Typeface!.Value));
-            Assert.Equal("Consolas", runs.Single(r => r.Text!.Text == "code").RunProperties!.GetFirstChild<A.LatinFont>()!.Typeface!.Value);
+            Assert.Equal("Inconsolata", runs.Single(r => r.Text!.Text == "code").RunProperties!.GetFirstChild<A.LatinFont>()!.Typeface!.Value);
             Assert.All(Samples.Slides(package).SelectMany(s => s.Slide!.Descendants<P.Shape>()).SelectMany(s => s.Descendants<A.RunProperties>()), p => Assert.Null(p.GetFirstChild<A.LatinFont>()));
         }
     }
@@ -96,7 +96,7 @@ public class BrandTests
         var markdown = Samples.Markdown("## A\n\n| Head |\n| --- |\n| cell |\n");
         var brand = Samples.Brand with { Fonts = Samples.Brand.Fonts! with { Table = null } };
 
-        foreach (var options in new[] { new PptxOptions(), new PptxOptions { Template = new BrandTemplateOptions { Brand = brand } } })
+        foreach (var options in new[] { new PptxOptions { Template = new BrandTemplateOptions { Brand = Brand.Neutral } }, new PptxOptions { Template = new BrandTemplateOptions { Brand = brand } } })
         {
             using var package = Samples.Open(Samples.Generate(markdown, options));
 

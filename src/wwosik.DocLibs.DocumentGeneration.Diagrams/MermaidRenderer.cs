@@ -18,13 +18,24 @@ public sealed class MermaidRenderer : ICodeBlockRenderer
     /// <summary>What a block that cannot be drawn does. Default <see cref="MermaidErrorMode.Throw"/>.</summary>
     public MermaidErrorMode OnError { get; init; } = MermaidErrorMode.Throw;
 
+    /// <summary>The <c>## Diagrams</c> section of the generators' authoring guides: what is drawn and how to write it.</summary>
+    public string AuthoringGuide => AuthoringGuides.Fill(
+        AuthoringGuides.Template(typeof(MermaidRenderer).Assembly, "Diagrams"),
+        new Dictionary<string, string>
+        {
+            ["errors"] = this.OnError == MermaidErrorMode.Throw
+                ? "A diagram with a syntax error is an error naming the line of its block; fix the Mermaid and try again."
+                : "A diagram with a syntax error stays a code block; check the result.",
+        });
+
     /// <summary>
     /// A <see cref="DrawingGraphic"/> for a <c>mermaid</c> block (the language is case-insensitive) of a supported
     /// type; <see langword="null"/> for other languages and other diagram types.
     /// </summary>
     /// <exception cref="ArgumentException">
     /// The diagram cannot be parsed or drawn and <see cref="OnError"/> is <see cref="MermaidErrorMode.Throw"/>; the
-    /// message names the block's line. Also when the brand is invalid.
+    /// message names the block's line. Also when the brand is invalid. The generators pass it on as the inner
+    /// exception of a <c>DocumentConversionException</c>.
     /// </exception>
     public CodeBlockGraphic? Render(CodeBlockRequest request)
     {
@@ -81,7 +92,10 @@ public sealed class MermaidRenderer : ICodeBlockRenderer
 /// <summary>What <see cref="MermaidRenderer"/> does with a block it cannot draw.</summary>
 public enum MermaidErrorMode
 {
-    /// <summary>Throw <see cref="ArgumentException"/> naming the block's line and the reason, so mistakes are noticed.</summary>
+    /// <summary>
+    /// Throw <see cref="ArgumentException"/> naming the block's line and the reason, so mistakes are noticed. The
+    /// generators wrap it in a <c>DocumentConversionException</c>.
+    /// </summary>
     Throw,
 
     /// <summary>Leave the block as code.</summary>

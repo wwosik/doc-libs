@@ -1,7 +1,8 @@
-using DocumentFormat.OpenXml;
+﻿using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Validation;
 using UglyToad.PdfPig;
+using wwosik.DocLibs.DocumentConversions;
 using A = DocumentFormat.OpenXml.Drawing;
 using P = DocumentFormat.OpenXml.Presentation;
 
@@ -39,9 +40,10 @@ public class GenerationTests
     {
         var markdown = Samples.Markdown("---\ntitle: T\n---\n## A\n\n```mermaid\nnot mermaid\n```\n");
 
-        var error = Assert.Throws<ArgumentException>(() => Samples.Pdf(markdown, Brand.Neutral));
+        var error = Assert.Throws<DocumentConversionException>(() => Samples.Pdf(markdown, Brand.Neutral));
         using var kept = PdfDocument.Open(Samples.Pdf(markdown, Brand.Neutral, new MermaidRenderer { OnError = MermaidErrorMode.KeepCode }));
 
+        Assert.IsType<ArgumentException>(error.InnerException);
         Assert.Contains("at line 6", error.Message, StringComparison.Ordinal); // front matter counted
         Assert.Contains("not mermaid", kept.GetPage(1).Text, StringComparison.Ordinal);
     }

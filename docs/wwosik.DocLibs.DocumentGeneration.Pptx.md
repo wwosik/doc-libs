@@ -41,6 +41,29 @@ PptxGenerator.Generate(document, output, new PptxOptions
   heading) and the author (front matter `author`, else metadata `author`) go into the core
   properties.
 
+## For hosts that let others write the Markdown
+
+When the Markdown comes from someone else, often an AI agent working through your service, give
+them `PptxGenerator.AuthoringGuide(options)` with the **same options** you pass to `Generate`. It is
+Markdown, in English, written for the writer rather than for you:
+
+```csharp
+var options = new PptxOptions { CodeBlockRenderers = [new MermaidRenderer()] };
+string guide = PptxGenerator.AuthoringGuide(options);   // starts at "##"
+```
+
+- **What it covers:** how headings become slides, the layouts and when to use them, the front matter keys of the options' design and the brands front
+  matter can pick, the diagrams the renderers draw (each renderer adds its own section through
+  `ICodeBlockRenderer.AuthoringGuide`), the characters the brand's fonts lack with what to write
+  instead, the errors, and a complete example. Every example in it generates without error.
+- **What it leaves to you:** put it under a `#` heading of your own and add what only you know —
+  how images are referenced (the paths you resolve into `MarkdownDocument.Resources`), settings
+  you fix (and refuse in front matter), size limits, how the result reaches the user.
+- **Errors:** pass `DocumentConversionException.Reason` back to the writer as it is; it names
+  what to fix (the key, the container, the character, the diagram's line).
+- It is generated on each call, so it follows the package version, and it stays under about
+  2,500 words.
+
 ## Markdown to slides
 
 | Markdown | Slide |
@@ -48,6 +71,7 @@ PptxGenerator.Generate(document, output, new PptxOptions
 | First `#` heading | Cover (layout type `title`); the text up to the next heading is the subtitle. |
 | Every later `#` heading | Section divider (layout `secHead`, else `title`), with subtitle like the cover. |
 | `##` heading | One slide with that title. |
+| `##` section using [layouts](#layouts) | One flow slide (layout `titleOnly`): its blocks stacked top to bottom. |
 | Section with a table | Table slide (layout `titleOnly`): text before the table above it, text after it below. |
 | Section with an image | Image slide (layout `titleOnly`): text before the image above it, text after it as a centred caption. |
 | Anything else | Content slide (layout `obj`) with the text in the body placeholder. |
@@ -70,6 +94,55 @@ PptxGenerator.Generate(document, output, new PptxOptions
   if it has one, and — with `ShowDate` — its date placeholder with the date of generation
   (`dd.MM.yyyy`, from `PptxOptions.TimeProvider`).
 
+## Layouts
+
+A `##` section can ask for more than bullets or one visual. It then becomes a **flow slide**: its
+blocks are stacked top to bottom in the content area, and several tables or visuals share the
+slide instead of starting continuation slides. A section that uses none of this comes out exactly
+as described above. The syntax is the one Pandoc, markdown-it and GitHub use, so it still reads well
+as plain Markdown.
+
+| Markdown | On the slide |
+| -------- | ------------ |
+| `## Title {kicker="Label"}` | A small bold uppercase label above the title, in the brand's link colour; the title moves down. |
+| `## Title {.dark}` | The slide on a dark background with white text (both together: `{.dark kicker="Label"}`). |
+| `::: cards` … `:::`, one `###` per card | Rounded boxes side by side, outlined in the table line colour, without fill, at most four to a row, each row as tall as its tallest card. The `###` is the card's title; a paragraph that is only `**bold**` right after it is a big figure. |
+| `::: cards` around one list of `- **Title** – text` | The same, one card per item. |
+| `::: rows` around one list of `- **Term** – text` | The term in bold in the left third, the text beside it, a rule above each row and below the last. |
+| `::: panel` or `::: panel dark` | A box behind its blocks, in the band colour or, dark, in the primary colour with white text. |
+| `::: statement` | Its first paragraph large and bold; the rest of the container follows as normal blocks. |
+| `> [!NOTE]`, `> [!TIP]` | A band with a bar on the left in the primary colour (not italic). |
+| `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]` | The same with the bar in the highlight colour. |
+| A paragraph of only code spans: `` `a` `b` `c` `` (at least two) | Outlined chips in the code font, flowing and wrapping. |
+| In a container, a list whose items start with a code span: `` - `write-once` text `` | The span as a bold label chip, the text beside it. |
+| A fenced or indented code block (no renderer took it) | Its lines on a rounded box in a light grey (the table line colour at 30 %), 14 pt, line spacing 130 %. On other slides code stays as before. |
+| `==text==` | Bold, on a light tint of the highlight colour, like a highlighter pen — on every slide. |
+| A table row whose first cell is all `==…==` | The row filled in a light tint of the highlight colour — on every slide. |
+| A table cell that is one code span, on a flow slide | A status label: bold, its cell in a light tint of its category's colour. Front matter assigns labels to categories (`labels.success: Done`, see [wwosik.DocLibs.DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md#slide-layouts-in-markdown)); others are neutral. |
+
+- **What makes a flow slide:** heading attributes, a `:::` container or an alert anywhere in the
+  section, or a tag paragraph as a block of its own. Code-span lists outside containers stay
+  bullet lists, code-only table cells on other slides stay code.
+- **Containers nest** with longer fences: `:::: panel` around `::: cards` … `:::` and `::::`.
+- **Heading attributes** count only as a trailing `{…}` on a `##` heading made of `.class` and
+  `key="value"` tokens; other braces (`## Sets {a, b}`) stay in the title. On `#` headings they are
+  text.
+- **Mistakes throw** `DocumentConversionException`: an unknown attribute or a key given twice, an
+  unknown container (the message lists `cards, rows, panel, statement`), arguments on a container
+  other than `panel dark`, content before the first `###` in `::: cards`, a `::: rows` that is not
+  one list, an item of `cards` or `rows` that does not start with bold text, an unknown alert.
+- **Colours** come from the brand: titles of cards and rows, chips and statements in `Primary`
+  (also the dark background), kickers and figures in `Link`, panels and callouts in `TableBand`,
+  outlines and rules in `TableLine`, highlights in `Highlight`, status labels in `Labels`. On a
+  caller's template, which has no brand, the theme colours stand in — text 2, accent 1,
+  background 2, accent 2 — and the neutral brand's label colours.
+- **Dark slides** use the built-in template's layout *Title Only Dark* (primary background, white
+  title and footer, the logo for dark backgrounds). A template without a layout of that name gets
+  the title-only layout with a background override and white text on everything the generator
+  writes; the template's own master graphics stay as they are.
+- **Sizes** on flow slides: text 16 pt, inside cards 14 pt, card titles 16 pt, figures 32 pt,
+  statements 26 pt, kickers and chips 12 pt.
+
 ## Templates
 
 `PptxOptions.Template` takes one options record per template; each has only the features of its
@@ -77,7 +150,7 @@ template.
 
 | Options | Template | Features |
 | ------- | -------- | -------- |
-| `BrandTemplateOptions` (default) | The built-in master in `Brand`'s design — by default `Brand.Neutral`: white, Arial, dark titles, blue accents, no images, no footer text | `Brand`, `ShowDate` (default on), `ShowTagline` (default on) |
+| `BrandTemplateOptions` (default) | The built-in master in `Brand`'s design — by default `Brand.Neutral`: white, Arial, dark titles, blue accents, no images, no footer text | `Brand`, `ShowDate` (default on), `ShowTagline` (default on), `EmbedFonts` (default on) |
 | `CustomTemplateOptions(stream)` | A caller's `.pptx` or `.potx` | `Layouts` (layout names) |
 
 Brands — colours, fonts, images, brand packs, and how front matter picks one from
@@ -93,13 +166,16 @@ One master design, written in code (`TemplateBuilder`), parameterized by a brand
 
 - 16:9; margins of about 1″, title top left in 32 pt bold in the brand colour, body below it, a
   footer line with slide number, footer text and date, the logo bottom right. The theme's heading
-  and body font is the brand's font family (Arial without brand fonts); it is named, not embedded.
+  and body font is the brand's font family (Arial without brand fonts), embedded with
+  `EmbedFonts` (see [Fonts](wwosik.DocLibs.DocumentGeneration.md#fonts)).
 - **Body style made for Markdown:** level 1 `•`, level 2 `–`, level 3 `•` and so on, with hanging
   indents, 20/18/16 pt, 6 pt before each paragraph. Level 1 is not bold.
 - **Layouts:** `title` (cover: large title, subtitle, and — where the brand has them — the logo
   top right, the artwork in the bottom right corner below the subtitle, the tagline over it; no
-  footer line), `obj`, `titleOnly`, and `secHead` (brand gradient, white title, white footer
-  line, the logo for dark backgrounds).
+  footer line), `obj`, `titleOnly`, `secHead` (brand gradient, white title, white footer
+  line, the logo for dark backgrounds), and *Title Only Dark* (type `cust`, found by name: the
+  primary colour as background, white title and footer line, the logo for dark backgrounds — for
+  [dark slides](#layouts)).
 - **Images keep their aspect ratio:** the logo, tagline and footer logo are fitted into fixed
   boxes and aligned right; the artwork is at most as wide as the slide and as high as the band
   below the subtitle. PNG and JPEG.
@@ -149,6 +225,7 @@ author: Team Docs
 | --- | ------ | --------- |
 | `template` | `neutral`, the brand of `Template`, or a brand in `PptxOptions.Brands` | all — switches to that brand on the built-in master, also replacing a caller's custom template |
 | `showDate`, `showTagline` | `true`, `false` | brands on the built-in master |
+| `embedFonts` | `true`, `false` | brands on the built-in master or their own `Pptx` template |
 | `layouts.title`, `layouts.content`, `layouts.titleOnly`, `layouts.sectionHeader` | layout name | custom |
 | `title`, `author` | text | all — the core properties |
 
@@ -180,7 +257,8 @@ and the text after it as a caption. A renderer can return:
 ## Known limits
 
 - Text heights above and below images and tables are estimated, not measured, so a long caption
-  can overlap the slide's bottom edge. Overfull placeholders rely on the template's autofit, which
+  can overlap the slide's bottom edge. The same goes for flow slides: an overfull one runs past the
+  content area, and is not split. Overfull placeholders rely on the template's autofit, which
   PowerPoint applies only once the text is edited — very long cover or divider titles overflow.
 - Text in text boxes takes the theme's text colour, not the layout's: a subtitle placed in a text
   box on a dark caller layout stays dark.
@@ -188,4 +266,7 @@ and the text after it as a caption. A renderer can return:
 - A caller template's own body style is used as it is; one made for hand-written slides (level 1
   bold, no bullets on levels 1–2) suits Markdown less well than the built-in template.
 - No speaker notes, no charts, no SVG images, no merged table cells.
+- Embedded fonts are a PowerPoint feature. Viewers that ignore them — LibreOffice without
+  libeot, Google Slides — substitute a font of their own, as for a deck without embedded fonts.
+  PowerPoint Online honours them only partly.
 - Relative links (`[x](other.md)`, `#anchor`) stay plain text.

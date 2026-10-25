@@ -15,6 +15,9 @@ internal sealed partial class FrontMatter
     public const string TitleKey = "title";
     public const string AuthorKey = "author";
 
+    /// <summary>The prefix of the keys that assign status labels to categories: <c>labels.success: Done; Delivered</c>.</summary>
+    public const string LabelsPrefix = "labels.";
+
     private readonly List<KeyValuePair<string, string>> entries;
     private readonly DocumentFormat format;
 
@@ -114,7 +117,8 @@ internal sealed partial class FrontMatter
         {
             if (key.Equals(TemplateKey, StringComparison.OrdinalIgnoreCase)
                 || key.Equals(TitleKey, StringComparison.OrdinalIgnoreCase)
-                || key.Equals(AuthorKey, StringComparison.OrdinalIgnoreCase))
+                || key.Equals(AuthorKey, StringComparison.OrdinalIgnoreCase)
+                || key.StartsWith(LabelsPrefix, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -128,6 +132,37 @@ internal sealed partial class FrontMatter
         }
 
         return options;
+    }
+
+    /// <summary>
+    /// The status labels the <c>labels.&lt;category&gt;</c> keys assign, each key naming one or more labels separated by
+    /// <c>;</c>. Label texts are matched exactly; categories case-insensitively.
+    /// </summary>
+    /// <exception cref="DocumentConversionException">A category is unknown, or a label is assigned twice.</exception>
+    public IReadOnlyDictionary<string, LabelCategory> Labels()
+    {
+        var labels = new Dictionary<string, LabelCategory>(StringComparer.Ordinal);
+        foreach (var (key, value) in this.entries.Where(e => e.Key.StartsWith(LabelsPrefix, StringComparison.OrdinalIgnoreCase)))
+        {
+            var name = key[LabelsPrefix.Length..];
+            var category = Enum.GetValues<LabelCategory>().FirstOrDefault(c => c.ToString().Equals(name, StringComparison.OrdinalIgnoreCase), (LabelCategory)(-1));
+            if (category < 0)
+            {
+                throw this.Error(
+                    $"The front matter key '{key}' names no label category. "
+                    + $"Valid keys: {string.Join(", ", Enum.GetValues<LabelCategory>().Select(c => LabelsPrefix + c.ToString().ToLowerInvariant()))}.");
+            }
+
+            foreach (var label in value.Split(';').Select(l => l.Trim()).Where(l => l.Length > 0))
+            {
+                if (!labels.TryAdd(label, category))
+                {
+                    throw this.Error($"The label '{label}' is assigned to two categories in the front matter.");
+                }
+            }
+        }
+
+        return labels;
     }
 
     /// <exception cref="DocumentConversionException">The value is neither <c>true</c> nor <c>false</c>.</exception>
@@ -161,4 +196,14 @@ internal sealed partial class FrontMatter
 
     [GeneratedRegex(@"^\s*([A-Za-z][A-Za-z0-9.]*)\s*:(.*)$", RegexOptions.CultureInvariant)]
     private static partial Regex EntryPattern();
+}
+
+/// <summary>The categories of status labels on slides; each has a colour in <see cref="BrandLabelColors"/>.</summary>
+internal enum LabelCategory
+{
+    Success,
+    Info,
+    Warning,
+    Danger,
+    Neutral,
 }

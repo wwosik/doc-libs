@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration.Pptx\wwosik.DocLibs.DocumentGeneration.Pptx.csproj" />
+    <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration.Diagrams\wwosik.DocLibs.DocumentGeneration.Diagrams.csproj" />
   </ItemGroup>
 
   <ItemGroup>

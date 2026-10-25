@@ -53,11 +53,14 @@ public class TemplateTests
     }
 
     [Fact]
-    public void Deck_WithoutImagesOfItsOwn_IsWellBelowOneMegabyte()
+    public void Deck_WithoutImagesOfItsOwn_IsWellBelowOneMegabyte_WithoutEmbeddedFonts()
     {
-        var pptx = Samples.Generate(Samples.Markdown(Sections));
+        var withFonts = Brand.Neutral with { Name = "plain", Fonts = Samples.Brand.Fonts };
+        var pptx = Samples.Generate(Samples.Markdown(Sections), new PptxOptions { Template = new BrandTemplateOptions { Brand = withFonts, EmbedFonts = false } });
+        var embedded = Samples.Generate(Samples.Markdown(Sections), new PptxOptions { Template = new BrandTemplateOptions { Brand = withFonts } });
 
         Assert.True(pptx.Length < 600_000, $"{pptx.Length} bytes");
+        Assert.True(embedded.Length < 1_500_000, $"{embedded.Length} bytes with the four faces of Liberation Serif");
     }
 
     [Theory]

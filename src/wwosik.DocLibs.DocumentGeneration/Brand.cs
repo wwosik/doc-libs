@@ -80,6 +80,15 @@ public sealed record BrandColors
     /// <summary>Diagrams drawn by a code-block renderer. Default: every colour derived from the others.</summary>
     public BrandDiagramColors? Diagram { get; init; }
 
+    /// <summary>
+    /// Highlights on slides: <c>==marked==</c> text and table rows, the bar of important callouts. Default: theme
+    /// accent 2.
+    /// </summary>
+    public string? Highlight { get; init; }
+
+    /// <summary>Status labels in slide tables, one colour per category. Default: green, blue, amber, red, grey.</summary>
+    public BrandLabelColors? Labels { get; init; }
+
     /// <summary>The colours of <see cref="Brand.Neutral"/>.</summary>
     public static BrandColors Neutral { get; } = new()
     {
@@ -98,7 +107,8 @@ public sealed record BrandColors
         other is not null
         && this.Primary == other.Primary && this.Link == other.Link && this.Footer == other.Footer
         && this.TableHeader == other.TableHeader && this.TableBand == other.TableBand && this.TableLine == other.TableLine
-        && SameList(this.Gradient, other.Gradient) && SameList(this.Theme, other.Theme) && Equals(this.Diagram, other.Diagram);
+        && SameList(this.Gradient, other.Gradient) && SameList(this.Theme, other.Theme) && Equals(this.Diagram, other.Diagram)
+        && this.Highlight == other.Highlight && Equals(this.Labels, other.Labels);
 
     /// <inheritdoc/>
     public override int GetHashCode() => HashCode.Combine(this.Primary, this.Link, this.TableHeader, this.Gradient?.Count, this.Theme?.Count);
@@ -143,6 +153,29 @@ public sealed record BrandDiagramColors
     public override int GetHashCode() => HashCode.Combine(this.Text, this.Line, this.Accent, this.Surface, this.Border, this.Palette?.Count);
 }
 
+/// <summary>
+/// The colours of status labels on slides, as RGB hex, one per category; a deck assigns its labels to categories in
+/// front matter (<c>labels.success: Done</c>). Labels are drawn bold on a light tint of their colour. Each colour is
+/// optional.
+/// </summary>
+public sealed record BrandLabelColors
+{
+    /// <summary>Done, delivered, passed. Default: green <c>16A34A</c>.</summary>
+    public string? Success { get; init; }
+
+    /// <summary>In progress, in review. Default: <see cref="BrandColors.Link"/>.</summary>
+    public string? Info { get; init; }
+
+    /// <summary>Next, at risk, waiting. Default: amber <c>D97706</c>.</summary>
+    public string? Warning { get; init; }
+
+    /// <summary>Failed, blocked. Default: red <c>DC2626</c>.</summary>
+    public string? Danger { get; init; }
+
+    /// <summary>Later, not started, and every label no category names. Default: grey <c>9CA3AF</c>.</summary>
+    public string? Neutral { get; init; }
+}
+
 /// <summary>A PNG or JPEG image. Compared by content.</summary>
 /// <param name="Content">The file's bytes.</param>
 public sealed record BrandImage(ReadOnlyMemory<byte> Content)
@@ -156,8 +189,9 @@ public sealed record BrandImage(ReadOnlyMemory<byte> Content)
 
 /// <summary>
 /// The brand's fonts. The four text faces are required; nothing is synthesized. Mono is optional: without it, code
-/// stays in Liberation Mono. PDFs embed the subset they use; decks only name <see cref="Family"/> in their theme and
-/// embed nothing. Make sure the fonts' licences allow embedding them in documents.
+/// stays in Liberation Mono in PDFs and in the caller's code font in decks. PDFs embed the subset they use; decks name
+/// the families and, unless switched off, embed the whole faces. Make sure the fonts' licences allow embedding them
+/// in documents.
 /// </summary>
 public sealed record BrandFonts
 {
@@ -173,15 +207,16 @@ public sealed record BrandFonts
     /// <summary>Bold italic text.</summary>
     public required BrandFont BoldItalic { get; init; }
 
-    /// <summary>Code. <see langword="null"/>: Liberation Mono.</summary>
+    /// <summary>Code. <see langword="null"/>: Liberation Mono in PDFs, the caller's code font in decks.</summary>
     public BrandFont? Mono { get; init; }
 
     /// <summary>Bold code. <see langword="null"/>: <see cref="Mono"/>, or Liberation Mono Bold without it.</summary>
     public BrandFont? MonoBold { get; init; }
 
     /// <summary>
-    /// The family name decks put in their theme. <see langword="null"/>: read from <see cref="Regular"/> (its
-    /// typographic family name, else its family name).
+    /// The family name decks put in their theme. <see langword="null"/>: read from <see cref="Regular"/> (its family
+    /// name, name ID 1: the name Windows and PowerPoint group the four faces under, and the one an embedded font is
+    /// found by; else its typographic family name).
     /// </summary>
     public string? Family { get; init; }
 
@@ -208,8 +243,8 @@ public sealed record BrandTableFonts
     public BrandFont? BoldItalic { get; init; }
 
     /// <summary>
-    /// The family name decks put in table cells. <see langword="null"/>: read from <see cref="Regular"/> (its
-    /// typographic family name, else its family name).
+    /// The family name decks put in table cells. <see langword="null"/>: read from <see cref="Regular"/> like
+    /// <see cref="BrandFonts.Family"/>.
     /// </summary>
     public string? Family { get; init; }
 }

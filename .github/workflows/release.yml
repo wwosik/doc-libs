@@ -1,7 +1,10 @@
-# Publish all packages to nuget.org when a version tag (v1.2.3, v1.2.3-beta.1) is pushed. The tag is
+# Publish all packages to nuget.org when a version tag (v2610.22.18, v2610.22.18.1) is pushed. The tag is
 # the version; nothing in the repo holds one. Authenticates through nuget.org trusted publishing
 # (OIDC), so no API key is stored: the repository variable NUGET_USER names the nuget.org account
 # whose trusted publishing policy covers this repository and workflow.
+#
+# The tag must be v<yyMM>.<d>.<H>[.<r>] (see ai/standards.md), and CHANGELOG.md must have a section
+# "## <version>" in the tagged commit; that section becomes the notes of the GitHub release.
 
 name: Release
 
@@ -21,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: nuget
     permissions:
-      contents: read
+      contents: write # the GitHub release
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -31,7 +34,21 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Version from tag
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if ! [[ "$version" =~ ^[0-9]{2}(0[1-9]|1[0-2])\.([1-9]|[12][0-9]|3[01])\.([0-9]|1[0-9]|2[0-3])(\.[1-9][0-9]*)?$ ]]; then
+            echo "::error::The tag $GITHUB_REF_NAME is not v<yyMM>.<d>.<H>[.<r>] (e.g. v2610.22.18)."
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Release notes from CHANGELOG.md
+        run: |
+          awk -v heading="## $VERSION" '$0 == heading { found = 1; next } found && /^## / { exit } found { print }' CHANGELOG.md > release-notes.md
+          if ! grep -q '[^[:space:]]' release-notes.md; then
+            echo "::error::CHANGELOG.md has no section '## $VERSION'. Rename 'Unreleased' to it in the tagged commit."
+            exit 1
+          fi
 
       - run: dotnet restore $SOLUTION
       - run: dotnet build $SOLUTION --configuration Release --no-restore -p:Version=$VERSION
@@ -49,3 +66,11 @@ jobs:
           --source https://api.nuget.org/v3/index.json
           --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
           --skip-duplicate
+
+      # A re-run of the same tag finds the release already there.
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1
+          || gh release create "$GITHUB_REF_NAME" --verify-tag --title "$VERSION" --notes-file release-notes.md

@@ -6,7 +6,9 @@
     "link": "#B45309",
     "table": { "header": "#0E7C86", "band": "#E6F4F5", "line": "#B8D8DB" },
     "gradient": ["#0E7C86", "#5EB8BF"],
-    "diagram": { "palette": ["#0E7C86", "#B45309", "#5EB8BF", "#7C3AED", "#BE123C", "#4B5563"] }
+    "diagram": { "palette": ["#0E7C86", "#B45309", "#5EB8BF", "#7C3AED", "#BE123C", "#4B5563"] },
+    "highlight": "#F59E0B",
+    "labels": { "success": "#15803D", "danger": "#BE123C" }
   },
   "images": {
     "logo": "logo.png",
@@ -19,6 +21,8 @@
     "bold": "fonts/LiberationSerif-Bold.ttf",
     "italic": "fonts/LiberationSerif-Italic.ttf",
     "boldItalic": "fonts/LiberationSerif-BoldItalic.ttf",
+    "mono": "fonts/mono/Inconsolata-Regular.ttf",
+    "monoBold": "fonts/mono/Inconsolata-Bold.ttf",
     "table": {
       "regular": "fonts/table/PT_Sans-Narrow-Web-Regular.ttf",
       "bold": "fonts/table/PT_Sans-Narrow-Web-Bold.ttf"

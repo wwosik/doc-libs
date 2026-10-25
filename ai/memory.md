@@ -10,9 +10,8 @@ same change that made it untrue — a stale fact here is worse than a missing on
 ## Overview
 
 - Scaffolded on 2026-10-21 from the `projekt-init` catalog (`core`, `spec-workflow`,
-  `dotnet-solution` adapted to a library layout, `tools-dotnet`; CI written for GitHub Actions)
-  by extracting the document libraries of an earlier internal repo. Everything client-specific
-  was removed on the way — the code, samples and docs here are neutral, and must stay so.
+  `dotnet-solution` adapted to a library layout, `tools-dotnet`; CI written for GitHub Actions).
+  The code, samples and docs here are neutral, and must stay so.
 - `src/wwosik.DocLibs.slnx` holds six packages, each with a `.Tests` sibling:
   - `wwosik.DocLibs.DocumentConversions` — cross-platform: PDF, DOCX, PPTX to Markdown, JIRA
     wiki markup; PdfPig only.
@@ -21,7 +20,9 @@ same change that made it untrue — a stale fact here is worse than a missing on
   - `wwosik.DocLibs.DocumentGeneration` — shared by the generators: the public brand API
     (`Brand`, `BrandColors`, `BrandImage`, `BrandFonts`, `BrandFont`, `PptxBrandTemplate`,
     `BrandPack`), the drawing model (`Drawing` …) and `ICodeBlockRenderer`; internally
-    `ResolvedBrand`, `BrandRegistry`, `TrueTypeInfo`, `FrontMatter`, `ImageInfo`.
+    `ResolvedBrand`, `BrandRegistry`, `TrueTypeInfo`, `FrontMatter`, `ImageInfo`, and what both
+    generators share about slide-layout syntax (`HeadingAttributes`, `LayoutSyntax`) and the
+    authoring guides (`AuthoringGuides`).
   - `wwosik.DocLibs.DocumentGeneration.Diagrams` — `MermaidRenderer`: Mermaider (MIT) writes SVG,
     `SvgDrawing` turns it into a `Drawing`. Depends only on the shared package.
   - `wwosik.DocLibs.DocumentGeneration.Pptx` — Markdown → `.pptx`; Markdig and the Open XML SDK.
@@ -54,8 +55,43 @@ same change that made it untrue — a stale fact here is worse than a missing on
 - `brand.json` is read with System.Text.Json **source generation** (`BrandManifestContext`,
   `UnmappedMemberHandling.Disallow`) to stay AOT-compatible and to reject typos.
 - Brand fonts must be **TrueType outlines** (PdfPig cannot embed CFF); `TrueTypeInfo` checks the
-  sfnt tag and reads the family name from the `name` table itself, without PdfPig. Font licences
-  are not checked — documented as the caller's responsibility (the human's decision).
+  sfnt tag and reads the family name from the `name` table itself, without PdfPig — **name ID 1
+  first** (plan 00006): it is what Windows groups the four faces under and what PowerPoint finds an
+  embedded font by. Font licences are not checked — documented as the caller's responsibility (the
+  human's decision) — except that decks skip faces whose `fsType` is restricted.
+- **Decks embed brand fonts by default** (`BrandTemplateOptions.EmbedFonts`, front matter
+  `embedFonts`; plan 00006): `FontEmbedding` writes each face as an uncompressed EOT (version
+  `0x00020001`, header from `OS/2`, `head`, `name`) in a font part (`application/x-fontdata`),
+  listed in `p:embeddedFontLst`, with `embedTrueTypeFonts`. Text family always, table and mono
+  families only when a slide's `a:latin` names them. The deck's code font is
+  `PptxOptions.CodeFont` ?? the brand's mono family ?? Consolas; mono is embedded only when it is
+  the code font. `CustomTemplateOptions` never embeds (no brand).
+- **Slide layouts (plan 00005):** a `##` section becomes a `FlowSlide` only if it uses heading
+  attributes, a container or alert anywhere, or a top-level tag paragraph — every other section
+  takes the old `ContentSlide`/`VisualSlide` path unchanged, so old decks stay as they were. Keep
+  it that way: new behaviour that would change old decks (code-only table cells as labels,
+  code-span lists as labelled tags) is limited to flow slides or containers. `==mark==` and
+  highlighted table rows are the exception, because `==` had no meaning before. `DeckParser.Parse`
+  buffers each section's blocks to decide; `Walk` serves both paths through `ITarget`
+  (`SectionBuilder`, `FlowCollector`). The writer measures by calling the same layout methods with
+  a `null` canvas.
+- Heading attributes are parsed by us (`HeadingAttributes`), not by Markdig's generic attributes,
+  so `{…}` elsewhere stays literal. Container names and alert kinds are checked by `LayoutSyntax`,
+  so PDF and PPTX reject the same mistakes. Both pipelines add only `CustomContainerParser`
+  (block), not `UseCustomContainers()`, whose inline `::x::` form would split `std::vector::size`.
+- Flow-slide colours are a `SlidePalette`: from the brand (`SlidePalette.From`), or theme-colour
+  references for caller templates (`SlidePalette.Scheme`). `BrandColors.Highlight` (default theme
+  accent 2) and `BrandColors.Labels` (status label colours by category) exist for slides only.
+- **Status label categories** are assigned in front matter (`labels.success: Done; Delivered`).
+  `FrontMatter.Apply` skips every `labels.*` key, so templates never see them; `FrontMatter.Labels()`
+  checks them — both generators call it, the PDF one only to reject the same mistakes.
+- **Authoring guides (plan 00008):** `PptxGenerator.AuthoringGuide(options)` and
+  `PdfGenerator.AuthoringGuide(options)`. Templates are embedded `AuthoringGuide/*.md` with
+  `{{placeholders}}`, filled by `AuthoringGuides` (front matter table from the template's `Keys`,
+  the brands from `BrandRegistry.Expected`, characters to avoid from the fonts' `cmap` via
+  `TrueTypeInfo.HasCharacter`, each with the first replacement every face has). Renderers add
+  their section through the default interface member `ICodeBlockRenderer.AuthoringGuide`. A change
+  to the Markdown syntax, front matter or limits updates the guides in the same change.
 - Test sample documents are committed in the repo (`<Project>.Tests/Samples/`), marked binary.
   They are all self-made by `tools/sample-generator` (no third-party documents, ever). Each has
   a `<sample>.expected.md`; `DOCLIBS_UPDATE_EXPECTED=1` makes the tests rewrite them instead of
@@ -117,15 +153,31 @@ same change that made it untrue — a stale fact here is worse than a missing on
   annotations; `dc:title`/`dc:creator` as plain text in the XMP); `PdfRenderer` fixes both in place
   after `Build()`, keeping every byte offset. Drop those fixes once PdfPig writes them right.
 - Generator errors in the document or template (front matter, layout names) throw
-  `DocumentConversionException`, like a missing image — not `ArgumentException`.
+  `DocumentConversionException`, like a missing image — not `ArgumentException`. A code-block
+  renderer's exception is wrapped into one too (`CodeBlockRenderers.Render`, plan 00007).
 - The main package is `IsAotCompatible`; a Native AOT app using only `JiraWikiMarkup` publishes
   without warnings. Keep it that way (no reflection, `GeneratedRegex`).
 - Converters never touch the file system, except `OfficeConverter`, which must (Office opens
   paths only) and cleans up its per-call working directory.
-- Release: SemVer from the pushed tag `v<version>`, nuget.org trusted publishing (no stored API
-  key), `--skip-duplicate` so a re-run tag does not fail.
+- Release: the version is the pushed tag `v<yyMM>.<d>.<H>[.<r>]` (Europe/Berlin; SemVer was
+  dropped on 2026-10-23 for the date scheme the tags already used), nuget.org trusted publishing
+  (no stored API key), `--skip-duplicate` so a re-run tag does not fail. The version says nothing
+  about compatibility, so `CHANGELOG.md` does (plan 00009); `release.yml` checks the tag's format
+  and its changelog section and makes the section the GitHub release's notes.
+- **Package READMEs** (plan 00009): `src/Directory.Build.props` packs each package's `docs/` page
+  as its `README.md` (an inline `RoslynCodeTaskFactory` task), rewriting links to sibling pages to
+  GitHub at the release tag (`GITHUB_REF_NAME` when `GITHUB_REF_TYPE` is `tag`, else `main`) and
+  adding a line pointing to the repo. `CHANGELOG.md` is packed next to it.
 
 ## Traps
+
+- **The built-in master's relationship ids are fixed:** layouts 1–4 are `rId1`–`rId4`, the theme
+  `rId5`, the master logo `rId6`; layout 5 (*Title Only Dark*) is `rId7`
+  (`TemplateBuilder.LayoutRelationship`). It shares the section layout's `LogoOnDark` image part,
+  so the media count and image numbering of existing decks did not change.
+- **PdfPig's subsetter crashes on some fonts** (`ArgumentOutOfRangeException` in
+  `TrueTypeGlyphTableSubsetter`): DejaVu Sans Mono does, which is why the sample brand's mono face
+  is Inconsolata. A brand whose font hits it cannot be used for PDFs; decks are unaffected.
 
 - **Office tests only run on Windows.** From WSL, run the Windows SDK (`dotnet.exe test`) against
   the repo's `\\wsl.localhost\...` path with `--artifacts-path` pointing into `.tmp/`, so the

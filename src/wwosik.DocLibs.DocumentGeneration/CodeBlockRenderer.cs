@@ -10,6 +10,12 @@ public interface ICodeBlockRenderer
 {
     /// <summary>A drawing or an image for the block, or <see langword="null"/> to leave it as code.</summary>
     CodeBlockGraphic? Render(CodeBlockRequest request);
+
+    /// <summary>
+    /// What a Markdown writer needs to know about the blocks this renderer takes, as Markdown under a <c>##</c>
+    /// heading of its own, for the generators' authoring guides. <see langword="null"/> (the default): nothing.
+    /// </summary>
+    string? AuthoringGuide => null;
 }
 
 /// <summary>A fenced code block to render.</summary>
@@ -41,11 +47,24 @@ public sealed record ImageGraphic(DocumentResource Image) : CodeBlockGraphic;
 /// <summary>Asks the renderers in order.</summary>
 internal static class CodeBlockRenderers
 {
-    public static CodeBlockGraphic? Render(IReadOnlyList<ICodeBlockRenderer>? renderers, CodeBlockRequest request)
+    /// <exception cref="DocumentConversionException">
+    /// A renderer threw; its exception is the inner exception, so every document problem has the same type.
+    /// </exception>
+    public static CodeBlockGraphic? Render(IReadOnlyList<ICodeBlockRenderer>? renderers, CodeBlockRequest request, DocumentFormat format)
     {
         foreach (var renderer in renderers ?? [])
         {
-            if (renderer.Render(request) is { } graphic)
+            CodeBlockGraphic? graphic;
+            try
+            {
+                graphic = renderer.Render(request);
+            }
+            catch (Exception ex) when (ex is not DocumentConversionException)
+            {
+                throw new DocumentConversionException(format, ex.Message, ex);
+            }
+
+            if (graphic is not null)
             {
                 return graphic;
             }

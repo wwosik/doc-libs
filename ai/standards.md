@@ -54,12 +54,18 @@ change.
 - **Central package management** via `src/Directory.Packages.props` — a package version is
   declared exactly once there, and projects reference packages without a version.
 - **Shared package metadata** (authors, MIT licence, repository and project URL, tags, the
-  repo `README.md` as package readme, symbol packages) lives in `src/Directory.Build.props` —
-  never per project. Each project sets only its `Description`.
+  package readme and changelog, symbol packages) lives in `src/Directory.Build.props` — never per
+  project. Each project sets only its `Description`.
 - The shared **`.editorconfig`** at the repo root is not project-specific: do not edit it to
   suit this repo.
 - A **local `nuget.config`** pins the package sources, with `<clear />` first so no machine-wide
   source leaks in.
+- **Every package documents itself in the package:** its `docs/` page is packed as `README.md`,
+  with links to the other pages pointing into the repo at the release tag, and a line pointing to
+  the repo.
+  The generators' authoring guides (`AuthoringGuide/*.md`, returned by `AuthoringGuide(options)`)
+  are the description for Markdown writers; a change to what Markdown can do updates them in the
+  same change.
 - **Tests live in the same solution**, as a sibling project next to the code they test
   (`wwosik.DocLibs.Documents.Tests` next to `wwosik.DocLibs.Documents`) — never a separate solution.
   Projects named `*.Tests` are never packed.
@@ -77,15 +83,30 @@ Builds run on GitHub Actions, from the workflows in `.github/workflows/`:
 - **`ci.yml`** — every push to `main` and every pull request: restore, build, test, pack (the
   packages are kept as a build artifact, never published). The WindowsOnly tests skip
   themselves on the Linux runner.
-- **`release.yml`** — a pushed tag `v<SemVer>` (e.g. `v1.2.0`, `v1.3.0-beta.1`): build, test,
+- **`release.yml`** — a pushed version tag (e.g. `v2610.22.18`, `v2610.22.18.1`): build, test,
   pack with that version, and push every package to **nuget.org**. Authentication is nuget.org
   *trusted publishing* (OIDC via `NuGet/login`), so no API key is stored; the repository
   variable `NUGET_USER` names the nuget.org account, and the job runs in the GitHub environment
   `nuget`.
 
-**Versioning is SemVer, and the tag is the version.** All packages share it; nothing in the repo
-holds a version number (local packs get the SDK default `1.0.0` and are never published).
-Breaking changes to a public API bump the major version — until `1.0.0`, the minor.
+**The tag is the version, and the version is a date:** `v<yyMM>.<d>.<H>[.<r>]`, the year and
+month, day and hour of the release in Europe/Berlin time, without leading zeros on day and hour
+(`v2610.22.18` for 22 October 2026, 18:00–18:59). A further release within the same hour adds
+`.<r>`, counting from 1 (`v2610.22.18.1`). Versions sort in release order. All packages share
+the version; nothing in the repo holds one (local packs get the SDK default `1.0.0` and are never
+published). There are no prerelease versions.
+
+The version says nothing about compatibility, so **`CHANGELOG.md`** at the repo root does. Every
+change a consumer notices gets an entry under *Unreleased* in the same change. Under **Breaking
+changes**, first, comes everything that can make a consumer's code or documents fail or look
+different: a public API that no longer compiles or behaves as before, changed default output
+(design, fonts, page breaks, file size), and Markdown that generated before and now fails. Each one
+says what the consumer does about it. Under **New** come additions. Internal changes need no entry.
+Every package carries the changelog, and `docs/README.md` explains the scheme to consumers.
+
+**Cutting a release** (only when the human asks): rename *Unreleased* to `## <version>` in a commit,
+tag that commit `v<version>`, push both. `release.yml` refuses a tag that does not match the scheme
+or has no changelog section, and turns the section into the notes of a GitHub release.
 
 nuget.org is the only place packages are published to. Do not invent further release steps:
 if one is missing, that is a question for the human, not a gap to fill.

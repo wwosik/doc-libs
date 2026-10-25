@@ -28,6 +28,7 @@ public static class PdfGenerator
         options ??= PdfOptions.Default;
 
         var frontMatter = FrontMatter.Read(document.Markdown, DocumentFormat.Pdf);
+        frontMatter.Labels(); // checked like in decks; PDFs show status labels as code
         options = Apply(frontMatter, options);
         var brand = ResolvedBrand.Resolve(options.Template.BrandValue);
         var fonts = FontSet.For(brand);
@@ -42,6 +43,54 @@ public static class PdfGenerator
         var design = new Design(brand, options.Template.ShowsTagline, date, title);
         var layout = new LayoutEngine(fonts, PageGeometry.For(options.PageSize, options.Orientation), design, options.ReplaceUnsupported).Run(model);
         output.Write(PdfRenderer.Render(layout, fonts, layout.Title, author));
+    }
+
+    /// <summary>
+    /// The authoring guide for whoever writes the Markdown (often an AI agent): how headings become the cover, pages
+    /// and sections, the diagrams the options' renderers draw, the front matter keys of the options' design and brands,
+    /// and the characters the brand's fonts lack. Markdown starting at <c>##</c>, in English, so a host can put it under
+    /// a heading of its own and add what only it knows: how images are referenced, which settings it fixes, limits.
+    /// Pass the same options as to <see cref="Generate"/>.
+    /// </summary>
+    /// <exception cref="ArgumentException">The brand is invalid, or two of <see cref="PdfOptions.Brands"/> share a name.</exception>
+    public static string AuthoringGuide(PdfOptions? options = null)
+    {
+        options ??= PdfOptions.Default;
+        var registry = BrandRegistry.Of(options.Template.BrandValue, options.Brands);
+        var meanings = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["showDate"] = "`true` or `false`: today's date in the footer. Default `true`.",
+            ["showTagline"] = "`true` or `false`: the design's tagline on the cover, if it has one. Default `true`.",
+            [PageSizeKey] = $"`A4`, `A3` or `Letter`. Default `{options.PageSize}`.",
+            [OrientationKey] = $"`portrait` or `landscape`. Default `{options.Orientation.ToString().ToLowerInvariant()}`.",
+        };
+        (string, string) labels = (
+            "labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral",
+            "Status labels for decks, separated by `;`. A PDF accepts them and shows the labels as code.");
+        return AuthoringGuides.Fill(
+            AuthoringGuides.Template(typeof(PdfGenerator).Assembly, "Pdf"),
+            new Dictionary<string, string>
+            {
+                ["diagrams"] = AuthoringGuides.Renderers(options.CodeBlockRenderers),
+                ["frontMatter"] = AuthoringGuides.FrontMatter(
+                    registry.Expected,
+                    [.. options.Template.Keys.Concat([PageSizeKey, OrientationKey]).Select(k => (k, meanings[k])), labels]),
+                ["characters"] = Characters(FontSet.For(ResolvedBrand.Resolve(options.Template.BrandValue)), options.ReplaceUnsupported is not null),
+            });
+    }
+
+    // The characters the document's fonts lack: an error, or replaced by the caller's hook.
+    private static string Characters(FontSet fonts, bool replaced)
+    {
+        bool Has(FontFace face, int c) => TrueTypeInfo.HasCharacter(fonts.File(face), c);
+        var effect = replaced
+            ? "is replaced, usually by a placeholder such as `?`, so check the result"
+            : "stops the generation with an error naming it";
+        return AuthoringGuides.Characters(
+            c => Has(FontFace.Regular, c) && Has(FontFace.TableRegular, c),
+            c => Has(FontFace.Mono, c),
+            "The fonts are embedded in the PDF and have no emoji and no Asian scripts; never use emoji. Any character "
+                + $"the fonts lack {effect}. Write these symbols as shown:");
     }
 
     /// <summary>The caller's options with the front matter applied on top.</summary>

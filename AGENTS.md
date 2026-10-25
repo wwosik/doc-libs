@@ -15,7 +15,9 @@ Start here, then follow the pointers:
   verification.
 - [spec/](spec/) — current and past work.
 - [docs/](docs/) — documentation of how the libraries actually work today.
-- [README.md](README.md) — the public face of the repo and of every package on nuget.org.
+- [README.md](README.md) — the public face of the repo on GitHub. Each package on nuget.org shows
+  its own page of `docs/`.
+- [CHANGELOG.md](CHANGELOG.md) — what changed for consumers, per version, breaking changes first.
 
 ## Language
 

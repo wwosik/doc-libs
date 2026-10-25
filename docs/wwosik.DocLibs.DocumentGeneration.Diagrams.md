@@ -17,6 +17,10 @@ PptxGenerator.Generate(document, output, new PptxOptions { CodeBlockRenderers = 
 
 Without this package, both generators leave ` ```mermaid ` blocks as code.
 
+`MermaidRenderer.AuthoringGuide` is its `## Diagrams` section of the generators' authoring guides:
+which types are drawn, an example, keeping diagrams small, and what a syntax error does (an error
+naming the line with `OnError = Throw`, code with `KeepCode`).
+
 ## Diagram types
 
 | Drawn | Stay code |
@@ -76,7 +80,7 @@ parse it, or its SVG has something the converter does not know.
 
 | `OnError` | Behaviour |
 | --------- | --------- |
-| `Throw` (default) | `ArgumentException`: `The mermaid code block at line 12 cannot be drawn: <reason>`. The line counts from the top of the Markdown, front matter included. |
+| `Throw` (default) | `ArgumentException`: `The mermaid code block at line 12 cannot be drawn: <reason>`. The line counts from the top of the Markdown, front matter included. The generators wrap it: the caller gets a `DocumentConversionException` in the generator's format with the same message and the `ArgumentException` as `InnerException`. |
 | `KeepCode` | The block stays code. |
 
 A block of a type that is not drawn stays code in both modes.

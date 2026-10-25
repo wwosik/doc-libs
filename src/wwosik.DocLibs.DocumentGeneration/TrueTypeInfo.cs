@@ -1,4 +1,5 @@
 ﻿using System.Buffers.Binary;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace wwosik.DocLibs.DocumentGeneration;
@@ -33,10 +34,23 @@ internal static class TrueTypeInfo
         };
     }
 
-    /// <summary>The typographic family name (name ID 16), else the family name (1), preferring Windows Unicode records.</summary>
-    public static string? FamilyName(ReadOnlySpan<byte> font) => Name(font, TypographicFamily) ?? Name(font, Family);
+    /// <summary>
+    /// The family name (name ID 1), else the typographic family name (16), preferring Windows Unicode records. Name ID 1
+    /// is what Windows groups regular, bold, italic and bold italic under, and what PowerPoint finds an embedded font by.
+    /// </summary>
+    public static string? FamilyName(ReadOnlySpan<byte> font) => Name(font, Family) ?? Name(font, TypographicFamily);
 
-    private static string? Name(ReadOnlySpan<byte> font, ushort nameId)
+    /// <summary>
+    /// The embedding permissions (<c>OS/2 fsType</c>): 0 installable, bit 1 restricted, bit 2 preview and print, bit 3
+    /// editable. 0 when the font has no <c>OS/2</c> table.
+    /// </summary>
+    public static ushort EmbeddingFlags(ReadOnlySpan<byte> font) =>
+        Table(font, "OS/2") is var (offset, length) && length >= 10 && offset + 10 <= font.Length
+            ? BinaryPrimitives.ReadUInt16BigEndian(font[(offset + 8)..])
+            : (ushort)0;
+
+    /// <summary>The name with <paramref name="nameId"/>, preferring Windows Unicode records; <see langword="null"/> if there is none.</summary>
+    public static string? Name(ReadOnlySpan<byte> font, ushort nameId)
     {
         if (Table(font, "name") is not var (offset, length) || offset + 6 > font.Length)
         {
@@ -75,8 +89,77 @@ internal static class TrueTypeInfo
         return fallback;
     }
 
-    private static (int Offset, int Length)? Table(ReadOnlySpan<byte> font, string tag)
+    /// <summary>Whether the font maps <paramref name="codePoint"/> to a glyph, by its Unicode <c>cmap</c> (format 4 or 12).</summary>
+    public static bool HasCharacter(byte[] font, int codePoint) => CharacterMaps.GetValue(font, ReadCharacters).Contains(codePoint);
+
+    private static readonly ConditionalWeakTable<byte[], HashSet<int>> CharacterMaps = new();
+
+    private static HashSet<int> ReadCharacters(byte[] font)
     {
+        var characters = new HashSet<int>();
+        if (Table(font, "cmap") is not var (offset, _) || offset + 4 > font.Length)
+        {
+            return characters;
+        }
+
+        // The Windows Unicode subtable: full repertoire (3, 10) wins over the BMP (3, 1).
+        int? subtable = null;
+        var count = BinaryPrimitives.ReadUInt16BigEndian(font.AsSpan(offset + 2));
+        for (var i = 0; i < count && offset + 12 + (i * 8) <= font.Length; i++)
+        {
+            var record = font.AsSpan(offset + 4 + (i * 8));
+            var (platform, encoding) = (BinaryPrimitives.ReadUInt16BigEndian(record), BinaryPrimitives.ReadUInt16BigEndian(record[2..]));
+            if (platform == 3 && encoding is 1 or 10 && (subtable is null || encoding == 10))
+            {
+                subtable = offset + (int)BinaryPrimitives.ReadUInt32BigEndian(record[4..]);
+            }
+        }
+
+        if (subtable is not { } start || start + 16 > font.Length)
+        {
+            return characters;
+        }
+
+        ushort Word(int at) => BinaryPrimitives.ReadUInt16BigEndian(font.AsSpan(at));
+        switch (Word(start))
+        {
+            case 4:
+                var segments = Word(start + 6) / 2;
+                for (var i = 0; i < segments; i++)
+                {
+                    var (first, last) = (Word(start + 16 + (segments * 2) + (i * 2)), Word(start + 14 + (i * 2)));
+                    for (var c = first; c <= last && c != 0xFFFF; c++)
+                    {
+                        characters.Add(c);
+                    }
+                }
+
+                break;
+            case 12:
+                var groups = BinaryPrimitives.ReadUInt32BigEndian(font.AsSpan(start + 12));
+                for (var i = 0; i < groups; i++)
+                {
+                    var group = font.AsSpan(start + 16 + (i * 12));
+                    for (var c = BinaryPrimitives.ReadUInt32BigEndian(group); c <= BinaryPrimitives.ReadUInt32BigEndian(group[4..]); c++)
+                    {
+                        characters.Add((int)c);
+                    }
+                }
+
+                break;
+        }
+
+        return characters;
+    }
+
+    /// <summary>Where the table <paramref name="tag"/> is in the file; <see langword="null"/> if it has none.</summary>
+    public static (int Offset, int Length)? Table(ReadOnlySpan<byte> font, string tag)
+    {
+        if (font.Length < 12)
+        {
+            return null;
+        }
+
         var count = BinaryPrimitives.ReadUInt16BigEndian(font[4..]);
         for (var i = 0; i < count && 12 + ((i + 1) * 16) <= font.Length; i++)
         {

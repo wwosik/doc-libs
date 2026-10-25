@@ -22,8 +22,14 @@ public sealed record PptxOptions
     /// </summary>
     public IReadOnlyList<ICodeBlockRenderer> CodeBlockRenderers { get; init; } = [];
 
-    /// <summary>The font of inline code and code blocks. Default <c>Consolas</c>.</summary>
-    public string CodeFont { get; init; } = "Consolas";
+    /// <summary>
+    /// The font of inline code and code blocks. <see langword="null"/> (the default): the brand's mono family, else
+    /// <c>Consolas</c>.
+    /// </summary>
+    public string? CodeFont { get; init; }
+
+    /// <summary>The code font without a brand mono family or <see cref="CodeFont"/>.</summary>
+    internal const string DefaultCodeFont = "Consolas";
 
     /// <summary>The clock for the date of generation in the footer. Default <see cref="TimeProvider.System"/>.</summary>
     public TimeProvider TimeProvider { get; init; } = TimeProvider.System;

@@ -36,7 +36,8 @@ Once the plan is accepted and implementation is requested:
 2. **Move** the plan file from `spec/50-todo/` to `spec/60-verify/` — same filename.
 3. Append an **Implementation notes** chapter: decisions taken along the way, compromises,
    deviations from the plan, warnings, things worth attention during verification, loose ends
-   worth considering later.
+   worth considering later — and **Breaking changes**, or that there are none.
+   Add the same to `CHANGELOG.md` (see [standards.md](standards.md#build-and-deployment)).
 4. **Stage** the implementation and the moved plan file together (`git add`) — do not commit.
    Commit, rebase and push only when the human asks.
 5. In chat, say only that the task is done. **No summary** — the detail is in the file.

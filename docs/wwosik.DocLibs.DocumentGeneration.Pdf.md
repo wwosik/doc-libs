@@ -35,6 +35,29 @@ PdfGenerator.Generate(document, output, new PdfOptions
   the author (front matter `author`, else metadata `author`) go into the document info and the XMP
   metadata. The title also heads every page.
 
+## For hosts that let others write the Markdown
+
+When the Markdown comes from someone else, often an AI agent working through your service, give
+them `PdfGenerator.AuthoringGuide(options)` with the **same options** you pass to `Generate`. It is
+Markdown, in English, written for the writer rather than for you:
+
+```csharp
+var options = new PdfOptions { CodeBlockRenderers = [new MermaidRenderer()] };
+string guide = PdfGenerator.AuthoringGuide(options);   // starts at "##"
+```
+
+- **What it covers:** how headings become the cover, pages and sections, how slide syntax is shown, the front matter keys of the options' design and the brands front
+  matter can pick, the diagrams the renderers draw (each renderer adds its own section through
+  `ICodeBlockRenderer.AuthoringGuide`), the characters the brand's fonts lack with what to write
+  instead, the errors, and a complete example. Every example in it generates without error.
+- **What it leaves to you:** put it under a `#` heading of your own and add what only you know —
+  how images are referenced (the paths you resolve into `MarkdownDocument.Resources`), settings
+  you fix (and refuse in front matter), size limits, how the result reaches the user.
+- **Errors:** pass `DocumentConversionException.Reason` back to the writer as it is; it names
+  what to fix (the key, the container, the character, the diagram's line).
+- It is generated on each call, so it follows the package version, and it stays under about
+  2,500 words.
+
 ## Options
 
 | Option | Default | |
@@ -73,7 +96,7 @@ The shared syntax and rules are in
 - **Content pages:** margins 20 mm left and right; header with the document title (8 pt) left and
   the logo right; footer with the footer text, the date (`ShowDate`, `dd.MM.yyyy`) and "n / m"
   right. Page numbers count the cover.
-- **Body text** 10.5 pt in the brand's regular face (Liberation Sans by default), line height 1.35. Headings bold in the brand colour,
+- **Body text** 10.5 pt in the brand's regular face (Liberation Sans without brand fonts), line height 1.35. Headings bold in the brand colour,
   20 / 16 / 13.5 / 12 / 11 / 10.5 pt.
 
 | Markdown | PDF |
@@ -83,7 +106,7 @@ The shared syntax and rules are in
 | `#`–`######` | Headings, kept on the same page as the start of what follows (see [Page breaks](#page-breaks)); each is a bookmark (nested by level, the cover title on top) and the target of `[x](#heading-id)` links (GitHub-style ids). |
 | Paragraphs | Greedy line breaking at spaces; a word wider than the line is broken by characters; `\` hard breaks kept. Left-aligned, no hyphenation. No single line at the top or bottom of a page (see [Page breaks](#page-breaks)). |
 | Lists | Hanging indent of 18 pt per level, `•` / `–` alternating by level, numbers from the list's start value. |
-| Code blocks | Liberation Mono 9 pt on light grey, wrapped by characters. |
+| Code blocks | The brand's mono face, else Liberation Mono, 9 pt on light grey, wrapped by characters. |
 | Quotes | Indented, grey, with a rule on the left per quote level. |
 | Tables | 9.5 pt, in the brand's table fonts if it has them; full content width. Each column gets at least its longest word, the rest is shared in proportion to the content. Header row in the brand table colour with white bold text, banded rows, thin lines, alignment from the Markdown. A row that doesn't fit moves to the next page and the header row repeats there; a row taller than a page splits at line boundaries. |
 | Images | Natural size at 96 DPI, `"scale=N.N"` in the title multiplies it; scaled down to the content width and page height, never up; centred; moved to the next page if they don't fit. |
@@ -115,8 +138,9 @@ The shared syntax and rules are in
 A brand's own fonts replace Liberation Sans, and Liberation Mono too when the brand has mono
 faces; they are embedded the same way and follow the same glyph rules. Table fonts, if the brand
 has them, draw table cells — see [Table fonts](wwosik.DocLibs.DocumentGeneration.md#table-fonts).
-Requirements and licensing: [Brands → Fonts](wwosik.DocLibs.DocumentGeneration.md#fonts). The rest of this chapter is about the
-bundled fonts.
+Requirements and licensing: [Brands → Fonts](wwosik.DocLibs.DocumentGeneration.md#fonts). The rest
+of this chapter is about the bundled Liberation fonts, which brands without fonts (such as
+`neutral`) use, and which stand in for a mono face the brand lacks.
 
 - **Liberation Sans** (regular, bold, italic, bold italic) and **Liberation Mono** (regular, bold),
   version 2.1.5, SIL Open Font License 1.1 (`Fonts/OFL.txt`, shipped in the package). They have the
@@ -191,10 +215,27 @@ renderer can return:
 - an **`ImageGraphic`**, a PNG or JPEG placed like a Markdown image.
 
 The request carries the language, the code, the brand the document is generated in (after front
-matter) and the block's line in the Markdown.
+matter) and the block's line in the Markdown. A renderer that throws fails the generation with a
+`DocumentConversionException` (`Format = Pdf`) whose `InnerException` is the renderer's.
+
+## Slide layouts
+
+Markdown written for the PPTX generator's
+[layouts](wwosik.DocLibs.DocumentGeneration.Pptx.md#layouts) works here too, shown plainly:
+
+- **Heading attributes** at the end of a `##` heading (`{.dark kicker="Label"}`) are checked and
+  dropped; the kicker is not shown.
+- **Containers** (`::: cards`, `rows`, `panel`, `statement`) show their content as normal blocks: a
+  card's `###` is a heading, a short-form list a list.
+- **Alerts** (`> [!NOTE]` …) are quotes that start with their kind in bold ("Note", "Warning").
+- **`==marked==`** text is bold; tags and status labels stay code spans. `labels.<category>` front
+  matter is checked and otherwise ignored.
+- Unknown attributes, containers and alerts throw, as in decks.
 
 ## Known limits
 
+- A `##` heading with attributes keeps them in its automatic anchor (`## Title {.dark}` gets
+  `#title-dark`), as Markdig computes the anchor before they are dropped.
 - No hyphenation, justification, kerning, right-to-left or Asian scripts; no footnotes; no merged
   table cells; no SVG or GIF images; alt text is not shown (an untagged PDF has nowhere to put it).
 - A table wider than the page in minimum widths is squeezed, and its words break by characters.

@@ -13,7 +13,6 @@
     <Copyright>Copyright (c) 2026 Wojciech Wosik</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/wwosik/doc-libs</PackageProjectUrl>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>markdown;pdf;pdf-a;docx;pptx;powerpoint;openxml;jira;document-conversion;document-generation</PackageTags>
     <RepositoryUrl>https://github.com/wwosik/doc-libs</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -21,10 +20,6 @@
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
-
-  <ItemGroup Condition="'$(IsTestProject)' != 'true'">
-    <None Include="$(MSBuildThisFileDirectory)../README.md" Pack="true" PackagePath="\" Visible="false" />
-  </ItemGroup>
 
   <!-- Not for tests: deterministic source paths (/_/) break the [CallerFilePath] lookups in their Samples helpers. -->
   <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true' And '$(IsTestProject)' != 'true'">
@@ -34,5 +29,52 @@
   <PropertyGroup Condition="'$(IsTestProject)' == 'true'">
     <IsPackable>false</IsPackable>
   </PropertyGroup>
+
+  <!--
+    Each package carries its page of docs/ as README.md, with links to the other pages pointing into the repo: at the
+    release tag when a tag is being built (release.yml), else at main. Local packs are never published.
+  -->
+  <PropertyGroup Label="Package readme" Condition="'$(IsTestProject)' != 'true'">
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageDocsRef>main</PackageDocsRef>
+    <PackageDocsRef Condition="'$(GITHUB_REF_TYPE)' == 'tag'">$(GITHUB_REF_NAME)</PackageDocsRef>
+    <PackageDocsUrl>$(RepositoryUrl)/blob/$(PackageDocsRef)/docs/</PackageDocsUrl>
+  </PropertyGroup>
+
+  <UsingTask TaskName="WritePackageReadme" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Source ParameterType="System.String" Required="true" />
+      <Destination ParameterType="System.String" Required="true" />
+      <DocsUrl ParameterType="System.String" Required="true" />
+      <RepositoryUrl ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var text = System.Text.RegularExpressions.Regex.Replace(
+            System.IO.File.ReadAllText(Source),
+            @"\]\((wwosik\.DocLibs\.[A-Za-z.]+\.md(?:#[\w-]+)?)\)",
+            m => "](" + DocsUrl + m.Groups[1].Value + ")");
+        // A pointer to the family under the page's title, so the other packages and the changelog are one click away.
+        var title = text.IndexOf('\n');
+        text = text.Substring(0, title + 1)
+            + "\nPart of [DocLibs](" + RepositoryUrl + "): all packages, the documentation of each, and the changelog"
+            + " (also in this package as `CHANGELOG.md`).\n"
+            + text.Substring(title + 1);
+        System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Destination));
+        System.IO.File.WriteAllText(Destination, text, new System.Text.UTF8Encoding(false));
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="AddPackageReadme" BeforeTargets="_GetPackageFiles" Condition="'$(IsTestProject)' != 'true' And '$(IsPackable)' != 'false'">
+    <PropertyGroup>
+      <_PackageReadme>$(IntermediateOutputPath)README.md</_PackageReadme>
+    </PropertyGroup>
+    <WritePackageReadme Source="$(MSBuildThisFileDirectory)..\docs\$(PackageId).md" Destination="$(_PackageReadme)" DocsUrl="$(PackageDocsUrl)" RepositoryUrl="$(RepositoryUrl)" />
+    <ItemGroup>
+      <None Include="$(_PackageReadme)" Pack="true" PackagePath="\" />
+      <None Include="$(MSBuildThisFileDirectory)..\CHANGELOG.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
+  </Target>
 
 </Project>

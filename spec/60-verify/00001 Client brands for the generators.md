@@ -378,7 +378,7 @@ Documented in `docs/`, with a made-up client:
 ### Changed along the way
 
 - The PPTX master's cover artwork was drawn with geometry made for one particular image (a crop
-  and tilted clip path from the earlier internal repo). Replaced by plain aspect-preserving
+  and tilted clip path). Replaced by plain aspect-preserving
   placement. Logos and the tagline were drawn into fixed-size boxes regardless of their aspect
   ratio; they are now fitted into those boxes, aligned right.
 - PPTX image parts were always declared PNG; a JPEG brand image is now stored as `image/jpeg`.

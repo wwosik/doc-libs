@@ -33,7 +33,7 @@ internal static class Samples
         return output.ToArray();
     }
 
-    /// <summary>The made-up brand of <c>Samples/brand-sample</c>: colours, footer text, all four images, Liberation Serif with PT Sans Narrow in tables.</summary>
+    /// <summary>The made-up brand of <c>Samples/brand-sample</c>: colours, footer text, all four images, Liberation Serif with PT Sans Narrow in tables and Inconsolata for code, a highlight and two label colours.</summary>
     public static readonly Brand Brand = BrandPack.Load(System.IO.Path.Combine(AppContext.BaseDirectory, "Samples", "brand-sample"));
 
     /// <summary>The neutral and the sample brand, by their front-matter name, for theories.</summary>

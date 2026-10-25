@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" />
@@ -13,10 +13,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration.Pdf\wwosik.DocLibs.DocumentGeneration.Pdf.csproj" />
+    <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration.Diagrams\wwosik.DocLibs.DocumentGeneration.Diagrams.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="Samples\**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\wwosik.DocLibs.DocumentGeneration.Pptx.Tests\Samples\layouts.md" Link="Samples\layouts.md" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\wwosik.DocLibs.DocumentGeneration.Tests\Samples\brand-sample\**" Link="Samples\brand-sample\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

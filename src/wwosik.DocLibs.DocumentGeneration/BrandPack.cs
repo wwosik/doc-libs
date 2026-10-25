@@ -140,6 +140,15 @@ internal sealed record BrandManifest(
                     Border = diagram.Border,
                     Palette = diagram.Palette,
                 },
+                Highlight = colors.Highlight,
+                Labels = colors.Labels is not { } labels ? null : new BrandLabelColors
+                {
+                    Success = labels.Success,
+                    Info = labels.Info,
+                    Warning = labels.Warning,
+                    Danger = labels.Danger,
+                    Neutral = labels.Neutral,
+                },
             },
             Logo = Image("images.logo", this.Images?.Logo),
             LogoOnDark = Image("images.logoOnDark", this.Images?.LogoOnDark),
@@ -201,7 +210,11 @@ internal sealed record BrandManifest(
         TableSection? Table,
         IReadOnlyList<string>? Gradient,
         IReadOnlyList<string>? Theme,
-        DiagramSection? Diagram);
+        DiagramSection? Diagram,
+        string? Highlight,
+        LabelsSection? Labels);
+
+    internal sealed record LabelsSection(string? Success, string? Info, string? Warning, string? Danger, string? Neutral);
 
     internal sealed record DiagramSection(string? Text, string? Line, string? Accent, string? Surface, string? Border, IReadOnlyList<string>? Palette);
 
