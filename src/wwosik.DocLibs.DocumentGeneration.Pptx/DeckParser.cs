@@ -181,7 +181,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
                 }
                 else if (rendered is ImageGraphic image)
                 {
-                    target.Visual(null, [new SlideImage(image.Image, fenced.Info ?? string.Empty, 1.0)]);
+                    target.Visual(null, [this.Placeable(new SlideImage(image.Image, fenced.Info ?? string.Empty, 1.0))]);
                 }
                 else if (rendered is ChartGraphic chart)
                 {
@@ -599,7 +599,31 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             && double.TryParse(match.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && value > 0
             ? value
             : null;
-        return new SlideImage(resource, AltText(link), scale, link.Title is { } words && CaptionPattern().IsMatch(words));
+        return this.Placeable(new SlideImage(resource, AltText(link), scale, link.Title is { } words && CaptionPattern().IsMatch(words)));
+    }
+
+    // An image in a format slides cannot hold, such as SVG, through the image converters: a PNG at twice its natural
+    // size, placed at its natural size. An SVG also rides along, for PowerPoint to draw as a vector.
+    private SlideImage Placeable(SlideImage image)
+    {
+        if (ImageInfo.Read(image.Resource.Content.Span) is not null
+            || ImageConverters.Convert(options.ImageConverters, image.Resource, 2, Format.Pptx) is not var (converted, width, height))
+        {
+            return image;
+        }
+
+        return image with { Resource = converted, Natural = (width, height), Vector = IsSvg(image.Resource) ? image.Resource : null };
+    }
+
+    private static bool IsSvg(DocumentResource resource)
+    {
+        if (resource.ContentType.Equals("image/svg+xml", StringComparison.OrdinalIgnoreCase) || resource.Path.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var head = System.Text.Encoding.UTF8.GetString(resource.Content.Span[..Math.Min(resource.Content.Length, 1024)]);
+        return head.Contains("<svg", StringComparison.Ordinal);
     }
 
     private static string AltText(ContainerInline container) =>

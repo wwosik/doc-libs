@@ -59,7 +59,14 @@ internal sealed record SlideTable(
 /// natural size); <see langword="null"/>: up to <see cref="PptxOptions.MaxImageUpscale"/>. <see cref="Caption"/>, from
 /// <c>caption</c> in its title: the alt text goes under it.
 /// </summary>
-internal sealed record SlideImage(DocumentResource Resource, string AltText, double? Scale, bool Caption = false);
+internal sealed record SlideImage(DocumentResource Resource, string AltText, double? Scale, bool Caption = false)
+{
+    /// <summary>The size it is placed at, in pixels, for an image converted from another format; else its pixel size.</summary>
+    public (double Width, double Height)? Natural { get; init; }
+
+    /// <summary>The SVG an image was converted from: PowerPoint draws it, and the PNG is for other viewers.</summary>
+    public DocumentResource? Vector { get; init; }
+}
 
 internal abstract record Slide(IReadOnlyList<TextRun> Title)
 {

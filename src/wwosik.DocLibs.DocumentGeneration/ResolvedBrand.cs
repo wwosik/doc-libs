@@ -27,7 +27,8 @@ internal sealed partial record ResolvedBrand(
     PptxBrandTemplate? Pptx,
     ResolvedDiagramColors Diagram,
     string Highlight,
-    ResolvedLabelColors Labels)
+    ResolvedLabelColors Labels,
+    ResolvedChartColors Chart)
 {
     private const string Black = "000000";
     private const string White = "FFFFFF";
@@ -39,6 +40,9 @@ internal sealed partial record ResolvedBrand(
     private static readonly ConditionalWeakTable<Brand, ResolvedBrand> Cache = new();
     private static readonly ConditionalWeakTable<Brand, Brand> SlideBrands = new();
     private static readonly ConditionalWeakTable<Brand, Brand> DarkSlideBrands = new();
+
+    // The brands DarkSlideBrand made, so that their charts are resolved for a dark background.
+    private static readonly ConditionalWeakTable<Brand, object> DarkBrands = new();
 
     public static ResolvedBrand Neutral => Resolve(Brand.Neutral);
 
@@ -78,7 +82,7 @@ internal sealed partial record ResolvedBrand(
         var slides = SlideBrand(original);
         var resolved = Resolve(slides);
         var own = original.SlideColors?.Diagram;
-        return slides with
+        var dark = slides with
         {
             Colors = slides.Colors with
             {
@@ -93,7 +97,12 @@ internal sealed partial record ResolvedBrand(
                 },
             },
         };
+        DarkBrands.AddOrUpdate(dark, dark);
+        return dark;
     });
+
+    /// <summary>Whether <paramref name="brand"/> is one <see cref="DarkSlideBrand"/> made, for dark slides.</summary>
+    public static bool IsDark(Brand brand) => DarkBrands.TryGetValue(brand, out _);
 
     /// <summary>Whether <paramref name="name"/> can name a brand.</summary>
     public static bool IsValidName(string? name) => name is not null && NamePattern().IsMatch(name);
@@ -142,6 +151,10 @@ internal sealed partial record ResolvedBrand(
             LabelColor(nameof(BrandLabelColors.Danger), labels?.Danger, "DC2626"),
             LabelColor(nameof(BrandLabelColors.Neutral), labels?.Neutral, "9CA3AF"));
 
+        var highlight = colors.Highlight is null ? theme[5] : Color(brand, "Colors.Highlight", colors.Highlight);
+        var tableHeader = colors.TableHeader is null ? primary : Color(brand, "Colors.TableHeader", colors.TableHeader);
+        var chart = ResolveChart(brand, colors.Chart, IsDark(brand), primary, footer, tableHeader, tableBand, resolvedDiagram, resolvedLabels);
+
         return new ResolvedBrand(
             brand.Name.ToLowerInvariant(),
             theme,
@@ -149,7 +162,7 @@ internal sealed partial record ResolvedBrand(
             link,
             footer,
             gradient,
-            colors.TableHeader is null ? primary : Color(brand, "Colors.TableHeader", colors.TableHeader),
+            tableHeader,
             tableBand,
             colors.TableLine is null ? "D1D5DB" : Color(brand, "Colors.TableLine", colors.TableLine),
             string.IsNullOrWhiteSpace(brand.FooterText) ? null : brand.FooterText,
@@ -160,8 +173,57 @@ internal sealed partial record ResolvedBrand(
             brand.Fonts is null ? null : ResolveFonts(brand, brand.Fonts),
             brand.Pptx is { Content.IsEmpty: true } ? throw Invalid(brand, nameof(Brand.Pptx), "is empty") : brand.Pptx,
             resolvedDiagram,
-            colors.Highlight is null ? theme[5] : Color(brand, "Colors.Highlight", colors.Highlight),
-            resolvedLabels);
+            highlight,
+            resolvedLabels,
+            chart);
+    }
+
+    // Chart colours: each set one checked, each other derived; for a dark background, darker fills and lighter lines.
+    private static ResolvedChartColors ResolveChart(
+        Brand brand,
+        BrandChartColors? chart,
+        bool dark,
+        string primary,
+        string footer,
+        string tableHeader,
+        string tableBand,
+        ResolvedDiagramColors diagram,
+        ResolvedLabelColors labels)
+    {
+        string Role(string name, string? value, string fallback) => value is null ? fallback : Color(brand, "Colors.Chart." + name, value);
+        IReadOnlyList<string> List(string name, IReadOnlyList<string>? value, IReadOnlyList<string> fallback) =>
+            value is null ? fallback
+            : value.Count == 0 ? throw Invalid(brand, "Colors.Chart." + name, "needs at least one colour")
+            : value.Select((c, i) => Color(brand, $"Colors.Chart.{name}[{i}]", c)).ToArray();
+
+        var palette = diagram.Palette;
+        var series = List(nameof(BrandChartColors.Series), chart?.Series, [.. Enumerable.Range(0, 3).Select(i => palette[i % palette.Count])])
+            .Select(c => dark
+                ? new ResolvedSeriesColors(Shade(c, 0.55), Shade(c, 0.35), c, Mix(c, 0.6))
+                : new ResolvedSeriesColors(Mix(c, 0.18), Mix(c, 0.08), Mix(c, 0.65), c))
+            .ToArray();
+        var header = Role(nameof(BrandChartColors.TableHeader), chart?.TableHeader, tableHeader);
+        return new ResolvedChartColors(
+            series,
+            List(nameof(BrandChartColors.Categories), chart?.Categories, palette),
+            Role(nameof(BrandChartColors.Reference), chart?.Reference, dark ? "9CA3AF" : "6B7280"),
+            Role(nameof(BrandChartColors.ReferenceFill), chart?.ReferenceFill, dark ? "4B5563" : "E5E7EB"),
+            Role(nameof(BrandChartColors.Axis), chart?.Axis, "9CA3AF"),
+            Role(nameof(BrandChartColors.Gridline), chart?.Gridline, dark ? "4B5563" : "E5E7EB"),
+            Role(nameof(BrandChartColors.Band), chart?.Band, dark ? Shade(primary, 0.3) : "F9FAFB"),
+            Role(nameof(BrandChartColors.Emphasis), chart?.Emphasis, labels.Success),
+            Role(nameof(BrandChartColors.Ahead), chart?.Ahead, labels.Success),
+            Role(nameof(BrandChartColors.Level), chart?.Level, dark ? "D1D5DB" : footer),
+            Role(nameof(BrandChartColors.Behind), chart?.Behind, labels.Danger),
+            chart?.Surface is { } surface ? Color(brand, "Colors.Chart.Surface", surface) : dark ? null : White,
+            diagram.Text,
+            dark ? "D1D5DB" : footer,
+            dark ? diagram.Surface : White,
+            header,
+            Role(nameof(BrandChartColors.TotalHeader), chart?.TotalHeader, Shade(header, 0.7)),
+            Role(nameof(BrandChartColors.TotalFill), chart?.TotalFill, dark ? Shade(primary, 0.35) : tableBand),
+            Role(nameof(BrandChartColors.TooltipFill), chart?.TooltipFill, "111827"),
+            Role(nameof(BrandChartColors.TooltipText), chart?.TooltipText, White));
     }
 
     private static string Color(Brand brand, string property, string? value)
@@ -193,6 +255,7 @@ internal sealed partial record ResolvedBrand(
             Palette = slides.Diagram.Palette ?? pdf.Diagram.Palette,
         },
         Highlight = slides.Highlight ?? pdf.Highlight,
+        Chart = slides.Chart ?? pdf.Chart,
         Labels = slides.Labels is null ? pdf.Labels : pdf.Labels is null ? slides.Labels : new BrandLabelColors
         {
             Success = slides.Labels.Success ?? pdf.Labels.Success,
@@ -303,6 +366,35 @@ internal sealed partial record ResolvedBrand(
 /// <summary>The diagram colours, upper-case RGB hex without <c>#</c>.</summary>
 /// <summary>Status label colours by category; see <see cref="BrandLabelColors"/>.</summary>
 internal sealed record ResolvedLabelColors(string Success, string Info, string Warning, string Danger, string Neutral);
+
+/// <summary>One chart series: its fill, pale fill (year to date, projections), strong fill (actuals) and outline.</summary>
+internal sealed record ResolvedSeriesColors(string Fill, string Pale, string Strong, string Stroke);
+
+/// <summary>
+/// The colours of charts. <see cref="Surface"/> is <see langword="null"/> on dark slides, where the slide shows through;
+/// <see cref="Patch"/> is what a label is written on where it crosses a line.
+/// </summary>
+internal sealed record ResolvedChartColors(
+    IReadOnlyList<ResolvedSeriesColors> Series,
+    IReadOnlyList<string> Categories,
+    string Reference,
+    string ReferenceFill,
+    string Axis,
+    string Gridline,
+    string Band,
+    string Emphasis,
+    string Ahead,
+    string Level,
+    string Behind,
+    string? Surface,
+    string Text,
+    string Muted,
+    string Patch,
+    string TableHeader,
+    string TotalHeader,
+    string TotalFill,
+    string TooltipFill,
+    string TooltipText);
 
 internal sealed record ResolvedDiagramColors(string Text, string Line, string Accent, string Surface, string Border, IReadOnlyList<string> Palette);
 

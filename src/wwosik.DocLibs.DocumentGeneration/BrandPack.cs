@@ -193,6 +193,26 @@ internal sealed record BrandManifest(
                 Danger = labels.Danger,
                 Neutral = labels.Neutral,
             },
+            Chart = colors.Chart is not { } chart ? null : new BrandChartColors
+            {
+                Series = chart.Series,
+                Categories = chart.Categories,
+                Reference = chart.Reference,
+                ReferenceFill = chart.ReferenceFill,
+                Axis = chart.Axis,
+                Gridline = chart.Gridline,
+                Band = chart.Band,
+                Emphasis = chart.Emphasis,
+                Ahead = chart.Ahead,
+                Level = chart.Level,
+                Behind = chart.Behind,
+                Surface = chart.Surface,
+                TableHeader = chart.TableHeader,
+                TotalHeader = chart.TotalHeader,
+                TotalFill = chart.TotalFill,
+                TooltipFill = chart.TooltipFill,
+                TooltipText = chart.TooltipText,
+            },
         };
 
     private static byte[] File(Func<string, Stream?> openFile, string key, string path)
@@ -225,11 +245,31 @@ internal sealed record BrandManifest(
         IReadOnlyList<string>? Theme,
         DiagramSection? Diagram,
         string? Highlight,
-        LabelsSection? Labels);
+        LabelsSection? Labels,
+        ChartSection? Chart = null);
 
     internal sealed record LabelsSection(string? Success, string? Info, string? Warning, string? Danger, string? Neutral);
 
     internal sealed record DiagramSection(string? Text, string? Line, string? Accent, string? Surface, string? Border, IReadOnlyList<string>? Palette);
+
+    internal sealed record ChartSection(
+        IReadOnlyList<string>? Series,
+        IReadOnlyList<string>? Categories,
+        string? Reference,
+        string? ReferenceFill,
+        string? Axis,
+        string? Gridline,
+        string? Band,
+        string? Emphasis,
+        string? Ahead,
+        string? Level,
+        string? Behind,
+        string? Surface,
+        string? TableHeader,
+        string? TotalHeader,
+        string? TotalFill,
+        string? TooltipFill,
+        string? TooltipText);
 
     internal sealed record TableSection(string? Header, string? Band, string? Line);
 

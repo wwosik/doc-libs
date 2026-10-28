@@ -1,4 +1,4 @@
-﻿using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml;
 using A = DocumentFormat.OpenXml.Drawing;
 using P = DocumentFormat.OpenXml.Presentation;
 
@@ -39,7 +39,8 @@ internal static class DrawingWriter
                 new A.ChildOffset { X = x, Y = y },
                 new A.ChildExtents { Cx = width, Cy = height })));
 
-        foreach (var item in drawing.Items)
+        // Hotspots only carry hover text, which a slide cannot show.
+        foreach (var item in drawing.Items.Where(item => item is not DrawingHotspot))
         {
             group.Append(item switch
             {
@@ -188,7 +189,7 @@ internal static class DrawingWriter
         });
         foreach (var span in text.Spans)
         {
-            var properties = new A.RunProperties(new A.SolidFill(Rgb(text.Color))) { Language = "en-US", FontSize = (int)Math.Max(100, Math.Round(points * 100)) };
+            var properties = new A.RunProperties(new A.SolidFill(Rgb(span.Color ?? text.Color))) { Language = "en-US", FontSize = (int)Math.Max(100, Math.Round(points * 100)) };
             if (span.Bold)
             {
                 properties.Bold = true;

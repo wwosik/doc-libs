@@ -67,6 +67,7 @@ string guide = PdfGenerator.AuthoringGuide(options);   // starts at "##"
 | `PageSize` | `A4` | `A4`, `A3`, `Letter` |
 | `Orientation` | `Portrait` | `Portrait`, `Landscape` |
 | `CodeBlockRenderers` | none | see [Diagrams](#diagrams) |
+| `ImageConverters` | none | images in other formats, such as SVG, see [Image converters](wwosik.DocLibs.DocumentGeneration.md#image-converters) |
 | `ReplaceUnsupported` | none (throws) | see [Characters the fonts lack](#characters-the-fonts-lack) |
 | `TimeProvider` | `TimeProvider.System` | the date of generation in the footer |
 
@@ -109,7 +110,7 @@ The shared syntax and rules are in
 | Code blocks | The brand's mono face, else Liberation Mono, 9 pt on light grey, wrapped by characters. |
 | Quotes | Indented, grey, with a rule on the left per quote level. |
 | Tables | 9.5 pt, in the brand's table fonts if it has them; full content width. Each column gets at least its longest word, the rest is shared in proportion to the content. Header row in the brand table colour with white bold text, banded rows, thin lines, alignment from the Markdown. A row that doesn't fit moves to the next page and the header row repeats there; a row taller than a page splits at line boundaries. |
-| Images | Natural size at 96 DPI, `"scale=N.N"` in the title multiplies it; scaled down to the content width and page height, never up; centred; moved to the next page if they don't fit. |
+| Images | Natural size at 96 DPI, `"scale=N.N"` in the title multiplies it; scaled down to the content width and page height, never up; centred; moved to the next page if they don't fit. An `.svg` image needs an image converter (`SvgImageConverter` from [wwosik.DocLibs.DocumentConversions.Svg](wwosik.DocLibs.DocumentConversions.Svg.md)): placed the same way, as a PNG drawn twice as large. |
 | `---` | A thin line. |
 | `**bold**`, `*italic*`, `~~strike~~`, `` `code` `` | Font face; strike as a line through. |
 | Links | Brand link colour, underlined, with a link annotation. Absolute URLs open; `#id` jumps to the heading; anything else stays text. |
@@ -215,7 +216,8 @@ renderer can return:
 - an **`ImageGraphic`**, a PNG or JPEG placed like a Markdown image.
 - a **`ChartGraphic`**: its `Drawing` is drawn like a `DrawingGraphic` (decks write the chart
   natively). `ChartRenderer` from
-  [wwosik.DocLibs.DocumentGeneration.Charts](wwosik.DocLibs.DocumentGeneration.Charts.md) makes them.
+  [wwosik.DocLibs.DocumentGeneration.Charts](wwosik.DocLibs.DocumentGeneration.Charts.md) makes them,
+  and drawings from `financial-chart` blocks.
 
 The request carries the language, the code, the brand the document is generated in (after front
 matter) and the block's line in the Markdown. A renderer that throws fails the generation with a
@@ -244,7 +246,7 @@ Markdown written for the PPTX generator's
 - A `##` heading with attributes keeps them in its automatic anchor (`## Title {.dark}` gets
   `#title-dark`), as Markdig computes the anchor before they are dropped.
 - No hyphenation, justification, kerning, right-to-left or Asian scripts; no footnotes; no merged
-  table cells; no SVG or GIF images; alt text is not shown (an untagged PDF has nowhere to put it).
+  table cells; no GIF images, and SVG only through an image converter; alt text is not shown (an untagged PDF has nowhere to put it).
 - A table wider than the page in minimum widths is squeezed, and its words break by characters.
 - Reading a generated PDF back with `PdfConverter` loses the cover title (it equals the running
   header and is removed as such), puts a page's images after its text, and does not recover

@@ -59,6 +59,19 @@ public class BrandPackTests : IDisposable
     }
 
     [Fact]
+    public void ChartColours_AreLoaded()
+    {
+        var brand = BrandPack.Load(Files("""
+            { "name": "a", "colors": { "primary": "#111111",
+              "chart": { "series": ["#1", "#2"], "categories": ["#3"], "reference": "#4", "ahead": "#5", "surface": "#6", "tooltipFill": "#7" } } }
+            """));
+
+        Assert.Equal(
+            new BrandChartColors { Series = ["#1", "#2"], Categories = ["#3"], Reference = "#4", Ahead = "#5", Surface = "#6", TooltipFill = "#7" },
+            brand.Colors.Chart);
+    }
+
+    [Fact]
     public void TableFonts_AreLoadedWithTheirOptionalKeys()
     {
         var brand = BrandPack.Load(Files(

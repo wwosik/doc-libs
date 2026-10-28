@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="DocumentFormat.OpenXml" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="PdfPig" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\wwosik.DocLibs.DocumentConversions.Svg\wwosik.DocLibs.DocumentConversions.Svg.csproj" />
+    <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration.Charts\wwosik.DocLibs.DocumentGeneration.Charts.csproj" />
+    <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration.Diagrams\wwosik.DocLibs.DocumentGeneration.Diagrams.csproj" />
+    <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration.Pdf\wwosik.DocLibs.DocumentGeneration.Pdf.csproj" />
+    <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration.Pptx\wwosik.DocLibs.DocumentGeneration.Pptx.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\wwosik.DocLibs.DocumentGeneration.Charts.Tests\FinancialSamples.cs" Link="FinancialSamples.cs" />
+    <None Include="..\wwosik.DocLibs.DocumentGeneration.Tests\Samples\brand-sample\fonts\table\**" Link="Samples\fonts\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

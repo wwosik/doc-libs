@@ -291,10 +291,23 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         return this.Image(resource, scale);
     }
 
-    private ImageBlock Image(DocumentResource resource, double scale) =>
-        ImageInfo.Read(resource.Content.Span) is { Format: ImageFormat.Png or ImageFormat.Jpeg } info
-            ? new ImageBlock(resource, info, scale)
-            : throw new DocumentConversionException(DocumentFormat.Pdf, $"The image '{resource.Path}' is not a PNG or JPEG.");
+    // An image in another format, such as SVG, goes through the image converters: drawn at twice the size it is placed
+    // at, and placed at its natural size, as the image itself would be.
+    private ImageBlock Image(DocumentResource resource, double scale)
+    {
+        if (ImageInfo.Read(resource.Content.Span) is { Format: ImageFormat.Png or ImageFormat.Jpeg } info)
+        {
+            return new ImageBlock(resource, info, scale);
+        }
+
+        if (ImageConverters.Convert(options.ImageConverters, resource, 2 * scale, DocumentFormat.Pdf) is var (image, width, height)
+            && ImageInfo.Read(image.Content.Span) is { Format: ImageFormat.Png or ImageFormat.Jpeg } converted)
+        {
+            return new ImageBlock(image, converted with { Width = Math.Max(1, (int)Math.Round(width)), Height = Math.Max(1, (int)Math.Round(height)) }, scale);
+        }
+
+        throw new DocumentConversionException(DocumentFormat.Pdf, $"The image '{resource.Path}' is not a PNG or JPEG{(options.ImageConverters.Count == 0 ? string.Empty : ", and no image converter takes it")}.");
+    }
 
     private static bool HasImage(Markdig.Syntax.ParagraphBlock paragraph) =>
         paragraph.Inline?.Descendants<LinkInline>().Any(l => l.IsImage) == true;

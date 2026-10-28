@@ -544,7 +544,7 @@ internal sealed class LayoutEngine
             .Select(span =>
             {
                 var face = text.Mono ? span.Bold ? FontFace.MonoBold : FontFace.Mono : span.Bold ? FontFace.TableBold : FontFace.TableRegular;
-                return (Text: this.Supported(Visible(span.Text), face), Face: face);
+                return (Text: this.Supported(Visible(span.Text), face), Face: face, Color: span.Color ?? text.Color);
             })
             .Where(span => span.Text.Length > 0)
             .ToList();
@@ -564,9 +564,9 @@ internal sealed class LayoutEngine
             TextAnchor.End => width,
             _ => 0,
         };
-        foreach (var (spanText, face) in spans)
+        foreach (var (spanText, face, color) in spans)
         {
-            this.page.Items.Add(new TextItem(x, baseline, spanText, face, size, text.Color));
+            this.page.Items.Add(new TextItem(x, baseline, spanText, face, size, color));
             x += this.metrics.Width(spanText, face, size);
         }
     }

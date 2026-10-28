@@ -7,6 +7,35 @@ plus a counter for a further release within the same hour. The version says noth
 compatibility, so this file does. Read the sections between your version and the new one before
 updating, breaking changes first.
 
+## Unreleased
+
+### Breaking changes
+
+- **A drawing may hold a third kind of item,** `DrawingHotspot` (an invisible hit area that carries
+  hover text). Code that switches over `DrawingItem` needs a case for it; skipping it is right for
+  anything but SVG.
+- **`DocumentFormat` has a new member, `Svg`,** reported by SVG conversion errors. Code that switches
+  over `DocumentFormat` without a default needs a case for it.
+
+### New
+
+- **Financial charts** in wwosik.DocLibs.DocumentGeneration.Charts: development, growth by row,
+  actual vs reference, growth trend, two-year monthly and a summary table, from typed records
+  (`FinancialCharts.Draw`, `ToSvg`, `CategoryColors`) or JSON in a `financial-chart` block. Neutral
+  words in the API, every printed label an option (`FinancialChartOptions.Labels`), numbers in the
+  caller's culture, scale and unit, verdict colours with a configurable tolerance.
+- **Chart colours in brands:** `BrandColors.Chart` (brand pack key `colors.chart`), every role
+  optional and derived from the brand; dark variants on dark slides.
+- **SVG from drawings:** `DrawingSvg.Write` writes any `Drawing` as a standalone SVG, with hover
+  tooltips that need no script. Drawings gained `DrawingItem.Hover`, `DrawingHotspot` and a colour per
+  span (`DrawingSpan.Color`).
+- **New package wwosik.DocLibs.DocumentConversions.Svg:** `SvgConverter.ToPng` turns any SVG into a
+  PNG (SkiaSharp and Svg.Skia; nothing outside the SVG is ever loaded), and `SvgImageConverter`
+  lets decks and PDFs place `.svg` images.
+- **Image converters:** `PptxOptions.ImageConverters` and `PdfOptions.ImageConverters` take
+  `IImageConverter`s for images in formats the generators cannot place themselves. Decks keep a
+  converted SVG beside its PNG, for PowerPoint to draw as a vector.
+
 ## 2610.25.18
 
 ### Breaking changes

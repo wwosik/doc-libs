@@ -246,3 +246,14 @@ same change that made it untrue — a stale fact here is worse than a missing on
 - **`run.sh sample-generator` is not byte-identical across runs**: it rewrites the existing
   `.pdf`/`.docx`/`.pptx`/`.zip`/`.xlsx` samples with different bytes. Commit only the samples you
   meant to change.
+- **System.Text.Json source generation drops initializers of `init` properties:** a property missing
+  from the JSON is set to `default`, not to its `= …` value (labels became empty, lists `null`). The
+  financial-chart records guard each such property with `init => field = value ?? …`.
+- **Svg.Skia loads `<image href="file:…">` and web addresses whatever `SvgDocumentLoadOptions` or
+  the global `SvgDocument.ResolveExternal*` settings say.** `SvgSanitizer` strips links before
+  drawing; keep it in front of every Svg.Skia load.
+- **Svg.Skia's `CustomTypefaceProvider` matches width exactly,** so a condensed font is never found
+  for normal-width text; `SvgConverter` has its own provider that matches by family name.
+- **The managed SkiaSharp version must match its native assets** (`libSkiaSharp` refuses another
+  major): pin `SkiaSharp` to the same version as `SkiaSharp.NativeAssets.Linux`, above what Svg.Skia
+  asks for.

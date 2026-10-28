@@ -45,6 +45,7 @@ drawn.
 | `Colors.TableHeader` / `TableBand` / `TableLine` | Header row (white bold text) / every other row / grid | `Primary` / `Primary` at 10 % on white / `D1D5DB` |
 | `Colors.Gradient` | PPTX section dividers, left to right, ≥ 2 colours | `Primary` → `Link`, or → `Primary` at 60 % on white when they are equal |
 | `Colors.Diagram` | Diagrams: `Text`, `Line`, `Accent`, `Surface`, `Border`, `Palette` (see [Diagrams](wwosik.DocLibs.DocumentGeneration.Diagrams.md#colours-and-font)) | text colour, `Footer`, `Primary`, `TableBand`, `Primary`, theme accents 1–6 |
+| `Colors.Chart` | Financial charts (see [Charts](wwosik.DocLibs.DocumentGeneration.Charts.md#colours)): `Series` (up to three; fills are mixed from each), `Categories`, `Reference`, `ReferenceFill`, `Axis`, `Gridline`, `Band`, `Emphasis`, `Ahead`, `Level`, `Behind`, `Surface`, `TableHeader`, `TotalHeader`, `TotalFill`, `TooltipFill`, `TooltipText` | diagram palette, greys, `Labels.Success` / `Footer` / `Labels.Danger` for the verdicts, white surface (none on dark slides) |
 | `Colors.Highlight` | Slides: `==marked==` text (a light tint behind it), highlighted table rows, the bar of important callouts | theme accent 2 |
 | `Colors.Labels` | Slides: status labels in tables by category — `Success`, `Info`, `Warning`, `Danger`, `Neutral`; the cell gets a light tint of the colour (see [Slide layouts in Markdown](#slide-layouts-in-markdown)) | `16A34A`, `Link`, `D97706`, `DC2626`, `9CA3AF` |
 | `Colors.Theme` | The 12 PowerPoint theme colours (dark 1, light 1, dark 2, light 2, accents 1–6, hyperlink, followed hyperlink) | black, white, `Primary`, `TableBand`, `Primary`, five neutral accents, `Link`, violet |
@@ -180,7 +181,7 @@ paths relative to the pack.
 ```
 
 Every key but `name` and `colors.primary` is optional (inside `fonts`, the four text faces are
-required, and inside `fonts.table` its `regular` and `bold`); `colors` also takes `footer` and `theme` (12 colours), as in the table above. `slideColors` takes the same keys as `colors`, all optional; `pptx.tone` is `auto` (the default), `light` or `dark`. `//` comments and trailing commas are allowed.
+required, and inside `fonts.table` its `regular` and `bold`); `colors` also takes `footer`, `theme` (12 colours) and `chart` (the roles of `BrandChartColors` in camel case, such as `"chart": { "series": ["#0B5FFF", "#3FC1FF"], "ahead": "#16A34A" }`), as in the table above. `slideColors` takes the same keys as `colors`, all optional; `pptx.tone` is `auto` (the default), `light` or `dark`. `//` comments and trailing commas are allowed.
 
 | Load from | Call |
 | --------- | ---- |
@@ -256,7 +257,27 @@ public interface ICodeBlockRenderer
   - `DrawingText(X, Baseline, Spans, Size, Color)` is one line of `DrawingSpan(Text, Bold)` with
     `Anchor` (`Start`, `Middle`, `End`), `MaxWidth` (its room: the generator shrinks wider text down
     to 70 %) and `Mono`. It is set in the brand's table font, else its text font, and measured by
-    the generator.
+    the generator. A span's `Color` overrides the line's.
+  - `Hover` on any item is a `DrawingHover(Text, X, Y)`: a tooltip for SVG output, which decks and
+    PDFs ignore. `DrawingHotspot(X, Y, Radius)` is an invisible hit area that only carries one,
+    with an optional `Dot` shown while hovered (a point on a line); decks and PDFs skip it.
+
+### SVG
+
+`DrawingSvg.Write(drawing, options)` writes a drawing as a standalone SVG for web pages, `width`
+and `height` in pixels with a matching `viewBox`.
+
+- **Tooltips without script:** an item with `Hover` becomes `<g class="chart-hoverable">` holding the
+  item and a `<g class="chart-tooltip">` placed in advance: centred over the hover point, 17 px
+  high, kept on the canvas. An inline `<style>` shows it on `:hover`; the class names
+  (`chart-hoverable`, `chart-tooltip`, `chart-tooltip-bg`, `chart-tooltip-text`,
+  `chart-hover-dot`) stay the same, so a page can restyle them.
+- **Text widths are estimated** (0.58 × size per character), as the SVG is written, not measured:
+  for tooltips, and to shrink a line wider than its `MaxWidth`.
+- **Options** (`DrawingSvgOptions`): `FontFamily` and `MonoFamily` (CSS families), `Background`
+  (default transparent), `TooltipFill` and `TooltipText`.
+- For a PNG, pass the SVG to `SvgConverter` in
+  [wwosik.DocLibs.DocumentConversions.Svg](wwosik.DocLibs.DocumentConversions.Svg.md).
 
 [wwosik.DocLibs.DocumentGeneration.Diagrams](wwosik.DocLibs.DocumentGeneration.Diagrams.md)
 provides `MermaidRenderer`. Any other diagram language can plug in the same way.
@@ -325,3 +346,26 @@ title: Network expansion 2027
 
 `ImageInfo` reads the format (PNG, JPEG, GIF) and pixel size from an image's header, for both
 generators.
+
+## Image converters
+
+An image in a format a generator cannot place — PDFs take PNG and JPEG, decks also GIF — goes to
+`PdfOptions.ImageConverters` / `PptxOptions.ImageConverters`, a list of `IImageConverter` (from
+wwosik.DocLibs.DocumentConversions), empty by default:
+
+```csharp
+public interface IImageConverter
+{
+    ConvertedImage? Convert(DocumentResource image, double scale);   // null: not a format it takes
+}
+```
+
+- The converters are asked in order; the first result wins. Without a result the image stays an
+  error, as without converters.
+- `ConvertedImage(Content, ContentType, Width, Height)` is a PNG or JPEG drawn at `scale` pixels per
+  pixel of the image's natural size (the generators ask for 2, PDFs times the image's `scale=`), and
+  that natural size. The image is placed at its natural size, as a PNG of that size would be.
+- A converter's exception other than `DocumentConversionException` fails the generation with a
+  `DocumentConversionException` in the generator's format, with the converter's as `InnerException`.
+- `SvgImageConverter` in [wwosik.DocLibs.DocumentConversions.Svg](wwosik.DocLibs.DocumentConversions.Svg.md)
+  converts SVG.

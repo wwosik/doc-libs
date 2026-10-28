@@ -1,4 +1,6 @@
-﻿namespace wwosik.DocLibs.DocumentGeneration.Pdf;
+﻿using wwosik.DocLibs.DocumentConversions;
+
+namespace wwosik.DocLibs.DocumentGeneration.Pdf;
 
 /// <summary>Options for <see cref="PdfGenerator.Generate"/>.</summary>
 public sealed record PdfOptions
@@ -27,6 +29,13 @@ public sealed record PdfOptions
     /// stays code. This is how diagrams such as Mermaid get in. Default: none.
     /// </summary>
     public IReadOnlyList<ICodeBlockRenderer> CodeBlockRenderers { get; init; } = [];
+
+    /// <summary>
+    /// Asked in order for every image that is not a PNG or JPEG, such as an <c>.svg</c> image; the first conversion
+    /// wins, and an image no converter takes is an error. Register <c>SvgImageConverter</c> from
+    /// wwosik.DocLibs.DocumentConversions.Svg to place SVG images. Default: none.
+    /// </summary>
+    public IReadOnlyList<IImageConverter> ImageConverters { get; init; } = [];
 
     /// <summary>
     /// Called with each text element (grapheme cluster) that has a character the font of its text lacks — so

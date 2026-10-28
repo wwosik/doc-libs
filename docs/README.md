@@ -18,13 +18,16 @@ tests generate every example and compare the guides with `authoring-guide-*.expe
 
 - [wwosik.DocLibs.DocumentConversions](wwosik.DocLibs.DocumentConversions.md): `.pdf`, `.docx` and
   `.pptx` to Markdown with images, and Markdown ↔ JIRA wiki markup. Cross-platform.
+- [wwosik.DocLibs.DocumentConversions.Svg](wwosik.DocLibs.DocumentConversions.Svg.md): SVG to
+  PNG with SkiaSharp, and `.svg` images in decks and PDFs.
 - [wwosik.DocLibs.DocumentConversions.WindowsOnly](wwosik.DocLibs.DocumentConversions.WindowsOnly.md):
   `.doc`, `.rtf`, `.xls` and `.xlsx` through Office automation.
 - [wwosik.DocLibs.DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md): what the generators
   share — brands (`Brand`, `BrandPack`), drawings and code-block renderers, front matter, image
   headers.
 - [wwosik.DocLibs.DocumentGeneration.Charts](wwosik.DocLibs.DocumentGeneration.Charts.md): bar,
-  line and area charts from CSV in `chart` blocks — native charts in decks, vectors in PDFs.
+  line and area charts from CSV in `chart` blocks — native charts in decks, vectors in PDFs — and
+  financial charts from typed data or JSON, also as SVG with hover tooltips.
 - [wwosik.DocLibs.DocumentGeneration.Diagrams](wwosik.DocLibs.DocumentGeneration.Diagrams.md):
   Mermaid diagrams as vector graphics in PDFs and editable shapes in decks, through Mermaider.
 - [wwosik.DocLibs.DocumentGeneration.Pptx](wwosik.DocLibs.DocumentGeneration.Pptx.md): Markdown to

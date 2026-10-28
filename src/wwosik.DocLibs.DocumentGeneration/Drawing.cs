@@ -18,12 +18,41 @@ public sealed record Drawing(double Width, double Height, IReadOnlyList<DrawingI
     public override int GetHashCode() => HashCode.Combine(this.Width, this.Height, this.Items.Count);
 }
 
-/// <summary>A <see cref="DrawingShape"/> or a <see cref="DrawingText"/>.</summary>
+/// <summary>A <see cref="DrawingShape"/>, a <see cref="DrawingText"/> or a <see cref="DrawingHotspot"/>.</summary>
 public abstract record DrawingItem
 {
     private protected DrawingItem()
     {
     }
+
+    /// <summary>
+    /// A tooltip shown while the pointer is over the item, in SVG only (<see cref="DrawingSvg"/>); decks and PDFs
+    /// ignore it. <see langword="null"/>: none.
+    /// </summary>
+    public DrawingHover? Hover { get; init; }
+}
+
+/// <summary>A tooltip: its text, and the point it is shown above, centred and kept on the canvas.</summary>
+/// <param name="Text">The text, one line.</param>
+/// <param name="X">The point the tooltip is centred over.</param>
+/// <param name="Y">The point the tooltip's bottom sits above.</param>
+public sealed record DrawingHover(string Text, double X, double Y);
+
+/// <summary>
+/// An invisible circle that only carries a <see cref="DrawingItem.Hover"/>, such as a point on a line, which has no
+/// area of its own to point at. SVG draws it as a transparent hit area, with a dot of <see cref="Dot"/> shown while
+/// hovered; decks and PDFs skip it.
+/// </summary>
+/// <param name="X">The centre.</param>
+/// <param name="Y">The centre.</param>
+/// <param name="Radius">The radius of the hit area in pixels.</param>
+public sealed record DrawingHotspot(double X, double Y, double Radius) : DrawingItem
+{
+    /// <summary>The colour of the dot shown while hovered; <see langword="null"/>: no dot.</summary>
+    public string? Dot { get; init; }
+
+    /// <summary>The radius of the dot in pixels. Default 4.</summary>
+    public double DotRadius { get; init; } = 4;
 }
 
 /// <summary>What a shape is, so decks can use PowerPoint's own shapes for the common ones.</summary>
@@ -205,4 +234,8 @@ public sealed record DrawingText(double X, double Baseline, IReadOnlyList<Drawin
 /// <summary>A piece of a <see cref="DrawingText"/> in one weight.</summary>
 /// <param name="Text">The text.</param>
 /// <param name="Bold">Whether it is bold.</param>
-public sealed record DrawingSpan(string Text, bool Bold = false);
+public sealed record DrawingSpan(string Text, bool Bold = false)
+{
+    /// <summary>The span's colour; <see langword="null"/>: the <see cref="DrawingText.Color"/> of its line.</summary>
+    public string? Color { get; init; }
+}

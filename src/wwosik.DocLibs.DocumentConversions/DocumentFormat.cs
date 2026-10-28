@@ -41,4 +41,7 @@ public enum DocumentFormat
 
     /// <summary>Plain text: no NUL byte in the first 8 KB.</summary>
     Text,
+
+    /// <summary>SVG, a vector image; reported by image converters, never by detection (it is text).</summary>
+    Svg,
 }

@@ -14,12 +14,17 @@
   <ItemGroup>
     <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration.Pptx\wwosik.DocLibs.DocumentGeneration.Pptx.csproj" />
     <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration.Diagrams\wwosik.DocLibs.DocumentGeneration.Diagrams.csproj" />
+    <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration.Charts\wwosik.DocLibs.DocumentGeneration.Charts.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="Samples\**" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\wwosik.DocLibs.DocumentGeneration.Tests\Samples\brand-sample\**" Link="Samples\brand-sample\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\wwosik.DocLibs.DocumentGeneration.Diagrams.Tests\Samples\diagrams.md" Link="Samples\diagrams.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\wwosik.DocLibs.DocumentGeneration.Charts.Tests\FinancialSamples.cs" Link="FinancialSamples.cs" />
   </ItemGroup>
 
 </Project>

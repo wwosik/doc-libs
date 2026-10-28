@@ -89,6 +89,11 @@ string guide = PptxGenerator.AuthoringGuide(options);   // starts at "##"
 - **Images** fill the room they have, keeping their aspect ratio, scaled down or up — up to
   `PptxOptions.MaxImageUpscale` times their natural size (96 DPI; default 4). `"scale=N.N"` in the
   image title caps it per image (`scale=1`: never beyond natural size). Images are centred.
+- **SVG images** need an image converter: with `ImageConverters = [new SvgImageConverter()]`
+  (from [wwosik.DocLibs.DocumentConversions.Svg](wwosik.DocLibs.DocumentConversions.Svg.md)) an
+  `.svg` image is placed at its natural size like any other, as a PNG drawn twice as large, with the
+  SVG itself beside it in PowerPoint's SVG extension: PowerPoint 2016 and later draw the SVG, other
+  viewers the PNG. Without a converter it is an error.
 - **Images side by side:** a paragraph of nothing but two or more images (`![A](a.png) ![B](b.png)`)
   is one visual: the images in cells of equal width across the content width, each fitted into its
   cell; more than four wrap into further rows. `"caption"` in an image's title puts its alt text
@@ -308,7 +313,8 @@ and the text after it as a caption. A renderer can return:
   value axis from zero for bars and areas, gridlines light grey (on dark slides white at 30 %). It
   fills the width it has, at most 5:8 tall. `ChartRenderer` from
   [wwosik.DocLibs.DocumentGeneration.Charts](wwosik.DocLibs.DocumentGeneration.Charts.md) makes
-  them from `chart` blocks.
+  them from `chart` blocks, and drawings from `financial-chart` blocks: the financial charts as
+  editable shapes, drawn in the slide's brand (dark slides get a dark chart).
 
 Drawings are enlarged at most by half, so that their text keeps a sensible size.
 
@@ -325,7 +331,9 @@ Drawings are enlarged at most by half, so that their text keeps a sensible size.
 - The footer text sits in a box of fixed width without wrapping; a long one runs into the date.
 - A caller template's own body style is used as it is; one made for hand-written slides (level 1
   bold, no bullets on levels 1–2) suits Markdown less well than the built-in template.
-- No speaker notes, no SVG images, no merged table cells. Charts are bar, line and area only.
+- No speaker notes, no merged table cells. SVG images only through an image converter. Native
+  charts are bar, line and area only; the financial charts are shapes, not charts PowerPoint can edit
+  the data of.
 - Embedded fonts are a PowerPoint feature. Viewers that ignore them — LibreOffice without
   libeot, Google Slides — substitute a font of their own, as for a deck without embedded fonts.
   PowerPoint Online honours them only partly.

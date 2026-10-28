@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Office2019.Drawing.SVG;
 using DocumentFormat.OpenXml.Packaging;
 using wwosik.DocLibs.DocumentConversions;
 using A = DocumentFormat.OpenXml.Drawing;
@@ -13,6 +14,9 @@ internal sealed partial class DeckWriter
 {
     private const long EmuPerPoint = 12700;
     private const long EmuPerPixel = 9525;
+
+    // The extension PowerPoint 2016 and later read an SVG picture from, beside its PNG.
+    private const string SvgBlipUri = "{96DAC541-7B7A-43D3-8B79-37D633B846F1}";
     private const long BulletIndent = 285750;
     private const long Gap = 152400;
     private const long MinRowHeight = 370840;
@@ -70,6 +74,7 @@ internal sealed partial class DeckWriter
     private readonly SlidePalette palette;
     private readonly int bodySize;
     private readonly Dictionary<DocumentResource, ImagePart> images = [];
+    private readonly Dictionary<DocumentResource, ImagePart> vectors = [];
     private readonly IReadOnlyDictionary<string, LabelCategory> labels;
     private uint nextSlideId = 256;
 
@@ -910,8 +915,9 @@ internal sealed partial class DeckWriter
     {
         var info = ImageInfo.Read(image.Resource.Content.Span)
             ?? throw new DocumentConversionException(Format.Pptx, $"The image '{image.Resource.Path}' is not a PNG, JPEG or GIF.");
-        double width = info.Width * EmuPerPixel;
-        double height = info.Height * EmuPerPixel;
+        var (naturalWidth, naturalHeight) = image.Natural ?? (info.Width, info.Height);
+        var width = naturalWidth * EmuPerPixel;
+        var height = naturalHeight * EmuPerPixel;
         var fit = Math.Min(image.Scale ?? this.options.MaxImageUpscale, Math.Min(box.W / width, box.H / height));
         var placed = new Rect(box.X + (long)((box.W - (width * fit)) / 2), box.Y, (long)(width * fit), (long)(height * fit));
         if (canvas is null)
@@ -940,9 +946,32 @@ internal sealed partial class DeckWriter
                 new P.NonVisualDrawingProperties { Id = id, Name = "Picture " + id, Description = XmlSafe(image.AltText) },
                 new P.NonVisualPictureDrawingProperties(new A.PictureLocks { NoChangeAspect = true }),
                 new P.ApplicationNonVisualDrawingProperties()),
-            new P.BlipFill(new A.Blip { Embed = relationshipId }, new A.Stretch(new A.FillRectangle())),
+            new P.BlipFill(this.Blip(canvas, image, relationshipId), new A.Stretch(new A.FillRectangle())),
             new P.ShapeProperties(placed.Transform(), new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle })));
         return placed;
+    }
+
+    // The picture's PNG, JPEG or GIF; for a converted SVG also the SVG, which PowerPoint 2016 and later draw instead.
+    private A.Blip Blip(Canvas canvas, SlideImage image, string relationshipId)
+    {
+        var blip = new A.Blip { Embed = relationshipId };
+        if (image.Vector is not { } vector)
+        {
+            return blip;
+        }
+
+        if (!this.vectors.TryGetValue(vector, out var part))
+        {
+            part = canvas.Part.AddImagePart(ImagePartType.Svg);
+            using var content = new MemoryStream(vector.Content.ToArray());
+            part.FeedData(content);
+            this.vectors[vector] = part;
+        }
+
+        var svgId = canvas.Part.Parts.Where(p => p.OpenXmlPart == part).Select(p => p.RelationshipId).FirstOrDefault()
+            ?? canvas.Part.CreateRelationshipToPart(part);
+        blip.Append(new A.BlipExtensionList(new A.BlipExtension(new SVGBlip { Embed = svgId }) { Uri = SvgBlipUri }));
+        return blip;
     }
 
     // A native chart filling the box's width, at most about 16:10 tall, so that it neither stretches nor squashes.

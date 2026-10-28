@@ -1,4 +1,6 @@
 <Solution>
+  <Project Path="wwosik.DocLibs.DocumentConversions.Svg.Tests/wwosik.DocLibs.DocumentConversions.Svg.Tests.csproj" />
+  <Project Path="wwosik.DocLibs.DocumentConversions.Svg/wwosik.DocLibs.DocumentConversions.Svg.csproj" />
   <Project Path="wwosik.DocLibs.DocumentConversions.Tests/wwosik.DocLibs.DocumentConversions.Tests.csproj" />
   <Project Path="wwosik.DocLibs.DocumentConversions.WindowsOnly.Tests/wwosik.DocLibs.DocumentConversions.WindowsOnly.Tests.csproj" />
   <Project Path="wwosik.DocLibs.DocumentConversions.WindowsOnly/wwosik.DocLibs.DocumentConversions.WindowsOnly.csproj" />

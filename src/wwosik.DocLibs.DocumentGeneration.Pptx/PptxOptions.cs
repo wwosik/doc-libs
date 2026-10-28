@@ -1,4 +1,6 @@
-﻿namespace wwosik.DocLibs.DocumentGeneration.Pptx;
+﻿using wwosik.DocLibs.DocumentConversions;
+
+namespace wwosik.DocLibs.DocumentGeneration.Pptx;
 
 /// <summary>Options for <see cref="PptxGenerator.Generate"/>.</summary>
 public sealed record PptxOptions
@@ -21,6 +23,13 @@ public sealed record PptxOptions
     /// slide of its own, like a table. This is how diagrams such as Mermaid get in. Default: none.
     /// </summary>
     public IReadOnlyList<ICodeBlockRenderer> CodeBlockRenderers { get; init; } = [];
+
+    /// <summary>
+    /// Asked in order for every image that is not a PNG, JPEG or GIF, such as an <c>.svg</c> image; the first conversion
+    /// wins, and an image no converter takes is an error. Register <c>SvgImageConverter</c> from
+    /// wwosik.DocLibs.DocumentConversions.Svg to place SVG images. Default: none.
+    /// </summary>
+    public IReadOnlyList<IImageConverter> ImageConverters { get; init; } = [];
 
     /// <summary>
     /// The font of inline code and code blocks. <see langword="null"/> (the default): the brand's mono family, else

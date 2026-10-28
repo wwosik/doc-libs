@@ -24,3 +24,30 @@ Mar, 125, 140
 - A chart is placed like an image: it fills the room it has. Two charts side by side: `::: columns`
   with a chart in each column.
 - A mistake in the settings or the data is an error naming the line of its block.
+
+### Financial charts
+
+A code block with the language `financial-chart` holds one of the charts of a performance review as
+JSON: `development`, `growth-by-row`, `actual-vs-reference`, `growth-trend`, `two-year` or
+`summary-table`. Growth rates and shares are fractions (`0.05` is 5 %); `lastActual` counts months
+from 0. These blocks are usually written by a program, not by hand.
+
+````markdown
+```financial-chart
+{
+  "type": "growth-trend",
+  "title": "Orders growth",
+  "lastActual": 2,
+  "reference": 0.05,
+  "months": [
+    { "label": "Jan", "change": 0.056 }, { "label": "Feb", "change": 0.054 }, { "label": "Mar", "change": 0.04 },
+    { "label": "Apr", "change": 0.045 }, { "label": "May", "change": 0.05 }
+  ],
+  "options": { "labels": { "current": "This year", "previous": "Last year", "projection": "Forecast" } }
+}
+```
+````
+
+- **Options:** `culture` (`pl-PL` writes `5,2%`), `scale` and `unit` (`1000000` and `M`), `labels`
+  (`previous`, `current`, `reference`, `projection`, `estimate`, `change`, `overall`, `value`).
+- A misspelt property or invalid JSON is an error naming the line of its block.

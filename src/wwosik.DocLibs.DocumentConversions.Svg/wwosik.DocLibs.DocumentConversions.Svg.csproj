@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsAotCompatible>true</IsAotCompatible>
+    <Description>Converts SVG to PNG with SkiaSharp and Svg.Skia, and lets the wwosik.DocLibs document generators place .svg images in decks and PDFs.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\wwosik.DocLibs.DocumentConversions\wwosik.DocLibs.DocumentConversions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="Svg.Skia" />
+  </ItemGroup>
+
+</Project>

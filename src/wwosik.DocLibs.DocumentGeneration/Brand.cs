@@ -96,6 +96,9 @@ public sealed record BrandColors
     /// <summary>Status labels in slide tables, one colour per category. Default: green, blue, amber, red, grey.</summary>
     public BrandLabelColors? Labels { get; init; }
 
+    /// <summary>Charts drawn by the chart renderers, such as the financial charts. Default: every colour derived from the others.</summary>
+    public BrandChartColors? Chart { get; init; }
+
     /// <summary>The colours of <see cref="Brand.Neutral"/>.</summary>
     public static BrandColors Neutral { get; } = new()
     {
@@ -115,7 +118,7 @@ public sealed record BrandColors
         && this.Primary == other.Primary && this.Link == other.Link && this.Footer == other.Footer
         && this.TableHeader == other.TableHeader && this.TableBand == other.TableBand && this.TableLine == other.TableLine
         && SameList(this.Gradient, other.Gradient) && SameList(this.Theme, other.Theme) && Equals(this.Diagram, other.Diagram)
-        && this.Highlight == other.Highlight && Equals(this.Labels, other.Labels);
+        && this.Highlight == other.Highlight && Equals(this.Labels, other.Labels) && Equals(this.Chart, other.Chart);
 
     /// <inheritdoc/>
     public override int GetHashCode() => HashCode.Combine(this.Primary, this.Link, this.TableHeader, this.Gradient?.Count, this.Theme?.Count);
@@ -158,6 +161,77 @@ public sealed record BrandDiagramColors
 
     /// <inheritdoc/>
     public override int GetHashCode() => HashCode.Combine(this.Text, this.Line, this.Accent, this.Surface, this.Border, this.Palette?.Count);
+}
+
+/// <summary>
+/// The colours of charts, as RGB hex. Each one is optional and derived from the brand's other colours; on dark slides
+/// the derived colours are those of a dark background. A series is given as one colour, and its fills are mixed from
+/// it: a fill, a pale fill (year to date, projections) and a strong fill (actuals), with the colour itself as outline.
+/// </summary>
+public sealed record BrandChartColors
+{
+    /// <summary>The colours of up to three series, in order. Default: the first three of <see cref="BrandDiagramColors.Palette"/>.</summary>
+    public IReadOnlyList<string>? Series { get; init; }
+
+    /// <summary>The colours of categories, such as the lines of a two-year chart, in order. Default: the diagram palette.</summary>
+    public IReadOnlyList<string>? Categories { get; init; }
+
+    /// <summary>Reference (target) lines and outlines. Default: grey <c>6B7280</c>.</summary>
+    public string? Reference { get; init; }
+
+    /// <summary>The fill of reference shapes, such as a reference increment stacked on a bar. Default: grey <c>E5E7EB</c>.</summary>
+    public string? ReferenceFill { get; init; }
+
+    /// <summary>The value axis and the zero line. Default: grey <c>9CA3AF</c>.</summary>
+    public string? Axis { get; init; }
+
+    /// <summary>Gridlines and the rule where the actuals end. Default: grey <c>E5E7EB</c>.</summary>
+    public string? Gridline { get; init; }
+
+    /// <summary>The tint behind every other row band. Default: grey <c>F9FAFB</c>.</summary>
+    public string? Band { get; init; }
+
+    /// <summary>The fill of an emphasised row. Default: <see cref="BrandLabelColors.Success"/>.</summary>
+    public string? Emphasis { get; init; }
+
+    /// <summary>Figures ahead of what they are measured against. Default: <see cref="BrandLabelColors.Success"/>.</summary>
+    public string? Ahead { get; init; }
+
+    /// <summary>Figures level with what they are measured against. Default: <see cref="BrandColors.Footer"/>.</summary>
+    public string? Level { get; init; }
+
+    /// <summary>Figures behind what they are measured against. Default: <see cref="BrandLabelColors.Danger"/>.</summary>
+    public string? Behind { get; init; }
+
+    /// <summary>The chart's background. Default: white; none on dark slides.</summary>
+    public string? Surface { get; init; }
+
+    /// <summary>The header band of a summary table. Default: <see cref="BrandColors.TableHeader"/>.</summary>
+    public string? TableHeader { get; init; }
+
+    /// <summary>The header of a summary table's total column. Default: a darker <see cref="TableHeader"/>.</summary>
+    public string? TotalHeader { get; init; }
+
+    /// <summary>The fill behind a summary table's total column. Default: <see cref="BrandColors.TableBand"/>.</summary>
+    public string? TotalFill { get; init; }
+
+    /// <summary>The background of SVG tooltips. Default: near-black <c>111827</c>.</summary>
+    public string? TooltipFill { get; init; }
+
+    /// <summary>The text of SVG tooltips. Default: white.</summary>
+    public string? TooltipText { get; init; }
+
+    /// <inheritdoc/>
+    public bool Equals(BrandChartColors? other) =>
+        other is not null && BrandColors.SameList(this.Series, other.Series) && BrandColors.SameList(this.Categories, other.Categories)
+        && this.Reference == other.Reference && this.ReferenceFill == other.ReferenceFill && this.Axis == other.Axis
+        && this.Gridline == other.Gridline && this.Band == other.Band && this.Emphasis == other.Emphasis && this.Ahead == other.Ahead
+        && this.Level == other.Level && this.Behind == other.Behind && this.Surface == other.Surface && this.TableHeader == other.TableHeader
+        && this.TotalHeader == other.TotalHeader && this.TotalFill == other.TotalFill && this.TooltipFill == other.TooltipFill
+        && this.TooltipText == other.TooltipText;
+
+    /// <inheritdoc/>
+    public override int GetHashCode() => HashCode.Combine(this.Series?.Count, this.Reference, this.Axis, this.Surface);
 }
 
 /// <summary>
