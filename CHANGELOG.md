@@ -7,7 +7,7 @@ plus a counter for a further release within the same hour. The version says noth
 compatibility, so this file does. Read the sections between your version and the new one before
 updating, breaking changes first.
 
-## Unreleased
+## 2610.28.22
 
 ### Breaking changes
 
