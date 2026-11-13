@@ -17,7 +17,10 @@ internal sealed record ImageItem(object Key, ReadOnlyMemory<byte> Content, Image
 /// <summary>
 /// An outline in page coordinates, filled and stroked; <see cref="Dash"/> alternates dash and gap lengths in points.
 /// </summary>
-internal sealed record ShapeItem(IReadOnlyList<PathSegment> Path, string? Fill, string? Stroke, double Width, IReadOnlyList<double>? Dash, bool RoundJoins) : PageItem;
+internal sealed record ShapeItem(IReadOnlyList<PathSegment> Path, string? Fill, string? Stroke, double Width, IReadOnlyList<double>? Dash, bool RoundJoins) : PageItem
+{
+    public DrawingFillRule FillRule { get; init; }
+}
 
 /// <summary>A clickable area: an absolute URL, or <c>#anchor</c> for a heading in the document.</summary>
 internal sealed record LinkItem(double X, double Y, double Width, double Height, string Target) : PageItem;

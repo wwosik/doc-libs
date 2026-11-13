@@ -20,8 +20,10 @@ internal static class DrawingWriter
     /// <paramref name="font"/> is the family of the text (the brand's table family), <see langword="null"/> for the
     /// theme's body font; <paramref name="monoFont"/> the family of mono text.
     /// </remarks>
+    /// <exception cref="ArgumentException">The drawing is invalid, see <see cref="Drawing.Validate"/>.</exception>
     public static P.GroupShape Group(Drawing drawing, long x, long y, double emuPerPixel, Func<uint> nextId, string? font, string monoFont)
     {
+        drawing.Validate();
         long X(double px) => x + (long)Math.Round(px * emuPerPixel);
         long Y(double px) => y + (long)Math.Round(px * emuPerPixel);
         var width = Math.Max(1, (long)(drawing.Width * emuPerPixel));
@@ -189,7 +191,7 @@ internal static class DrawingWriter
         });
         foreach (var span in text.Spans)
         {
-            var properties = new A.RunProperties(new A.SolidFill(Rgb(span.Color ?? text.Color))) { Language = "en-US", FontSize = (int)Math.Max(100, Math.Round(points * 100)) };
+            var properties = new A.RunProperties(new A.SolidFill(Rgb(span.Color ?? text.Color))) { FontSize = (int)Math.Max(100, Math.Round(points * 100)) };
             if (span.Bold)
             {
                 properties.Bold = true;

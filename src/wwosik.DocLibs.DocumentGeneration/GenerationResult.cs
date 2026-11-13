@@ -76,6 +76,12 @@ public static class NoteCodes
     /// <summary>A character the fonts lack was replaced through <c>PdfOptions.ReplaceUnsupported</c>.</summary>
     public const string CharacterReplaced = "character-replaced";
 
+    /// <summary>A footnote reference (<c>[^1]</c>) has no definition, so it stays text.</summary>
+    public const string FootnoteMissing = "footnote-missing";
+
+    /// <summary>The document language has no texts of its own; the generated texts are in English.</summary>
+    public const string LanguageUnknown = "language-unknown";
+
     /// <summary>Every code, with the formats it occurs in and what a writer changes about it, for the authoring guides.</summary>
     internal static readonly IReadOnlyList<(string Code, DocumentFormat[] Formats, string Advice)> All =
     [
@@ -86,6 +92,8 @@ public static class NoteCodes
         (CodeNotDrawn, [DocumentFormat.Pptx, DocumentFormat.Pdf], "a diagram could not be drawn, for example a diagram type that is not supported, and stays code. Use a supported type."),
         (HtmlAsText, [DocumentFormat.Pptx, DocumentFormat.Pdf], "HTML is not interpreted: it is shown as text. Write Markdown instead."),
         (CharacterReplaced, [DocumentFormat.Pdf], "a character the fonts lack was replaced. Write it as one of the replacements under *Characters*."),
+        (FootnoteMissing, [DocumentFormat.Pptx, DocumentFormat.Pdf], "a footnote reference such as `[^1]` has no definition `[^1]: text`, so it is shown as written. Add the definition, or remove the reference."),
+        (LanguageUnknown, [DocumentFormat.Pptx, DocumentFormat.Pdf], "the language in `lang` has no texts of its own, so alert titles and similar texts are in English. Use `en` or `de`."),
     ];
 }
 

@@ -34,6 +34,13 @@ a title that states the point, then a few short lines.
 - `==text==` marks text like a highlighter pen.
 - `[words]{.success}` sets a few words bold in a status colour: `.success`, `.info`, `.warning`,
   `.danger` or `.neutral` — for a verdict inside a sentence, such as `[on schedule]{.success}`.
+- **Footnotes:** `[^1]` in the text and `[^1]: The source.` on a line of its own anywhere below.
+  The reference becomes a small raised number, counted from 1 on each slide, and the note is set in
+  small text at the foot of the slide that references it. Use them for sources, not for content. A
+  reference without its definition stays as written.
+- **Task lists:** `- [ ] open` and `- [x] done` get an empty or ticked box instead of a bullet.
+- **Definition lists:** a term on a line of its own, then `:   ` and its description on the next
+  line. They are shown like `::: rows`: the term in bold on the left, its description beside it.
 
 ## Layouts
 

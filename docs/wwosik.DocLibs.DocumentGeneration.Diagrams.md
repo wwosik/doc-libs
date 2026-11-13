@@ -65,6 +65,8 @@ The drawn types are the ones covered by golden tests. More types will be added a
      and turned along their edge.
    - Text is split into lines (`tspan` with `x`/`dy`) of bold and regular spans.
    - Opacity is mixed with the white background, and a gradient stands in as its first colour.
+   - `fill-rule="evenodd"`, as an attribute, in `style` or inherited, becomes the shape's
+     `FillRule`.
 3. Each line of text gets the room of the node or edge label it sits in. The generator measures it
    in the real font and shrinks a line that does not fit, down to 70 % of its size. Below that
    the line overflows; it is never cut. Mermaider sizes nodes with its own text metrics, which

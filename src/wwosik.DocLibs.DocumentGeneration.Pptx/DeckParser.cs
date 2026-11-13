@@ -3,8 +3,11 @@ using System.Text.RegularExpressions;
 using Markdig;
 using Markdig.Extensions.Alerts;
 using Markdig.Extensions.CustomContainers;
+using Markdig.Extensions.DefinitionLists;
 using Markdig.Extensions.EmphasisExtras;
+using Markdig.Extensions.Footnotes;
 using Markdig.Extensions.Tables;
+using Markdig.Extensions.TaskLists;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
 using wwosik.DocLibs.DocumentConversions;
@@ -22,6 +25,9 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
     private static readonly MarkdownPipeline Pipeline = BuildPipeline();
 
     private readonly List<Slide> slides = [];
+
+    // The footnotes referenced in the current section, numbered from 1 in the order of their first reference.
+    private readonly Dictionary<Footnote, int> footnotes = [];
     private bool hasCover;
 
     /// <remarks>
@@ -35,8 +41,15 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         var parser = new DeckParser(document, options, brand ?? Brand.Neutral, lineOffset, notes ?? new GenerationNotes());
         HeadingBlock? heading = null;
         var blocks = new List<Block>();
-        foreach (var block in Markdown.Parse(document.Markdown, Pipeline))
+        var markdown = Markdown.Parse(document.Markdown, Pipeline);
+        MarkdownSyntax.ReportMissingFootnotes(markdown, parser.LineOf, parser.Notes);
+        foreach (var block in markdown)
         {
+            if (block is FootnoteGroup)
+            {
+                continue;
+            }
+
             if (block is HeadingBlock { Level: <= 2 } next)
             {
                 parser.Section(heading, blocks);
@@ -60,7 +73,8 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             .UsePipeTables()
             .UseEmphasisExtras(EmphasisExtraOptions.Strikethrough | EmphasisExtraOptions.Marked)
             .UseAutoLinks()
-            .UseAlertBlocks();
+            .UseAlertBlocks()
+            .UseDocumentSyntax();
         builder.BlockParsers.AddIfNotAlready<CustomContainerParser>();
         return builder.Build();
     }
@@ -72,13 +86,46 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             return;
         }
 
-        // Every slide of the section carries its heading's line, for the notes about it.
+        // Every slide of the section carries its heading's line, for the notes about it, and the footnotes it references.
         var first = this.slides.Count;
+        this.footnotes.Clear();
         this.Slides(heading, blocks);
+        var footnotes = this.footnotes.OrderBy(f => f.Value).Select(f => new SlideFootnote(f.Value, this.FootnoteText(f.Key))).ToList();
         for (var i = first; i < this.slides.Count; i++)
         {
-            this.slides[i] = this.slides[i] with { Line = this.LineOf(heading) };
+            var references = this.slides[i].References();
+            this.slides[i] = this.slides[i] with { Line = this.LineOf(heading), Footnotes = [.. footnotes.Where(f => references.Contains(f.Number))] };
         }
+    }
+
+    private GenerationNotes Notes => notes;
+
+    private int FootnoteNumber(Footnote footnote)
+    {
+        if (!this.footnotes.TryGetValue(footnote, out var number))
+        {
+            number = this.footnotes.Count + 1;
+            this.footnotes[footnote] = number;
+        }
+
+        return number;
+    }
+
+    // A footnote's paragraphs, one after the other; its other blocks as their text.
+    private List<TextRun> FootnoteText(Footnote footnote)
+    {
+        var runs = new List<TextRun>();
+        foreach (var leaf in footnote.Descendants<LeafBlock>().Where(l => l.Inline is not null))
+        {
+            if (runs.Count > 0)
+            {
+                runs.Add(new TextRun(" ", RunStyle.None));
+            }
+
+            runs.AddRange(this.Runs(leaf.Inline, imagesAsText: true));
+        }
+
+        return runs;
     }
 
     // A block's line in the original Markdown, from 1.
@@ -150,9 +197,11 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
     }
 
     // Anything only a flow slide can show: containers and alerts anywhere, a tag list as a block of its own.
+    // A definition list is shown as rows, which only a flow slide has.
     private static bool UsesLayouts(Block block) =>
-        block is CustomContainer or AlertBlock || (block is ParagraphBlock paragraph && Tags(paragraph) is not null)
-        || (block is ContainerBlock container && (container.Descendants<CustomContainer>().Any() || container.Descendants<AlertBlock>().Any()));
+        block is CustomContainer or AlertBlock or DefinitionList || (block is ParagraphBlock paragraph && Tags(paragraph) is not null)
+        || (block is ContainerBlock container && (container.Descendants<CustomContainer>().Any() || container.Descendants<AlertBlock>().Any()
+            || container.Descendants<DefinitionList>().Any()));
 
     private CodeBlockGraphic? Render(FencedCodeBlock fenced) =>
         options.CodeBlockRenderers.Count == 0 ? null : CodeBlockRenderers.Render(
@@ -170,6 +219,9 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         {
             case CustomContainer container when target is FlowCollector flow:
                 this.Container(container, flow);
+                break;
+            case DefinitionList definitions when target is FlowCollector flow:
+                flow.Add(new RowsBlock(this.Definitions(definitions)));
                 break;
             case AlertBlock alert when target is FlowCollector flow:
                 flow.Add(new CalloutBlock(LayoutSyntax.IsImportant(alert.Kind.ToString(), Format.Pptx), this.Flow(alert)));
@@ -249,12 +301,14 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         }
     }
 
+    // A task list item (`- [ ]`, `- [x]`) has a box for its bullet, numbered or not.
     private void List(ListBlock list, ITarget target, int level, RunStyle style)
     {
-        var kind = list.IsOrdered ? ParagraphKind.Numbered : ParagraphKind.Bullet;
         var start = list.IsOrdered && int.TryParse(list.OrderedStart, NumberStyles.None, CultureInfo.InvariantCulture, out var n) ? n : 1;
         foreach (var item in list.OfType<ListItemBlock>())
         {
+            var kind = item.FirstOrDefault() is ParagraphBlock { Inline.FirstChild: TaskList task } ? task.Checked ? ParagraphKind.TaskDone : ParagraphKind.Task
+                : list.IsOrdered ? ParagraphKind.Numbered : ParagraphKind.Bullet;
             var marked = false;
             foreach (var child in item)
             {
@@ -456,6 +510,43 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
 
         Add();
         return cards.Count > 0 ? cards : throw Error("A '::: cards' holds no cards.");
+    }
+
+    // Each item a row: its terms on the left, its description beside it; an item without a term (a second `:`)
+    // continues the description of the one before.
+    private List<Row> Definitions(DefinitionList list)
+    {
+        var rows = new List<Row>();
+        foreach (var item in list.OfType<DefinitionItem>())
+        {
+            var term = new List<TextRun>();
+            foreach (var definition in item.OfType<DefinitionTerm>())
+            {
+                if (term.Count > 0)
+                {
+                    term.Add(TextRun.Break);
+                }
+
+                term.AddRange(this.Runs(definition.Inline, imagesAsText: true));
+            }
+
+            var description = new List<TextParagraph>();
+            foreach (var block in this.Flow(item.Where(b => b is not DefinitionTerm)))
+            {
+                description.AddRange(block is TextBlock text ? text.Paragraphs : throw Error("The descriptions of a definition list on a slide hold text only."));
+            }
+
+            if (term.Count == 0 && rows.Count > 0)
+            {
+                rows[^1] = rows[^1] with { Description = [.. rows[^1].Description, .. description] };
+            }
+            else
+            {
+                rows.Add(new Row(term, description));
+            }
+        }
+
+        return rows;
     }
 
     private List<Row> Rows(CustomContainer container)
@@ -739,6 +830,12 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
                         parser.HtmlAsText(html, html.Tag);
                         this.Text(html.Tag, style, link);
                         break;
+                    case FootnoteLink { IsBackLink: false } footnote:
+                        this.Text(parser.FootnoteNumber(footnote.Footnote).ToString(CultureInfo.InvariantCulture), style | RunStyle.Superscript, link);
+                        break;
+                    case FootnoteLink:
+                    case TaskList:
+                        break;
                     case ContainerInline nested:
                         this.Add(nested, style, link);
                         break;
@@ -753,7 +850,9 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
                 return;
             }
 
-            if (this.current.Count > 0 && this.current[^1] is { IsBreak: false } last && last.Style == style && last.Link == link)
+            // Footnote references stay apart, so `[^1][^2]` is two of them.
+            if (this.current.Count > 0 && this.current[^1] is { IsBreak: false } last && last.Style == style && last.Link == link
+                && !style.HasFlag(RunStyle.Superscript))
             {
                 this.current[^1] = last with { Text = last.Text + text };
             }

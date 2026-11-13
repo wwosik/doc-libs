@@ -104,6 +104,14 @@ public class SvgDrawingTests
         Assert.Contains(named, error.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("""<path d="M0 0 H10 V10 H0 Z M2 2 H8 V8 H2 Z" fill="#1F4E79" fill-rule="evenodd"/>""", DrawingFillRule.EvenOdd)]
+    [InlineData("""<path d="M0 0 H10 V10 H0 Z" fill="#1F4E79" style="fill-rule: evenodd"/>""", DrawingFillRule.EvenOdd)]
+    [InlineData("""<g fill-rule="evenodd"><path d="M0 0 H10 V10 H0 Z" fill="#1F4E79"/></g>""", DrawingFillRule.EvenOdd)]
+    [InlineData("""<path d="M0 0 H10 V10 H0 Z" fill="#1F4E79"/>""", DrawingFillRule.NonZero)]
+    public void FillRule_IsTakenFromTheSvg_AndInherited(string content, DrawingFillRule expected) =>
+        Assert.Equal(expected, Assert.IsType<DrawingShape>(Assert.Single(Convert(content).Items)).FillRule);
+
     [Fact]
     public void Doctypes_AreRefused() =>
         Assert.Throws<InvalidDataException>(() => SvgDrawing.Convert("""<!DOCTYPE svg [<!ENTITY x "y">]><svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>"""));

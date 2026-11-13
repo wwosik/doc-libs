@@ -49,8 +49,9 @@ internal static partial class AuthoringGuides
 
     /// <summary>The front matter section: the syntax, then one table row per key.</summary>
     /// <param name="templates">The names <c>template</c> takes, as <see cref="BrandRegistry.Expected"/> lists them.</param>
-    /// <param name="keys">The keys besides <c>title</c>, <c>author</c> and <c>template</c>, with their values and meaning.</param>
-    public static string FrontMatter(string templates, IEnumerable<(string Key, string Meaning)> keys)
+    /// <param name="language">The options' document language, the default of <c>lang</c>.</param>
+    /// <param name="keys">The keys besides <c>title</c>, <c>author</c>, <c>lang</c> and <c>template</c>, with their values and meaning.</param>
+    public static string FrontMatter(string templates, string language, IEnumerable<(string Key, string Meaning)> keys)
     {
         var text = new StringBuilder("""
             ## Front matter
@@ -71,6 +72,8 @@ internal static partial class AuthoringGuides
             | `author` | The author in the file's properties. |
 
             """.ReplaceLineEndings("\n"));
+        text.Append(CultureInvariant(
+            $"| `lang` | The document language, such as `en`, `de` or `de-CH`: of the texts the generator writes itself, and of spell checking. Default `{language}`. |\n"));
         text.Append(CultureInvariant($"| `template` | The design: {templates.Replace("'", "`", StringComparison.Ordinal)}. |\n"));
         foreach (var (key, meaning) in keys)
         {

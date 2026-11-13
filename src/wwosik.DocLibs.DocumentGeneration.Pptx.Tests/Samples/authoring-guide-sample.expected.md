@@ -34,6 +34,13 @@ a title that states the point, then a few short lines.
 - `==text==` marks text like a highlighter pen.
 - `[words]{.success}` sets a few words bold in a status colour: `.success`, `.info`, `.warning`,
   `.danger` or `.neutral` — for a verdict inside a sentence, such as `[on schedule]{.success}`.
+- **Footnotes:** `[^1]` in the text and `[^1]: The source.` on a line of its own anywhere below.
+  The reference becomes a small raised number, counted from 1 on each slide, and the note is set in
+  small text at the foot of the slide that references it. Use them for sources, not for content. A
+  reference without its definition stays as written.
+- **Task lists:** `- [ ] open` and `- [x] done` get an empty or ticked box instead of a bullet.
+- **Definition lists:** a term on a line of its own, then `:   ` and its description on the next
+  line. They are shown like `::: rows`: the term in bold on the left, its description beside it.
 
 ## Layouts
 
@@ -128,6 +135,7 @@ author: Planning team
 | --- | ------ |
 | `title` | The document title in the file's properties. Default: the first `#` heading. |
 | `author` | The author in the file's properties. |
+| `lang` | The document language, such as `en`, `de` or `de-CH`: of the texts the generator writes itself, and of spell checking. Default `en`. |
 | `template` | The design: `neutral` or `sample`. |
 | `showDate` | `true` or `false`: today's date in the footer. Default `true`. |
 | `showTagline` | `true` or `false`: the design's tagline on the cover, if it has one. Default `true`. |
@@ -191,6 +199,8 @@ The document is still written, but whoever passes it to you may also pass on not
 - `image-enlarged`: the image is small and was enlarged; it may look blurred. Use a larger image, or `"scale=1"` in its title to keep it at its size.
 - `code-not-drawn`: a diagram could not be drawn, for example a diagram type that is not supported, and stays code. Use a supported type.
 - `html-as-text`: HTML is not interpreted: it is shown as text. Write Markdown instead.
+- `footnote-missing`: a footnote reference such as `[^1]` has no definition `[^1]: text`, so it is shown as written. Add the definition, or remove the reference.
+- `language-unknown`: the language in `lang` has no texts of its own, so alert titles and similar texts are in English. Use `en` or `de`.
 
 ## Example
 

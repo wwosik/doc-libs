@@ -26,7 +26,7 @@ public static class PptxGenerator
     /// </summary>
     /// <exception cref="DocumentConversionException">
     /// An image is not among the document's resources or not a PNG, JPEG or GIF, the front matter is invalid or names
-    /// an unknown brand, a named layout does not exist, or the template is damaged.
+    /// an unknown brand, a named layout does not exist, the language is not a language tag, or the template is damaged.
     /// </exception>
     /// <exception cref="ArgumentException">The brand is invalid, or two of <see cref="PptxOptions.Brands"/> share a name.</exception>
     public static GenerationResult Generate(MarkdownDocument document, Stream output, PptxOptions? options = null)
@@ -45,6 +45,7 @@ public static class PptxGenerator
         using var buffer = new MemoryStream();
         template.Write(buffer);
         var notes = new GenerationNotes();
+        var language = DocumentLanguage.Resolve(frontMatter.Language, options.Language, options.Texts, notes, Format.Pptx);
         int count;
 
         buffer.Position = 0;
@@ -83,7 +84,8 @@ public static class PptxGenerator
                 template.FooterText,
                 template.IsBuiltIn,
                 (template.ListBulletsOverride ?? options.ListBullets) == ListBullets.Always,
-                notes).Write(slides);
+                notes,
+                language.Tag).Write(slides);
             if (template.EmbedsFonts && resolved?.Fonts is { } fonts)
             {
                 FontEmbedding.Embed(package.PresentationPart!, fonts, codeFont);
@@ -92,7 +94,8 @@ public static class PptxGenerator
             WriteCoreProperties(
                 package,
                 frontMatter.Title ?? Title(document, slides),
-                frontMatter.Author ?? document.Metadata.GetValueOrDefault(MetadataKeys.Author));
+                frontMatter.Author ?? document.Metadata.GetValueOrDefault(MetadataKeys.Author),
+                language.Tag);
         }
         catch (Exception ex) when (ex is OpenXmlPackageException or InvalidDataException or XmlException or FormatException)
         {
@@ -124,7 +127,7 @@ public static class PptxGenerator
             new Dictionary<string, string>
             {
                 ["diagrams"] = AuthoringGuides.Renderers(options.CodeBlockRenderers),
-                ["frontMatter"] = AuthoringGuides.FrontMatter(registry.Expected, [.. template.Keys.Select(k => (k, KeyMeanings[k])), Labels]),
+                ["frontMatter"] = AuthoringGuides.FrontMatter(registry.Expected, options.Language, [.. template.Keys.Select(k => (k, KeyMeanings[k])), Labels]),
                 ["characters"] = Characters(brand?.Fonts, codeFont),
                 ["templateLayouts"] = TemplateLayouts(brand?.Pptx),
                 ["notes"] = AuthoringGuides.Notes(Format.Pptx),
@@ -200,7 +203,7 @@ public static class PptxGenerator
     }
 
     // Written by hand rather than through PackageProperties so that the part keeps the name docProps/core.xml.
-    private static void WriteCoreProperties(PresentationDocument package, string? title, string? author)
+    private static void WriteCoreProperties(PresentationDocument package, string? title, string? author, string language)
     {
         var part = package.CoreFilePropertiesPart ?? package.AddCoreFilePropertiesPart();
         XDocument xml;
@@ -216,6 +219,7 @@ public static class PptxGenerator
 
         Replace(xml.Root!, DublinCore + "title", title);
         Replace(xml.Root!, DublinCore + "creator", author);
+        Replace(xml.Root!, DublinCore + "language", language);
         using var output = part.GetStream(FileMode.Create, FileAccess.Write);
         xml.Save(output);
     }

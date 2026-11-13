@@ -21,7 +21,7 @@ public static class PdfGenerator
     /// <exception cref="DocumentConversionException">
     /// An image is not among the document's resources or not a PNG or JPEG, the front matter is invalid or names an
     /// unknown brand, or a character is not in the font and <see cref="PdfOptions.ReplaceUnsupported"/> is not set or
-    /// returns one that is not either.
+    /// returns one that is not either, or the language is not a language tag.
     /// </exception>
     /// <exception cref="ArgumentException">The brand is invalid, or two of <see cref="PdfOptions.Brands"/> share a name.</exception>
     public static GenerationResult Generate(MarkdownDocument document, Stream output, PdfOptions? options = null)
@@ -36,7 +36,8 @@ public static class PdfGenerator
         var brand = ResolvedBrand.Resolve(options.Template.BrandValue);
         var fonts = FontSet.For(brand);
         var notes = new GenerationNotes();
-        var model = MarkdownParser.Parse(document with { Markdown = frontMatter.Body }, options, options.Template.BrandValue, frontMatter.BodyLine, notes);
+        var language = DocumentLanguage.Resolve(frontMatter.Language, options.Language, options.Texts, notes, DocumentFormat.Pdf);
+        var model = MarkdownParser.Parse(document with { Markdown = frontMatter.Body }, options, options.Template.BrandValue, frontMatter.BodyLine, notes, language.Texts);
         var title = frontMatter.Title ?? document.Metadata.GetValueOrDefault(MetadataKeys.Title)
             ?? (model.Cover is { } cover ? string.Concat(cover.Title.Select(r => r.IsBreak ? " " : r.Text)) : null);
         var author = frontMatter.Author ?? document.Metadata.GetValueOrDefault(MetadataKeys.Author);
@@ -46,7 +47,7 @@ public static class PdfGenerator
 
         var design = new Design(brand, options.Template.ShowsTagline, date, title);
         var layout = new LayoutEngine(fonts, PageGeometry.For(options.PageSize, options.Orientation), design, options.ReplaceUnsupported, notes).Run(model);
-        output.Write(PdfRenderer.Render(layout, fonts, layout.Title, author));
+        output.Write(PdfRenderer.Render(layout, fonts, layout.Title, author, language.Tag));
         return notes.Result(layout.Pages.Count);
     }
 
@@ -79,6 +80,7 @@ public static class PdfGenerator
                 ["diagrams"] = AuthoringGuides.Renderers(options.CodeBlockRenderers),
                 ["frontMatter"] = AuthoringGuides.FrontMatter(
                     registry.Expected,
+                    options.Language,
                     [.. options.Template.Keys.Concat([PageSizeKey, OrientationKey]).Select(k => (k, meanings[k])), labels]),
                 ["characters"] = Characters(FontSet.For(ResolvedBrand.Resolve(options.Template.BrandValue)), options.ReplaceUnsupported is not null),
                 ["notes"] = options.ReplaceUnsupported is null

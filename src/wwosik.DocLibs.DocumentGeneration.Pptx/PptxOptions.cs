@@ -60,6 +60,20 @@ public sealed record PptxOptions
     /// </summary>
     public ListBullets ListBullets { get; init; }
 
+    /// <summary>
+    /// The document language, a BCP 47 tag such as <c>en</c>, <c>de</c> or <c>de-CH</c>, unless the front matter sets
+    /// <c>lang</c>. It picks the texts the generator writes itself (see <see cref="Texts"/>) and tags the text, for
+    /// spell checking in PowerPoint. Default <c>en</c>.
+    /// </summary>
+    public string Language { get; init; } = "en";
+
+    /// <summary>
+    /// Texts for languages besides English and German, or in place of them, by language tag (<c>pl</c>, <c>de-CH</c>):
+    /// a tag is matched in full, then by its language alone. Start each from <see cref="GeneratedTexts.English"/> with
+    /// <c>with { … }</c>. Default: none.
+    /// </summary>
+    public IReadOnlyDictionary<string, GeneratedTexts> Texts { get; init; } = new Dictionary<string, GeneratedTexts>();
+
     /// <summary>The clock for the date of generation in the footer. Default <see cref="TimeProvider.System"/>.</summary>
     public TimeProvider TimeProvider { get; init; } = TimeProvider.System;
 }

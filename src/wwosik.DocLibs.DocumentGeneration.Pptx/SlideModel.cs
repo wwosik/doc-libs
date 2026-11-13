@@ -16,6 +16,9 @@ internal enum RunStyle
 
     /// <summary>A table cell that is one code span, on a flow slide: a status label, its cell tinted by its category.</summary>
     Label = 32,
+
+    /// <summary>A footnote reference: raised and smaller.</summary>
+    Superscript = 64,
 }
 
 /// <summary>Text in one style; the text <c>"\n"</c> alone is a line break.</summary>
@@ -34,6 +37,12 @@ internal enum ParagraphKind
     Plain,
     Bullet,
     Numbered,
+
+    /// <summary>An item of a task list, <c>- [ ]</c>: an empty box for its bullet.</summary>
+    Task,
+
+    /// <summary>A ticked item of a task list, <c>- [x]</c>.</summary>
+    TaskDone,
 }
 
 internal enum CellAlignment
@@ -75,7 +84,45 @@ internal abstract record Slide(IReadOnlyList<TextRun> Title)
 
     /// <summary>The line of the heading the slide comes from, from 1, front matter included; 0 if unknown.</summary>
     public int Line { get; init; }
+
+    /// <summary>The footnotes the slide references, by number: in small text at the foot of its content area.</summary>
+    public IReadOnlyList<SlideFootnote> Footnotes { get; init; } = [];
+
+    /// <summary>Every run of the slide: its title and all its text, tables, cards and rows included.</summary>
+    public IEnumerable<TextRun> AllRuns() => this.Title.Concat(this switch
+    {
+        TitleSlide title => title.Subtitle.SelectMany(p => p.Runs),
+        ContentSlide content => content.Body.SelectMany(p => p.Runs),
+        VisualSlide visual => visual.Above.Concat(visual.Below).SelectMany(p => p.Runs)
+            .Concat(visual.Table?.Rows.SelectMany(r => r).SelectMany(c => c) ?? []),
+        FlowSlide flow => flow.Blocks.SelectMany(Runs),
+        _ => [],
+    });
+
+    /// <summary>The numbers of the footnotes the slide references.</summary>
+    public IReadOnlySet<int> References() =>
+        this.AllRuns()
+            .Select(r => r.Style.HasFlag(RunStyle.Superscript) && int.TryParse(r.Text, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var n) ? n : 0)
+            .Where(n => n > 0)
+            .ToHashSet();
+
+    private static IEnumerable<TextRun> Runs(FlowBlock block) => block switch
+    {
+        TextBlock text => text.Paragraphs.SelectMany(p => p.Runs),
+        TableBlock table => table.Table.Rows.SelectMany(r => r).SelectMany(c => c),
+        ColumnsBlock columns => columns.Columns.SelectMany(c => c).SelectMany(Runs),
+        CardsBlock cards => cards.Cards.SelectMany(c => c.Title.Concat(c.Figure ?? []).Concat(c.Blocks.SelectMany(Runs))),
+        RowsBlock rows => rows.Rows.SelectMany(r => r.Term.Concat(r.Description.SelectMany(p => p.Runs))),
+        PanelBlock panel => panel.Blocks.SelectMany(Runs),
+        CalloutBlock callout => callout.Blocks.SelectMany(Runs),
+        StatementBlock statement => statement.Text,
+        LabelledTagsBlock tags => tags.Items.SelectMany(i => i.Text),
+        _ => [],
+    };
 }
+
+/// <summary>A footnote on a slide: its number there, and its text.</summary>
+internal sealed record SlideFootnote(int Number, IReadOnlyList<TextRun> Text);
 
 /// <summary>
 /// From a <c>#</c> heading: title plus the text that follows it as subtitle. The first one is the cover, every

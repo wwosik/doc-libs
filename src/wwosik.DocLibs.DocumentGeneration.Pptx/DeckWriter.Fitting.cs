@@ -20,6 +20,8 @@ internal sealed partial class DeckWriter
     /// </summary>
     private List<(Slide Slide, int Step)> Fit(Slide slide)
     {
+        // Measured with room for all the slide's footnotes; each part then keeps those it references.
+        this.footnotes = slide.Footnotes;
         var (parts, maxStep) = slide switch
         {
             ContentSlide content => (this.FitContent(content).ToList(), this.MaxContentStep),
@@ -52,7 +54,13 @@ internal sealed partial class DeckWriter
                 $"The slide '{title}' runs past the content area even at the smallest size: one item does not fit on a slide of its own. Shorten it.");
         }
 
-        return [.. parts.Select(p => (p.Slide, p.Step))];
+        return [.. parts.Select(p => (p.Slide.Footnotes.Count == 0 && slide.Footnotes.Count > 0 ? WithFootnotes(p.Slide, slide.Footnotes) : p.Slide, p.Step))];
+    }
+
+    private static Slide WithFootnotes(Slide part, IReadOnlyList<SlideFootnote> footnotes)
+    {
+        var references = part.References();
+        return part with { Footnotes = [.. footnotes.Where(f => references.Contains(f.Number))] };
     }
 
     private static string Plain(IReadOnlyList<TextRun> runs) => string.Concat(runs.Select(r => r.IsBreak ? " " : r.Text)).Trim();

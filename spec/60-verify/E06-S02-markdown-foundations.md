@@ -1,7 +1,7 @@
 # E06-S02 Markdown foundations
 
-> Status: in progress (doc-2)
-> Epic: [E06 Markdown syntax](../../50-todo/E06-markdown-syntax.md)
+> Status: verify — implemented 2026-11-13 by doc-2
+> Epic: [E06 Markdown syntax](../50-todo/E06-markdown-syntax.md)
 
 ## Summary
 
@@ -175,3 +175,82 @@ write themselves, in English or German, and tags the text for spell checking and
 ## Notes
 
 <!-- Free space for remarks that are not answers to the questions above. -->
+
+## Implementation notes
+
+### Breaking changes
+
+- Footnotes, task lists and definition lists are now read: `[^label]`, a list item starting `[ ]` or
+  `[x]`, and a `:   ` line after a one-line paragraph no longer come out as typed.
+- Every deck run and paragraph end carries `lang` (default `en`, replacing the fixed `en-US` of
+  drawings), and decks have `dc:language` in their core properties. PDFs carry `/Lang` and
+  `dc:language`. Nothing visible changes.
+- Invalid drawings throw `ArgumentException` in `DrawingSvg.Write`, decks and PDFs.
+- `wwosik.DocLibs.DocumentGeneration` now depends on Markdig, as the generators already did.
+
+All four are in `CHANGELOG.md` under *Unreleased*.
+
+### Decisions
+
+- **Shared syntax.** The pipelines get the extensions through `MarkdownSyntax.UseDocumentSyntax()`
+  in DocumentGeneration, together with the `footnote-missing` check. That is why the shared
+  package now references Markdig.
+- **PDF footnotes** follow the last chapter under a `##` heading, so they do not take a page of
+  their own. They are an ordered list numbered by Markdig's order, through the whole document.
+  References are not links.
+- **Deck footnotes** are numbered per `##` section, in the order of first reference.
+  - A split slide keeps the section's numbers, so a later part can show footnote 2 alone.
+  - Fitting measures every part with all of the section slide's footnotes, which can be
+    conservative for a part with fewer.
+  - The content area shrinks by the footnotes' height, to half its height at most.
+  - A footnote's paragraphs are joined by a space.
+  - A reference inside a footnote is not resolved on slides.
+- **Definition lists** make their section a flow slide, as containers do, because rows exist only
+  there. A description with anything but text (a list, code) throws, as in `::: rows`. In PDFs a
+  term is kept on its page with the start of its description.
+- **Task boxes in decks** use Wingdings, declared as a symbol font (`pitchFamily`/`charset` 2),
+  also in placeholders, where only the indents come from the template. In PDFs they are drawn
+  shapes: a box, and a tick for `[x]`.
+- **GeneratedTexts** has non-required `init` properties that default to English, so a host
+  language is `GeneratedTexts.English with { … }` and stays complete when texts are added later.
+  The tag is written as given. A tag that is not BCP 47 shaped is a `DocumentConversionException`.
+- **PDF metadata.** PdfPig leaves no room in the XMP packet for `dc:language`, so the in-place
+  rewrite turned into `PdfRenderer.Splice`.
+  - It replaces bytes in an uncompressed object and moves every later offset in the
+    cross-reference table, and the `startxref` value.
+  - `/Lang` goes into the catalog the same way.
+  - The XMP is still rewritten in place when it fits.
+  - Tests check that every in-use xref entry points at its `n 0 obj`, for a short and a long title.
+- **Beyond the plan:**
+  - The Mermaid SVG reader takes `fill-rule` (attribute, `style`, inherited) into `FillRule`.
+  - Decks also get `dc:language` in their core properties.
+  - Drawing validation also covers hotspots and hover points.
+
+### Verification
+
+- **Tests.** All of them pass: 109, 104, 67, 21, 195, 71, 135 and 1, with 6 Windows-only tests
+  skipped. The build has 0 warnings. New tests are in `MarkdownFoundationTests` of
+  DocumentGeneration, Pptx and Pdf, plus fill-rule cases in `SvgDrawingTests`.
+- **Unchanged output.** The four samples (deck, layouts, report, long) were generated with the
+  previous code and this change, as decks and PDFs, with Mermaid kept as code.
+  - PDF pages are identical letter by letter (value, position, font, size) and in their operators.
+  - The decks are identical once the `lang` attributes and `dc:language` are removed.
+
+### To verify by hand
+
+1. **Even-odd fill in PowerPoint** (an acceptance criterion left open). DrawingML has no fill rule.
+   The docs say PowerPoint decides how crossing subpaths fill. Check what it does with a ring of
+   two rectangles in one path, and adjust the docs, or write holes as separate paths. No Office on
+   this machine.
+2. **Wingdings boxes:**
+   - PowerPoint on Windows and Mac.
+   - LibreOffice, which may substitute the font.
+3. **Footnotes on a brand's own template**, where the content placeholder is close to the footer.
+4. **veraPDF** on a PDF with `/Lang` and a grown XMP stream (not run here).
+
+### Loose ends
+
+- Footnotes at the foot of the page (E03-S02) can replace the end list.
+- More generated texts ("(cont.)", "Contents", "Figure", "Table") belong in `GeneratedTexts` when
+  the stories that write them come; `ContinuationSuffix` could then default from it.
+- Adjacent references (`[^1][^2]`) are separate runs, but in a PDF they read as "12".

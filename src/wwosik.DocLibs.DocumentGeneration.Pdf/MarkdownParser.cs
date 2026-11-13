@@ -5,8 +5,11 @@ using Markdig;
 using Markdig.Extensions.Alerts;
 using Markdig.Extensions.AutoIdentifiers;
 using Markdig.Extensions.CustomContainers;
+using Markdig.Extensions.DefinitionLists;
 using Markdig.Extensions.EmphasisExtras;
+using Markdig.Extensions.Footnotes;
 using Markdig.Extensions.Tables;
+using Markdig.Extensions.TaskLists;
 using Markdig.Renderers.Html;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
@@ -19,21 +22,26 @@ namespace wwosik.DocLibs.DocumentGeneration.Pdf;
 /// Turns Markdown into the block model. A document that starts with a <c>#</c> heading gets a cover from it and
 /// the paragraphs up to the next heading; everything else flows as blocks.
 /// </summary>
-internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptions options, Brand brand, int lineOffset, GenerationNotes notes)
+internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptions options, Brand brand, int lineOffset, GenerationNotes notes, GeneratedTexts texts)
 {
     private static readonly MarkdownPipeline Pipeline = BuildPipeline();
 
     /// <remarks>
     /// <paramref name="brand"/> is the brand code-block renderers draw in; <paramref name="lineOffset"/> the lines of
     /// front matter cut off the Markdown, so renderers get the block's line in the original; <paramref name="notes"/>
-    /// collects what the writer should know, such as HTML shown as text.
+    /// collects what the writer should know, such as HTML shown as text; <paramref name="texts"/> are the texts of the
+    /// document language, for alert titles and the heading of the footnotes.
     /// </remarks>
     public static DocumentModel Parse(
-        MarkdownDocument document, PdfOptions options, Brand? brand = null, int lineOffset = 0, GenerationNotes? notes = null)
+        MarkdownDocument document, PdfOptions options, Brand? brand = null, int lineOffset = 0, GenerationNotes? notes = null, GeneratedTexts? texts = null)
     {
-        var parser = new MarkdownParser(document, options, brand ?? Brand.Neutral, lineOffset, notes ?? new GenerationNotes());
+        notes ??= new GenerationNotes();
+        texts ??= GeneratedTexts.English;
+        var parser = new MarkdownParser(document, options, brand ?? Brand.Neutral, lineOffset, notes, texts);
         var markdown = Markdown.Parse(document.Markdown, Pipeline);
-        var blocks = markdown.ToList();
+        MarkdownSyntax.ReportMissingFootnotes(markdown, parser.LineOf, notes);
+        var footnotes = markdown.OfType<FootnoteGroup>().SelectMany(g => g.OfType<Footnote>()).OrderBy(f => f.Order).ToList();
+        var blocks = markdown.Where(b => b is not FootnoteGroup).ToList();
         Cover? cover = null;
         var start = 0;
         if (blocks.FirstOrDefault() is Markdig.Syntax.HeadingBlock { Level: 1 } first)
@@ -55,6 +63,13 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
             parser.Add(block, result);
         }
 
+        // The footnotes at the end, numbered as their references are, until footnotes at the foot of the page.
+        if (footnotes.Count > 0)
+        {
+            result.Add(new HeadingBlock(2, [new TextRun(texts.Footnotes, RunStyle.None)], null));
+            result.Add(new ListBlock(true, 1, [.. footnotes.Select(f => (IReadOnlyList<Block>)parser.Children(f))]));
+        }
+
         return new DocumentModel(cover, result);
     }
 
@@ -67,7 +82,8 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
             .UseEmphasisExtras(EmphasisExtraOptions.Strikethrough | EmphasisExtraOptions.Marked)
             .UseAutoLinks()
             .UseAutoIdentifiers(AutoIdentifierOptions.GitHub)
-            .UseAlertBlocks();
+            .UseAlertBlocks()
+            .UseDocumentSyntax();
         builder.BlockParsers.AddIfNotAlready<CustomContainerParser>();
         return builder.Build();
     }
@@ -94,19 +110,25 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
                 break;
             case AlertBlock alert:
                 LayoutSyntax.IsImportant(alert.Kind.ToString(), DocumentFormat.Pdf);
-                var kind = alert.Kind.ToString();
                 target.Add(new QuoteBlock([
-                    new ParagraphBlock([new TextRun(kind[..1].ToUpperInvariant() + kind[1..].ToLowerInvariant(), RunStyle.Bold)]),
+                    new ParagraphBlock([new TextRun(texts.Alert(alert.Kind.ToString()), RunStyle.Bold)]),
                     .. this.Children(alert)]));
                 break;
             case Markdig.Syntax.ParagraphBlock paragraph:
                 this.Paragraph(paragraph.Inline, target);
                 break;
             case Markdig.Syntax.ListBlock list:
+                var tasks = list.OfType<ListItemBlock>().Select(Task).ToList();
                 target.Add(new ListBlock(
                     list.IsOrdered,
                     list.IsOrdered && int.TryParse(list.OrderedStart, NumberStyles.None, CultureInfo.InvariantCulture, out var n) ? n : 1,
-                    list.OfType<ListItemBlock>().Select(item => (IReadOnlyList<Block>)this.Children(item)).ToList()));
+                    list.OfType<ListItemBlock>().Select(item => (IReadOnlyList<Block>)this.Children(item)).ToList())
+                {
+                    Tasks = tasks.Any(t => t is not null) ? tasks : null,
+                });
+                break;
+            case DefinitionList definitions:
+                target.Add(this.Definitions(definitions));
                 break;
             case Markdig.Syntax.QuoteBlock quote:
                 target.Add(new QuoteBlock(this.Children(quote)));
@@ -148,6 +170,36 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
 
                 break;
         }
+    }
+
+    // `- [ ]` and `- [x]`: the box at the start of the item's first paragraph.
+    private static bool? Task(ListItemBlock item) =>
+        item.FirstOrDefault() is Markdig.Syntax.ParagraphBlock { Inline.FirstChild: TaskList task } ? task.Checked : null;
+
+    // An item without a term (a second `:` line) adds its description to the item before.
+    private DefinitionListBlock Definitions(DefinitionList list)
+    {
+        var items = new List<Definition>();
+        foreach (var item in list.OfType<DefinitionItem>())
+        {
+            var terms = item.OfType<DefinitionTerm>().Select(t => (IReadOnlyList<TextRun>)this.Runs(t.Inline)).ToList();
+            var description = new List<Block>();
+            foreach (var child in item.Where(c => c is not DefinitionTerm))
+            {
+                this.Add(child, description);
+            }
+
+            if (terms.Count == 0 && items.Count > 0)
+            {
+                items[^1] = items[^1] with { Description = [.. items[^1].Description, .. description] };
+            }
+            else
+            {
+                items.Add(new Definition(terms, description));
+            }
+        }
+
+        return new DefinitionListBlock(items);
     }
 
     private CodeBlockGraphic? Render(FencedCodeBlock fenced) =>
@@ -394,6 +446,12 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
                     case HtmlInline html:
                         parser.HtmlAsText(html, html.Tag);
                         this.Text(html.Tag, style, link);
+                        break;
+                    case FootnoteLink { IsBackLink: false } footnote:
+                        this.Text(footnote.Footnote.Order.ToString(CultureInfo.InvariantCulture), style | RunStyle.Superscript, link);
+                        break;
+                    case FootnoteLink:
+                    case TaskList:
                         break;
                     case ContainerInline nested:
                         this.Add(nested, style, link);

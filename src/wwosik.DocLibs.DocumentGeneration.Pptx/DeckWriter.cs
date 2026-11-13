@@ -30,6 +30,14 @@ internal sealed partial class DeckWriter
     private const int TextSize = 1800;
     private const int CaptionSize = 1400;
 
+    // Footnotes: the smallest table size, at the foot of the content area.
+    private const int FootnoteSize = MinTableSize;
+
+    // Wingdings, which ships with Office: an empty and a ticked box.
+    private const string TaskFont = "Wingdings";
+    private const string EmptyBox = "\uF0A8";
+    private const string TickedBox = "\uF0FE";
+
     // Flow slides: sizes in hundredths of a point, distances in EMU.
     private const int FlowTextSize = 1600;
     private const int FlowSmallSize = 1400;
@@ -80,7 +88,11 @@ internal sealed partial class DeckWriter
     private readonly Dictionary<DocumentResource, ImagePart> vectors = [];
     private readonly IReadOnlyDictionary<string, LabelCategory> labels;
     private readonly GenerationNotes notes;
+    private readonly string language;
     private Slide? current;
+
+    // The footnotes of the slide being fitted or written; the content area leaves room for them at its foot.
+    private IReadOnlyList<SlideFootnote> footnotes = [];
     private uint nextSlideId = 256;
 
     /// <summary>Opens the deck for writing. Layouts named in <paramref name="names"/> win over the lookup by type.</summary>
@@ -103,9 +115,11 @@ internal sealed partial class DeckWriter
         string? footerText = null,
         bool builtIn = false,
         bool listBullets = false,
-        GenerationNotes? notes = null)
+        GenerationNotes? notes = null,
+        string language = "en")
     {
         this.notes = notes ?? new GenerationNotes();
+        this.language = language;
         this.footerText = footerText;
         this.builtIn = builtIn;
         this.listBullets = listBullets;
@@ -156,6 +170,7 @@ internal sealed partial class DeckWriter
         foreach (var (slide, step) in slides.SelectMany(this.Fit))
         {
             this.current = slide;
+            this.footnotes = slide.Footnotes;
             var canvas = slide switch
             {
                 TitleSlide title => this.WriteTitleSlide(title),
@@ -165,12 +180,17 @@ internal sealed partial class DeckWriter
                 _ => throw new InvalidOperationException("Unknown kind of slide."),
             };
 
+            this.Footnotes(canvas, slide);
             number++;
             if (slide is not TitleSlide { IsSection: false } and not TitleSlide { Closing: true })
             {
                 this.Footer(canvas, number, this.PaintsDark(slide) ? SlideColor.White : null);
             }
+
+            this.Tag(canvas);
         }
+
+        this.footnotes = [];
 
         if (this.presentation.SlideIdList is { HasChildren: false } empty)
         {
@@ -230,7 +250,8 @@ internal sealed partial class DeckWriter
         if (FindPlaceholder(layout, IsBody) is { } body)
         {
             var properties = step == 0 ? null : new A.BodyProperties(new A.NormalAutoFit { FontScale = (int)(this.BodySize(step) * 100000L / this.bodySize) });
-            canvas.Add(Placeholder(canvas, body, "Content", slide.Body.Select(p => this.Paragraph(canvas, p, explicitBullets: this.listBullets, null)), bodyProperties: properties));
+            var box = this.footnotes.Count > 0 ? this.ContentArea(layout) : (Rect?)null; // shortened for the footnotes
+            canvas.Add(Placeholder(canvas, body, "Content", slide.Body.Select(p => this.Paragraph(canvas, p, explicitBullets: this.listBullets, null)), box, properties));
         }
         else
         {
@@ -306,6 +327,42 @@ internal sealed partial class DeckWriter
         var area = this.ContentArea(layout);
         this.Stack(canvas, slide.Blocks, area, this.FlowStyleOf(slide, step));
         return canvas;
+    }
+
+    // Below the content area, which leaves room for them: each footnote with its number raised before it.
+    private void Footnotes(Canvas canvas, Slide slide)
+    {
+        if (slide.Footnotes.Count == 0)
+        {
+            return;
+        }
+
+        var area = this.ContentArea(canvas.Part.SlideLayoutPart!);
+        var paragraphs = FootnoteParagraphs(slide.Footnotes);
+        var color = this.PaintsDark(slide) ? SlideColor.White : this.palette.Text;
+        canvas.Add(TextBoxShape(
+            canvas,
+            new Rect(area.X, area.Bottom + (Gap / 2), area.W, EstimateHeight(paragraphs, FootnoteSize, area.W)),
+            paragraphs.Select(p => this.Paragraph(canvas, p, explicitBullets: true, FootnoteSize, color: color))));
+    }
+
+    private static List<TextParagraph> FootnoteParagraphs(IReadOnlyList<SlideFootnote> footnotes) =>
+        [.. footnotes.Select(f => new TextParagraph([new TextRun(f.Number.ToString(CultureInfo.InvariantCulture), RunStyle.Superscript), new TextRun(" ", RunStyle.None), .. f.Text]))];
+
+    // The height the footnotes take at the foot of the content area, the gap above them included.
+    private long FootnoteRoom(long width) =>
+        this.footnotes.Count == 0 ? 0 : EstimateHeight(FootnoteParagraphs(this.footnotes), FootnoteSize, width) + (Gap / 2);
+
+    // Every run and paragraph end in the document's language, for spell checking; drawings and tables included.
+    private void Tag(Canvas canvas)
+    {
+        foreach (var properties in canvas.Part.Slide!.Descendants<A.TextCharacterPropertiesType>())
+        {
+            if (properties is A.RunProperties or A.EndParagraphRunProperties)
+            {
+                properties.Language = this.language;
+            }
+        }
     }
 
     // On a template whose slides are all dark, a dark slide keeps the template's background.
@@ -835,6 +892,16 @@ internal sealed partial class DeckWriter
 
                 properties.Append(new A.BulletFont { Typeface = "+mj-lt" }, numbering);
                 break;
+            case ParagraphKind.Task or ParagraphKind.TaskDone:
+                // Always its own box, also in placeholders, where the template supplies only the indents.
+                if (explicitBullets)
+                {
+                    properties.LeftMargin = (int)((level + 1) * BulletIndent);
+                    properties.Indent = (int)-BulletIndent;
+                }
+
+                properties.Append(new A.BulletFont { Typeface = TaskFont, PitchFamily = 2, CharacterSet = 2 }, new A.CharacterBullet { Char = paragraph.Kind == ParagraphKind.TaskDone ? TickedBox : EmptyBox });
+                break;
         }
 
         if (alignment != CellAlignment.Default)
@@ -880,6 +947,11 @@ internal sealed partial class DeckWriter
         if (run.Style.HasFlag(RunStyle.Strike))
         {
             properties.Strike = A.TextStrikeValues.SingleStrike;
+        }
+
+        if (run.Style.HasFlag(RunStyle.Superscript))
+        {
+            properties.Baseline = 30000;
         }
 
         if (size is { } fontSize)
@@ -1018,6 +1090,7 @@ internal sealed partial class DeckWriter
     // Fitted into the box like a picture: centred, enlarged at most by half, so that its text keeps a sensible size.
     private Rect Drawing(Canvas? canvas, Drawing drawing, Rect box)
     {
+        drawing.Validate();
         var fit = Math.Min(MaxDrawingUpscale, Math.Min(box.W / (drawing.Width * EmuPerPixel), box.H / (drawing.Height * EmuPerPixel)));
         var width = (long)(drawing.Width * EmuPerPixel * fit);
         var placed = new Rect(box.X + ((box.W - width) / 2), box.Y, width, (long)(drawing.Height * EmuPerPixel * fit));
@@ -1137,7 +1210,15 @@ internal sealed partial class DeckWriter
         ?? Bounds(layout.SlideMasterPart?.SlideMaster?.CommonSlideData?.ShapeTree, IsTitle)
         ?? new Rect(this.slideWidth / 20, this.slideHeight / 25, this.slideWidth * 9 / 10, this.slideHeight * 3 / 20);
 
+    // Less the room the current slide's footnotes take at its foot.
     private Rect ContentArea(SlideLayoutPart layout)
+    {
+        var area = this.FullContentArea(layout);
+        var room = this.FootnoteRoom(area.W);
+        return room == 0 ? area : area with { H = Math.Max(area.H - room, area.H / 2) };
+    }
+
+    private Rect FullContentArea(SlideLayoutPart layout)
     {
         if (Bounds(layout.SlideLayout?.CommonSlideData?.ShapeTree, IsBody) is { } own)
         {

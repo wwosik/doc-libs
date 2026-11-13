@@ -8,8 +8,102 @@
 /// <param name="Width">The width in pixels.</param>
 /// <param name="Height">The height in pixels.</param>
 /// <param name="Items">Shapes and texts, drawn in order: later items cover earlier ones.</param>
-public sealed record Drawing(double Width, double Height, IReadOnlyList<DrawingItem> Items)
+public sealed partial record Drawing(double Width, double Height, IReadOnlyList<DrawingItem> Items)
 {
+    /// <summary>
+    /// Checks what every writer relies on: finite numbers, sizes, widths and radii that are not negative, and colours
+    /// of six hex digits.
+    /// </summary>
+    /// <exception cref="ArgumentException">Something is out of range; the message names the item by its index.</exception>
+    internal void Validate()
+    {
+        Size(this.Width, "width", null);
+        Size(this.Height, "height", null);
+        for (var i = 0; i < this.Items.Count; i++)
+        {
+            var at = $"item {i}";
+            switch (this.Items[i])
+            {
+                case DrawingShape shape:
+                    at += " (a shape)";
+                    Colour(shape.Fill, "fill", at);
+                    Colour(shape.Stroke, "stroke", at);
+                    Size(shape.StrokeWidth, "stroke width", at);
+                    Size(shape.CornerRadius, "corner radius", at);
+                    foreach (var dash in shape.Dash ?? [])
+                    {
+                        Size(dash, "dash", at);
+                    }
+
+                    foreach (var (x, y) in shape.Path.Segments.SelectMany(s => s.Points))
+                    {
+                        Coordinate(x, at);
+                        Coordinate(y, at);
+                    }
+
+                    break;
+                case DrawingText text:
+                    at += $" (the text '{text.Text}')";
+                    Coordinate(text.X, at);
+                    Coordinate(text.Baseline, at);
+                    Size(text.Size, "size", at);
+                    Colour(text.Color, "colour", at);
+                    foreach (var span in text.Spans)
+                    {
+                        Colour(span.Color, "colour", at);
+                    }
+
+                    if (text.MaxWidth is { } width)
+                    {
+                        Size(width, "maximum width", at);
+                    }
+
+                    break;
+                case DrawingHotspot hotspot:
+                    at += " (a hotspot)";
+                    Coordinate(hotspot.X, at);
+                    Coordinate(hotspot.Y, at);
+                    Size(hotspot.Radius, "radius", at);
+                    Size(hotspot.DotRadius, "dot radius", at);
+                    Colour(hotspot.Dot, "dot colour", at);
+                    break;
+            }
+
+            if (this.Items[i].Hover is { } hover)
+            {
+                Coordinate(hover.X, at + "'s hover");
+                Coordinate(hover.Y, at + "'s hover");
+            }
+        }
+    }
+
+    private static void Size(double value, string what, string? at)
+    {
+        if (!double.IsFinite(value) || value < 0)
+        {
+            throw new ArgumentException(FormattableString.Invariant($"The drawing's {(at is null ? string.Empty : at + " has a ")}{what} {(at is null ? "is " : string.Empty)}{value}; expected a finite number of 0 or more."));
+        }
+    }
+
+    private static void Coordinate(double value, string at)
+    {
+        if (!double.IsFinite(value))
+        {
+            throw new ArgumentException(FormattableString.Invariant($"The drawing's {at} has the coordinate {value}; expected a finite number."));
+        }
+    }
+
+    private static void Colour(string? value, string what, string at)
+    {
+        if (value is not null && !HexColour().IsMatch(value))
+        {
+            throw new ArgumentException($"The drawing's {at} has the {what} '{value}'; expected six hex digits RRGGBB, such as 1F4E79.");
+        }
+    }
+
+    [System.Text.RegularExpressions.GeneratedRegex("^[0-9A-Fa-f]{6}$", System.Text.RegularExpressions.RegexOptions.CultureInvariant)]
+    private static partial System.Text.RegularExpressions.Regex HexColour();
+
     /// <inheritdoc/>
     public bool Equals(Drawing? other) =>
         other is not null && this.Width == other.Width && this.Height == other.Height && this.Items.SequenceEqual(other.Items);
@@ -93,11 +187,17 @@ public sealed record DrawingShape(DrawingPath Path, string? Fill, string? Stroke
     /// <summary>Whether line ends and corners are round rather than butt and mitred.</summary>
     public bool RoundJoins { get; init; }
 
+    /// <summary>
+    /// Which parts of a path whose subpaths overlap are inside. Default <see cref="DrawingFillRule.NonZero"/>;
+    /// <see cref="DrawingFillRule.EvenOdd"/> cuts holes, as for the counter of an "O" drawn as two circles.
+    /// </summary>
+    public DrawingFillRule FillRule { get; init; }
+
     /// <inheritdoc/>
     public bool Equals(DrawingShape? other) =>
         other is not null && this.Path.Equals(other.Path) && this.Fill == other.Fill && this.Stroke == other.Stroke
         && this.StrokeWidth == other.StrokeWidth && this.Kind == other.Kind && this.CornerRadius == other.CornerRadius
-        && this.RoundJoins == other.RoundJoins
+        && this.RoundJoins == other.RoundJoins && this.FillRule == other.FillRule
         && (this.Dash is null ? other.Dash is null : other.Dash is not null && this.Dash.SequenceEqual(other.Dash));
 
     /// <inheritdoc/>
@@ -135,6 +235,16 @@ public sealed record DrawingPath(IReadOnlyList<PathSegment> Segments)
 
     /// <inheritdoc/>
     public override int GetHashCode() => this.Segments.Count;
+}
+
+/// <summary>How a <see cref="DrawingShape"/> decides what is inside its outline, as in SVG's <c>fill-rule</c>.</summary>
+public enum DrawingFillRule
+{
+    /// <summary>Inside where the outline winds around the point a non-zero number of times; SVG's default.</summary>
+    NonZero,
+
+    /// <summary>Inside where a ray from the point crosses the outline an odd number of times: overlaps become holes.</summary>
+    EvenOdd,
 }
 
 /// <summary>A segment of a <see cref="DrawingPath"/>.</summary>

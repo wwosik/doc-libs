@@ -32,7 +32,8 @@ internal sealed class PdfRenderer
         this.fonts = fonts;
     }
 
-    public static byte[] Render(Layout layout, FontSet fonts, string? title, string? author)
+    /// <remarks><paramref name="language"/> is the document's language tag, for the catalog's <c>/Lang</c> and the XMP.</remarks>
+    public static byte[] Render(Layout layout, FontSet fonts, string? title, string? author, string language = "en")
     {
         var renderer = new PdfRenderer(fonts);
         var document = renderer.builder;
@@ -56,17 +57,17 @@ internal sealed class PdfRenderer
             document.Bookmarks = new Bookmarks(Nest(layout.Bookmarks, layout.Geometry));
         }
 
-        return FixXmp(FlagAnnotations(document.Build()));
+        return AddLanguage(FixXmp(FlagAnnotations(document.Build()), language), language);
     }
 
     private const string Creator = "wwosik.DocLibs.DocumentGeneration.Pdf";
     private const string Producer = "wwosik.DocLibs.DocumentGeneration.Pdf (PdfPig)";
 
-    // PdfPig writes dc:title and dc:creator as plain text; PDF/A wants a language alternative and an ordered list.
-    // The packet is an uncompressed stream, so it is rewritten in place: without PdfPig's indentation and its
-    // optional toolkit name (x:xmptk) the fixed XML is shorter whatever the title, and the rest is filled with the
-    // padding XMP allows, so no offset in the file moves.
-    private static byte[] FixXmp(byte[] pdf)
+    // PdfPig writes dc:title and dc:creator as plain text; PDF/A wants a language alternative and an ordered list. The
+    // document language goes next to them. The packet is an uncompressed stream: rewritten in place, padded with the
+    // white space XMP allows, where the fixed XML (without PdfPig's indentation and its optional toolkit name) fits;
+    // else the stream grows, and its /Length and the offsets behind it with it.
+    private static byte[] FixXmp(byte[] pdf, string language)
     {
         var span = pdf.AsSpan();
         var begin = span.IndexOf("<?xpacket begin"u8);
@@ -81,12 +82,12 @@ internal sealed class PdfRenderer
         xml.Root!.Attribute((XNamespace)"adobe:ns:meta/" + "xmptk")?.Remove();
         XNamespace rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
         XNamespace dc = "http://purl.org/dc/elements/1.1/";
-        foreach (var (name, container, language) in new[] { (dc + "title", rdf + "Alt", true), (dc + "creator", rdf + "Seq", false) })
+        foreach (var (name, container, isAlternative) in new[] { (dc + "title", rdf + "Alt", true), (dc + "creator", rdf + "Seq", false) })
         {
             foreach (var property in xml.Descendants(name).Where(e => !e.HasElements).ToList())
             {
                 var item = new XElement(rdf + "li", property.Value);
-                if (language)
+                if (isAlternative)
                 {
                     item.SetAttributeValue(XNamespace.Xml + "lang", "x-default");
                 }
@@ -95,17 +96,81 @@ internal sealed class PdfRenderer
             }
         }
 
-        var replacement = Encoding.UTF8.GetBytes(xml.Root!.ToString(SaveOptions.DisableFormatting));
-        var room = end - header;
-        if (replacement.Length + 1 > room)
+        if (xml.Descendants(dc + "title").FirstOrDefault()?.Parent is { } description && !description.Elements(dc + "language").Any())
         {
-            throw new InvalidOperationException($"The corrected XMP ({replacement.Length} bytes) does not fit into PdfPig's packet ({room} bytes).");
+            description.Add(new XElement(dc + "language", new XElement(rdf + "Bag", new XElement(rdf + "li", language))));
         }
 
-        replacement.CopyTo(span[header..]);
-        span[(header + replacement.Length)..end].Fill((byte)' ');
-        span[end - 1] = (byte)'\n';
-        return pdf;
+        var replacement = Encoding.UTF8.GetBytes(xml.Root!.ToString(SaveOptions.DisableFormatting));
+        var room = end - header;
+        if (replacement.Length + 1 <= room)
+        {
+            replacement.CopyTo(span[header..]);
+            span[(header + replacement.Length)..end].Fill((byte)' ');
+            span[end - 1] = (byte)'\n';
+            return pdf;
+        }
+
+        var grown = replacement.Length + 1 - room;
+        pdf = Splice(pdf, header, room, [.. replacement, (byte)'\n']);
+
+        // The stream's /Length, in its dictionary just before the packet.
+        var lengthKey = "/Length "u8;
+        var key = pdf.AsSpan(0, begin).LastIndexOf(lengthKey) + lengthKey.Length;
+        var digits = pdf.AsSpan(key).IndexOfAnyExceptInRange((byte)'0', (byte)'9');
+        var length = int.Parse(Encoding.ASCII.GetString(pdf, key, digits), CultureInfo.InvariantCulture) + grown;
+        return Splice(pdf, key, digits, Encoding.ASCII.GetBytes(length.ToString(CultureInfo.InvariantCulture)));
+    }
+
+    // The catalog gets `/Lang (tag)`, which PdfPig cannot write, right after its `/Type /Catalog`.
+    private static byte[] AddLanguage(byte[] pdf, string language)
+    {
+        var marker = "/Type /Catalog"u8;
+        var at = pdf.AsSpan().IndexOf(marker);
+        if (at < 0)
+        {
+            throw new InvalidOperationException("PdfPig wrote no catalog.");
+        }
+
+        return Splice(pdf, at + marker.Length, 0, Encoding.ASCII.GetBytes($" /Lang ({language})"));
+    }
+
+    // Replaces `length` bytes at `start` of an uncompressed object. Every offset behind it in the cross-reference table
+    // ("nnnnnnnnnn ggggg n", fixed width, rewritten in place) and the table's own offset after `startxref` move.
+    private static byte[] Splice(byte[] pdf, int start, int length, byte[] replacement)
+    {
+        var delta = replacement.Length - length;
+        byte[] result = [.. pdf.AsSpan(0, start), .. replacement, .. pdf.AsSpan(start + length)];
+        if (delta == 0)
+        {
+            return result;
+        }
+
+        var text = Encoding.Latin1.GetString(result);
+        var startxref = text.LastIndexOf("startxref", StringComparison.Ordinal);
+        var table = startxref < 0 ? -1 : text.LastIndexOf("\nxref", startxref, StringComparison.Ordinal) + 1;
+        if (table <= 0 || table < start)
+        {
+            throw new InvalidOperationException("PdfPig wrote no cross-reference table after the objects.");
+        }
+
+        var span = result.AsSpan();
+        var line = text.IndexOf('\n', table) + 1;
+        while (line < startxref && text.IndexOf('\n', line) is var next and > 0)
+        {
+            var row = text[line..next].TrimEnd('\r', ' ');
+            if (row.Length == 18 && row[17] == 'n' && long.TryParse(row[..10], NumberStyles.None, CultureInfo.InvariantCulture, out var offset) && offset > start)
+            {
+                Encoding.ASCII.GetBytes((offset + delta).ToString("D10", CultureInfo.InvariantCulture)).CopyTo(span[line..]);
+            }
+
+            line = next + 1;
+        }
+
+        var numberStart = text.IndexOf('\n', startxref) + 1;
+        var numberEnd = text.IndexOf('\n', numberStart);
+        var moved = (long.Parse(text[numberStart..numberEnd].Trim(), CultureInfo.InvariantCulture) + delta).ToString(CultureInfo.InvariantCulture);
+        return [.. result.AsSpan(0, numberStart), .. Encoding.ASCII.GetBytes(moved), .. result.AsSpan(numberEnd)];
     }
 
     // PDF/A wants every annotation printable (/F 4), and PdfPig writes no flags. Its link annotations are inline,
@@ -247,7 +312,10 @@ internal sealed class PdfRenderer
             });
         }
 
-        operations.Add(shape.Fill is null ? StrokePath.Value : stroke ? FillPathNonZeroWindingAndStroke.Value : FillPathNonZeroWinding.Value);
+        var evenOdd = shape.FillRule == DrawingFillRule.EvenOdd;
+        operations.Add(shape.Fill is null ? StrokePath.Value
+            : stroke ? evenOdd ? FillEvenOddAndStroke.Value : FillPathNonZeroWindingAndStroke.Value
+            : evenOdd ? FillPathEvenOddRule.Value : FillPathNonZeroWinding.Value);
         operations.Add(Pop.Value);
     }
 
@@ -359,5 +427,21 @@ internal sealed class PdfRenderer
         public PdfDocumentBuilder.AddedFont Font { get; } = font;
 
         public HashSet<char> Characters { get; } = [];
+    }
+}
+
+/// <summary><c>B*</c>: fills the path by the even-odd rule, then strokes it; PdfPig has the operator only with a close.</summary>
+internal sealed class FillEvenOddAndStroke : IGraphicsStateOperation
+{
+    public static FillEvenOddAndStroke Value { get; } = new();
+
+    public string Operator => "B*";
+
+    public void Run(UglyToad.PdfPig.Graphics.IOperationContext operationContext) => throw new NotSupportedException("Written only.");
+
+    public void Write(Stream stream)
+    {
+        stream.Write("B*"u8);
+        stream.WriteByte((byte)'\n');
     }
 }

@@ -33,7 +33,15 @@ PdfGenerator.Generate(document, output, new PdfOptions
   code points: `'😀' (U+1F600)`, `'👍🏽' (U+1F44D U+1F3FD)`).
 - **Metadata:** the title (front matter `title`, else metadata `title`, else the cover title) and
   the author (front matter `author`, else metadata `author`) go into the document info and the XMP
-  metadata. The title also heads every page.
+  metadata. The title also heads every page. The
+  [document language](wwosik.DocLibs.DocumentGeneration.md#document-language) is the catalog's
+  `/Lang` and `dc:language`, and picks the alert titles and the footnotes heading.
+- **Footnotes:** a reference is a raised number at 65 % of the text size; the footnotes follow the
+  last chapter under a `##` heading of the language's texts ("Notes", "Anmerkungen"), as a list
+  numbered like the references, through the whole document.
+- **Task lists** have a box drawn where the bullet goes, ticked for `[x]`: the fonts have no ☐ or ☒.
+- **Definition lists** set each term in bold and its descriptions indented under it; a term is
+  kept on a page with the start of its description.
 
 ## For hosts that let others write the Markdown
 
@@ -72,6 +80,8 @@ string guide = PdfGenerator.AuthoringGuide(options);   // starts at "##"
 | `CodeBlockRenderers` | none | see [Diagrams](#diagrams) |
 | `ImageConverters` | none | images in other formats, such as SVG, see [Image converters](wwosik.DocLibs.DocumentGeneration.md#image-converters) |
 | `ReplaceUnsupported` | none (throws) | see [Characters the fonts lack](#characters-the-fonts-lack) |
+| `Language` | `en` | the document language, unless front matter sets `lang` |
+| `Texts` | none | `GeneratedTexts` for further languages, by tag |
 | `TimeProvider` | `TimeProvider.System` | the date of generation in the footer |
 
 Margins, font sizes, header and footer are fixed by the design.
@@ -88,6 +98,7 @@ The shared syntax and rules are in
 | `pageSize` | `A4`, `A3`, `Letter` | all |
 | `orientation` | `portrait`, `landscape` | all |
 | `title`, `author` | text | all |
+| `lang` | a language tag such as `en`, `de`, `de-CH` | all |
 
 ## Design
 
@@ -166,14 +177,18 @@ of this chapter is about the bundled Liberation fonts, which brands without font
 ## PDF/A
 
 Every PDF is **PDF/A-2b** (`PdfAStandard.A2B` in PdfPig: sRGB output intent, XMP metadata, all
-fonts embedded). Two gaps in PdfPig 0.1.16 are closed after it has written the file, in place and
-without moving any byte offset:
+fonts embedded). Three gaps in PdfPig 0.1.16 are closed after it has written the file:
 
 - **Link annotations** get the print flag `/F 4`, which PDF/A requires; it replaces the optional
   `/Type /Annot` in the same space.
 - **XMP:** `dc:title` becomes a language alternative and `dc:creator` an ordered list, as PDF/A
-  requires; PdfPig writes plain text. The packet is rewritten without PdfPig's indentation and
-  toolkit name and padded to its old length.
+  requires; PdfPig writes plain text. `dc:language` is added. The packet is rewritten without
+  PdfPig's indentation and toolkit name, padded to its old length where it fits; otherwise the
+  stream grows, with its `/Length`.
+- **The catalog** gets `/Lang`.
+
+Where something grows, every offset behind it in the cross-reference table, and the table's own
+offset, move with it: PdfPig writes uncompressed objects and a plain table.
 
 Checked with veraPDF 1.30 (PDF/A-2b profile): the samples in both designs pass.
 

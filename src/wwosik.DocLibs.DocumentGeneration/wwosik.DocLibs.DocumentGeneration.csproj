@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\wwosik.DocLibs.DocumentConversions\wwosik.DocLibs.DocumentConversions.csproj" />
+    <PackageReference Include="Markdig" />
   </ItemGroup>
 
   <ItemGroup>

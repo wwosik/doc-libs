@@ -35,6 +35,14 @@ internal sealed class LayoutEngine
     private const string CodeBackground = "F3F4F6";
     private const string White = "FFFFFF";
 
+    // A footnote reference: this share of the text size, raised by this share of it.
+    private const double SuperscriptScale = 0.65;
+    private const double SuperscriptRise = 0.33;
+
+    // The markers of a task list's items, drawn as boxes rather than written: the fonts have no ☐ and ☒.
+    private const string EmptyBox = "\u2610";
+    private const string TickedBox = "\u2612";
+
     private static readonly double[] HeadingSizes = [20, 16, 13.5, 12, 11, 10.5];
 
     private readonly IFontMetrics metrics;
@@ -167,6 +175,9 @@ internal sealed class LayoutEngine
             case DrawingBlock drawing:
                 this.Drawing(drawing.Drawing, frame);
                 break;
+            case DefinitionListBlock definitions:
+                this.Definitions(definitions, frame, listLevel);
+                break;
             case RuleBlock:
                 this.Ensure(12);
                 this.page.Items.Add(new LineItem(frame.Left, this.y + 6, frame.Left + frame.Width, this.y + 6, 0.75, this.design.Brand.TableLine));
@@ -275,6 +286,8 @@ internal sealed class LayoutEngine
                 return Math.Min(this.RowSizes(row, frame).Max(s => s.Height), this.geometry.Bottom - this.geometry.Top - above);
             case DrawingBlock drawing:
                 return Math.Min(DrawingScale(drawing.Drawing, frame, this.geometry) * drawing.Drawing.Height, this.geometry.Bottom - this.geometry.Top - above);
+            case DefinitionListBlock { Items.Count: > 0 }:
+                return 2 * BodySize * LineFactor;
             case RuleBlock:
                 return 12;
             default:
@@ -366,9 +379,58 @@ internal sealed class LayoutEngine
 
     private void Marker(string marker, Frame frame)
     {
+        if (marker is EmptyBox or TickedBox)
+        {
+            this.Box(marker == TickedBox, frame);
+            return;
+        }
+
         marker = this.Supported(marker, FontFace.Regular);
         var width = this.metrics.Width(marker, FontFace.Regular, BodySize);
         this.page.Items.Add(new TextItem(frame.Left - MarkerGap - width, this.Baseline(BodySize), marker, FontFace.Regular, BodySize, frame.Color));
+    }
+
+    // A task box, the height of a capital letter, sitting on the first line's baseline where a bullet would be.
+    private void Box(bool ticked, Frame frame)
+    {
+        var side = BodySize * 0.72;
+        var (left, bottom) = (frame.Left - MarkerGap - side, this.Baseline(BodySize));
+        var top = bottom - side;
+        this.page.Items.Add(new ShapeItem(
+            [new MoveTo(left, top), new LineTo(left + side, top), new LineTo(left + side, bottom), new LineTo(left, bottom), new ClosePath()],
+            null,
+            frame.Color,
+            0.75,
+            null,
+            false));
+        if (ticked)
+        {
+            this.page.Items.Add(new ShapeItem(
+                [new MoveTo(left + (side * 0.2), top + (side * 0.52)), new LineTo(left + (side * 0.42), top + (side * 0.76)), new LineTo(left + (side * 0.82), top + (side * 0.24))],
+                null,
+                frame.Color,
+                1.1,
+                null,
+                true));
+        }
+    }
+
+    // Each term in bold, kept with the start of its description, which is indented under it.
+    private void Definitions(DefinitionListBlock list, Frame frame, int level)
+    {
+        var inner = frame with { Left = frame.Left + ListIndent, Width = frame.Width - ListIndent };
+        foreach (var item in list.Items)
+        {
+            var terms = item.Terms.Select(t => (IReadOnlyList<TextRun>)[.. t.Select(r => r.IsBreak ? r : r with { Style = r.Style | RunStyle.Bold })]).ToList();
+            var termLines = terms.Sum(t => Math.Max(1, this.ParagraphLines(t, frame.Width).Count));
+            this.Ensure((termLines * BodySize * LineFactor) + (item.Description.Count > 0 ? this.KeepHeight(item.Description, 0, inner, 0) : 0));
+            foreach (var term in terms)
+            {
+                this.Paragraph(term, frame, null, ListItemGap);
+            }
+
+            this.Blocks(item.Description, inner, level);
+        }
     }
 
     private void List(ListBlock list, Frame frame, int level)
@@ -376,7 +438,8 @@ internal sealed class LayoutEngine
         var inner = frame with { Left = frame.Left + ListIndent, Width = frame.Width - ListIndent };
         for (var i = 0; i < list.Items.Count; i++)
         {
-            var marker = list.Ordered ? (list.Start + i).ToString(CultureInfo.InvariantCulture) + "." : level % 2 == 0 ? "•" : "–";
+            var marker = list.Tasks?[i] is { } ticked ? ticked ? TickedBox : EmptyBox
+                : list.Ordered ? (list.Start + i).ToString(CultureInfo.InvariantCulture) + "." : level % 2 == 0 ? "•" : "–";
             var item = list.Items[i];
             if (item.Count == 0)
             {
@@ -499,6 +562,7 @@ internal sealed class LayoutEngine
     // Placed like an image: centred, scaled down to the content width and the page height, never up.
     private void Drawing(Drawing drawing, Frame frame)
     {
+        drawing.Validate();
         if (drawing.Width <= 0 || drawing.Height <= 0)
         {
             return;
@@ -527,7 +591,7 @@ internal sealed class LayoutEngine
                         CubicTo c => new CubicTo(Place(c.X1, c.Y1).X, Place(c.X1, c.Y1).Y, Place(c.X2, c.Y2).X, Place(c.X2, c.Y2).Y, Place(c.X, c.Y).X, Place(c.X, c.Y).Y),
                         _ => segment,
                     }).ToList();
-                    this.page.Items.Add(new ShapeItem(path, shape.Fill, shape.Stroke, shape.StrokeWidth * scale, shape.Dash?.Select(d => d * scale).ToList(), shape.RoundJoins));
+                    this.page.Items.Add(new ShapeItem(path, shape.Fill, shape.Stroke, shape.StrokeWidth * scale, shape.Dash?.Select(d => d * scale).ToList(), shape.RoundJoins) { FillRule = shape.FillRule });
                     break;
                 case DrawingText text:
                     var (x, baseline) = Place(text.X, text.Baseline);
@@ -909,7 +973,8 @@ internal sealed class LayoutEngine
         foreach (var piece in Merge(line.Pieces))
         {
             var pieceColor = piece.Colour is { } category ? this.LabelColour(category) : piece.Link is not null ? this.design.Brand.Link : color;
-            this.page.Items.Add(new TextItem(x, baseline, piece.Text, piece.Face, piece.Size, pieceColor));
+            var raised = piece.Style.HasFlag(RunStyle.Superscript) ? baseline - (size * SuperscriptRise) : baseline;
+            this.page.Items.Add(new TextItem(x, raised, piece.Text, piece.Face, piece.Size, pieceColor));
             if (piece.Link is { } link && !piece.IsSpace)
             {
                 this.page.Items.Add(new LineItem(x, baseline + 1.2, x + piece.Width, baseline + 1.2, 0.5, pieceColor));
@@ -938,7 +1003,8 @@ internal sealed class LayoutEngine
         foreach (var piece in pieces)
         {
             if (current is not null && current.Face == piece.Face && current.Size == piece.Size && current.Link == piece.Link
-                && current.Colour == piece.Colour && current.Style.HasFlag(RunStyle.Strike) == piece.Style.HasFlag(RunStyle.Strike))
+                && current.Colour == piece.Colour && current.Style.HasFlag(RunStyle.Strike) == piece.Style.HasFlag(RunStyle.Strike)
+                && current.Style.HasFlag(RunStyle.Superscript) == piece.Style.HasFlag(RunStyle.Superscript))
             {
                 current = current with { Text = current.Text + piece.Text, Width = current.Width + piece.Width, IsSpace = current.IsSpace && piece.IsSpace };
             }
@@ -1066,7 +1132,7 @@ internal sealed class LayoutEngine
 
             var style = run.Style | baseStyle;
             var face = Face(style);
-            var pieceSize = style.HasFlag(RunStyle.Code) ? size * 0.9 : size;
+            var pieceSize = (style.HasFlag(RunStyle.Code) ? size * 0.9 : size) * (style.HasFlag(RunStyle.Superscript) ? SuperscriptScale : 1);
             var text = Visible(run.Text);
             var start = 0;
             for (var i = 0; i <= text.Length; i++)

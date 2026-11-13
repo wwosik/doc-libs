@@ -39,6 +39,9 @@ internal sealed partial class FrontMatter
 
     public string? Author => this.Value(AuthorKey);
 
+    /// <summary>The document language, <c>lang</c>, as written.</summary>
+    public string? Language => this.Value(DocumentLanguage.Key);
+
     /// <exception cref="DocumentConversionException">The front matter is malformed.</exception>
     public static FrontMatter Read(string markdown, DocumentFormat format)
     {
@@ -89,7 +92,7 @@ internal sealed partial class FrontMatter
     /// <summary>
     /// Applies the entries to <paramref name="options"/>: <c>template</c> first, through
     /// <paramref name="withTemplate"/> (which returns <see langword="null"/> for an unknown name), then every other
-    /// key but <c>title</c> and <c>author</c>, in any order, through <paramref name="with"/>. A key not in
+    /// key but <c>title</c>, <c>author</c> and <c>lang</c>, in any order, through <paramref name="with"/>. A key not in
     /// <paramref name="keys"/> of the options at that point throws, listing the valid ones.
     /// </summary>
     /// <param name="options">The caller's options.</param>
@@ -118,6 +121,7 @@ internal sealed partial class FrontMatter
             if (key.Equals(TemplateKey, StringComparison.OrdinalIgnoreCase)
                 || key.Equals(TitleKey, StringComparison.OrdinalIgnoreCase)
                 || key.Equals(AuthorKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(DocumentLanguage.Key, StringComparison.OrdinalIgnoreCase)
                 || key.StartsWith(LabelsPrefix, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
@@ -127,7 +131,7 @@ internal sealed partial class FrontMatter
             var known = supported.FirstOrDefault(k => k.Equals(key, StringComparison.OrdinalIgnoreCase))
                 ?? throw this.Error(
                     $"The front matter key '{key}' is not supported by the template '{templateName(options)}'. "
-                    + $"Valid keys: {string.Join(", ", new[] { TemplateKey, TitleKey, AuthorKey }.Concat(supported))}.");
+                    + $"Valid keys: {string.Join(", ", new[] { TemplateKey, TitleKey, AuthorKey, DocumentLanguage.Key }.Concat(supported))}.");
             options = with(options, known, value);
         }
 

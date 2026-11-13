@@ -202,6 +202,17 @@ same change that made it untrue — a stale fact here is worse than a missing on
   heading's `Line` (set by `DeckParser.Section`, kept on split parts). Renderers report through
   `CodeBlockRequest.Report`, which is excluded from the request's equality. Notes never change the
   output: the files stay as before for the same input.
+- **Markdown foundations (E06-S02):** both pipelines add `UseDocumentSyntax()` (footnotes, task
+  lists, definition lists; `MarkdownSyntax` in DocumentGeneration, which therefore references
+  Markdig). `FootnoteGroup` is skipped where blocks are walked and handled apart: PDFs list it at
+  the end under `GeneratedTexts.Footnotes`; decks number references per `##` section
+  (`DeckParser.footnotes`, reset in `Section`) and give each slide the `SlideFootnote`s its runs refer
+  to (`Slide.References()` scans `RunStyle.Superscript` runs, kept unmerged). `DeckWriter.ContentArea`
+  subtracts the current slide's footnote room (`footnotes` field, set in `Fit` and before writing),
+  so fitting and placement agree. Language: `DocumentLanguage.Resolve` in both `Generate`s; decks tag
+  every `a:rPr`/`a:endParaRPr` in `DeckWriter.Tag` after each slide; PDFs splice `/Lang` into the
+  catalog and grow the XMP through `PdfRenderer.Splice`, which shifts the xref offsets.
+  `Drawing.Validate()` runs in every drawing writer.
 
 ## Traps
 

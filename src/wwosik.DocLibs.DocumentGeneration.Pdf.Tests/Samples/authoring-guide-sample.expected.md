@@ -29,6 +29,13 @@ headings that say what a section is about, lists where items really are parallel
   scaled down to fit; `![Chart](chart.png "scale=0.5")` halves the size. They are never split and
   move to the next page if needed. Several images in one paragraph stand side by side, equally
   wide.
+- **Footnotes:** `[^1]` in the text and `[^1]: The note.` on a line of its own anywhere below.
+  The reference becomes a small raised number; the notes are listed at the end of the document,
+  numbered in the order they are referenced. A reference without its definition stays as written.
+- **Task lists:** `- [ ] open` and `- [x] done` get an empty or ticked box instead of a bullet.
+- **Definition lists:** a term on a line of its own, then `:   ` and its description on the next
+  line (several `:` lines for several descriptions). The term is set in bold, the description
+  indented under it.
 - HTML is printed as text, not interpreted: do not use it. HTML comments are dropped.
 
 ## Syntax written for slides
@@ -36,7 +43,8 @@ headings that say what a section is about, lists where items really are parallel
 Markdown written for decks works here too and is shown plainly, so one text can serve both:
 `## Title {kicker="…"}` drops the attributes, `::: cards`, `rows`, `panel`, `statement` and
 `columns` show their content as normal text, one part after the other, `==marked==` text is bold, and an alert (`> [!NOTE]`, `[!TIP]`,
-`[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`) is a quote that starts with its kind in bold. For a
+`[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`) is a quote that starts with its title in bold, in the
+document's language (`lang`). For a
 PDF alone, write plain Markdown; alerts are fine for notes and warnings. Unknown containers,
 attributes and alerts are errors, as in decks.
 
@@ -81,6 +89,7 @@ author: Planning team
 | --- | ------ |
 | `title` | The document title in the file's properties. Default: the first `#` heading. |
 | `author` | The author in the file's properties. |
+| `lang` | The document language, such as `en`, `de` or `de-CH`: of the texts the generator writes itself, and of spell checking. Default `en`. |
 | `template` | The design: `neutral` or `sample`. |
 | `showDate` | `true` or `false`: today's date in the footer. Default `true`. |
 | `showTagline` | `true` or `false`: the design's tagline on the cover, if it has one. Default `true`. |
@@ -139,6 +148,8 @@ The document is still written, but whoever passes it to you may also pass on not
 
 - `code-not-drawn`: a diagram could not be drawn, for example a diagram type that is not supported, and stays code. Use a supported type.
 - `html-as-text`: HTML is not interpreted: it is shown as text. Write Markdown instead.
+- `footnote-missing`: a footnote reference such as `[^1]` has no definition `[^1]: text`, so it is shown as written. Add the definition, or remove the reference.
+- `language-unknown`: the language in `lang` has no texts of its own, so alert titles and similar texts are in English. Use `en` or `de`.
 
 ## Example
 

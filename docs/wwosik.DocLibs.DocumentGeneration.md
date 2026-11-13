@@ -253,6 +253,8 @@ if (result.HasNotes)
 | `code-not-drawn` | PPTX, PDF | A renderer declined a block in its own language and said why, such as `MermaidRenderer` for a diagram type it does not draw; blocks in languages no renderer claims stay code silently |
 | `html-as-text` | PPTX, PDF | Raw HTML, a block or inline, was written as text; HTML comments are left out silently |
 | `character-replaced` | PDF | `PdfOptions.ReplaceUnsupported` replaced a character the fonts lack; once per character, without a line |
+| `footnote-missing` | PPTX, PDF | A footnote reference such as `[^1]` has no definition, so it is shown as written |
+| `language-unknown` | PPTX, PDF | The document language has no `GeneratedTexts` of its own, built in or from the options; the texts are English, the tag is kept; without a line |
 
 ## Drawings and code-block renderers
 
@@ -291,6 +293,10 @@ public interface ICodeBlockRenderer
     (`Path`, `Rectangle`, `RoundedRectangle` with `CornerRadius`, `Ellipse`). Decks use PowerPoint's
     own shapes for the kinds; `Path` always holds the outline. A `DrawingPath` is a list of
     `MoveTo`, `LineTo`, `CubicTo` and `ClosePath`.
+  - `FillRule` decides what is inside a path whose subpaths overlap: `NonZero` (the default, as in
+    SVG) or `EvenOdd`, where an overlap is a hole, as for a ring drawn as two circles. SVG writes
+    `fill-rule="evenodd"` and PDFs the even-odd fill operators (`f*`, `B*`). DrawingML has no fill
+    rule, so decks write the path as it is and PowerPoint decides how crossing subpaths fill.
   - `DrawingText(X, Baseline, Spans, Size, Color)` is one line of `DrawingSpan(Text, Bold)` with
     `Anchor` (`Start`, `Middle`, `End`), `MaxWidth` (its room: the generator shrinks wider text down
     to 70 %) and `Mono`. It is set in the brand's table font, else its text font, and measured by
@@ -298,11 +304,15 @@ public interface ICodeBlockRenderer
   - `Hover` on any item is a `DrawingHover(Text, X, Y)`: a tooltip for SVG output, which decks and
     PDFs ignore. `DrawingHotspot(X, Y, Radius)` is an invisible hit area that only carries one,
     with an optional `Dot` shown while hovered (a point on a line); decks and PDFs skip it.
+- **Invalid drawings throw** `ArgumentException` from every writer (`DrawingSvg.Write`, decks,
+  PDFs) before anything is written: a coordinate that is not finite, a negative or non-finite size,
+  width, stroke width, corner radius, dash or radius, or a colour that is not six hex digits
+  (`1F4E79`; not `red`, not `#1F4E79`). The message names the item by its index.
 
 ### SVG
 
 `DrawingSvg.Write(drawing, options)` writes a drawing as a standalone SVG for web pages, `width`
-and `height` in pixels with a matching `viewBox`.
+and `height` in pixels with a matching `viewBox`. An invalid drawing throws `ArgumentException`.
 
 - **Tooltips without script:** an item with `Hover` becomes `<g class="chart-hoverable">` holding the
   item and a `<g class="chart-tooltip">` placed in advance: centred over the hover point, 17 px
@@ -369,15 +379,46 @@ title: Network expansion 2027
   allowed; values may be quoted (`"…"` or `'…'`). Keys and choice values are case-insensitive. It
   looks like YAML but is only this flat subset — no nesting, no lists.
 - An opening `---` followed by a blank line is a thematic break, not front matter.
-- **Shared keys:** `template` (applied first, whatever its position), `title`, `author`, and
-  `labels.<category>` (see [Slide layouts in Markdown](#slide-layouts-in-markdown)). The rest are
-  the generator's.
+- **Shared keys:** `template` (applied first, whatever its position), `title`, `author`, `lang` (see
+  [Document language](#document-language)), and `labels.<category>` (see
+  [Slide layouts in Markdown](#slide-layouts-in-markdown)). The rest are the generator's.
 - `template` naming the template the caller chose keeps the caller's values; naming another one
   starts from that template's defaults.
 - **Mistakes throw** `DocumentConversionException` with the generator's format: a line that is not
   `key: value`, a key without value, a duplicate key, a block that is never closed, an unknown key
   or one the template does not support (the message lists the valid keys), an invalid value (the
   message lists the valid ones).
+
+## Document language
+
+`lang` in the front matter, else `PptxOptions.Language` / `PdfOptions.Language` (default `en`),
+is a BCP 47 tag such as `en`, `de`, `de-CH` or `en-GB`. Anything else is an error.
+
+- **Texts.** It picks the `GeneratedTexts`: the texts a generator writes itself, today the alert
+  titles (`Note`, `Tip`, `Important`, `Warning`, `Caution`) and the heading of the footnotes in a
+  PDF (`Notes`). `GeneratedTexts.English` and `GeneratedTexts.German` are built in; a host adds or
+  replaces languages with the options' `Texts`, by tag. Every property defaults to English, so a
+  new language starts from `GeneratedTexts.English with { Warning = "…" }` and stays complete when
+  later versions add texts.
+- **Matching.** A tag is matched in full, then by its language alone (`de-CH` → `de`), first among
+  the host's `Texts`, then among the built-in ones. A tag nothing matches gets the English texts and
+  the note `language-unknown`; the tag itself is still written.
+- **Tags.** Decks write it on every run and paragraph end (`lang`, PowerPoint's spell checking),
+  drawings and tables included, and as `dc:language` in the core properties. PDFs write it as the
+  catalog's `/Lang` and as `dc:language` in the XMP metadata.
+- The cover date stays `dd.MM.yyyy` in every language.
+
+## Footnotes, task lists and definition lists
+
+Both generators read the Markdig extensions for footnotes, task lists and definition lists; how each
+one shows them is in its own documentation.
+
+- `[^label]` refers to a footnote defined as `[^label]: text` on a line of its own, anywhere in the
+  document. A reference without a definition stays text and gives the note `footnote-missing`; a
+  definition nobody refers to is left out.
+- `- [ ] item` and `- [x] item` are task list items: a box instead of the bullet, empty or ticked.
+- A paragraph of one line followed by `:   description` lines is a definition list: the line is the
+  term, each `:` line a description. Several terms in a row share the descriptions after them.
 
 ## Image headers
 

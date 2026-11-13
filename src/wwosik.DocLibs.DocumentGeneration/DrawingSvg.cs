@@ -23,9 +23,13 @@ public static class DrawingSvg
     private const double MinTextScale = 0.7;
 
     /// <summary>The drawing as SVG markup, <c>width</c> and <c>height</c> in pixels with a matching <c>viewBox</c>.</summary>
+    /// <exception cref="ArgumentException">
+    /// The drawing has a number that is not finite, a negative size or width, or a colour that is not six hex digits.
+    /// </exception>
     public static string Write(Drawing drawing, DrawingSvgOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(drawing);
+        drawing.Validate();
         options ??= new DrawingSvgOptions();
         var svg = new StringBuilder();
         var (width, height) = (Number(drawing.Width), Number(drawing.Height));
@@ -68,6 +72,10 @@ public static class DrawingSvg
     {
         var paint = new StringBuilder();
         paint.Append(CultureInfo.InvariantCulture, $" fill=\"{(shape.Fill is { } fill ? "#" + fill : "none")}\"");
+        if (shape.Fill is not null && shape.FillRule == DrawingFillRule.EvenOdd)
+        {
+            paint.Append(" fill-rule=\"evenodd\"");
+        }
         if (shape.Stroke is { } stroke && shape.StrokeWidth > 0)
         {
             paint.Append(CultureInfo.InvariantCulture, $" stroke=\"#{stroke}\" stroke-width=\"{Number(shape.StrokeWidth)}\"");

@@ -86,6 +86,9 @@ string guide = PptxGenerator.AuthoringGuide(options);   // starts at "##"
 | Fenced or indented code | One monospace paragraph per line. |
 | Block quote | Italic. |
 | `**bold**`, `*italic*`, `~~strike~~`, `` `code` ``, links | Run formatting; links become hyperlinks if their target is an absolute URI. |
+| `- [ ]` / `- [x]` task lists | The item's bullet is an empty or ticked box (Wingdings `U+F0A8` / `U+F0FE`), also in placeholders, numbered lists included. |
+| Definition list (`Term`, then `:   description`) | Rows like `::: rows`, so the section becomes a flow slide: the term in bold on the left, its descriptions beside it. Descriptions hold text only. |
+| `[^1]` footnote reference | A raised number (baseline +30 %), counted from 1 on each `##` section in the order of first reference; the footnote text goes to the foot of the slide, see below. |
 | Front matter (see below) | Options, never a slide. |
 | Text before the first heading, thematic breaks, HTML comments | Ignored. |
 
@@ -106,6 +109,12 @@ string guide = PptxGenerator.AuthoringGuide(options);   // starts at "##"
   the length of their text. A table whose words do not fit steps its font down from 16 pt (14 pt
   from 7 rows, 12 pt from 11) to 10 pt before anything wraps inside a word. Cell alignment follows
   the Markdown, and the template's default table style applies.
+- **Footnotes** of a slide are set in 10 pt at the foot of its content area, each with its number
+  raised before it; the content area is shortened by their height, so fitting leaves room for them.
+  A slide split by [fitting](#fitting) is measured with all its footnotes, and each part keeps those
+  it refers to.
+- **Language:** every run carries the [document language](wwosik.DocLibs.DocumentGeneration.md#document-language),
+  for PowerPoint's spell checking.
 - **Slide number, date and footer text:** every slide but the cover (and the closing slide) gets the
   layout's slide number placeholder, if it has one, and — with `ShowDate` — its date placeholder
   with the date of generation (`dd.MM.yyyy`, from `PptxOptions.TimeProvider`). On a brand's own
@@ -287,6 +296,7 @@ author: Team Docs
 | `listBullets` | `template`, `always` | all |
 | `layouts.title`, `layouts.content`, `layouts.titleOnly`, `layouts.sectionHeader`, `layouts.closing` | layout name | custom |
 | `title`, `author` | text | all — the core properties |
+| `lang` | a language tag such as `en`, `de`, `de-CH`; default `PptxOptions.Language` (`en`), with `PptxOptions.Texts` for further languages | all — see [Document language](wwosik.DocLibs.DocumentGeneration.md#document-language) |
 
 - `template` naming the template the caller chose keeps the caller's values; naming another one
   starts from that template's defaults. The other keys then apply, whatever their order.

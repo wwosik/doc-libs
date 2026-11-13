@@ -170,6 +170,7 @@ internal sealed partial class SvgDrawing
             Kind = transform.IsAxisAligned ? kind : DrawingShapeKind.Path,
             CornerRadius = kind == DrawingShapeKind.RoundedRectangle && transform.IsAxisAligned ? radius * transform.Scale : 0,
             RoundJoins = paint.RoundJoins,
+            FillRule = paint.FillRule,
         });
     }
 
@@ -461,7 +462,8 @@ internal sealed partial class SvgDrawing
         bool Bold,
         TextAnchor Anchor,
         double FillOpacity,
-        double StrokeOpacity)
+        double StrokeOpacity,
+        DrawingFillRule FillRule = DrawingFillRule.NonZero)
     {
         /// <summary>SVG's initial values: black fill, no stroke, 16 px text.</summary>
         public static Paint Initial { get; } = new("000000", null, 1, null, false, 16, false, TextAnchor.Start, 1, 1);
@@ -483,6 +485,11 @@ internal sealed partial class SvgDrawing
             if (Declared(element, "fill") is { } fill)
             {
                 paint = paint with { Fill = style.Color(fill) };
+            }
+
+            if (Declared(element, "fill-rule") is { } rule)
+            {
+                paint = paint with { FillRule = rule == "evenodd" ? DrawingFillRule.EvenOdd : DrawingFillRule.NonZero };
             }
 
             if (Declared(element, "stroke") is { } stroke)

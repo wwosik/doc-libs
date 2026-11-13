@@ -15,6 +15,18 @@ updating, breaking changes first.
   `void`. Source that calls them as a statement compiles unchanged, but the change is
   binary-breaking: rebuild everything compiled against an earlier version, and a method group
   used as an `Action<…>` no longer converts (use a lambda). The documents they write are unchanged.
+- **Footnotes, task lists and definition lists are read** in both generators. Markdown that used
+  `[^label]`, a list item starting `[ ]` or `[x]`, or a line starting `:   ` after a one-line
+  paragraph is no longer written as typed: it becomes a footnote, a box, or a definition list (on a
+  slide, rows on a flow slide). A footnote reference without a definition stays as typed, with a note.
+- **Every deck run and every PDF carries a language tag**, `en` unless `lang` or the new
+  `Language` option says otherwise: `lang` on runs and paragraph ends (replacing the fixed `en-US`
+  of drawings), `dc:language` in the deck's core properties, `/Lang` and `dc:language` in the PDF.
+  PowerPoint spell-checks in that language; nothing else in the output changes.
+- **Invalid drawings throw `ArgumentException`** in `DrawingSvg.Write`, decks and PDFs: a
+  coordinate or size that is not finite, a negative size or width, or a colour that is not six hex
+  digits. They used to produce broken files.
+- `wwosik.DocLibs.DocumentGeneration` depends on Markdig (as the generators already did).
 
 ### New
 
@@ -27,6 +39,16 @@ updating, breaking changes first.
   diagram types it does not draw, and syntax errors with `OnError = KeepCode`.
 - **The authoring guides** have a section *Notes you may get back*, with each code of the format
   and what to change in the Markdown.
+- **Footnotes** (`[^1]`): a raised number; in decks the note goes to the foot of the slide that
+  refers to it (numbered per slide, the content area shortened to leave room), in PDFs to the end
+  under "Notes". **Task lists** (`- [ ]`, `- [x]`): a box for the bullet. **Definition lists**:
+  rows on slides, a bold term with an indented description in PDFs.
+- **Document language:** front matter `lang` and the options `Language` and `Texts` pick the
+  `GeneratedTexts` (alert titles, the footnotes heading), English and German built in, and tag the
+  output. Unknown languages fall back to English with the note `language-unknown`.
+- **New notes:** `footnote-missing` and `language-unknown`.
+- **`DrawingShape.FillRule`**: `NonZero` (default) or `EvenOdd`, written to SVG and PDF; the
+  Mermaid reader takes `fill-rule` from the SVG.
 
 ## 2610.28.22
 
