@@ -1,6 +1,8 @@
-# 00013 Nothing runs off the slide
+# E02-S04 Nothing runs off the slide
 
 > Status: verify — implemented 2026-10-25
+> Epic: [E02 Deck layouts](../50-todo/E02-deck-layouts.md)
+> Former number: 00013
 
 ## Summary
 
@@ -16,8 +18,8 @@ and text with an image.
     (`normAutofit`) is not requested, so a long list overflows the placeholder.
   - **Visual slides** place a table at its estimated height wherever it starts; a long table runs off
     the bottom. An image is fitted to the room, but the text above it is not limited.
-  - **Flow slides** stack blocks; a dense one runs off (00005 left this open).
-- The estimates themselves are improved by 00011 (tables), which this plan relies on.
+  - **Flow slides** stack blocks; a dense one runs off (E02-S01 left this open).
+- The estimates themselves are improved by E02-S02 (tables), which this plan relies on.
 - PDFs already break pages; this plan is about decks only.
 
 ## Proposed approach
@@ -30,7 +32,7 @@ and its height compared with the content area. If it fits, nothing changes.
 ### 2. Shrink, within limits
 
 - Text sizes step down: body 20 → 18 → 16 → 14 pt (flow slides 16 → 14 → 12), never below 12 pt;
-  tables down to their 00011 minimum; gaps between blocks to half.
+  tables down to their E02-S02 minimum; gaps between blocks to half.
 - An image or drawing beside or below text gives up height first, down to a quarter of the content
   area, before text shrinks.
 - On content slides, the placeholder also gets `a:normAutofit` with the computed `fontScale`, so
@@ -89,7 +91,7 @@ When the smallest sizes still do not fit:
   `normAutofit fontScale`, then split between list groups. Visual slides: text, caption and table
   sizes step down together, then tables split between rows with the header repeated. Flow slides:
   `FlowStyle.Scale` 1 → 0.875 → 0.75 (gaps halved), then split between units.
-- `EstimateLines` now uses `TextMetrics` (00011) for all text, so heights are generous rather than
+- `EstimateLines` now uses `TextMetrics` (E02-S02) for all text, so heights are generous rather than
   optimistic. Slides that fit come out as before: no existing expectation changed.
 - `PptxOptions.ContinuationSuffix` marks continuation slides (default none).
 - Tests (`FittingTests`): shrink before split, a 30-item list, a 40-row table, an overfull flow

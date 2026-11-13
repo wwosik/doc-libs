@@ -1,6 +1,8 @@
-# 00005 Slide layouts from Markdown
+# E02-S01 Slide layouts from Markdown
 
 > Status: verify — implemented 2026-10-23
+> Epic: [E02 Deck layouts](../50-todo/E02-deck-layouts.md)
+> Former number: 00005
 
 ## Summary
 

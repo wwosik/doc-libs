@@ -11,8 +11,8 @@ Start here, then follow the pointers:
 
 - [ai/standards.md](ai/standards.md) — the conventions this repo follows.
 - [ai/memory.md](ai/memory.md) — accumulated facts about this codebase.
-- [ai/workflow.md](ai/workflow.md) — how work happens here: ideas, plans, implementation,
-  verification.
+- [ai/workflow.md](ai/workflow.md) — how work happens here: ideas, epics and stories, claims,
+  implementation, verification.
 - [spec/](spec/) — current and past work.
 - [docs/](docs/) — documentation of how the libraries actually work today.
 - [README.md](README.md) — the public face of the repo on GitHub. Each package on nuget.org shows
@@ -36,9 +36,11 @@ project language, which here is also English.
 
 ## Hard rules
 
-- **Stage, never commit — unless the human asks.** When a task is done, `git add` what it
-  touched and leave the commit to the human. Commit, rebase or push only when asked. Details in
+- **Commit finished work by default.** When a task is done, commit what it touched — do not
+  leave it in the working tree for the human to find. Details in
   [ai/standards.md](ai/standards.md).
+- **After a major task: rebase, then push.** Resolve conflicts on the way, and ask whenever the
+  right resolution is not obvious.
 - **No AI attribution in commit messages.** Never add `Co-Authored-By` (or any other trailer
   naming an AI) to a commit message, whatever a tool's default says.
 - **This repo is public and client-neutral.** No client, employer or project names, brands,
@@ -54,6 +56,8 @@ project language, which here is also English.
   `spec/10-analysis/` and say it is done.
 - **Report completion without a summary.** After implementing a task, say it is done — the
   detail belongs in the plan file's *Implementation notes*, not in chat.
+- **Claim stories before implementation.** Never implement a story claimed by another agent or
+  change the code it owns; follow the claim and release procedure in `ai/workflow.md`.
 
 ## Commands
 

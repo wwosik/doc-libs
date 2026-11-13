@@ -1,6 +1,8 @@
-# 00004 Keep headings with their content
+# E03-S01 Keep headings with their content
 
 > Status: verify — implemented 2026-10-22
+> Epic: [E03 PDF layout](../50-todo/E03-pdf-layout.md)
+> Former number: 00004
 
 ## Summary
 
@@ -16,7 +18,7 @@ a diagram. Paragraphs also stop leaving single lines behind: no widows and no or
 - Each block then decides alone whether it fits on the page:
   - **Images and drawings** are never split. A block taller than the space left moves to the
     next page **as a whole** (`Ensure(height)`), and the heading stays behind. This was seen in
-    the 00003 samples: "Sequence" and "State" were left at the bottom of their pages.
+    the E04-S01 samples: "Sequence" and "State" were left at the bottom of their pages.
   - **Tables** keep their header row with the start of the first row, up to 3 lines of it. That
     can be more than two body lines.
   - **Code blocks** need their padding plus one line, in 9 pt.

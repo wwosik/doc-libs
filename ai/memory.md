@@ -35,12 +35,15 @@ same change that made it untrue — a stale fact here is worse than a missing on
 
 ## Decisions
 
-- **Git, by the human's decision (2026-10-21):** stage changes, never commit — unless the human
-  asks; commit, rebase and push likewise only on request. Commit messages never carry
-  `Co-Authored-By` or other AI attribution. Recorded as deviations in `standards.md`.
+- **Git and spec workflow (2026-11-13):** the repo follows the template's spec workflow —
+  epics `E01`, stories `E01-S01`, technical `T01-S01`, claims in `spec/55-in-progress/<agent-id>/`
+  committed on `main` — and its Git rules: commit finished work, rebase and push after a major
+  task. This replaced the stage-only rule of 2026-10-21. Commit messages never carry
+  `Co-Authored-By` or other AI attribution. Plans 00001–00019 became stories; `spec/README.md`
+  maps the old numbers.
 - Package ID prefix and root namespace: **`wwosik.DocLibs`** — lowercase owner prefix on
   purpose, the human's choice (it also makes the nuget.org ID prefix reservable).
-- **Client designs never live here.** Plan 00001 made brands public: a client's design is a
+- **Client designs never live here.** E01-S01 made brands public: a client's design is a
   `Brand` built in its own code, or a brand pack (`brand.json` + files) it ships — preferably as
   its own private NuGet package with the pack embedded. The repo has only `Brand.Neutral` and the
   made-up test brand `sample`.
@@ -58,17 +61,17 @@ same change that made it untrue — a stale fact here is worse than a missing on
   `UnmappedMemberHandling.Disallow`) to stay AOT-compatible and to reject typos.
 - Brand fonts must be **TrueType outlines** (PdfPig cannot embed CFF); `TrueTypeInfo` checks the
   sfnt tag and reads the family name from the `name` table itself, without PdfPig — **name ID 1
-  first** (plan 00006): it is what Windows groups the four faces under and what PowerPoint finds an
+  first** (E01-S03): it is what Windows groups the four faces under and what PowerPoint finds an
   embedded font by. Font licences are not checked — documented as the caller's responsibility (the
   human's decision) — except that decks skip faces whose `fsType` is restricted.
 - **Decks embed brand fonts by default** (`BrandTemplateOptions.EmbedFonts`, front matter
-  `embedFonts`; plan 00006): `FontEmbedding` writes each face as an uncompressed EOT (version
+  `embedFonts`; E01-S03): `FontEmbedding` writes each face as an uncompressed EOT (version
   `0x00020001`, header from `OS/2`, `head`, `name`) in a font part (`application/x-fontdata`),
   listed in `p:embeddedFontLst`, with `embedTrueTypeFonts`. Text family always, table and mono
   families only when a slide's `a:latin` names them. The deck's code font is
   `PptxOptions.CodeFont` ?? the brand's mono family ?? Consolas; mono is embedded only when it is
   the code font. `CustomTemplateOptions` never embeds (no brand).
-- **Slide layouts (plan 00005):** a `##` section becomes a `FlowSlide` only if it uses heading
+- **Slide layouts (E02-S01):** a `##` section becomes a `FlowSlide` only if it uses heading
   attributes, a container or alert anywhere, or a top-level tag paragraph — every other section
   takes the old `ContentSlide`/`VisualSlide` path unchanged, so old decks stay as they were. Keep
   it that way: new behaviour that would change old decks (code-only table cells as labels,
@@ -87,7 +90,7 @@ same change that made it untrue — a stale fact here is worse than a missing on
 - **Status label categories** are assigned in front matter (`labels.success: Done; Delivered`).
   `FrontMatter.Apply` skips every `labels.*` key, so templates never see them; `FrontMatter.Labels()`
   checks them — both generators call it, the PDF one only to reject the same mistakes.
-- **Authoring guides (plan 00008):** `PptxGenerator.AuthoringGuide(options)` and
+- **Authoring guides (E05-S02):** `PptxGenerator.AuthoringGuide(options)` and
   `PdfGenerator.AuthoringGuide(options)`. Templates are embedded `AuthoringGuide/*.md` with
   `{{placeholders}}`, filled by `AuthoringGuides` (front matter table from the template's `Keys`,
   the brands from `BrandRegistry.Expected`, characters to avoid from the fonts' `cmap` via
@@ -104,7 +107,7 @@ same change that made it untrue — a stale fact here is worse than a missing on
   packages, because their dependencies are heavy and disjoint (Open XML SDK for PPTX; Markdig and
   bundled fonts for PDF). What they share lives in `wwosik.DocLibs.DocumentGeneration`, which
   depends only on the main package. The main package must stay PdfPig-only.
-- **Diagrams are our own vector `Drawing`, never images** (plan 00003): the PDF renderer writes
+- **Diagrams are our own vector `Drawing`, never images** (E04-S01): the PDF renderer writes
   path operators straight into `PdfPageBuilder.CurrentStream.Operations` inside `q … Q` (PdfPig
   has no curve API), the PPTX writer makes a group of preset shapes, custom geometry and text
   boxes. Text in a drawing is placed by the generator in the real font (table faces), shrunk to
@@ -115,7 +118,7 @@ same change that made it untrue — a stale fact here is worse than a missing on
   changes on an update. Types outside `MermaidRenderer.Supported` are refused by Mermaider's
   `AllowedDiagrams` with a `MermaidParseException` "… is not in the allowed set", which the
   renderer turns into "stay code" — the message match is the only way to tell it apart.
-- **PDF page breaks (plan 00004):** a heading reserves `KeepHeight` of the blocks after it (the
+- **PDF page breaks (E03-S01):** a heading reserves `KeepHeight` of the blocks after it (the
   start of a paragraph, list, code or table; a whole visual; chained headings), and visuals below
   headings are capped at a page minus those headings (`chainTop`). `KeepHeight` must measure
   exactly what is later drawn, so paragraphs, headings and tables are replaced and wrapped once
@@ -156,7 +159,7 @@ same change that made it untrue — a stale fact here is worse than a missing on
   after `Build()`, keeping every byte offset. Drop those fixes once PdfPig writes them right.
 - Generator errors in the document or template (front matter, layout names) throw
   `DocumentConversionException`, like a missing image — not `ArgumentException`. A code-block
-  renderer's exception is wrapped into one too (`CodeBlockRenderers.Render`, plan 00007).
+  renderer's exception is wrapped into one too (`CodeBlockRenderers.Render`, E05-S01).
 - The main package is `IsAotCompatible`; a Native AOT app using only `JiraWikiMarkup` publishes
   without warnings. Keep it that way (no reflection, `GeneratedRegex`).
 - Converters never touch the file system, except `OfficeConverter`, which must (Office opens
@@ -164,22 +167,22 @@ same change that made it untrue — a stale fact here is worse than a missing on
 - Release: the version is the pushed tag `v<yyMM>.<d>.<H>[.<r>]` (Europe/Berlin; SemVer was
   dropped on 2026-10-23 for the date scheme the tags already used), nuget.org trusted publishing
   (no stored API key), `--skip-duplicate` so a re-run tag does not fail. The version says nothing
-  about compatibility, so `CHANGELOG.md` does (plan 00009); `release.yml` checks the tag's format
+  about compatibility, so `CHANGELOG.md` does (T01-S01); `release.yml` checks the tag's format
   and its changelog section and makes the section the GitHub release's notes.
-- **Package READMEs** (plan 00009): `src/Directory.Build.props` packs each package's `docs/` page
+- **Package READMEs** (T01-S01): `src/Directory.Build.props` packs each package's `docs/` page
   as its `README.md` (an inline `RoslynCodeTaskFactory` task), rewriting links to sibling pages to
   GitHub at the release tag (`GITHUB_REF_NAME` when `GITHUB_REF_TYPE` is `tag`, else `main`) and
   adding a line pointing to the repo. `CHANGELOG.md` is packed next to it.
 
-- **Text is measured by `TextMetrics`** (plan 00011): ems per character class, ×1.08 bold, wrapped
+- **Text is measured by `TextMetrics`** (E02-S02): ems per character class, ×1.08 bold, wrapped
   between words. Table columns are at least their longest word; the table font steps down to 10 pt
   before words break. `EstimateLines` uses it too, so every height in decks is this estimate.
-- **Fitting (plan 00013):** `DeckWriter.Write` passes each slide through `Fit` (`DeckWriter.Fitting.cs`)
+- **Fitting (E02-S04):** `DeckWriter.Write` passes each slide through `Fit` (`DeckWriter.Fitting.cs`)
   before writing: measured without a canvas, shrunk by steps (content: `normAutofit` font scale to
   12 pt; visual: text and table sizes; flow: `FlowStyle.Scale` 1 → 0.75), then split into parts with
   the same title (`Pack` over units: list groups, table rows with the header, rows/tag items, whole
   blocks). A slide that fits goes through unchanged — keep it that way, existing decks must not move.
-- **Dark templates (plan 00010):** `PptxBrandTemplate.Tone` (`Auto` = `TemplateTone.Detect`: master
+- **Dark templates (E01-S04):** `PptxBrandTemplate.Tone` (`Auto` = `TemplateTone.Detect`: master
   title colour via colour map and theme, else solid background) picks `SlidePalette.ForDark`, which
   sets `DarkSlides`: every flow slide gets `FlowStyle.Dark`, text boxes and tables an explicit white,
   fills are translucent (`SlideColor.Alpha`). Mermaid and charts get `ResolvedBrand.DarkSlideBrand`,
@@ -188,11 +191,11 @@ same change that made it untrue — a stale fact here is worse than a missing on
   after opening the template, because the tone decides the renderers' brand.
 - **`[words]{.success}`** is found by `ColouredWords` (shared) in the runs' text after Markdig, with
   code masked — Markdig leaves an unresolved `[…]` as text. Both generators call it.
-- **Charts (plan 00016):** `ChartWriter` writes the chart part as an XML string (schema order matters:
+- **Charts (E04-S02):** `ChartWriter` writes the chart part as an XML string (schema order matters:
   the validator checks it) and the data as an embedded `.xlsx` (`Sheet1`, categories in column A).
   Bars and areas get `c:min` at zero. PDFs draw the `Drawing` the renderer made.
 
-- **Generation notes (plan 00019):** both `Generate`s return a `GenerationResult` (`Pages`, `Notes`).
+- **Generation notes (E05-S03):** both `Generate`s return a `GenerationResult` (`Pages`, `Notes`).
   An internal `GenerationNotes` per call is passed to parser, layout and writer; it orders notes by
   line (0 last) and drops exact repeats. Every `NoteCodes` constant needs an entry in `NoteCodes.All`
   (formats and the guides' advice) and a row in the docs table, or a test fails. A slide carries its

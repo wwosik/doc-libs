@@ -1,6 +1,8 @@
-# 00017 Financial charts
+# E04-S03 Financial charts
 
 > Status: verify — implemented 2026-10-28
+> Epic: [E04 Diagrams and charts](../50-todo/E04-diagrams-and-charts.md)
+> Former number: 00017
 
 ## Summary
 
@@ -16,7 +18,7 @@ caller keeps the data and the month logic; the library does the drawing.
   request and are kept outside the repo. They are the reference for the port, but are not copied
   into it.
 - These charts cannot reach a deck today. Pictures must be PNG, JPEG or GIF, and the `chart` block
-  (00016) has no combined charts, data labels, per-point styling, reference lines, horizontal bars
+  (E04-S02) has no combined charts, data labels, per-point styling, reference lines, horizontal bars
   or second panel.
 - **The caller keeps:**
   - reading its sources: actuals, targets, forecast and estimates;
@@ -28,7 +30,7 @@ caller keeps the data and the month logic; the library does the drawing.
 - **Already in the library:**
   - `Drawing` (paths, fill, stroke, dashes, text with anchors and bold spans), which decks write as
     editable shapes and PDFs as vectors;
-  - the brand's diagram colours and category colours (`success`, `danger`, `neutral`, 00015);
+  - the brand's diagram colours and category colours (`success`, `danger`, `neutral`, E06-S01);
   - the round-step axis in `ChartDrawing.Scale`.
 - **Missing from the library:** a `Drawing` → SVG writer, a colour per text span, and hover text.
 - **Not native PowerPoint charts.** Two panels on one axis, a figures table beside the bars, and
@@ -164,7 +166,7 @@ Horizontal bars that diverge from zero, one row per entry.
 ## Colours
 
 New chart roles on the brand (`BrandColors.Chart`, every role optional), with defaults derived from
-the brand. They are resolved for light and dark slides like the diagram colours (00010).
+the brand. They are resolved for light and dark slides like the diagram colours (E01-S04).
 
 | Role | Default | Used for |
 | --- | --- | --- |
@@ -248,7 +250,7 @@ the pale fills become translucent.
 
 ## Open questions
 
-1. The same package as 00016 (`…DocumentGeneration.Charts`) or a new one (`…FinancialCharts`)?
+1. The same package as E04-S02 (`…DocumentGeneration.Charts`) or a new one (`…FinancialCharts`)?
 
 > Answered by the human (2026-10-26): the same package, `wwosik.DocLibs.DocumentGeneration.Charts`.
 
@@ -283,7 +285,7 @@ the pale fills become translucent.
 
 <!-- Free space for remarks that are not answers to the questions above. -->
 
-- A PNG of each chart, for places that take no SVG, comes from the SVG-to-PNG converter in 00018,
+- A PNG of each chart, for places that take no SVG, comes from the SVG-to-PNG converter in E04-S04,
   via `DrawingSvg.Write`.
 
 ## Implementation notes

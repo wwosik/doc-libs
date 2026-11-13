@@ -1,6 +1,8 @@
-# 00016 Native charts
+# E04-S02 Native charts
 
 > Status: verify — implemented 2026-10-25
+> Epic: [E04 Diagrams and charts](../50-todo/E04-diagrams-and-charts.md)
+> Former number: 00016
 
 ## Summary
 
@@ -12,11 +14,11 @@ PNGs.
 
 - Charts reach slides only as images today. They do not follow the brand's colours or fonts, look
   soft when scaled, and cannot be edited in PowerPoint.
-- Code blocks already become graphics through `ICodeBlockRenderer` (Mermaid diagrams, 00003). A
+- Code blocks already become graphics through `ICodeBlockRenderer` (Mermaid diagrams, E04-S01). A
   renderer returns a `Drawing` (vectors), which decks write as shapes. A native PowerPoint chart is a
   different object (a chart part with an embedded workbook), which the renderer interface cannot
   express today.
-- Priority: *could*, but done in the same round as 00010–00015 (the human's answer to question 3).
+- Priority: *could*, but done in the same round as E01-S04, E02-S02, E02-S03, E02-S04, E01-S05 and E06-S01 (the human's answer to question 3).
 
 ## Proposed approach
 
@@ -39,8 +41,8 @@ PNGs.
    beyond the shared package).
 3. **Decks:** a native chart part (`c:chartSpace` with `c:barChart` / `c:lineChart` / `c:areaChart`)
    and its embedded workbook, written with the Open XML SDK; series colours from the brand's diagram
-   palette (slide colours on dark templates, 00010); fonts from the theme. Placed like an image
-   (00012 rules: fills its box, side by side in a row).
+   palette (slide colours on dark templates, E01-S04); fonts from the theme. Placed like an image
+   (E02-S03 rules: fills its box, side by side in a row).
 4. **PDFs:** the same spec drawn as a `Drawing` (axes, gridlines, bars or lines, legend) by the layout
    engine's vector path, in the brand's table font.
 5. **Errors:** malformed data throws with the block's line, like Mermaid.
@@ -69,9 +71,9 @@ PNGs.
 
 > Answered by the human (2026-10-25): a separate package, `wwosik.DocLibs.DocumentGeneration.Charts`.
 
-3. Is this wanted now, or only after 00010–00015 have been verified?
+3. Is this wanted now, or only after E01-S04, E02-S02, E02-S03, E02-S04, E01-S05 and E06-S01 have been verified?
 
-> Answered by the human (2026-10-25): now, together with 00010–00015.
+> Answered by the human (2026-10-25): now, together with E01-S04, E02-S02, E02-S03, E02-S04, E01-S05 and E06-S01.
 
 ## Notes
 

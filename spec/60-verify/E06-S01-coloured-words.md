@@ -1,6 +1,8 @@
-# 00015 Coloured words
+# E06-S01 Coloured words
 
 > Status: verify — implemented 2026-10-25
+> Epic: [E06 Markdown syntax](../50-todo/E06-markdown-syntax.md)
+> Former number: 00015
 
 ## Summary
 
@@ -9,11 +11,11 @@ in the success colour and "watch closely" in the warning colour — in decks and
 
 ## Context
 
-- Status labels (00005) colour a whole table cell by category (`labels.<category>` front matter,
+- Status labels (E02-S01) colour a whole table cell by category (`labels.<category>` front matter,
   `BrandColors.Labels`: success, info, warning, danger, neutral). Running text has no colour of its
   own; `==marked==` is the only emphasis beyond bold and italic, and it uses the highlight colour.
 - Markdig parses `[text]{.class}` (Pandoc's bracketed span) only with generic attributes switched
-  on, which would also take `{…}` after links, headings and code — the reason 00005 parses heading
+  on, which would also take `{…}` after links, headings and code — the reason E02-S01 parses heading
   attributes itself.
 
 ## Proposed approach
@@ -22,7 +24,7 @@ in the success colour and "watch closely" in the warning colour — in decks and
    exactly one category class, parsed by our own inline parser (not Markdig's generic attributes).
    Anything else in braces after brackets stays text, as today. An unknown category in that exact
    shape (`[x]{.ok}`) throws, naming the valid ones.
-2. **Decks:** the words in the category's colour, bold; on dark slides (00010) the colour as given by
+2. **Decks:** the words in the category's colour, bold; on dark slides (E01-S04) the colour as given by
    the slide colours, checked for contrast like the rest of the dark palette.
 3. **PDFs:** the words in the category's colour (PDF colours), bold.
 4. **Plain preview:** `[words]{.success}` reads acceptably as plain text; documented.

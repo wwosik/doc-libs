@@ -1,12 +1,14 @@
-# 00018 SVG to PNG
+# E04-S04 SVG to PNG
 
 > Status: verify — implemented 2026-10-28
+> Epic: [E04 Diagrams and charts](../50-todo/E04-diagrams-and-charts.md)
+> Former number: 00018
 
 ## Summary
 
 A converter that turns any SVG into a PNG, in a new package
 `wwosik.DocLibs.DocumentConversions.Svg`. The generators use it so that an `.svg` image in the
-Markdown works in decks and PDFs. It also gives the charts of 00017 and the Mermaid diagrams a
+Markdown works in decks and PDFs. It also gives the charts of E04-S03 and the Mermaid diagrams a
 PNG form for places that take no SVG, such as e-mail.
 
 ## Context
@@ -19,7 +21,7 @@ PNG form for places that take no SVG, such as e-mail.
 - **No parser fits:** `SvgDrawing` in the Diagrams package reads only the SVG subset Mermaider
   writes into a `Drawing`, and throws on anything else.
 - **No encoder:** there is no PNG encoder in the repo.
-- **00017** adds a `Drawing` → SVG writer, so every chart and diagram the library draws can become
+- **E04-S03** adds a `Drawing` → SVG writer, so every chart and diagram the library draws can become
   an SVG, and with this converter a PNG.
 - Full SVG with real text rendering needs a mature rasteriser. SkiaSharp (MIT) with Svg.Skia (MIT)
   is the established choice in .NET. It brings a native library per platform, so it gets a package
@@ -53,11 +55,11 @@ PNG form for places that take no SVG, such as e-mail.
    - **Options:** `PptxOptions.ImageConverters` and `PdfOptions.ImageConverters`, empty by default.
      Without a converter an SVG image stays an error, so nothing changes for existing callers.
    - **Size:** the PNG is rendered at twice the size the image is placed at, so it is sharp on the
-     slide or page. The image's natural size, used for the 00012 rules, is the SVG's own size.
+     slide or page. The image's natural size, used for the E02-S03 rules, is the SVG's own size.
    - **Decks (proposed):** the original SVG is also written as PowerPoint's SVG extension
      (`asvg:svgBlip`) beside the PNG. PowerPoint 2016+ then shows it as a vector; other viewers
      show the PNG.
-4. **Drawings:** `SvgConverter.ToPng(Drawing, …)` as a convenience, via 00017's `DrawingSvg.Write`.
+4. **Drawings:** `SvgConverter.ToPng(Drawing, …)` as a convenience, via E04-S03's `DrawingSvg.Write`.
    The hover parts are left out of a PNG.
 5. **AOT:** check that the package publishes with Native AOT without warnings. If Svg.Skia warns,
    the package is marked not AOT-compatible and the docs say so; the other packages stay as they
@@ -70,7 +72,7 @@ PNG form for places that take no SVG, such as e-mail.
      - text drawn in a font passed in `Fonts`;
      - an invalid SVG (throws).
    - Generators: an `.svg` image in a deck and a PDF with the converter, and an error without it.
-   - Rendering a Mermaid diagram and a 00017 chart via `DrawingSvg` to PNG.
+   - Rendering a Mermaid diagram and a E04-S03 chart via `DrawingSvg` to PNG.
    - CI on Linux.
 7. **Docs:**
    - a package page, with native assets per platform and fonts in containers;
@@ -156,5 +158,5 @@ PNG form for places that take no SVG, such as e-mail.
   a PDF at its natural size, an error without a converter, a Mermaid diagram and every financial
   chart to PNG). Release build 0 warnings; CI runs the tests on Linux.
 - **Not verified:** the SVG-image deck (`.tmp/review/svg-image.pptx`) was not opened in PowerPoint
-  (see 00017).
+  (see E04-S03).
 

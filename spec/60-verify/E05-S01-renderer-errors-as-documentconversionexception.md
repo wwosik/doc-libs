@@ -1,6 +1,8 @@
-# 00007 Renderer errors as DocumentConversionException
+# E05-S01 Renderer errors as DocumentConversionException
 
 > Status: verify — implemented 2026-10-23
+> Epic: [E05 Authoring feedback](../50-todo/E05-authoring-feedback.md)
+> Former number: 00007
 
 ## Summary
 

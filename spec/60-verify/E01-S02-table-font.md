@@ -1,6 +1,8 @@
-# 00002 Table font
+# E01-S02 Table font
 
 > Status: verify — implemented 2026-10-22
+> Epic: [E01 Brands and templates](../50-todo/E01-brands-and-templates.md)
+> Former number: 00002
 
 ## Summary
 

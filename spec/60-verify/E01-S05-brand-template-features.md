@@ -1,6 +1,8 @@
-# 00014 Brand template features
+# E01-S05 Brand template features
 
 > Status: verify — implemented 2026-10-25
+> Epic: [E01 Brands and templates](../50-todo/E01-brands-and-templates.md)
+> Former number: 00014
 
 ## Summary
 
@@ -45,10 +47,10 @@ templates whose level-1 paragraphs have none.
 4. **Level-1 bullets:** `PptxOptions.ListBullets` (`Template` default, `Always`) and front matter
    `listBullets: template | always`. `Always` writes Markdown's bullets explicitly on every level of
    content slides, as flow slides do.
-5. **Front matter keys** go through the template options' `Keys`, so the authoring guide (00008) lists
+5. **Front matter keys** go through the template options' `Keys`, so the authoring guide (E05-S02) lists
    them automatically; the guide also gets a short *Layouts of your template* paragraph when the
    options name a brand template (its layout names).
-6. **Tests** on `brand-dark` (00010): footer text present, `showFooter: false`; `layout="…"` on a
+6. **Tests** on `brand-dark` (E01-S04): footer text present, `showFooter: false`; `layout="…"` on a
    two-line-title layout; unknown layout error; closing slide on the named layout and by name
    matching; `listBullets: always` adds `a:buChar` on level 1.
 7. **Docs:** PPTX page (front matter table, *Brand templates*), shared page (`PptxBrandTemplate`).

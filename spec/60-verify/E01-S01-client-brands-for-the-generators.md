@@ -1,6 +1,8 @@
-# 00001 Client brands for the generators
+# E01-S01 Client brands for the generators
 
 > Status: verify — implemented 2026-10-21
+> Epic: [E01 Brands and templates](../50-todo/E01-brands-and-templates.md)
+> Former number: 00001
 
 ## Summary
 

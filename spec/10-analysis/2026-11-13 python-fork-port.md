@@ -201,32 +201,33 @@ existing users' documents.
 
 ## Proposed order of plans
 
-Revised after the answers below (2026-11-13). Each line becomes one plan in `spec/50-todo/` (numbers
-from 00019), written and agreed one at a time. The order puts first what changes the API for
+Revised after the answers below (2026-11-13). Each line becomes a story (or a few) of an epic in
+`spec/50-todo/`, written and agreed one at a time; the ids were allocated when the repo moved to
+epics and stories the same day. The order puts first what changes the API for
 everything after it, then what is small and useful on its own, then the big new package.
 
-1. **Generation result and notes** — `Generate` returns a `GenerationResult` (breaking); note codes
+1. E05-S03: **Generation result and notes** — `Generate` returns a `GenerationResult` (breaking); note codes
    for what already happens silently today (split, overfull, enlarged, renderer refused).
-2. **Markdown foundations** — footnotes, task lists, definition lists, document language with
+2. E06-S02: **Markdown foundations** — footnotes, task lists, definition lists, document language with
    English and German generated-text tables, `Drawing` even-odd and validation. Raw HTML stays text.
-3. **Speaker notes, builds, transitions** — generator and converter; notes master for the built-in
+3. E07-S01: **Speaker notes, builds, transitions** — generator and converter; notes master for the built-in
    master; notes repeated on continuation slides.
-4. **Template roles for decks** — the extended `PptxBrandTemplate` / `CustomTemplateOptions`
+4. E01-S06: **Template roles for decks** — the extended `PptxBrandTemplate` / `CustomTemplateOptions`
    (layout roles, placeholder roles, text levels, decorative placeholders, footer pattern, grid),
    then numbered dividers and `{layout=…}` across placeholders.
-5. **Slide kinds** — agenda, quote, statement, contact, chart layouts, `::: conclusion`,
+5. E02-S05: **Slide kinds** — agenda, quote, statement, contact, chart layouts, `::: conclusion`,
    `::: comment`.
-6. **Visual blocks** — QR codes, icons, timeline, Gantt, steps, Harvey balls, risk matrix, image
+6. E04-S05: **Visual blocks** — QR codes, icons, timeline, Gantt, steps, Harvey balls, risk matrix, image
    attributes (SkiaSharp for `.grey` / `.round`), chart `source:` and `;` CSV.
-7. **Converter improvements** — PDF tables, lists, code, images in place; PPTX notes.
-8. **DOCX generator** — built-in template and caller templates, content, slide syntax, charts and
+7. E08-S01: **Converter improvements** — PDF tables, lists, code, images in place; PPTX notes.
+8. E09-S01 – E09-S03: **DOCX generator** — built-in template and caller templates, content, slide syntax, charts and
    drawings (SVG + PNG), authoring guide. Likely two or three plans.
-9. **PDF additions shared with DOCX** — TOC with page numbers, heading numbers, captions, footnotes,
+9. E03-S02: **PDF additions shared with DOCX** — TOC with page numbers, heading numbers, captions, footnotes,
    justification, page breaks, classification marking in all formats.
-10. **Check and the AI tool description.**
-11. **HTML deck, then preview images** painted from the PPTX with SkiaSharp.
-12. **Scenes** — 160 × 90 grid over the whole slide.
-13. **Typography and code highlighting.**
+10. E05-S04, E05-S05: **Check and the AI tool description.**
+11. E07-S02, E07-S03: **HTML deck, then preview images** painted from the PPTX with SkiaSharp.
+12. E07-S04: **Scenes** — 160 × 90 grid over the whole slide.
+13. E06-S03: **Typography and code highlighting.**
 
 Out of scope by decision: audience versions, backup slides and appendix, training schedule, handout,
 consulting containers, variables, includes, data files, cross-references, abbreviations,

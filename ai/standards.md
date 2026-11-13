@@ -117,6 +117,7 @@ if one is missing, that is a question for the human, not a gap to fill.
   working tree is work the human has to notice, review and commit by hand.
 - **Commit what the task touched, and nothing else.** An unrelated fix is its own commit.
 - Commit messages are in the project language, like the rest of the prose.
+- Never add a `Co-Authored-By` trailer to commit messages.
 - **Never commit secrets, build output, or anything `.gitignore` covers.** If something ignored
   genuinely needs to be tracked, that is a question for the human, not a decision to make.
 - **Do not commit a broken tree.** If the build or the tests fail, say so and stop — a red commit
@@ -151,5 +152,3 @@ without asking.
 | Solution under `src/server/` with a `.Server` project and its tests | Solution at `src/wwosik.DocLibs.slnx`; library projects plus `src/Directory.Build.props` with shared package metadata | The repo publishes NuGet packages, not an app. |
 | CI from a catalog component (only `ci-azure-devops` exists) | GitHub Actions (`.github/workflows/`), written for this repo | The repo is public on GitHub and publishes to nuget.org. |
 | The pipeline only builds and tests | A tag also packs and pushes to nuget.org | Publishing packages is the point of the repo. |
-| Commit finished work by default; rebase and push after a major task | Stage finished work (`git add`) and stop. Commit, rebase or push only when the human asks. | The human's decision (2026-10-21): they review and commit themselves. |
-| — | Never add `Co-Authored-By` or any other AI attribution to a commit message, even if a tool proposes it. | The human's decision (2026-10-21). |

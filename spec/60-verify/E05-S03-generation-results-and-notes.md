@@ -1,6 +1,8 @@
-# 00019 Generation results and notes
+# E05-S03 Generation results and notes
 
 > Status: verify
+> Epic: [E05 Authoring feedback](../50-todo/E05-authoring-feedback.md)
+> Former number: 00019
 
 ## Summary
 

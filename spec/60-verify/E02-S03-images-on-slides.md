@@ -1,6 +1,8 @@
-# 00012 Images on slides
+# E02-S03 Images on slides
 
 > Status: verify — implemented 2026-10-25
+> Epic: [E02 Deck layouts](../50-todo/E02-deck-layouts.md)
+> Former number: 00012
 
 ## Summary
 
@@ -18,7 +20,7 @@ PNGs.
   continuation slide. Two images in one paragraph (`![](a.png) ![](b.png)`) become two slides. On
   flow slides they stack vertically. The only way to put two images side by side today is two
   `::: cards`, each with a title and an outlined box around the image.
-- There is no syntax for columns; "two columns" was left out of 00005.
+- There is no syntax for columns; "two columns" was left out of E02-S01.
 
 ## Proposed approach
 
@@ -62,7 +64,7 @@ PNGs.
   Each part is a column of blocks; widths are equal unless the container says otherwise
   (`::: columns 1:2`). Two or three columns. The slide becomes a flow slide.
 - In PDFs, `columns` shows its parts one below the other (as other containers do).
-- The authoring guide (00008) gets the row-of-images rule and `columns`, with an example each.
+- The authoring guide (E05-S02) gets the row-of-images rule and `columns`, with an example each.
 
 ### 4. Tests, docs
 

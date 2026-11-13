@@ -1,6 +1,8 @@
-# 00008 Authoring guides for Markdown writers
+# E05-S02 Authoring guides for Markdown writers
 
 > Status: verify — implemented 2026-10-23
+> Epic: [E05 Authoring feedback](../50-todo/E05-authoring-feedback.md)
+> Former number: 00008
 
 ## Summary
 
@@ -9,7 +11,7 @@ Markdown — often an AI agent working through a host app. The guide is generate
 options (template, brands, renderers, fonts), so a host can pass it on as it is, and it changes in
 the same commit as the syntax it describes.
 
-Depends on 00005 (layouts), 00006 (fonts) and 00007 (one exception type), because the guide
+Depends on E02-S01 (layouts), E01-S03 (fonts) and E05-S01 (one exception type), because the guide
 describes them.
 
 ## Context

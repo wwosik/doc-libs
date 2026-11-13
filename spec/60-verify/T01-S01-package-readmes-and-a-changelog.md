@@ -1,6 +1,8 @@
-# 00009 Package READMEs and a changelog
+# T01-S01 Package READMEs and a changelog
 
 > Status: verify — implemented 2026-10-23
+> Epic: T01 (technical)
+> Former number: 00009
 
 ## Summary
 
@@ -21,7 +23,7 @@ the same change.
   `ai/standards.md` *Build and deployment* — e.g. `v2610.22.18`, `v2610.22.18.1`. The version
   says nothing about compatibility, and there is no record of what changed between versions.
 - `release.yml` takes any `v*` tag as the version, without checking it against the scheme.
-- Plans 00005–00008 each change behaviour a consumer notices (bigger decks, `CodeFont` nullable,
+- Plans E02-S01, E01-S03, E05-S01 and E05-S02 each change behaviour a consumer notices (bigger decks, `CodeFont` nullable,
   a new exception type, Markdown that now fails because `:::` and `{…}` became syntax).
 - `ai/workflow.md` step 4 asks for *Implementation notes*, but not for breaking changes.
 
@@ -57,7 +59,7 @@ the same change.
 6. **Check:** `run.sh pack`, then open each `.nupkg`: `README.md` is the package's page with
    absolute links, `CHANGELOG.md` is there; the links resolve on GitHub.
 
-Best implemented before 00005–00008, so their entries go straight into the changelog.
+Best implemented before E02-S01, E01-S03, E05-S01 and E05-S02, so their entries go straight into the changelog.
 
 ## Acceptance criteria
 
@@ -98,7 +100,7 @@ Best implemented before 00005–00008, so their entries go straight into the cha
   `GITHUB_REF_NAME` when `GITHUB_REF_TYPE` is `tag` (the release build) and `main` otherwise; a line
   under the title points to the repo and the changelog. The root `README.md` is no longer packed;
   `AGENTS.md` and `ai/standards.md` say so.
-- **`CHANGELOG.md`** with an *Unreleased* section holding 00005–00009, and one section for the two
+- **`CHANGELOG.md`** with an *Unreleased* section holding E02-S01, E01-S03, E05-S01, E05-S02 and T01-S01, and one section for the two
   versions already published. Packed into every package.
 - **`release.yml`:** checks the tag against `v<yyMM>.<d>.<H>[.<r>]` (month 01–12, day 1–31, hour
   0–23, no leading zeros on day and hour), extracts `## <version>` from `CHANGELOG.md` (fails without

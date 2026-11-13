@@ -1,6 +1,8 @@
-# 00010 Slides on dark templates
+# E01-S04 Slides on dark templates
 
 > Status: verify — implemented 2026-10-25
+> Epic: [E01 Brands and templates](../50-todo/E01-brands-and-templates.md)
+> Former number: 00010
 
 ## Summary
 
@@ -44,7 +46,7 @@ on PDF pages, because a colour that suits white paper is often wrong on a dark s
 - `Auto` decides from the template: the colour of the master's title text style, through the colour
   map (light text means dark slides); failing that, the master's or the title-only layout's solid
   background. Photographic backgrounds are not inspected. The decision is logged nowhere — it is
-  shown in the authoring guide (00008) and documented, and `Tone` overrides it.
+  shown in the authoring guide (E05-S02) and documented, and `Tone` overrides it.
 - The built-in master is always `Light` (dark slides there are the `{.dark}` layout, as today).
 
 ### 3. A dark palette
@@ -83,7 +85,7 @@ test fails if a palette breaks it.
 A made-up dark brand template, `brand-dark` (no real company's design): a 16:9 `.pptx` written by
 `tools/sample-generator`, with a dark gradient image as master background, white title and body
 styles, a footer placeholder, and layouts for cover, title only, content, section, a two-line title
-and a closing slide (the last three also serve 00012–00014). It joins `sample` and `neutral` in the
+and a closing slide (the last three also serve E02-S03, E02-S04 and E01-S05). It joins `sample` and `neutral` in the
 PPTX tests.
 
 ### 6. Tests, docs

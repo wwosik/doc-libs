@@ -1,6 +1,8 @@
-# 00006 Brand fonts embedded in decks
+# E01-S03 Brand fonts embedded in decks
 
 > Status: verify — implemented 2026-10-23
+> Epic: [E01 Brands and templates](../50-todo/E01-brands-and-templates.md)
+> Former number: 00006
 
 ## Summary
 
@@ -116,7 +118,7 @@ brand's mono family when it has one, and family names are read the way PowerPoin
   regular face. PDFs still do not read `fsType`.
 - **A brand's own `Pptx` template** now takes the front matter key `embedFonts` (it took no keys
   before); its existing `p:embeddedFontLst` entries of the same family are replaced, others kept.
-- `TrueTypeInfo` gained `Table`, `Name`, `EmbeddingFlags` (and `HasCharacter`, used by 00008), so
+- `TrueTypeInfo` gained `Table`, `Name`, `EmbeddingFlags` (and `HasCharacter`, used by E05-S02), so
   there is one font-table reader. `ResolvedFonts.MonoFamily` is read from the mono face.
 
 ### Deviations from the plan
@@ -146,4 +148,4 @@ brand's mono family when it has one, and family names are read the way PowerPoin
 
 - **Open `.tmp/review/embedded-fonts-sample.pptx` in PowerPoint for Windows on a machine without
   Liberation Serif, PT Sans Narrow and Inconsolata** — they should show, and *File → Options →
-  Save* should list them as embedded. Not done here (see 00005, *To verify by hand*).
+  Save* should list them as embedded. Not done here (see E02-S01, *To verify by hand*).

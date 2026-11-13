@@ -1,6 +1,8 @@
-# 00003 Mermaid diagrams
+# E04-S01 Mermaid diagrams
 
 > Status: verify — implemented 2026-10-22
+> Epic: [E04 Diagrams and charts](../50-todo/E04-diagrams-and-charts.md)
+> Former number: 00003
 
 ## Summary
 
@@ -43,8 +45,8 @@ optional package `wwosik.DocLibs.DocumentGeneration.Diagrams`, built on the MIT 
   operators, `SetLineDashPattern`, `SetLineJoin`).
 - **PPTX:** `DeckWriter` places pictures and tables on a `Canvas`. DrawingML has group shapes
   (`p:grpSp`) and custom geometry (`a:custGeom`), which PowerPoint renders and lets users edit.
-- Brand fonts and colours: [00001](../60-verify/00001%20Client%20brands%20for%20the%20generators.md).
-  The table font is [00002](00002%20Table%20font.md); diagrams use it when present.
+- Brand fonts and colours: [E01-S01](../60-verify/E01-S01-client-brands-for-the-generators.md).
+  The table font is [E01-S02](E01-S02-table-font.md); diagrams use it when present.
 
 ## Proposed approach
 
@@ -121,7 +123,7 @@ public sealed record BrandDiagramColors
 
 - `brand.json`: `colors.diagram.{text,line,accent,surface,border,palette}`, with the same
   validation and error messages as the other colours.
-- The font is the table font (00002) if the brand has one, else the text font. Condensed cuts
+- The font is the table font (E01-S02) if the brand has one, else the text font. Condensed cuts
   suit diagram labels. The background is always white (`Bg`), with no shadows and no gradients.
 
 ### 4. Package `wwosik.DocLibs.DocumentGeneration.Diagrams`

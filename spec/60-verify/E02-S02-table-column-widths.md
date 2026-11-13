@@ -1,6 +1,8 @@
-# 00011 Table column widths
+# E02-S02 Table column widths
 
 > Status: verify — implemented 2026-10-25
+> Epic: [E02 Deck layouts](../50-todo/E02-deck-layouts.md)
+> Former number: 00011
 
 ## Summary
 
@@ -31,8 +33,8 @@ font before anything wraps mid-word.
 
   With six columns and a long header, on a brand template with a wide sans font, the `Plan` column
   comes out narrower than `48,215` in bold. The fix is checked on the built-in master, `sample` and
-  `brand-dark` (00010).
-- Row heights come from the same estimate, so the table's height is also wrong, which feeds 00013.
+  `brand-dark` (E01-S04).
+- Row heights come from the same estimate, so the table's height is also wrong, which feeds E02-S04.
 
 ## Proposed approach
 
