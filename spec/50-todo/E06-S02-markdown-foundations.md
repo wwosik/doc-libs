@@ -139,38 +139,38 @@ write themselves, in English or German, and tags the text for spell checking and
 1. Where do footnotes go on slides? At the foot of the slide that references them (proposed);
    dropped with a note, as the fork does; or collected on a last "Notes" slide?
 
->
+> Answered by the human (2026-11-13): At the foot of the slide that references them.
 
 2. Where do footnotes go in PDF until E03-S02 brings page-foot notes? At the end of the
    document (proposed), or at the end of each `#` chapter?
 
->
+> Answered by the human (2026-11-13): At the end of the document.
 
 3. Task-list boxes in decks: Wingdings bullet characters (proposed: they stay real list bullets,
    which PowerPoint can edit), or drawn shapes, which look the same everywhere but do not move
    with the text?
 
->
+> Answered by the human (2026-11-13): Wingdings bullet characters.
 
 4. Definition lists on slides: the `::: rows` look (proposed), or a bold term line with the
    description indented under it, like PDF?
 
->
+> Answered by the human (2026-11-13): The `::: rows` look.
 
 5. Cover date: keep `dd.MM.yyyy` in every language (proposed: nothing moves), or format it per
    language, for example "13 November 2026" and "13. November 2026"?
 
->
+> Answered by the human (2026-11-13): Keep `dd.MM.yyyy` in every language.
 
 6. An unknown language: fall back to English with a note (proposed), or throw as for an
    unknown front-matter value?
 
->
+> Answered by the human (2026-11-13): Fall back to English with a note.
 
 7. Should hosts be able to add languages through `Texts` (proposed), or should the library only
    know English and German for now?
 
->
+> Answered by the human (2026-11-13): Yes, through `Texts`.
 
 ## Notes
 
