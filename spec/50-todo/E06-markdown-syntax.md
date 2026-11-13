@@ -15,7 +15,7 @@ One syntax for every format means a writer learns it once and the same source go
 | Story | Title | State |
 | ----- | ----- | ----- |
 | [E06-S01](../60-verify/E06-S01-coloured-words.md) | Coloured words | in verification |
-| E06-S02 | Markdown foundations: footnotes, task lists, definition lists, document language (`lang`) with English and German generated-text tables, `Drawing` even-odd fill and validation | to plan |
+| [E06-S02](E06-S02-markdown-foundations.md) | Markdown foundations: footnotes, task lists, definition lists, document language (`lang`) with English and German generated-text tables, `Drawing` even-odd fill and validation | todo |
 | E06-S03 | Typography and code highlighting | to plan |
 
 Stories marked *to plan* come from the
