@@ -54,6 +54,10 @@ Generation stops with a message that says what to fix: a character the fonts lac
 is not among the files, a front matter key that does not exist, or a broken diagram with its line.
 Fix the Markdown and generate again.
 
+## Notes you may get back
+
+{{notes}}
+
 ## Example
 
 ````markdown

@@ -81,9 +81,10 @@ parse it, or its SVG has something the converter does not know.
 | `OnError` | Behaviour |
 | --------- | --------- |
 | `Throw` (default) | `ArgumentException`: `The mermaid code block at line 12 cannot be drawn: <reason>`. The line counts from the top of the Markdown, front matter included. The generators wrap it: the caller gets a `DocumentConversionException` in the generator's format with the same message and the `ArgumentException` as `InnerException`. |
-| `KeepCode` | The block stays code. |
+| `KeepCode` | The block stays code, and the generator's `GenerationResult` has a `code-not-drawn` note with the reason. |
 
-A block of a type that is not drawn stays code in both modes.
+A block of a type that is not drawn stays code in both modes, with a `code-not-drawn` note naming the
+type and the types that are drawn.
 
 ## Known limits
 

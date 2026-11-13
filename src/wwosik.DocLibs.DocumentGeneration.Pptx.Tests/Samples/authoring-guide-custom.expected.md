@@ -125,6 +125,17 @@ attribute (`{.wide}`) or alert (`[!INFO]`), a `cards` or `rows` item without a b
 image that is not among the files, a front matter key that does not exist, or a broken diagram
 with its line. Fix the Markdown and generate again.
 
+## Notes you may get back
+
+The document is still written, but whoever passes it to you may also pass on notes about it, each with its line. Each names what happened:
+
+- `slide-split`: the slide had too much content and continues on further slides. Shorten it, or split it into slides of your own with their own titles.
+- `slide-shrunk`: the slide's text was set at the smallest size to fit. Shorten it.
+- `slide-overfull`: one item, such as a long list entry or a table with very long cells, does not fit even on a slide of its own. Shorten it.
+- `image-enlarged`: the image is small and was enlarged; it may look blurred. Use a larger image, or `"scale=1"` in its title to keep it at its size.
+- `code-not-drawn`: a diagram could not be drawn, for example a diagram type that is not supported, and stays code. Use a supported type.
+- `html-as-text`: HTML is not interpreted: it is shown as text. Write Markdown instead.
+
 ## Example
 
 ````markdown

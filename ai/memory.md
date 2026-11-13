@@ -192,6 +192,14 @@ same change that made it untrue — a stale fact here is worse than a missing on
   the validator checks it) and the data as an embedded `.xlsx` (`Sheet1`, categories in column A).
   Bars and areas get `c:min` at zero. PDFs draw the `Drawing` the renderer made.
 
+- **Generation notes (plan 00019):** both `Generate`s return a `GenerationResult` (`Pages`, `Notes`).
+  An internal `GenerationNotes` per call is passed to parser, layout and writer; it orders notes by
+  line (0 last) and drops exact repeats. Every `NoteCodes` constant needs an entry in `NoteCodes.All`
+  (formats and the guides' advice) and a row in the docs table, or a test fails. A slide carries its
+  heading's `Line` (set by `DeckParser.Section`, kept on split parts). Renderers report through
+  `CodeBlockRequest.Report`, which is excluded from the request's equality. Notes never change the
+  output: the files stay as before for the same input.
+
 ## Traps
 
 - **The built-in master's relationship ids are fixed:** layouts 1–4 are `rId1`–`rId4`, the theme

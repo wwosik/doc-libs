@@ -41,6 +41,7 @@ internal sealed class LayoutEngine
     private readonly PageGeometry geometry;
     private readonly Design design;
     private readonly Func<string, string>? replaceUnsupported;
+    private readonly GenerationNotes notes;
     private readonly List<LaidOutPage> pages = [];
     private readonly List<Bookmark> bookmarks = [];
     private readonly Dictionary<string, (int Page, double Y)> anchors = new(StringComparer.Ordinal);
@@ -54,8 +55,10 @@ internal sealed class LayoutEngine
     private double? chainTop;
     private int chainPage;
 
-    public LayoutEngine(IFontMetrics metrics, PageGeometry geometry, Design design, Func<string, string>? replaceUnsupported = null)
+    public LayoutEngine(
+        IFontMetrics metrics, PageGeometry geometry, Design design, Func<string, string>? replaceUnsupported = null, GenerationNotes? notes = null)
     {
+        this.notes = notes ?? new GenerationNotes();
         this.metrics = metrics;
         this.geometry = geometry;
         this.design = design;
@@ -1138,6 +1141,10 @@ internal sealed class LayoutEngine
             {
                 var replacement = replace(element);
                 this.CheckGlyphs(replacement, face, element);
+                this.notes.Add(
+                    NoteCodes.CharacterReplaced,
+                    0,
+                    $"The character '{element}' ({CodePoints(element)}) is not in the fonts and was replaced by '{replacement}'.");
                 result ??= new StringBuilder(text, 0, index, text.Length);
                 result.Append(replacement);
             }
@@ -1151,6 +1158,9 @@ internal sealed class LayoutEngine
 
         return result?.ToString() ?? text;
     }
+
+    private static string CodePoints(string element) =>
+        string.Join(" ", element.EnumerateRunes().Select(r => $"U+{r.Value:X4}"));
 
     private void CheckGlyphs(string text, FontFace face, string? replacing = null)
     {

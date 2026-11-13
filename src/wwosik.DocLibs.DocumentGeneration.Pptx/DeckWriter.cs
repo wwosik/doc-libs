@@ -23,6 +23,9 @@ internal sealed partial class DeckWriter
     private const long CellInsets = 91440 * 2;
     private const int MinTableSize = 1000;
     private const double MaxDrawingUpscale = 1.5;
+
+    // Above this, an enlarged image is reported as possibly blurred.
+    private const double MaxSharpUpscale = 2.0;
     private const int MaxImagesPerRow = 4;
     private const int TextSize = 1800;
     private const int CaptionSize = 1400;
@@ -76,6 +79,8 @@ internal sealed partial class DeckWriter
     private readonly Dictionary<DocumentResource, ImagePart> images = [];
     private readonly Dictionary<DocumentResource, ImagePart> vectors = [];
     private readonly IReadOnlyDictionary<string, LabelCategory> labels;
+    private readonly GenerationNotes notes;
+    private Slide? current;
     private uint nextSlideId = 256;
 
     /// <summary>Opens the deck for writing. Layouts named in <paramref name="names"/> win over the lookup by type.</summary>
@@ -97,8 +102,10 @@ internal sealed partial class DeckWriter
         string? codeFont = null,
         string? footerText = null,
         bool builtIn = false,
-        bool listBullets = false)
+        bool listBullets = false,
+        GenerationNotes? notes = null)
     {
+        this.notes = notes ?? new GenerationNotes();
         this.footerText = footerText;
         this.builtIn = builtIn;
         this.listBullets = listBullets;
@@ -142,11 +149,13 @@ internal sealed partial class DeckWriter
             : BuiltInTableStyleId;
     }
 
-    public void Write(IReadOnlyList<Slide> slides)
+    /// <summary>Writes the slides, fitted; returns how many were written.</summary>
+    public int Write(IReadOnlyList<Slide> slides)
     {
         var number = 0;
         foreach (var (slide, step) in slides.SelectMany(this.Fit))
         {
+            this.current = slide;
             var canvas = slide switch
             {
                 TitleSlide title => this.WriteTitleSlide(title),
@@ -167,6 +176,8 @@ internal sealed partial class DeckWriter
         {
             empty.Remove();
         }
+
+        return number;
     }
 
     // A cover or section layout without a title placeholder (such as some corporate dividers) takes the title in its
@@ -923,6 +934,15 @@ internal sealed partial class DeckWriter
         if (canvas is null)
         {
             return placed;
+        }
+
+        // A converted SVG is drawn as a vector by PowerPoint, so only its PNG would blur.
+        if (fit > MaxSharpUpscale && image.Scale is null && image.Vector is null)
+        {
+            this.notes.Add(
+                NoteCodes.ImageEnlarged,
+                this.current?.Line ?? 0,
+                $"The image '{image.Resource.Path}' is drawn at {fit.ToString("0.#", CultureInfo.InvariantCulture)} times its size and may look blurred. Use a larger image, or \"scale=1\" in its title to keep its size.");
         }
 
         if (!this.images.TryGetValue(image.Resource, out var part))

@@ -220,6 +220,40 @@ required, and inside `fonts.table` its `regular` and `bold`); `colors` also take
 - **As files** — a brand pack folder or zip deployed with an app or kept in a document repo, for
   people who maintain the design without writing code.
 
+## Generation results and notes
+
+`PptxGenerator.Generate` and `PdfGenerator.Generate` return a `GenerationResult`: the slides or
+pages written, and notes about what the generator did to the Markdown that its writer cannot see in
+the result. The document is written either way; a note is not an error.
+
+```csharp
+GenerationResult result = PptxGenerator.Generate(document, output, options);
+if (result.HasNotes)
+{
+    Console.WriteLine(result);   // "- line 12: The slide 'Costs' did not fit and continues on 1 more slide. …"
+}
+```
+
+- **`GenerationResult(Notes)`**: `Pages` (slides for decks, pages for PDFs), `HasNotes`, and
+  `ToString()`, one `- line N: …` per note or `No notes.`.
+- **`GenerationNote(Code, Line, Message)`**: `Code` is one of `NoteCodes`, stable, for filtering;
+  `Line` is the Markdown line it concerns, from 1, front matter included, 0 if unknown; `Message`
+  is English, names the slide or block, and says what to change. Notes are ordered by line, those
+  without one last, and a note repeated word for word is given once.
+- **Pass them back** to whoever wrote the Markdown, as you pass `DocumentConversionException.Reason`.
+  Each generator's authoring guide lists its codes with what to change, under *Notes you may get
+  back*. To refuse a document with notes, check `HasNotes`; there is no option that throws.
+
+| Code | Format | When |
+| ---- | ------ | ---- |
+| `slide-split` | PPTX | A slide did not fit and continues on further slides with the same title |
+| `slide-shrunk` | PPTX | A slide's text or table had to be set at the smallest size to fit; smaller steps above it are not reported, nor are the parts of a split slide |
+| `slide-overfull` | PPTX | Something runs past the content area even at the smallest size: one list item, table row or block too big for a slide of its own |
+| `image-enlarged` | PPTX | An image was drawn at more than twice its natural size; not when its title gives `scale=`, nor for a converted SVG, which PowerPoint draws as a vector |
+| `code-not-drawn` | PPTX, PDF | A renderer declined a block in its own language and said why, such as `MermaidRenderer` for a diagram type it does not draw; blocks in languages no renderer claims stay code silently |
+| `html-as-text` | PPTX, PDF | Raw HTML, a block or inline, was written as text; HTML comments are left out silently |
+| `character-replaced` | PDF | `PdfOptions.ReplaceUnsupported` replaced a character the fonts lack; once per character, without a line |
+
 ## Drawings and code-block renderers
 
 Fenced code blocks can become graphics in both generators through `ICodeBlockRenderer`, listed in
@@ -235,7 +269,10 @@ public interface ICodeBlockRenderer
 
 - **`CodeBlockRequest`**: `Language` (the info string), `Code`, `Brand` (the brand the document is
   generated in, after front matter) and `Line` (of the opening fence, from 1, front matter
-  included).
+  included). `Report(code, message)`, set by the generators, passes a note for the writer into
+  their `GenerationResult`: a renderer that declines a block in its own language calls it with
+  `NoteCodes.CodeNotDrawn` and the reason before it returns `null`. It may be `null` when a request
+  is made by hand, and it is not part of the request's equality.
 - **`AuthoringGuide`** is what a Markdown writer needs to know about the blocks the renderer
   takes, as Markdown under a `##` heading of its own. The generators' `AuthoringGuide(options)`
   includes the sections of the renderers in the options; a renderer without one adds nothing.

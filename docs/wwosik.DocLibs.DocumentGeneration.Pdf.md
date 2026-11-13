@@ -55,6 +55,9 @@ string guide = PdfGenerator.AuthoringGuide(options);   // starts at "##"
   you fix (and refuse in front matter), size limits, how the result reaches the user.
 - **Errors:** pass `DocumentConversionException.Reason` back to the writer as it is; it names
   what to fix (the key, the container, the character, the diagram's line).
+- **Notes:** `Generate` returns a `GenerationResult` with the pages written and notes for the
+  writer — diagrams left as code, HTML shown as text, characters replaced — each with its line. Pass them back too; the guide explains each code. See
+  [Generation results and notes](wwosik.DocLibs.DocumentGeneration.md#generation-results-and-notes).
 - It is generated on each call, so it follows the package version, and it stays under about
   2,500 words.
 

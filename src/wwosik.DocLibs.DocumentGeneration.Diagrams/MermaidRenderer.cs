@@ -53,12 +53,16 @@ public sealed class MermaidRenderer : ICodeBlockRenderer
         catch (MermaidParseException ex) when (ex.Message.Contains("is not in the allowed set", StringComparison.Ordinal))
         {
             // A Mermaid type outside Supported.
+            request.Report?.Invoke(
+                NoteCodes.CodeNotDrawn,
+                $"The mermaid diagram '{GenerationNotes.Quote(request.Code)}' is of a type that is not drawn, so it stays code. Drawn are flowchart, sequence, class, state, ER, pie, gantt and mindmap diagrams.");
             return null;
         }
         catch (Exception ex) when (ex is MermaidParseException or MermaidRenderException or MermaidResourceLimitException or MermaidSvgException or InvalidDataException)
         {
             if (this.OnError == MermaidErrorMode.KeepCode)
             {
+                request.Report?.Invoke(NoteCodes.CodeNotDrawn, $"The mermaid diagram cannot be drawn, so it stays code: {ex.Message}");
                 return null;
             }
 

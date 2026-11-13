@@ -133,6 +133,13 @@ Generation stops with a message that says what to fix: a character the fonts lac
 is not among the files, a front matter key that does not exist, or a broken diagram with its line.
 Fix the Markdown and generate again.
 
+## Notes you may get back
+
+The document is still written, but whoever passes it to you may also pass on notes about it, each with its line. Each names what happened:
+
+- `code-not-drawn`: a diagram could not be drawn, for example a diagram type that is not supported, and stays code. Use a supported type.
+- `html-as-text`: HTML is not interpreted: it is shown as text. Write Markdown instead.
+
 ## Example
 
 ````markdown

@@ -7,6 +7,27 @@ plus a counter for a further release within the same hour. The version says noth
 compatibility, so this file does. Read the sections between your version and the new one before
 updating, breaking changes first.
 
+## Unreleased
+
+### Breaking changes
+
+- **`PptxGenerator.Generate` and `PdfGenerator.Generate` return a `GenerationResult`** instead of
+  `void`. Source that calls them as a statement compiles unchanged, but the change is
+  binary-breaking: rebuild everything compiled against an earlier version, and a method group
+  used as an `Action<…>` no longer converts (use a lambda). The documents they write are unchanged.
+
+### New
+
+- **Generation notes:** `GenerationResult` has the number of slides or pages written and
+  `Notes`: `GenerationNote(Code, Line, Message)` for what the generator did to the Markdown that its
+  writer cannot see: `slide-split`, `slide-shrunk` (at the smallest size), `slide-overfull`,
+  `image-enlarged` (more than 2×), `code-not-drawn`, `html-as-text` and, in PDFs,
+  `character-replaced`. The codes are constants in `NoteCodes`. Pass the notes back to the writer.
+- **`CodeBlockRequest.Report`** lets a renderer pass such a note on; `MermaidRenderer` reports
+  diagram types it does not draw, and syntax errors with `OnError = KeepCode`.
+- **The authoring guides** have a section *Notes you may get back*, with each code of the format
+  and what to change in the Markdown.
+
 ## 2610.28.22
 
 ### Breaking changes

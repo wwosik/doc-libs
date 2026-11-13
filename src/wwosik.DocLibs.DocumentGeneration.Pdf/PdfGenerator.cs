@@ -14,14 +14,17 @@ public static class PdfGenerator
     private const string PageSizeKey = "pageSize";
     private const string OrientationKey = "orientation";
 
-    /// <summary>Writes <paramref name="document"/> as a PDF to <paramref name="output"/>.</summary>
+    /// <summary>
+    /// Writes <paramref name="document"/> as a PDF to <paramref name="output"/>. Returns the number of pages and the
+    /// notes for the writer: diagrams left as code, HTML shown as text, characters replaced.
+    /// </summary>
     /// <exception cref="DocumentConversionException">
     /// An image is not among the document's resources or not a PNG or JPEG, the front matter is invalid or names an
     /// unknown brand, or a character is not in the font and <see cref="PdfOptions.ReplaceUnsupported"/> is not set or
     /// returns one that is not either.
     /// </exception>
     /// <exception cref="ArgumentException">The brand is invalid, or two of <see cref="PdfOptions.Brands"/> share a name.</exception>
-    public static void Generate(MarkdownDocument document, Stream output, PdfOptions? options = null)
+    public static GenerationResult Generate(MarkdownDocument document, Stream output, PdfOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(output);
@@ -32,7 +35,8 @@ public static class PdfGenerator
         options = Apply(frontMatter, options);
         var brand = ResolvedBrand.Resolve(options.Template.BrandValue);
         var fonts = FontSet.For(brand);
-        var model = MarkdownParser.Parse(document with { Markdown = frontMatter.Body }, options, options.Template.BrandValue, frontMatter.BodyLine);
+        var notes = new GenerationNotes();
+        var model = MarkdownParser.Parse(document with { Markdown = frontMatter.Body }, options, options.Template.BrandValue, frontMatter.BodyLine, notes);
         var title = frontMatter.Title ?? document.Metadata.GetValueOrDefault(MetadataKeys.Title)
             ?? (model.Cover is { } cover ? string.Concat(cover.Title.Select(r => r.IsBreak ? " " : r.Text)) : null);
         var author = frontMatter.Author ?? document.Metadata.GetValueOrDefault(MetadataKeys.Author);
@@ -41,8 +45,9 @@ public static class PdfGenerator
             : null;
 
         var design = new Design(brand, options.Template.ShowsTagline, date, title);
-        var layout = new LayoutEngine(fonts, PageGeometry.For(options.PageSize, options.Orientation), design, options.ReplaceUnsupported).Run(model);
+        var layout = new LayoutEngine(fonts, PageGeometry.For(options.PageSize, options.Orientation), design, options.ReplaceUnsupported, notes).Run(model);
         output.Write(PdfRenderer.Render(layout, fonts, layout.Title, author));
+        return notes.Result(layout.Pages.Count);
     }
 
     /// <summary>
@@ -76,6 +81,9 @@ public static class PdfGenerator
                     registry.Expected,
                     [.. options.Template.Keys.Concat([PageSizeKey, OrientationKey]).Select(k => (k, meanings[k])), labels]),
                 ["characters"] = Characters(FontSet.For(ResolvedBrand.Resolve(options.Template.BrandValue)), options.ReplaceUnsupported is not null),
+                ["notes"] = options.ReplaceUnsupported is null
+                    ? AuthoringGuides.Notes(DocumentFormat.Pdf, NoteCodes.CharacterReplaced)
+                    : AuthoringGuides.Notes(DocumentFormat.Pdf),
             });
     }
 

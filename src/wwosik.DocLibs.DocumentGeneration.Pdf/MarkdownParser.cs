@@ -19,17 +19,19 @@ namespace wwosik.DocLibs.DocumentGeneration.Pdf;
 /// Turns Markdown into the block model. A document that starts with a <c>#</c> heading gets a cover from it and
 /// the paragraphs up to the next heading; everything else flows as blocks.
 /// </summary>
-internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptions options, Brand brand, int lineOffset)
+internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptions options, Brand brand, int lineOffset, GenerationNotes notes)
 {
     private static readonly MarkdownPipeline Pipeline = BuildPipeline();
 
     /// <remarks>
     /// <paramref name="brand"/> is the brand code-block renderers draw in; <paramref name="lineOffset"/> the lines of
-    /// front matter cut off the Markdown, so renderers get the block's line in the original.
+    /// front matter cut off the Markdown, so renderers get the block's line in the original; <paramref name="notes"/>
+    /// collects what the writer should know, such as HTML shown as text.
     /// </remarks>
-    public static DocumentModel Parse(MarkdownDocument document, PdfOptions options, Brand? brand = null, int lineOffset = 0)
+    public static DocumentModel Parse(
+        MarkdownDocument document, PdfOptions options, Brand? brand = null, int lineOffset = 0, GenerationNotes? notes = null)
     {
-        var parser = new MarkdownParser(document, options, brand ?? Brand.Neutral, lineOffset);
+        var parser = new MarkdownParser(document, options, brand ?? Brand.Neutral, lineOffset, notes ?? new GenerationNotes());
         var markdown = Markdown.Parse(document.Markdown, Pipeline);
         var blocks = markdown.ToList();
         Cover? cover = null;
@@ -131,6 +133,7 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
             case LinkReferenceDefinitionGroup:
                 break;
             case HtmlBlock html:
+                this.HtmlAsText(html, html.Lines.ToString());
                 target.AddRange(html.Lines.ToString().Split('\n').Where(l => l.Trim().Length > 0)
                     .Select(l => new ParagraphBlock([new TextRun(l.Trim(), RunStyle.None)])));
                 break;
@@ -150,7 +153,11 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
     private CodeBlockGraphic? Render(FencedCodeBlock fenced) =>
         options.CodeBlockRenderers.Count == 0 ? null : CodeBlockRenderers.Render(
             options.CodeBlockRenderers,
-            new CodeBlockRequest(fenced.Info ?? string.Empty, fenced.Lines.ToString(), brand) { Line = fenced.Line + 1 + lineOffset },
+            new CodeBlockRequest(fenced.Info ?? string.Empty, fenced.Lines.ToString(), brand)
+            {
+                Line = this.LineOf(fenced),
+                Report = (code, message) => notes.Add(code, this.LineOf(fenced), message),
+            },
             DocumentFormat.Pdf);
 
     private List<Block> Children(ContainerBlock container)
@@ -206,6 +213,14 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
 
         return text.Length > 0 ? [.. runs[..^1], last with { Text = text }] : runs[..^1];
     }
+
+    // A block's line in the original Markdown, from 1.
+    private int LineOf(MarkdownObject block) => block.Line + 1 + lineOffset;
+
+    private void HtmlAsText(MarkdownObject html, string text) => notes.Add(
+        NoteCodes.HtmlAsText,
+        this.LineOf(html),
+        $"The HTML '{GenerationNotes.Quote(text)}' is shown as text. Write Markdown instead.");
 
     private List<TextRun> Runs(ContainerInline? inline)
     {
@@ -377,6 +392,7 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
                         this.Text(entity.Transcoded.ToString(), style, link);
                         break;
                     case HtmlInline html:
+                        parser.HtmlAsText(html, html.Tag);
                         this.Text(html.Tag, style, link);
                         break;
                     case ContainerInline nested:

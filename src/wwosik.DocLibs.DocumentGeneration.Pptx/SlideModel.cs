@@ -72,6 +72,9 @@ internal abstract record Slide(IReadOnlyList<TextRun> Title)
 {
     /// <summary>The template's layout the heading asked for (<c>layout="…"</c>); <see langword="null"/>: by the kind of slide.</summary>
     public string? Layout { get; init; }
+
+    /// <summary>The line of the heading the slide comes from, from 1, front matter included; 0 if unknown.</summary>
+    public int Line { get; init; }
 }
 
 /// <summary>

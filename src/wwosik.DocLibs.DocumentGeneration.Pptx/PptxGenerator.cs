@@ -19,13 +19,17 @@ public static class PptxGenerator
     private static readonly XNamespace CoreProperties = "http://schemas.openxmlformats.org/package/2006/metadata/core-properties";
     private static readonly XNamespace DublinCore = "http://purl.org/dc/elements/1.1/";
 
-    /// <summary>Writes <paramref name="document"/> as a <c>.pptx</c> to <paramref name="output"/>.</summary>
+    /// <summary>
+    /// Writes <paramref name="document"/> as a <c>.pptx</c> to <paramref name="output"/>. Returns the number of slides
+    /// and the notes for the writer: slides split, set at the smallest size or still overfull, images enlarged, diagrams
+    /// left as code, HTML shown as text.
+    /// </summary>
     /// <exception cref="DocumentConversionException">
     /// An image is not among the document's resources or not a PNG, JPEG or GIF, the front matter is invalid or names
     /// an unknown brand, a named layout does not exist, or the template is damaged.
     /// </exception>
     /// <exception cref="ArgumentException">The brand is invalid, or two of <see cref="PptxOptions.Brands"/> share a name.</exception>
-    public static void Generate(MarkdownDocument document, Stream output, PptxOptions? options = null)
+    public static GenerationResult Generate(MarkdownDocument document, Stream output, PptxOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(output);
@@ -40,6 +44,8 @@ public static class PptxGenerator
 
         using var buffer = new MemoryStream();
         template.Write(buffer);
+        var notes = new GenerationNotes();
+        int count;
 
         buffer.Position = 0;
         try
@@ -60,11 +66,12 @@ public static class PptxGenerator
                 document with { Markdown = frontMatter.Body },
                 options,
                 brand is null ? null : dark ? ResolvedBrand.DarkSlideBrand(brand) : ResolvedBrand.SlideBrand(brand),
-                frontMatter.BodyLine);
+                frontMatter.BodyLine,
+                notes);
             var resolved = brand is null ? null : ResolvedBrand.ForSlides(brand);
             var palette = resolved is null ? SlidePalette.Scheme : dark ? SlidePalette.ForDark(resolved) : SlidePalette.From(resolved);
             var codeFont = options.CodeFont ?? resolved?.CodeFontFamily ?? PptxOptions.DefaultCodeFont;
-            new DeckWriter(
+            count = new DeckWriter(
                 package,
                 options,
                 template.LayoutNames,
@@ -75,7 +82,8 @@ public static class PptxGenerator
                 codeFont,
                 template.FooterText,
                 template.IsBuiltIn,
-                (template.ListBulletsOverride ?? options.ListBullets) == ListBullets.Always).Write(slides);
+                (template.ListBulletsOverride ?? options.ListBullets) == ListBullets.Always,
+                notes).Write(slides);
             if (template.EmbedsFonts && resolved?.Fonts is { } fonts)
             {
                 FontEmbedding.Embed(package.PresentationPart!, fonts, codeFont);
@@ -93,6 +101,7 @@ public static class PptxGenerator
 
         buffer.Position = 0;
         buffer.CopyTo(output);
+        return notes.Result(count);
     }
 
     /// <summary>
@@ -118,6 +127,7 @@ public static class PptxGenerator
                 ["frontMatter"] = AuthoringGuides.FrontMatter(registry.Expected, [.. template.Keys.Select(k => (k, KeyMeanings[k])), Labels]),
                 ["characters"] = Characters(brand?.Fonts, codeFont),
                 ["templateLayouts"] = TemplateLayouts(brand?.Pptx),
+                ["notes"] = AuthoringGuides.Notes(Format.Pptx),
             });
     }
 

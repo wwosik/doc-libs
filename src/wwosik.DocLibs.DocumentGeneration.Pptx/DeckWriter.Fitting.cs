@@ -14,21 +14,55 @@ internal sealed partial class DeckWriter
     private const int MaxVisualStep = 3;
     private const int MaxFlowStep = 2;
 
-    /// <summary>The slide as it is written, with the step it is shrunk by; or its parts, when it had to be split.</summary>
-    private IEnumerable<(Slide Slide, int Step)> Fit(Slide slide) => slide switch
+    /// <summary>
+    /// The slide as it is written, with the step it is shrunk by; or its parts, when it had to be split. Each says
+    /// whether it fits at that step, and the notes say what was done.
+    /// </summary>
+    private List<(Slide Slide, int Step)> Fit(Slide slide)
     {
-        ContentSlide content => this.FitContent(content),
-        VisualSlide visual => this.FitVisual(visual),
-        FlowSlide flow => this.FitFlow(flow),
-        _ => [(slide, 0)],
-    };
+        var (parts, maxStep) = slide switch
+        {
+            ContentSlide content => (this.FitContent(content).ToList(), this.MaxContentStep),
+            VisualSlide visual => (this.FitVisual(visual).ToList(), MaxVisualStep),
+            FlowSlide flow => (this.FitFlow(flow).ToList(), MaxFlowStep),
+            _ => ([(slide, 0, true)], 0),
+        };
+
+        var title = Plain(slide.Title);
+        if (parts.Count > 1)
+        {
+            this.notes.Add(
+                NoteCodes.SlideSplit,
+                slide.Line,
+                $"The slide '{title}' did not fit and continues on {parts.Count - 1} more slide{(parts.Count > 2 ? "s" : string.Empty)}. Shorten it, or split it into slides with titles of their own.");
+        }
+        else if (maxStep > 0 && parts[0] is { Fits: true } only && only.Step == maxStep)
+        {
+            this.notes.Add(
+                NoteCodes.SlideShrunk,
+                slide.Line,
+                $"The slide '{title}' was set at the smallest text size to fit. Shorten it.");
+        }
+
+        if (parts.Any(p => !p.Fits))
+        {
+            this.notes.Add(
+                NoteCodes.SlideOverfull,
+                slide.Line,
+                $"The slide '{title}' runs past the content area even at the smallest size: one item does not fit on a slide of its own. Shorten it.");
+        }
+
+        return [.. parts.Select(p => (p.Slide, p.Step))];
+    }
+
+    private static string Plain(IReadOnlyList<TextRun> runs) => string.Concat(runs.Select(r => r.IsBreak ? " " : r.Text)).Trim();
 
     // The text size of text slides, from the template's body style, shrunk by `step`.
     private int BodySize(int step) => Math.Max(this.bodySize - (step * SizeStep), Math.Min(MinTextSize, this.bodySize));
 
     private int MaxContentStep => Math.Max((this.bodySize - MinTextSize) / SizeStep, 0);
 
-    private IEnumerable<(Slide, int)> FitContent(ContentSlide slide)
+    private IEnumerable<(Slide Slide, int Step, bool Fits)> FitContent(ContentSlide slide)
     {
         var area = this.ContentArea(this.LayoutOf(slide, this.contentLayout));
         long Height(IReadOnlyList<TextParagraph> body, int step) => EstimateHeight(body, this.BodySize(step), area.W);
@@ -37,14 +71,18 @@ internal sealed partial class DeckWriter
 
         if (Step(slide.Body) is { } fits)
         {
-            return [(slide, fits)];
+            return [(slide, fits, true)];
         }
 
         var parts = Pack(ListGroups(slide.Body), body => Height(body, this.MaxContentStep) <= area.H);
-        return parts.Select((body, i) => ((Slide)new ContentSlide(this.Continued(slide.Title, i), body) { Layout = slide.Layout }, Step(body) ?? this.MaxContentStep));
+        return parts.Select((body, i) =>
+        {
+            var step = Step(body);
+            return ((Slide)new ContentSlide(this.Continued(slide.Title, i), body) { Layout = slide.Layout, Line = slide.Line }, step ?? this.MaxContentStep, step is not null);
+        });
     }
 
-    private IEnumerable<(Slide, int)> FitVisual(VisualSlide slide)
+    private IEnumerable<(Slide Slide, int Step, bool Fits)> FitVisual(VisualSlide slide)
     {
         var area = this.ContentArea(this.LayoutOf(slide, this.titleOnlyLayout));
         int? Step(VisualSlide part) =>
@@ -52,12 +90,12 @@ internal sealed partial class DeckWriter
 
         if (Step(slide) is { } fits)
         {
-            return [(slide, fits)];
+            return [(slide, fits, true)];
         }
 
         if (slide.Table is not { } table || table.Rows.Count - (table.HasHeader ? 1 : 0) < 2)
         {
-            return [(slide, MaxVisualStep)];
+            return [(slide, MaxVisualStep, false)];
         }
 
         // Rows split across slides, the header row on each; text above on the first, below on the last.
@@ -68,12 +106,13 @@ internal sealed partial class DeckWriter
             isFirst ? slide.Above : [],
             Subset(table, chosen),
             null,
-            isLast ? slide.Below : []) { Layout = slide.Layout };
+            isLast ? slide.Below : []) { Layout = slide.Layout, Line = slide.Line };
         var parts = Pack(rows, chosen => this.VisualHeight(Part(chosen, chosen[0] == first, false, 0), MaxVisualStep, area.W) <= area.H);
         return parts.Select((chosen, i) =>
         {
             var part = Part(chosen, i == 0, i == parts.Count - 1, i);
-            return ((Slide)part, Step(part) ?? MaxVisualStep);
+            var step = Step(part);
+            return ((Slide)part, step ?? MaxVisualStep, step is not null);
         });
     }
 
@@ -91,7 +130,7 @@ internal sealed partial class DeckWriter
 
     private static int CaptionTextSize(int step) => Math.Max(CaptionSize - (step * SizeStep), 1000);
 
-    private IEnumerable<(Slide, int)> FitFlow(FlowSlide slide)
+    private IEnumerable<(Slide Slide, int Step, bool Fits)> FitFlow(FlowSlide slide)
     {
         var area = this.ContentArea(this.FlowLayout(slide));
         long Height(IReadOnlyList<FlowBlock> blocks, int step) => this.Stack(null, blocks, area, this.FlowStyleOf(slide, step));
@@ -100,14 +139,15 @@ internal sealed partial class DeckWriter
 
         if (Step(slide.Blocks) is { } fits)
         {
-            return [(slide, fits)];
+            return [(slide, fits, true)];
         }
 
         var parts = Pack(FlowUnits(slide.Blocks), pieces => Height(Combine(pieces), MaxFlowStep) <= area.H);
         return parts.Select((pieces, i) =>
         {
             var blocks = Combine(pieces);
-            return ((Slide)new FlowSlide(this.Continued(slide.Title, i), slide.Kicker, slide.Dark, blocks) { Layout = slide.Layout }, Step(blocks) ?? MaxFlowStep);
+            var step = Step(blocks);
+            return ((Slide)new FlowSlide(this.Continued(slide.Title, i), slide.Kicker, slide.Dark, blocks) { Layout = slide.Layout, Line = slide.Line }, step ?? MaxFlowStep, step is not null);
         });
     }
 

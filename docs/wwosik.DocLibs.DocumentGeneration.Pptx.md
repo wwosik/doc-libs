@@ -61,6 +61,9 @@ string guide = PptxGenerator.AuthoringGuide(options);   // starts at "##"
   you fix (and refuse in front matter), size limits, how the result reaches the user.
 - **Errors:** pass `DocumentConversionException.Reason` back to the writer as it is; it names
   what to fix (the key, the container, the character, the diagram's line).
+- **Notes:** `Generate` returns a `GenerationResult` with the slides written and notes for the
+  writer — slides split, set at the smallest size or still overfull, images enlarged, diagrams left as code, HTML shown as text — each with its line. Pass them back too; the guide explains each code. See
+  [Generation results and notes](wwosik.DocLibs.DocumentGeneration.md#generation-results-and-notes).
 - It is generated on each call, so it follows the package version, and it stays under about
   2,500 words.
 
@@ -188,7 +191,9 @@ estimate of each character's width, wrapped between words); what does not fit is
 | Flow | Every size by an eighth, twice (16 → 12 pt text), gaps halved | Between blocks; paragraphs, rows of `::: rows`, labelled tags and table rows split, cards, panels, callouts and columns stay whole |
 
 Continuation slides keep the title and kicker; `PptxOptions.ContinuationSuffix` (e.g. `" (cont.)"`)
-marks them. A single block too big for a slide of its own is shrunk and left as it is.
+marks them. A single block too big for a slide of its own is shrunk and left as it is. Each of these
+is reported in the `GenerationResult`: `slide-split`, `slide-shrunk` (only at the smallest size) and
+`slide-overfull`.
 
 ## Templates
 

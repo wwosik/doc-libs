@@ -17,7 +17,7 @@ namespace wwosik.DocLibs.DocumentGeneration.Pptx;
 /// Turns Markdown into slides: the cover from the first <c>#</c>, a section divider per later <c>#</c>, one slide per
 /// <c>##</c>, and a slide per table or image. A <c>##</c> section that uses layouts becomes one <see cref="FlowSlide"/>.
 /// </summary>
-internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions options, Brand brand, int lineOffset)
+internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions options, Brand brand, int lineOffset, GenerationNotes notes)
 {
     private static readonly MarkdownPipeline Pipeline = BuildPipeline();
 
@@ -26,11 +26,13 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
 
     /// <remarks>
     /// <paramref name="brand"/> is the brand code-block renderers draw in; <paramref name="lineOffset"/> the lines of
-    /// front matter cut off the Markdown, so renderers get the block's line in the original.
+    /// front matter cut off the Markdown, so renderers get the block's line in the original; <paramref name="notes"/>
+    /// collects what the writer should know, such as HTML shown as text.
     /// </remarks>
-    public static IReadOnlyList<Slide> Parse(MarkdownDocument document, PptxOptions options, Brand? brand = null, int lineOffset = 0)
+    public static IReadOnlyList<Slide> Parse(
+        MarkdownDocument document, PptxOptions options, Brand? brand = null, int lineOffset = 0, GenerationNotes? notes = null)
     {
-        var parser = new DeckParser(document, options, brand ?? Brand.Neutral, lineOffset);
+        var parser = new DeckParser(document, options, brand ?? Brand.Neutral, lineOffset, notes ?? new GenerationNotes());
         HeadingBlock? heading = null;
         var blocks = new List<Block>();
         foreach (var block in Markdown.Parse(document.Markdown, Pipeline))
@@ -70,6 +72,25 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             return;
         }
 
+        // Every slide of the section carries its heading's line, for the notes about it.
+        var first = this.slides.Count;
+        this.Slides(heading, blocks);
+        for (var i = first; i < this.slides.Count; i++)
+        {
+            this.slides[i] = this.slides[i] with { Line = this.LineOf(heading) };
+        }
+    }
+
+    // A block's line in the original Markdown, from 1.
+    private int LineOf(MarkdownObject block) => block.Line + 1 + lineOffset;
+
+    private void HtmlAsText(MarkdownObject html, string text) => notes.Add(
+        NoteCodes.HtmlAsText,
+        this.LineOf(html),
+        $"The HTML '{GenerationNotes.Quote(text)}' is shown as text. Write Markdown instead.");
+
+    private void Slides(HeadingBlock heading, List<Block> blocks)
+    {
         var title = this.Runs(heading.Inline, imagesAsText: true);
         var isTitle = heading.Level == 1;
         var attributes = Attributes(title);
@@ -136,7 +157,11 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
     private CodeBlockGraphic? Render(FencedCodeBlock fenced) =>
         options.CodeBlockRenderers.Count == 0 ? null : CodeBlockRenderers.Render(
             options.CodeBlockRenderers,
-            new CodeBlockRequest(fenced.Info ?? string.Empty, fenced.Lines.ToString(), brand) { Line = fenced.Line + 1 + lineOffset },
+            new CodeBlockRequest(fenced.Info ?? string.Empty, fenced.Lines.ToString(), brand)
+            {
+                Line = this.LineOf(fenced),
+                Report = (code, message) => notes.Add(code, this.LineOf(fenced), message),
+            },
             Format.Pptx);
 
     private void Walk(Block block, ITarget target, int level, RunStyle style)
@@ -204,6 +229,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             case LinkReferenceDefinitionGroup:
                 break;
             case HtmlBlock html:
+                this.HtmlAsText(html, html.Lines.ToString());
                 foreach (var line in html.Lines.ToString().Split('\n').Where(l => l.Trim().Length > 0))
                 {
                     target.Text(new TextParagraph([new TextRun(line.Trim(), style)], Level: level));
@@ -710,6 +736,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
                         this.Text(entity.Transcoded.ToString(), style, link);
                         break;
                     case HtmlInline html:
+                        parser.HtmlAsText(html, html.Tag);
                         this.Text(html.Tag, style, link);
                         break;
                     case ContainerInline nested:

@@ -26,6 +26,21 @@ public sealed record CodeBlockRequest(string Language, string Code, Brand Brand)
 {
     /// <summary>The line of the opening fence in the Markdown, from 1, front matter included; 0 if unknown.</summary>
     public int Line { get; init; }
+
+    /// <summary>
+    /// Where a renderer reports a note for the writer, with a code of <see cref="NoteCodes"/> and a message: above all
+    /// <see cref="NoteCodes.CodeNotDrawn"/> with the reason, before it declines a block in its own language. The
+    /// generators set it and pass the note on in their <see cref="GenerationResult"/>; <see langword="null"/>: nobody
+    /// listens. Not part of the request's equality.
+    /// </summary>
+    public Action<string, string>? Report { get; init; }
+
+    /// <inheritdoc/>
+    public bool Equals(CodeBlockRequest? other) =>
+        other is not null && this.Language == other.Language && this.Code == other.Code && Equals(this.Brand, other.Brand) && this.Line == other.Line;
+
+    /// <inheritdoc/>
+    public override int GetHashCode() => HashCode.Combine(this.Language, this.Code, this.Brand, this.Line);
 }
 
 /// <summary>

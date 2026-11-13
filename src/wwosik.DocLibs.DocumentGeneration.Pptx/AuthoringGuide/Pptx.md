@@ -104,6 +104,10 @@ attribute (`{.wide}`) or alert (`[!INFO]`), a `cards` or `rows` item without a b
 image that is not among the files, a front matter key that does not exist, or a broken diagram
 with its line. Fix the Markdown and generate again.
 
+## Notes you may get back
+
+{{notes}}
+
 ## Example
 
 ````markdown

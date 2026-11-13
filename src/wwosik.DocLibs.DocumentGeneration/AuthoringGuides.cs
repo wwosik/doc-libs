@@ -116,6 +116,15 @@ internal static partial class AuthoringGuides
     public static string Renderers(IEnumerable<ICodeBlockRenderer> renderers) =>
         string.Join("\n\n", renderers.Select(r => r.AuthoringGuide?.Trim('\n')).Where(g => !string.IsNullOrEmpty(g)));
 
+    /// <summary>
+    /// The notes a generator of <paramref name="format"/> may give back, each with what to change in the Markdown, as a
+    /// list under an introduction; leaving out <paramref name="without"/>, codes that cannot occur with the options.
+    /// </summary>
+    public static string Notes(DocumentConversions.DocumentFormat format, params string[] without) =>
+        "The document is still written, but whoever passes it to you may also pass on notes about it, each with its "
+        + "line. Each names what happened:\n\n"
+        + string.Join("\n", NoteCodes.All.Where(n => n.Formats.Contains(format) && !without.Contains(n.Code)).Select(n => $"- `{n.Code}`: {n.Advice}"));
+
     /// <summary>How many words a guide has: runs of letters or digits.</summary>
     public static int Words(string guide) => WordPattern().Count(guide);
 
