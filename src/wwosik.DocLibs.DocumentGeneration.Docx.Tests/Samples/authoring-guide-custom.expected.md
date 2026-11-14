@@ -73,8 +73,8 @@ it.
 - The image's title is its caption, numbered through the document and set below it:
   `![Sales](sales.png "Sales by region, 2026")` gives "Figure 1: Sales by region, 2026".
   `"caption"` alone uses the alt text as the caption. A title of only `scale=…` gives no caption.
-- Images are PNG, JPEG or GIF. `fit=`, `focus`, `.round` and `.grey` have no effect in a Word
-  document.
+- Images are PNG, JPEG or GIF; an `.svg` image is an error here.
+  `fit=`, `focus`, `.round` and `.grey` have no effect in a Word document.
 
 - A paragraph of nothing but two or more images is a row of them, side by side in cells of equal
   width, each with its caption under it: `![North](north.png "North") ![South](south.png "South")`.
@@ -96,10 +96,23 @@ takes a style of its own; the content of a container follows in sequence.
 | `==marked==` | Bold on a light tint of the highlight colour. A table row whose first cell is all `==…==` is shaded. |
 | `[words]{.success}` (`.info`, `.warning`, `.danger`, `.neutral`) | The words bold in that colour. |
 | A table cell that is only `` `Done` ``, with `labels.success: Done` in the front matter | A coloured label. Code in cells no `labels.` key names stays code. |
+| `::: conclusion`, `::: comment` | Their content in sequence. |
 | `## Title {kicker="…" layout="…"}`, `{.dark}`, transitions, `::: notes`, build markers | Checked as in decks, then left out. |
 
-Diagrams and charts (`mermaid`, `chart` blocks) stay code, a `qr:` image is its alt text, and icons
-(`:icon-name:`) stay as written. Unknown containers, alerts and heading attributes are errors.
+Unknown containers, alerts and heading attributes are errors.
+
+## Diagrams, charts and QR codes
+
+No code block is drawn in this setup: every one stays code.
+
+- **Diagrams and other drawings are not drawn in this setup:** a diagram block stays code, a
+  `qr:` image is its alt text, and `::: timeline`, `::: gantt`, `::: steps` and
+  `::: riskmatrix` show their content in sequence. Leave them out of a document meant for Word.
+
+## Icons
+
+`:icon-name:` (such as `:icon-circle-check:`) is not drawn in this setup: the icon is left
+out. Leave icons out of a document meant for Word. An unknown name is an error.
 
 ## Page breaks
 
@@ -207,18 +220,19 @@ Each character is shown in the document's font, or in a substitute where that fo
 ## When something is wrong
 
 Generation stops with a message that says what to fix, such as a front matter key that does not
-exist or a value it does not take, or an image that is missing. Fix the Markdown and generate
-again.
+exist or a value it does not take, an image that is missing, or a broken diagram or chart with its line.
+Fix the Markdown and generate again.
 
 ## Notes you may get back
 
 The document is still written, but whoever passes it to you may also pass on notes about it, each with its line. Each names what happened:
 
-- `code-not-drawn`: a diagram could not be drawn, for example a diagram type that is not supported, and stays code. Use a supported type.
+- `code-not-drawn`: a diagram could not be drawn, for example a diagram type that is not supported, and stays code. Use a supported type. In a Word document, diagrams, QR codes and drawn containers become pictures only where an image converter is set up; without one they stay code, alt text or their content. Ask whoever generates the document to set one up.
 - `html-as-text`: HTML is not interpreted: it is shown as text. Write Markdown instead.
 - `footnote-missing`: a footnote reference such as `[^1]` has no definition `[^1]: text`, so it is shown as written. Add the definition, or remove the reference.
 - `language-unknown`: the language in `lang` has no texts of its own, so alert titles and similar texts are in English. Use `en` or `de`.
 - `attribute-ignored`: an image attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `focus` on an image that is not cropped. Remove it, or use it where it works.
+- `icon-not-drawn`: an icon was left out where it cannot be drawn. Move it as the *Icons* section says. In a Word document, icons are drawn only where an image converter is set up, and are left out otherwise.
 - `caption-ignored`: a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text.
 - `list-too-deep`: a list is nested deeper than three levels; the deeper items are set at the third level. Flatten the list to three levels.
 - `classification-kept`: the front matter asks for a lower `classification` than the host set, and the host's applies. Leave the key out, or raise it.
@@ -251,6 +265,9 @@ The upgrade is on schedule: 14 of 20 substations are done.[^permits] The budget 
 Table: Progress at the end of October
 
 ## Next steps
+
+> [!IMPORTANT]
+> The southern permits decide the date of commissioning.
 
 1. Obtain the remaining permits in the first quarter.
 2. Commission the last sites.

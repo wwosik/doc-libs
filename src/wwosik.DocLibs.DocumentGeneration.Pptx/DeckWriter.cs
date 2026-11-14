@@ -14,9 +14,6 @@ internal sealed partial class DeckWriter
 {
     private const long EmuPerPoint = 12700;
     private const long EmuPerPixel = 9525;
-
-    // The extension PowerPoint 2016 and later read an SVG picture from, beside its PNG.
-    private const string SvgBlipUri = "{96DAC541-7B7A-43D3-8B79-37D633B846F1}";
     private const long BulletIndent = 285750;
     private const long Gap = 152400;
     private const long MinRowHeight = 370840;
@@ -1574,7 +1571,7 @@ internal sealed partial class DeckWriter
 
         var svgId = canvas.Part.Parts.Where(p => p.OpenXmlPart == part).Select(p => p.RelationshipId).FirstOrDefault()
             ?? canvas.Part.CreateRelationshipToPart(part);
-        blip.Append(new A.BlipExtensionList(new A.BlipExtension(new SVGBlip { Embed = svgId }) { Uri = SvgBlipUri }));
+        blip.Append(new A.BlipExtensionList(new A.BlipExtension(new SVGBlip { Embed = svgId }) { Uri = SvgBlip.Uri }));
         return blip;
     }
 
@@ -1591,7 +1588,12 @@ internal sealed partial class DeckWriter
             return placed with { H = placed.H + sourceHeight };
         }
 
-        var relationshipId = ChartWriter.Add(canvas.Part, chart, this.palette.Text, this.palette.DarkSlides ? SlideColor.White.Translucent(30) : new SlideColor("D9D9D9"), this.tableFont);
+        var relationshipId = ChartWriter.Add(
+            canvas.Part,
+            chart,
+            this.palette.Text?.Fill().OuterXml,
+            (this.palette.DarkSlides ? SlideColor.White.Translucent(30) : new SlideColor("D9D9D9")).Fill().OuterXml,
+            this.tableFont);
         var id = canvas.NextId();
         canvas.Add(new P.GraphicFrame(
             new P.NonVisualGraphicFrameProperties(

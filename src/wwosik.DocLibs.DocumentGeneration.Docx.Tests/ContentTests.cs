@@ -426,6 +426,15 @@ public class ContentTests
     }
 
     [Fact]
+    public void ATableTitle_ComesBackFromTheConverter_AsText_NotAsAHeading()
+    {
+        var markdown = Samples.RoundTrip(Generate("**Sales by region**\n\n| Region | Sales |\n| --- | --- |\n| North | 8 |\n"));
+
+        Assert.DoesNotContain("# Sales by region", markdown, StringComparison.Ordinal);
+        Assert.Contains("Sales by region", markdown, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void RawHtml_StaysText_WithANote()
     {
         var (_, result) = GenerateWithResult("Text <b>bold</b>\n\n<div>block</div>\n");

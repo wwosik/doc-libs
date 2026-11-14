@@ -16,7 +16,7 @@ Word is the format most reports and proposals still have to be delivered in; the
 | ----- | ----- | ----- |
 | [E09-S01](../60-verify/E09-S01-docx-package-and-templates.md) | DOCX package and templates | in verification |
 | [E09-S02](../60-verify/E09-S02-deck-syntax-in-word.md) | Deck syntax in Word | in verification |
-| [E09-S03](../55-in-progress/doc-3/E09-S03-charts-drawings-and-guide.md) | Charts, drawings and the DOCX authoring guide | in progress (doc-3) |
+| [E09-S03](../60-verify/E09-S03-charts-drawings-and-guide.md) | Charts, drawings and the DOCX authoring guide | in verification |
 | [E09-S04](../60-verify/E09-S04-docx-content.md) | DOCX content | in verification |
 
 Stories marked *to plan* come from the

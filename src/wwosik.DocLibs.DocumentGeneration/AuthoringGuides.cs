@@ -158,7 +158,8 @@ internal static partial class AuthoringGuides
     public static string Notes(DocumentConversions.DocumentFormat format, params string[] without) =>
         "The document is still written, but whoever passes it to you may also pass on notes about it, each with its "
         + "line. Each names what happened:\n\n"
-        + string.Join("\n", NoteCodes.All.Where(n => n.Formats.Contains(format) && !without.Contains(n.Code)).Select(n => $"- `{n.Code}`: {n.Advice}"));
+        + string.Join("\n", NoteCodes.All.Where(n => n.Formats.Contains(format) && !without.Contains(n.Code)).Select(n => $"- `{n.Code}`: {n.Advice}"
+            + (NoteCodes.FormatAdvice.TryGetValue((n.Code, format), out var more) ? " " + more : string.Empty)));
 
     /// <summary>How many words a guide has: runs of letters or digits.</summary>
     public static int Words(string guide) => WordPattern().Count(guide);

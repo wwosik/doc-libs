@@ -337,8 +337,10 @@ same change that made it untrue — a stale fact here is worse than a missing on
 
 - **Open XML code both generators need is linked source,** not a package: `src/Shared/OpenXml/*.cs`
   is compiled into Pptx and Docx (`<Compile Include="..\Shared\OpenXml\*.cs" Link=…>`) as internal
-  types in the namespace `wwosik.DocLibs.DocumentGeneration` (`CoreProperties` today; the SVG blip
-  extension and `ChartWriter` in E09-S03). The shared package must not take the Open XML SDK, because
+  types in the namespace `wwosik.DocLibs.DocumentGeneration` (`CoreProperties`, `ChartWriter`, `SvgBlip`).
+  `ChartWriter.Add(OpenXmlPart, ChartSpec, text fill, grid fill, font)` takes its colours as `a:solidFill`
+  XML strings: decks pass `SlideColor.Fill().OuterXml` (theme colours, transparency) and must stay byte
+  for byte as they were; Word passes `ChartWriter.Solid(hex)`. The shared package must not take the Open XML SDK, because
   Charts and Diagrams depend on it. `TrueTypeInfo.IsEmbeddingRestricted` is the one `fsType` check.
 - **DOCX styles are found by name, never by id (E09-S01):** `DocxRoles.All` lists every role (key,
   default name as Word stores it, e.g. `heading 1`, built-in id, the `DocxStyleNames` property and the
@@ -381,6 +383,15 @@ same change that made it untrue — a stale fact here is worse than a missing on
   skipped by `FrontMatter.Apply`; `Marking.Resolve` applies them (higher classification wins,
   `classification-kept`); PDF and PPTX call it only to check the values. `FrontMatter.LineOf(key)` gives a
   key's line. `CoreProperties.ContentStatus` writes `cp:contentStatus` (Docx only so far).
+- **Charts and drawings in Word (E09-S03):** `DocxBody.Graphics.cs`. A chart is a native chart part on the
+  main part (a chart in a footnote falls back to its drawing). Every other drawing (renderer drawings,
+  `qr:`, icons, drawn containers) goes `DrawingSvg.Write` (hover and hotspots stripped, brand family or
+  Arial) → `ImageConverters` at scale 2 → PNG part plus SVG part, `SvgBlip.Extension` inside `a:blip`.
+  The Docx package draws no pixels itself (no SkiaSharp): without an image converter a drawing stays code /
+  alt text / content with `code-not-drawn`, an icon is left out with `icon-not-drawn`. Icon runs are
+  `DocxRun.Icon` (empty text, not blank), turned into pictures in `DocxRuns.Run`, one per name and part.
+  `NoteCodes.FormatAdvice` adds per-format advice to the guides' notes list. The Docx tests reference
+  Charts, Diagrams, Svg and `SkiaSharp.NativeAssets.Linux`.
 
 ## Traps
 

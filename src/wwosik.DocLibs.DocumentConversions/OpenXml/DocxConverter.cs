@@ -432,7 +432,9 @@ public sealed class DocxConverter : IDocumentConverter
     private static string ClassifyHeading(string id, string name)
     {
         var probe = (id + " " + name).ToLowerInvariant();
-        if (probe.Contains("subtitle", StringComparison.Ordinal) || probe.Contains("untertitel", StringComparison.Ordinal))
+        // A subtitle, and a table's title ("Table Title", "Tabellentitel"), are no headings.
+        if (probe.Contains("subtitle", StringComparison.Ordinal) || probe.Contains("untertitel", StringComparison.Ordinal)
+            || probe.Contains("table", StringComparison.Ordinal) || probe.Contains("tabelle", StringComparison.Ordinal))
         {
             return string.Empty;
         }

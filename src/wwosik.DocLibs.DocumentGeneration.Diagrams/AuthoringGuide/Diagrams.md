@@ -1,8 +1,8 @@
 ## Diagrams
 
-A ` ```mermaid ` code block becomes a diagram in the document's colours. Use one where a picture
-says more than bullets: a process, a sequence of calls, a data model, a plan. Do not add diagrams
-by default.
+A ` ```mermaid ` code block becomes a diagram in the document's colours; in a Word document, a
+picture. Use one where a picture says more than bullets: a process, a sequence of calls, a data
+model, a plan. Do not add diagrams by default.
 
 ````markdown
 ```mermaid

@@ -1,7 +1,7 @@
 # E09-S03 Charts, drawings and the DOCX authoring guide
 
-> Status: in progress (doc-3)
-> Epic: [E09 DOCX generator](../../50-todo/E09-docx-generator.md)
+> Status: in verification
+> Epic: [E09 DOCX generator](../50-todo/E09-docx-generator.md)
 
 ## Summary
 
@@ -46,9 +46,9 @@ generator understands.
 - **Decided by the human** (analysis question 7): Word drawings are SVG + PNG images, as in the
   fork, not editable shape groups. SkiaSharp is accepted as a dependency of the generators
   (question 9), but no generator references it today.
-- **[E09-S01](../../60-verify/E09-S01-docx-package-and-templates.md)** puts the shared Open XML sources in
+- **[E09-S01](E09-S01-docx-package-and-templates.md)** puts the shared Open XML sources in
   `src/Shared/OpenXml/` (decided, its question 2) and starts `AuthoringGuide/Docx.md`.
-- **[E09-S04](../../60-verify/E09-S04-docx-content.md)** places images and captions and fits images to the width
+- **[E09-S04](E09-S04-docx-content.md)** places images and captions and fits images to the width
   and 80 % of the height. It is implemented before E09-S02 and this story despite its number.
   E09-S04 adds the content sections to the guide, and E09-S02 the deck syntax.
 - **Captions (E03-S02).** A paragraph starting `Figure: ` directly after a fenced block that a
@@ -107,7 +107,7 @@ generator understands.
    - **Fonts in the PNG** are the converter's (`SvgImageConverter.Fonts`). The docs tell hosts to
      pass the brand's fonts there, so the PNG matches the SVG (question 5).
 3. **SVG images in the Markdown.**
-   - `![…](../../50-todo/x.svg)` gets the same treatment: the converter's PNG plus the original SVG in
+   - `![…](x.svg)` gets the same treatment: the converter's PNG plus the original SVG in
      `asvg:svgBlip`, as on decks.
    - The SVG is written as it came. It was sanitized for the PNG by `SvgSanitizer`, and Word
      itself loads nothing external from it (question 4).
@@ -253,3 +253,152 @@ generator understands.
   helper; this story reads it.
 - The fork's other Word visuals (icons, QR codes, timelines, Gantt) come with E04-S05 and are not
   part of this story.
+
+## Implementation notes
+
+### Breaking changes
+
+One, in a released package: **`DocxConverter` no longer reads a paragraph whose style id or name
+contains "table" or "tabelle" as a heading** (the E09-S04 loose end: `Table Title` came back as `#`).
+A `Table Heading` or `Tabellentitel` style in someone else's document now comes back as a paragraph.
+Recorded in `CHANGELOG.md` with what to do.
+
+Nothing else breaks. Decks and PDFs are unchanged (verified below) after `ChartWriter` moved. The
+DOCX package is unreleased; inside it, what used to stay code, alt text or typed text is now drawn
+(with an image converter), `:icon-x:` with an unknown name now throws as in the other generators, an
+icon without an image converter is left out with `icon-not-drawn` instead of staying typed, and a
+renderer's own notes are passed on instead of muted. Added: `DocxOptions.Icons`,
+`GeneratedTexts.Chart`; `icon-not-drawn` lists DOCX. The renderer guide sections (`Charts.md`,
+`Diagrams.md`) gained a few words on Word, so the PPTX and PDF expected guides changed by one
+sentence each (guides only, no output).
+
+### Decisions and deviations
+
+- **`ChartWriter`** is `src/Shared/OpenXml/ChartWriter.cs` (linked into Pptx and Docx, namespace
+  `wwosik.DocLibs.DocumentGeneration`): `Add(OpenXmlPart owner, ChartSpec, string? text, string grid,
+  string? font)`. **Deviation:** the colours are `a:solidFill` XML strings, not hex as the plan said,
+  because decks pass theme colours (caller templates) and translucent white (dark slides), which hex
+  cannot carry; decks pass exactly the `SlideColor.Fill().OuterXml` they wrote before, Word passes
+  `ChartWriter.Solid(hex)`. Its `XmlSafe` is the deck writer's rule, copied, so titles keep their bytes.
+- **`SvgBlip`** (`src/Shared/OpenXml/SvgBlip.cs`): the extension URI, `IsSvg` (moved from
+  `DeckParser`, same rule) and the `a:extLst` XML Word writes. Decks use the URI and `IsSvg` but keep
+  writing their blip with SDK objects, so their bytes do not change.
+- **Charts in Word:** an inline `w:drawing` with `c:chart r:id` in a centred paragraph of the frame's
+  style (as images), the text width by 9/16, capped at 80 % of the text height (question 1); gridlines
+  in `TableLine`, text colour the theme's, font the brand's family, or the theme font where the brand
+  has no font files (the plan said "the brand family"; naming Arial in a caller's theme would be
+  wrong). Series colours are `ChartSpec.Colors` from the renderer, which gets `Brand.Neutral` on caller
+  templates (question 3). Alt text: the title, else `GeneratedTexts.Chart` ("Chart"/"Diagramm"). A
+  chart's `source:` follows in a `Caption` paragraph "Source: …" without a number (the plan did not say
+  where it goes). A chart inside a footnote is drawn as its picture: a footnotes part holds no chart.
+- **Drawings** (`DocxBody.Graphics.cs`): `DrawingSvg.Write` with the brand family (Arial without one)
+  and the code font as mono family; **hover texts and hotspots are stripped first**, because the
+  SVG's tooltips are CSS `:hover` that the PNG converter would draw. PNG at scale 2 through
+  `ImageConverters`, placed at the natural size the converter reports and fitted by E09-S04's rule;
+  PNG and SVG are separate image parts, the SVG in `asvg:svgBlip`. `ImageGraphic`s are placed like
+  Markdown images (they need no converter). Alt text: the block's first line **with a letter or
+  digit**, cut at 120 characters (question 6; the extra rule passes over a JSON block's `{`, so a
+  financial chart's alt text is its `"type": …` line).
+- **Without an image converter** (question 2): the block stays code with `code-not-drawn`, message
+  "… Register SvgImageConverter from wwosik.DocLibs.DocumentConversions.Svg to draw diagrams in Word."
+  No new note codes. `NoteCodes.FormatAdvice` (new, internal) adds Word-only advice to the guides'
+  `code-not-drawn` and `icon-not-drawn` entries, so the PPTX and PDF guides keep their text.
+- **SVG images** keep the SVG as it came (question 4) beside the converter's PNG; without a converter
+  they throw as before.
+- **Captions:** a `Figure:` paragraph right after a fenced block that was drawn (chart, picture,
+  renderer image) is its numbered caption below it, the graphic (and a chart's source) kept with it;
+  after a block left as code it stays text with `caption-ignored`.
+- **QR codes and icons (E09-S02's leftovers), done in full:** `qr:` images go through
+  `QrDrawing.ForImage` (so their attribute and length errors match the other formats) and become a
+  picture; without a converter their alt text with `code-not-drawn`. Icons: `DocxOptions.Icons`
+  (default `TablerIcons.Outline`, `null` = off), `IconSyntax.Apply` after the coloured words in
+  `DocxRuns.Pieces`; an icon run (`DocxRun.Icon`) becomes an inline picture 10.5 pt square in the
+  diagram text colour, one image pair per name and part, wherever runs are written (text, headings,
+  cells, lists). Without a converter the icon is **left out** with `icon-not-drawn` (that code's
+  meaning), not kept as typed text as the brief suggested. A `qr:` image still keeps a paragraph of
+  images from becoming an image row, and QR codes in cells and headings stay alt text.
+- **Drawn containers** (`timeline`, `gantt`, `steps`, `riskmatrix`) are pictures too (E09-S02 left
+  them to this story), drawn by `VisualContainers.Draw` with the options' `TimeProvider`; their alt
+  text is the first paragraph or list item of their content, or their table's first row joined by
+  " · ". Without a converter their content follows in sequence with `code-not-drawn`.
+- **Guide.** `Docx.md` gained *Diagrams, charts and QR codes* (`{{drawings}}`: what is drawn with the
+  options' renderers and image converters, with the drawn containers' syntax and an example only when
+  a converter is set up), `{{icons}}` (Tabler's section with a converter, a short "not drawn here"
+  otherwise), `{{diagrams}}` (the renderers' sections), `{{imageFormats}}` (SVG with a converter), a
+  `::: conclusion` / `::: comment` row and an alert in the example; characters and notes were already
+  there. `Charts.md` says charts are native in decks and Word, `Diagrams.md` that a diagram is a
+  picture in Word. All three guides stay under 3,500 words, the PPTX guide's budget (sample and custom
+  about 3,000).
+- **Coverage test** (question 8, Docx only): every key of the template plus the shared and deck keys
+  and `labels.*`, every container of `LayoutSyntax.Containers`, every alert and every note code whose
+  formats include DOCX appear in the guide, for neutral, sample and custom. The guide tests use the
+  Mermaid and chart renderers and `SvgImageConverter` on `sample` only; every example generates valid
+  and **without notes** on all three.
+- **Fonts of the PNG:** left to `SvgImageConverter.Fonts` (question 5), documented on the Docx page.
+
+### Verification
+
+- `./run.sh build`: 0 warnings, 0 errors (one "Internal CLR error" fixed by
+  `dotnet build-server shutdown`). `./run.sh test` all green: 1 + 123 + 276 + 78 + 71 + 22 + 141 +
+  208 + 372 = 1,292 passed, 6 Windows-only skipped.
+- **New tests** (`Docx.Tests/GraphicsTests.cs`, 24 with theory rows): bar, stacked bar, line, area,
+  stacked area as native charts (chart part, relationship from the drawing, workbook `Sheet1` with
+  categories and series), each valid; size, colours, gridline colour, font and alt text on the sample
+  brand; the 80 % cap on a landscape page; a caller's template (neutral palette, no font, German
+  "Diagramm"); source and caption after a chart; a Mermaid flowchart with `SvgImageConverter` (PNG
+  blip, SVG extension and part, Arial in the SVG, alt text, natural width); without a converter
+  (code, the advice, no image parts); `Figure:` after a drawn diagram and after code; an `.svg` image
+  (SVG as it came, natural size) and the error without a converter; a financial chart (no tooltips in
+  the SVG); a renderer's image with caption; QR codes with and without a converter and a bad
+  attribute; icons drawn, left out with a note, an unknown name, `Icons = null`; a timeline with and
+  without a converter; `report.md` with a stand-in diagram renderer and `ChartRenderer` (as the PDF
+  tests' `WithDiagrams`: the report's `graph TD; A-->B;` is no Mermaid the real renderer takes),
+  neutral and sample, validated and round-tripped (`report-diagrams-<template>.roundtrip.expected.md`:
+  the diagram comes back as an image); the new sample `drawings.md` (three charts, two Mermaid diagrams
+  with a caption, a financial chart, an SVG image, a QR code, icons in text and lists, all four drawn
+  containers) on neutral, sample and custom: valid, without notes, round-tripped
+  (`drawings-<template>.roundtrip.expected.md`: charts come back as nothing, everything else as images
+  with their alt text). `ContentTests`: a `Table Title` comes back as text. `AuthoringGuideTests`
+  rewritten as above.
+- **Validator:** every `.docx` the tests write passes `OpenXmlValidator(Microsoft365)`, charts, SVG
+  extensions and icon pictures included.
+- **Unchanged output:** the 50 decks and PDFs the PPTX and PDF tests write to `.tmp/review/`, from
+  `db882db` (run before any change) and from this change: identical, decks part by part with the SDK's
+  relationship ids masked (embedded chart workbooks included; eight decks hold charts, dark-slide
+  charts among them), PDFs byte for byte with `/ID` and dates masked.
+- **Looked at:** the PNGs in `drawings-sample.docx` (flowchart, timeline, steps, QR code with its
+  caption, icons) are drawn as expected.
+- **For review** in `.tmp/review/`: `drawings-neutral.docx`, `drawings-sample.docx`,
+  `drawings-custom.docx`, `report-diagrams-neutral.docx`, `report-diagrams-sample.docx`, besides the
+  earlier stories' files.
+
+### To verify by hand (no Word or LibreOffice on this machine)
+
+Open `drawings-*.docx` and `report-diagrams-*.docx` in Word (and *File → Export → PDF*), and check:
+
+1. **No repair prompt** on any file (chart parts with embedded workbooks in a Word document, SVG
+   parts, icon pictures inline in text).
+2. **Charts:** the three charts under "Charts" are drawn in the brand's colours with light gridlines;
+   right-click → *Edit Data* opens the workbook with the months in column A. Record whether the
+   chart text takes the theme font on `drawings-neutral.docx` and `drawings-custom.docx`.
+3. **SVG:** zoom to 400 % on the flowchart, the timeline and an icon: sharp edges mean Word draws the
+   SVG. *Graphics Format* offers *Convert to Shape* for an SVG picture.
+4. **Icons** sit on the text line, about as high as the letters, without spreading the lines.
+5. **Captions:** "Figure 1: Orders against the plan" under the bar chart (after "Source: Sales report
+   2026"), "Figure 2: How a request is handled" under the flowchart; after *Update field* the numbers
+   stay.
+6. **Fonts:** the PNG fallbacks use the converter's fonts (here the system's); Word should not show
+   them unless it cannot draw SVG.
+7. **LibreOffice:** not installed here. Where available, `soffice --headless --convert-to pdf` of the
+   same files: record whether the charts are drawn and whether the pictures show the SVG or the PNG,
+   then update *Which viewers show what* in the Docx docs, which says this was not checked.
+
+### Loose ends
+
+- The viewers paragraph of the Docx docs stays unconfirmed until item 7 is done.
+- A financial chart's alt text is its JSON's `"type"` line; a better one would need renderers to pass
+  a title (a public `CodeBlockGraphic` change), not done.
+- Harvey balls (`[3/4]` in a cell) are still text in Word; QR codes and images in table cells and
+  headings are still alt text.
+- The coverage test for the PPTX and PDF guides is a technical story still to write (question 8).
+- `DocxConverter` still reads `Container Heading` as a heading and drops charts (E08).

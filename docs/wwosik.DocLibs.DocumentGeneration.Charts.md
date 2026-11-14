@@ -2,11 +2,11 @@
 
 Charts in the brand's colours and fonts, for both generators and for web pages:
 
-- **Bar, line and area charts** from CSV in `chart` blocks: native, editable PowerPoint charts in
-  decks and vector charts in PDFs.
+- **Bar, line and area charts** from CSV in `chart` blocks: native, editable charts in
+  decks and Word documents, and vector charts in PDFs.
 - **Financial charts** — development, growth by row, actual vs reference, growth trend, two-year
   monthly and a summary table — from typed data in C# or JSON in `financial-chart` blocks: shapes
-  in decks, vectors in PDFs, and SVG with hover tooltips for web pages (see
+  in decks, vectors in PDFs, pictures in Word documents, and SVG with hover tooltips for web pages (see
   [Financial charts](#financial-charts)).
 
 Depends only on [wwosik.DocLibs.DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md);
@@ -75,6 +75,12 @@ blocks, and `::: columns` puts two side by side. Text is set in the brand's tabl
 theme font; on dark slides it is white and the gridlines translucent white. Bars and areas start at
 zero. The source is a text box right under the chart, in the table font at 10 pt, taking its line
 off the chart's height. See the [PPTX documentation](wwosik.DocLibs.DocumentGeneration.Pptx.md#diagrams-and-charts).
+
+## In Word documents
+
+The same native chart part and workbook as in decks, inline and centred, the text width wide and 9/16
+of that high (at most 80 % of the text height), its source in a caption paragraph under it; financial
+charts are pictures. See the [DOCX documentation](wwosik.DocLibs.DocumentGeneration.Docx.md#diagrams-and-charts).
 
 ## In PDFs
 

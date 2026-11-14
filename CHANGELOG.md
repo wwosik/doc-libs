@@ -113,6 +113,10 @@ updating, breaking changes first.
   the content of a `::: pagebreak` is shown as before, slides stay as they were. The lists of valid
   containers, attributes and front-matter keys in error messages name them; code that matches the
   messages' text adjusts.
+- **`DocxConverter` no longer reads table styles' paragraphs as headings:** a paragraph whose style
+  id or name contains "table" or "tabelle" (such as `Table Title`, `Tabellentitel` or a
+  `Table Heading`) comes back as a paragraph, not as `#`. Code that relied on those headings in the
+  Markdown reads the paragraph's text instead.
 
 ### New
 
@@ -298,7 +302,25 @@ updating, breaking changes first.
     `classification` of a caller's template), above the cover title and in `cp:contentStatus`;
     a draft gets Word's own watermark. Front matter can raise the host's classification, not lower
     it: the new note `classification-kept` (`NoteCodes.ClassificationKept`).
-  - `DocxGenerator.AuthoringGuide(options)` describes it for the writer of the Markdown.
+  - **Charts and diagrams in Word:** with `ChartRenderer` in `DocxOptions.CodeBlockRenderers`, a
+    `chart` block is a native Word chart with its data in an embedded workbook (*Edit Data* works),
+    the text width by 9/16, in the brand's colours (the neutral brand's on a caller's template).
+    Diagrams (Mermaid, financial charts), `qr:` codes, `:icon-name:` icons (`DocxOptions.Icons`,
+    default `TablerIcons.Outline`) and `::: timeline`, `gantt`, `steps` and `riskmatrix` are pictures:
+    the PNG an image converter makes (register `SvgImageConverter` from
+    `wwosik.DocLibs.DocumentConversions.Svg`, with the brand's fonts) with the SVG beside it, which
+    Word 2016 and later draw. An `.svg` image keeps its SVG the same way. Without an image converter
+    drawings stay code, alt text or content (`code-not-drawn`) and icons are left out
+    (`icon-not-drawn`, now also for Word documents). Alt text: a chart's title (else
+    `GeneratedTexts.Chart`), a block's first line. `Figure: …` right after a drawn block is its
+    numbered caption.
+  - `DocxGenerator.AuthoringGuide(options)` describes it for the writer of the Markdown: structure,
+    front matter, the slide syntax, diagrams and charts as the options draw them, icons, characters
+    and notes, with every key, container, alert and note code of Word documents.
+- **`GeneratedTexts.Chart`:** the alt text of a chart without a title in Word ("Chart", German
+  "Diagramm").
+- The renderers' guide sections (`ChartRenderer.AuthoringGuide`, `MermaidRenderer.AuthoringGuide`)
+  say what charts and diagrams become in Word documents.
 - **`Brand.Docx`** (`DocxBrandTemplate` with `Styles`): a brand's own Word template, and the
   `docx` section of `brand.json` (`template`, `styles`). Decks and PDFs ignore it.
 - **`GeneratedTexts.Contents`:** the heading of a table of contents ("Contents", German "Inhalt").

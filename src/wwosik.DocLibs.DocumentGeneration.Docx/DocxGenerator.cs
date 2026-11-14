@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Xml;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -181,6 +182,16 @@ public static class DocxGenerator
                     options.Language,
                     [.. template.Keys.Concat([TocKey, TocDepthKey, HeadingNumbersKey]).Select(k => (k, meanings[k])), classification, draft, deckKeys, labels]),
                 ["characters"] = Characters(brand?.Fonts, codeFont),
+                ["imageFormats"] = options.ImageConverters.Count > 0
+                    ? "Images are PNG, JPEG or GIF, or SVG: an `.svg` image keeps its SVG, which Word draws sharp\n  at any size."
+                    : "Images are PNG, JPEG or GIF; an `.svg` image is an error here.",
+                ["drawings"] = Drawings(options),
+                ["icons"] = options.Icons is null ? string.Empty
+                    : options.ImageConverters.Count > 0
+                        ? AuthoringGuides.Icons(options.Icons, "A Word document draws it in the line of text, one line high.")
+                        : "## Icons\n\n`:icon-name:` (such as `:icon-circle-check:`) is not drawn in this setup: the icon is left\n"
+                            + "out. Leave icons out of a document meant for Word. An unknown name is an error.\n",
+                ["diagrams"] = AuthoringGuides.Renderers(options.CodeBlockRenderers),
                 ["headingNumbers"] = !template.IsBuiltIn
                     ? "The template's heading styles decide whether headings are numbered; `headingNumbers` has no effect."
                     : options.HeadingNumbers
@@ -219,6 +230,87 @@ public static class DocxGenerator
     // before it.
     private static int? LogoIndent(ResolvedBrand? brand) =>
         brand?.Logo is { } logo && ImageInfo.Read(logo) is { Width: > 0, Height: > 0 } info ? (18 * 20 * info.Width / info.Height) + 120 : null;
+
+    // What becomes of charts, diagrams, QR codes and drawn containers with the options' renderers and image converters.
+    private static string Drawings(DocxOptions options)
+    {
+        var rendered = options.CodeBlockRenderers.Count > 0;
+        var text = new StringBuilder(rendered
+            ? "A code block of a kind described below becomes a chart or a picture; any other stays code.\n\n"
+            : "No code block is drawn in this setup: every one stays code.\n\n");
+        if (rendered)
+        {
+            text.Append("""
+                - **Charts** (`chart` blocks, where described below) are native Word charts as wide as the
+                  text, whose data can be edited in Word.
+
+                """);
+        }
+
+        if (options.ImageConverters.Count == 0)
+        {
+            text.Append("""
+                - **Diagrams and other drawings are not drawn in this setup:** a diagram block stays code, a
+                  `qr:` image is its alt text, and `::: timeline`, `::: gantt`, `::: steps` and
+                  `::: riskmatrix` show their content in sequence. Leave them out of a document meant for Word.
+
+                """);
+        }
+        else
+        {
+            text.Append("""
+                - **Diagrams** and other drawings are pictures, made smaller to fit the page, never larger;
+                  their alt text is the block's first line.
+
+                """);
+        }
+
+        if (rendered)
+        {
+            text.Append("""
+                - **Captions:** a paragraph starting `Figure: ` right after a drawn block is its caption,
+                  numbered with the images and set below it: `Figure: Order flow` gives "Figure 2: Order flow".
+                  After anything else it is shown as text.
+
+                """);
+        }
+
+        if (options.ImageConverters.Count > 0)
+        {
+            text.Append("""
+                - **QR codes:** `![Alt text](qr:https://example.com)` is a QR code of the text after `qr:` (at
+                  most 1 000 characters; shorter addresses scan better). `"scale=2"` in the title enlarges it,
+                  `"caption"` puts the alt text under it.
+                - **Timelines and Gantt charts:** `::: timeline` around a list of 2–8
+                  `- **date** Title: description`; `::: gantt` around a table of 1–20 rows of task, start and
+                  end (no end: a milestone). Dates: `2026`, `2026-Q2`, `2026-03`, `2026-03-15`; what ended
+                  before today is grey. `today=2026-11-01` after the name pins today;
+                  `grid=week|month|quarter` sets a Gantt's grid.
+                - **Steps and risk matrices:** `::: steps` around a list of 2–7 `- **Title** – description`
+                  draws chevrons in a row, `{.current}` at the end of one item marks it. `::: riskmatrix`
+                  around a table of 1–15 rows of risk, likelihood and impact (each 1–5) puts numbered dots on
+                  a 5 × 5 grid.
+
+                ````markdown
+                ## Plan
+
+                ::: timeline
+                - **2026-01** Start
+                - **2026-06** Go-live: all regions
+                :::
+
+                ::: riskmatrix
+                | Risk | Likelihood | Impact |
+                | ---- | ---------- | ------ |
+                | Supplier delay | 4 | 3 |
+                :::
+                ````
+
+                """);
+        }
+
+        return text.ToString();
+    }
 
     // The characters the brand's fonts lack, which Word shows in a substitute font.
     private static string Characters(ResolvedFonts? fonts, string codeFont)

@@ -1,7 +1,8 @@
 ﻿# wwosik.DocLibs.DocumentGeneration.Diagrams
 
 Draws ` ```mermaid ` code blocks as diagrams in a brand's colours and font: **vector graphics** in
-PDFs and **editable PowerPoint shapes** in decks. It plugs into both generators as a code-block
+PDFs, **editable PowerPoint shapes** in decks and pictures (PNG with the SVG) in Word documents, with an
+image converter. It plugs into the generators as a code-block
 renderer. Cross-platform and AOT-compatible, with no browser, Node.js or native code. Depends on
 [Mermaider](https://github.com/nullean/mermaider) (MIT) and
 [wwosik.DocLibs.DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md).

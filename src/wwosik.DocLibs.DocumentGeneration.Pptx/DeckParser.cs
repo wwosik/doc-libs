@@ -1417,18 +1417,7 @@ internal sealed partial class DeckParser(
             return image;
         }
 
-        return image with { Resource = converted, Natural = (width, height), Vector = IsSvg(image.Resource) ? image.Resource : null };
-    }
-
-    private static bool IsSvg(DocumentResource resource)
-    {
-        if (resource.ContentType.Equals("image/svg+xml", StringComparison.OrdinalIgnoreCase) || resource.Path.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        var head = System.Text.Encoding.UTF8.GetString(resource.Content.Span[..Math.Min(resource.Content.Length, 1024)]);
-        return head.Contains("<svg", StringComparison.Ordinal);
+        return image with { Resource = converted, Natural = (width, height), Vector = SvgBlip.IsSvg(image.Resource) ? image.Resource : null };
     }
 
     private static string AltText(ContainerInline container) =>

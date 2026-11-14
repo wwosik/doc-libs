@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Generates Word documents (.docx) from Markdown, on a built-in template in a brand's design or on a caller's template, with numbered headings, real footnotes and a table of contents.</Description>
+    <Description>Generates Word documents (.docx) from Markdown, on a built-in template in a brand's design or on a caller's template, with numbered headings, real footnotes, a table of contents and native charts.</Description>
   </PropertyGroup>
 
   <ItemGroup>

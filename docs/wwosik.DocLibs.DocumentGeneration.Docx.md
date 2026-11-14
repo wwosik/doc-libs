@@ -31,8 +31,16 @@ DocxGenerator.Generate(document, output, new DocxOptions
 });
 ```
 
-> **Not yet in Word's own form:** diagrams and charts stay code, QR codes are their alt text and
-> icons stay as written. They follow in a later version.
+Charts are native Word charts; diagrams, QR codes, icons and the drawn containers are pictures,
+which need an image converter, see [Diagrams and charts](#diagrams-and-charts):
+
+```csharp
+DocxGenerator.Generate(document, output, new DocxOptions
+{
+    CodeBlockRenderers = [new MermaidRenderer(), new ChartRenderer()],
+    ImageConverters = [new SvgImageConverter { Fonts = brandFonts }],   // wwosik.DocLibs.DocumentConversions.Svg
+});
+```
 
 - **Stream in, stream out.** Nothing is read from or written to disk.
 - **Errors:** invalid front matter, an unknown brand, a style the options or the front matter name
@@ -54,7 +62,9 @@ When the Markdown comes from someone else, often an AI agent working through you
 them `DocxGenerator.AuthoringGuide(options)` with the **same options** you pass to `Generate`. It is
 Markdown, in English, written for the writer, and starts at `##`: how headings become the cover and
 the table of contents, the front matter keys of the options' template and the brands front matter
-can pick, the characters the brand's fonts lack, the notes, and an example that generates. Put it
+can pick, the slide syntax, the diagrams and charts of the options' renderers (and whether they are drawn,
+which depends on the image converters), the characters the brand's fonts lack, the notes, and an
+example that generates. Every key, container, alert and note code of Word documents is in it. Put it
 under a heading of your own and add what only you know.
 
 ## Options
@@ -67,8 +77,9 @@ under a heading of your own and add what only you know.
 | `TableOfContentsDepth` | `2` | the heading levels it lists, 1 to 3, unless front matter sets `tocDepth` |
 | `HeadingNumbers` | `true` | numbers on Heading 1–3 of the built-in template, unless front matter sets `headingNumbers`; no effect on other templates |
 | `CodeFont` | the brand's mono family, else `Consolas` | the font of code |
-| `ImageConverters` | none | asked for images that are not PNG, JPEG or GIF, such as SVG (drawn at twice the size they are placed at) |
-| `CodeBlockRenderers` | none | reserved for drawings: a block a renderer would draw stays code with a `code-not-drawn` note |
+| `ImageConverters` | none | asked for images that are not PNG, JPEG or GIF, such as SVG, and for the PNG of every drawing (at twice the size they are placed at); see [Diagrams and charts](#diagrams-and-charts) |
+| `CodeBlockRenderers` | none | asked for every fenced code block: charts become native Word charts, drawings pictures (with an image converter) |
+| `Icons` | `TablerIcons.Outline` | the icons `:icon-name:` draws inline, one line high (with an image converter); `null` leaves `:icon-x:` as text |
 | `Language` | `en` | the document language, unless front matter sets `lang` |
 | `Texts` | none | `GeneratedTexts` for further languages, by tag |
 | `TimeProvider` | `TimeProvider.System` | the date on the cover and in the footer, and the created and modified dates |
@@ -253,7 +264,7 @@ key, and `w:embedTrueTypeFonts` in the settings.
 | `- [ ]`, `- [x]` | `List Task` with a check-box content control (`w14:checkbox`, ☐/☒ in Segoe UI Symbol) and a tab |
 | Definition list | `Definition Term` (bold, kept with the next), `Definition` (indented) |
 | `> quote`, nested quotes | `Quote`, flattened |
-| Code block | one `Code` paragraph per line, tabs as four spaces |
+| Code block | one `Code` paragraph per line, tabs as four spaces; a block a renderer draws, see [Diagrams and charts](#diagrams-and-charts) |
 | `---` | an empty `Rule` paragraph |
 | Table | `Doc Table` at the text width (`w:tblW` 100 %, fixed layout), the header row repeated (`w:tblHeader`), rows kept on one page (`w:cantSplit`) unless taller than one, the Markdown alignment as `w:jc`. Column widths by the PDF's rule from `TextMetrics`: each column at least its longest word, the rest in proportion to the content, in `w:tblGrid` and `w:tcW`. |
 | `**Title**` right before a table | `Table Title`, kept with the table |
@@ -279,7 +290,7 @@ Mistakes are checked as in decks.
 | `::: panel`, `::: panel dark` | its paragraphs in `Panel` (shaded in the table band, a border all round, so that Word joins them into one box) or `Panel Dark` (the primary colour, white text); a heading inside is a bold panel paragraph; lists and tables keep their own styles |
 | `::: statement` | the first paragraph in `Statement` (large, bold, primary), the rest as usual |
 | `::: columns` | the columns one after the other, without the `---` |
-| Other containers (`conclusion`, `comment`, drawn ones) | their content in sequence; a heading inside is a `Container Heading` |
+| `::: conclusion`, `::: comment` | their content in sequence; a heading inside is a `Container Heading` (the drawn containers: see [Diagrams and charts](#diagrams-and-charts)) |
 | `` `a` `b` `c` ``, a paragraph of only code spans | one paragraph of `Tag` runs (code font, light grey), separated by spaces; in a container, an item that starts with a code span starts with it as a tag |
 | `==mark==` | `Mark`: bold on a light tint of the highlight, not Word's yellow highlighter |
 | A table row whose first cell is all `==…==` | every cell shaded in that tint (`w:shd` in `w:tcPr`): the one direct cell formatting, since a style cannot shade cells |
@@ -337,8 +348,35 @@ a `Caption` paragraph: the label in the document language (`GeneratedTexts.Table
 `SEQ Table \* ARABIC` or `SEQ Figure \* ARABIC` field whose result is already filled in, `: ` and
 the text; label and number in bold. Tables and figures are numbered separately through the whole
 document. A table caption goes above the table, after its title; a figure caption below the image.
-A `Table:` or `Figure:` paragraph anywhere else stays text with `caption-ignored` (until drawings
-come, every `Figure:` paragraph does).
+A `Figure:` paragraph right after a fenced code block that was drawn (a chart, a diagram, a
+renderer's image) is that figure's caption, below it. A `Table:` or `Figure:` paragraph anywhere
+else, a block left as code included, stays text with `caption-ignored`.
+
+### Diagrams and charts
+
+| Markdown | Word |
+| -------- | ---- |
+| A `chart` block (`ChartRenderer`) | a native chart (`c:chart` in an inline `w:drawing`, centred), its data in an embedded workbook (`Sheet1`, categories in column A), so *Edit Data* works: the chart part and workbook decks write, from the same shared `ChartWriter`. The text width wide, 9/16 of that high, at most 80 % of the text height. Series in `ChartSpec.Colors` (the brand's diagram palette, the neutral brand's on a caller's template), gridlines in the table line colour, text in the theme's colour and the brand's family (the theme font without brand fonts). The alt text is its title, else "Chart" (`GeneratedTexts.Chart`). A `source:` follows in a `Caption` paragraph: "Source: …". |
+| A drawing (`DrawingGraphic`: Mermaid, financial charts) | a picture: the PNG the image converters make of the drawing's SVG (`DrawingSvg`, in the brand's family, Arial without one; hover texts left out) at twice its size, placed at the natural size the converter reports and fitted like an image, with the SVG beside it in the blip extension `asvg:svgBlip` (`{96DAC541-7B7A-43D3-8B79-37D633B846F1}`), as decks write SVG pictures. The alt text is the block's first line with a letter or digit, cut at 120 characters. |
+| A renderer's image (`ImageGraphic`) | placed like a Markdown image |
+| `![alt](qr:…)` | the QR code's drawing as a picture, its alt text in `descr` |
+| `:icon-name:` | the icon as an inline picture, 10.5 pt square, in the diagram text colour |
+| `::: timeline`, `gantt`, `steps`, `riskmatrix` | the container's drawing as a picture; its alt text the first line of its content |
+| `![alt](a.svg)` | the converter's PNG with the SVG, written as it came, beside it |
+
+**Without an image converter** nothing half-drawn is placed: a drawing's block stays code, a QR code
+is its alt text, a drawn container shows its content in sequence (each with `code-not-drawn`, whose
+message says to register `SvgImageConverter` from `wwosik.DocLibs.DocumentConversions.Svg`), and an
+icon is left out with `icon-not-drawn`. Charts and renderers' images need no converter. The
+Docx package itself references no SkiaSharp.
+
+**Fonts of the PNG** are the converter's: pass the brand's fonts in `SvgImageConverter.Fonts`, so
+that the PNG matches the SVG, which names the brand's family.
+
+**Which viewers show what:** Word 2016 and later draw the SVG, sharp at any zoom; older Word and
+programs that do not read the extension show the PNG. A chart is drawn from the chart part by
+programs that read charts; others show nothing in its place. Which of LibreOffice, Word for the web
+and previewers draw the SVG or the PNG has not been checked yet (E09-S03 verification).
 
 ### Language
 
@@ -348,20 +386,25 @@ own styles alone.
 
 ## Notes
 
-`code-not-drawn`, `html-as-text`, `footnote-missing`, `attribute-ignored` (`fit`, `focus`,
+`code-not-drawn` (also a drawing without an image converter), `icon-not-drawn` (an icon without an
+image converter), `html-as-text`, `footnote-missing`, `attribute-ignored` (`fit`, `focus`,
 `.round`, `.grey` on an image, or any attribute on an image shown as its alt text in a heading or
-a cell), `caption-ignored`, `list-too-deep`, `classification-kept` and `language-unknown`. See
+a cell), `caption-ignored`, `list-too-deep`, `classification-kept` and `language-unknown`. A
+renderer's own notes are passed on. See
 [Generation results and notes](wwosik.DocLibs.DocumentGeneration.md#generation-results-and-notes).
 
 ## Known limits
 
-- Diagrams, charts, QR codes (`qr:` images, shown as their alt text) and icons (`:icon-name:`, left
-  as written) are not drawn.
-- Images in table cells and headings are their alt text.
+- Drawings are pictures, not editable shapes (the human's decision). Without an image converter they
+  are not drawn at all.
+- Images and QR codes in table cells and headings are their alt text; a `qr:` image keeps a paragraph
+  of images from becoming an image row. Harvey balls (`[3/4]` in a cell) stay text.
+- A chart's size cannot be set in the `chart` block; it is always the text width by 9/16.
 - A footnote referenced twice gets two footnotes with the same text.
 - `DocxConverter` reads the content back without footnotes, code style and the formatting styles
-  give (marks, labels and statements come back as plain text), and reads the `Table Title` and
-  `Container Heading` styles as headings, because their names contain "title" or "heading".
+  give (marks, labels and statements come back as plain text), and reads the `Container Heading`
+  style as a heading, because its name contains "heading". Charts do not come back (E08); drawings
+  come back as their PNG.
 - Landscape sections, history, compare, comments, review import, cross-references, abbreviations
   and accessibility checks are out of scope.
 - The table of contents shows page numbers only once Word (or another program that updates fields)

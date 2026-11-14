@@ -38,6 +38,7 @@ public sealed record GeneratedTexts
         Internal = "Intern",
         Confidential = "Vertraulich",
         Draft = "Entwurf",
+        Chart = "Diagramm",
     };
 
     /// <summary>The title of <c>> [!NOTE]</c>.</summary>
@@ -93,6 +94,9 @@ public sealed record GeneratedTexts
 
     /// <summary>The label of a table's caption, before its number: "Table 2: …"; German "Tabelle".</summary>
     public string Table { get; init; } = "Table";
+
+    /// <summary>The alt text of a chart without a title, in Word documents: "Chart"; German "Diagramm".</summary>
+    public string Chart { get; init; } = "Chart";
 
     /// <summary>The marking of an internal document (<c>classification: internal</c>): "Internal"; German "Intern".</summary>
     public string Internal { get; init; } = "Internal";

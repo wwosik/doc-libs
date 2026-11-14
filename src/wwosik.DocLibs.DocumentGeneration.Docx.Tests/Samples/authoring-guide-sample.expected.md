@@ -73,8 +73,9 @@ it.
 - The image's title is its caption, numbered through the document and set below it:
   `![Sales](sales.png "Sales by region, 2026")` gives "Figure 1: Sales by region, 2026".
   `"caption"` alone uses the alt text as the caption. A title of only `scale=…` gives no caption.
-- Images are PNG, JPEG or GIF. `fit=`, `focus`, `.round` and `.grey` have no effect in a Word
-  document.
+- Images are PNG, JPEG or GIF, or SVG: an `.svg` image keeps its SVG, which Word draws sharp
+  at any size.
+  `fit=`, `focus`, `.round` and `.grey` have no effect in a Word document.
 
 - A paragraph of nothing but two or more images is a row of them, side by side in cells of equal
   width, each with its caption under it: `![North](north.png "North") ![South](south.png "South")`.
@@ -96,10 +97,152 @@ takes a style of its own; the content of a container follows in sequence.
 | `==marked==` | Bold on a light tint of the highlight colour. A table row whose first cell is all `==…==` is shaded. |
 | `[words]{.success}` (`.info`, `.warning`, `.danger`, `.neutral`) | The words bold in that colour. |
 | A table cell that is only `` `Done` ``, with `labels.success: Done` in the front matter | A coloured label. Code in cells no `labels.` key names stays code. |
+| `::: conclusion`, `::: comment` | Their content in sequence. |
 | `## Title {kicker="…" layout="…"}`, `{.dark}`, transitions, `::: notes`, build markers | Checked as in decks, then left out. |
 
-Diagrams and charts (`mermaid`, `chart` blocks) stay code, a `qr:` image is its alt text, and icons
-(`:icon-name:`) stay as written. Unknown containers, alerts and heading attributes are errors.
+Unknown containers, alerts and heading attributes are errors.
+
+## Diagrams, charts and QR codes
+
+A code block of a kind described below becomes a chart or a picture; any other stays code.
+
+- **Charts** (`chart` blocks, where described below) are native Word charts as wide as the
+  text, whose data can be edited in Word.
+- **Diagrams** and other drawings are pictures, made smaller to fit the page, never larger;
+  their alt text is the block's first line.
+- **Captions:** a paragraph starting `Figure: ` right after a drawn block is its caption,
+  numbered with the images and set below it: `Figure: Order flow` gives "Figure 2: Order flow".
+  After anything else it is shown as text.
+- **QR codes:** `![Alt text](qr:https://example.com)` is a QR code of the text after `qr:` (at
+  most 1 000 characters; shorter addresses scan better). `"scale=2"` in the title enlarges it,
+  `"caption"` puts the alt text under it.
+- **Timelines and Gantt charts:** `::: timeline` around a list of 2–8
+  `- **date** Title: description`; `::: gantt` around a table of 1–20 rows of task, start and
+  end (no end: a milestone). Dates: `2026`, `2026-Q2`, `2026-03`, `2026-03-15`; what ended
+  before today is grey. `today=2026-11-01` after the name pins today;
+  `grid=week|month|quarter` sets a Gantt's grid.
+- **Steps and risk matrices:** `::: steps` around a list of 2–7 `- **Title** – description`
+  draws chevrons in a row, `{.current}` at the end of one item marks it. `::: riskmatrix`
+  around a table of 1–15 rows of risk, likelihood and impact (each 1–5) puts numbered dots on
+  a 5 × 5 grid.
+
+````markdown
+## Plan
+
+::: timeline
+- **2026-01** Start
+- **2026-06** Go-live: all regions
+:::
+
+::: riskmatrix
+| Risk | Likelihood | Impact |
+| ---- | ---------- | ------ |
+| Supplier delay | 4 | 3 |
+:::
+````
+
+## Icons
+
+`:icon-name:` draws the icon of that name of [Tabler Icons](https://tabler.io/icons) (3.52.0, outline), such as `:icon-circle-check:`. A Word document draws it in the line of text, one line high. An unknown name is an error.
+
+Common: `check`, `x`, `star`, `heart`, `bolt`, `rocket`, `target`, `flag`, `bulb`, `lock`, `users`, `calendar`, `clock`, `mail`, `chart-bar`, `trending-up`, `cloud`, `search`, `settings`, `world`.
+
+## Diagrams
+
+A ` ```mermaid ` code block becomes a diagram in the document's colours; in a Word document, a
+picture. Use one where a picture says more than bullets: a process, a sequence of calls, a data
+model, a plan. Do not add diagrams by default.
+
+````markdown
+```mermaid
+flowchart LR
+    A[Request] --> B{Valid?}
+    B -->|yes| C[Process]
+    B -->|no| D[Reject]
+```
+````
+
+- **Drawn:** `flowchart` (or `graph`, subgraphs included), `sequenceDiagram`, `classDiagram`,
+  `stateDiagram-v2`, `erDiagram`, `pie`, `gantt`, `mindmap`.
+- **Not drawn:** every other type (`journey`, `timeline`, `gitGraph`, C4, `xychart`, …) stays a
+  code block. Do not use them.
+- Keep diagrams small: up to about 12 nodes, short labels. A wide diagram is scaled down to fit,
+  text included, and becomes hard to read.
+- Mermaid's `click` links, icons and `classDef` styling are not drawn; colours come from the
+  design.
+- A diagram with a syntax error is an error naming the line of its block; fix the Mermaid and try again.
+
+## Charts
+
+A code block with the language `chart` becomes a chart in the design's colours: bars, lines or areas,
+as a native chart whose data can be edited in decks and Word documents, and drawn in PDFs.
+Settings come first, one `key: value` per line, then a line `---`, then the data as CSV: a header
+row (the name of the category column, then one name per series) and one row per category.
+
+````markdown
+```chart
+type: bar
+title: Orders by month
+unit: k
+source: Sales report 2026
+---
+month, plan, actual
+Jan, 120, 132
+Feb, 118, 121
+Mar, 125, 140
+```
+````
+
+- **Settings:** `type` is `bar` (the default), `line` or `area`; `stacked: true` stacks bars or areas;
+  `title` and `unit` are optional. `source` names where the data comes from: it is shown under the
+  chart as "Source: …", the word in the document's language (`lang`).
+- **Values** are plain numbers with a decimal point and no thousands separator (`1250.5`); an empty
+  cell leaves a gap. Up to about twelve categories and five series stay readable.
+- **Semicolons:** CSV whose header row is separated by `;`, as a spreadsheet in a German locale
+  exports it, is split at `;` throughout, and its numbers have a decimal comma (`1250,5`). A `.` in
+  such a number is an error: remove the thousands separator. `decimal: point` (or `decimal: comma`)
+  overrides the decimal mark for either separator.
+
+  ````markdown
+  ```chart
+  source: Controlling
+  ---
+  Monat; Plan; Ist
+  Jan; 120,5; 132
+  Feb; 118; 121,25
+  ```
+  ````
+
+- A chart is placed like an image: it fills the room it has. Two charts side by side: `::: columns`
+  with a chart in each column.
+- A mistake in the settings or the data is an error naming the line of its block.
+
+### Financial charts
+
+A code block with the language `financial-chart` holds one of the charts of a performance review as
+JSON: `development`, `growth-by-row`, `actual-vs-reference`, `growth-trend`, `two-year` or
+`summary-table`. Growth rates and shares are fractions (`0.05` is 5 %); `lastActual` counts months
+from 0. These blocks are usually written by a program, not by hand.
+
+````markdown
+```financial-chart
+{
+  "type": "growth-trend",
+  "title": "Orders growth",
+  "lastActual": 2,
+  "reference": 0.05,
+  "months": [
+    { "label": "Jan", "change": 0.056 }, { "label": "Feb", "change": 0.054 }, { "label": "Mar", "change": 0.04 },
+    { "label": "Apr", "change": 0.045 }, { "label": "May", "change": 0.05 }
+  ],
+  "options": { "labels": { "current": "This year", "previous": "Last year", "projection": "Forecast" } }
+}
+```
+````
+
+- **Options:** `culture` (`pl-PL` writes `5,2%`), `scale` and `unit` (`1000000` and `M`), `labels`
+  (`previous`, `current`, `reference`, `projection`, `estimate`, `change`, `overall`, `value`).
+- A misspelt property or invalid JSON is an error naming the line of its block.
 
 ## Page breaks
 
@@ -184,18 +327,19 @@ The document is set in Liberation Serif. A character this font lacks is shown in
 ## When something is wrong
 
 Generation stops with a message that says what to fix, such as a front matter key that does not
-exist or a value it does not take, or an image that is missing. Fix the Markdown and generate
-again.
+exist or a value it does not take, an image that is missing, or a broken diagram or chart with its line.
+Fix the Markdown and generate again.
 
 ## Notes you may get back
 
 The document is still written, but whoever passes it to you may also pass on notes about it, each with its line. Each names what happened:
 
-- `code-not-drawn`: a diagram could not be drawn, for example a diagram type that is not supported, and stays code. Use a supported type.
+- `code-not-drawn`: a diagram could not be drawn, for example a diagram type that is not supported, and stays code. Use a supported type. In a Word document, diagrams, QR codes and drawn containers become pictures only where an image converter is set up; without one they stay code, alt text or their content. Ask whoever generates the document to set one up.
 - `html-as-text`: HTML is not interpreted: it is shown as text. Write Markdown instead.
 - `footnote-missing`: a footnote reference such as `[^1]` has no definition `[^1]: text`, so it is shown as written. Add the definition, or remove the reference.
 - `language-unknown`: the language in `lang` has no texts of its own, so alert titles and similar texts are in English. Use `en` or `de`.
 - `attribute-ignored`: an image attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `focus` on an image that is not cropped. Remove it, or use it where it works.
+- `icon-not-drawn`: an icon was left out where it cannot be drawn. Move it as the *Icons* section says. In a Word document, icons are drawn only where an image converter is set up, and are left out otherwise.
 - `caption-ignored`: a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text.
 - `list-too-deep`: a list is nested deeper than three levels; the deeper items are set at the third level. Flatten the list to three levels.
 - `classification-kept`: the front matter asks for a lower `classification` than the host set, and the host's applies. Leave the key out, or raise it.
@@ -228,6 +372,9 @@ The upgrade is on schedule: 14 of 20 substations are done.[^permits] The budget 
 Table: Progress at the end of October
 
 ## Next steps
+
+> [!IMPORTANT]
+> The southern permits decide the date of commissioning.
 
 1. Obtain the remaining permits in the first quarter.
 2. Commission the last sites.

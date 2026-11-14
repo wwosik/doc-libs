@@ -4,25 +4,34 @@ using System.Text;
 using DocumentFormat.OpenXml.Packaging;
 using X = DocumentFormat.OpenXml.Spreadsheet;
 
-namespace wwosik.DocLibs.DocumentGeneration.Pptx;
+namespace wwosik.DocLibs.DocumentGeneration;
 
 /// <summary>
-/// Writes a <see cref="ChartSpec"/> as a native PowerPoint chart: a chart part, written as XML here so it can be
-/// reviewed like code, with its data in an embedded workbook, so that PowerPoint's <em>Edit Data</em> works.
+/// Writes a <see cref="ChartSpec"/> as a native chart of a deck or a Word document: a chart part, written as XML here so
+/// it can be reviewed like code, with its data in an embedded workbook, so that <em>Edit Data</em> works. Shared source,
+/// linked into the PPTX and DOCX generators; colours come as DrawingML fills, so that each format keeps its own colours
+/// (theme colours and transparency on slides).
 /// </summary>
 internal static class ChartWriter
 {
+    /// <summary>The <c>a:graphicData</c> URI of a chart.</summary>
+    public const string GraphicUri = "http://schemas.openxmlformats.org/drawingml/2006/chart";
+
     private const string Sheet = "Sheet1";
 
-    /// <summary>Adds the chart to <paramref name="slide"/> and returns the id of its relationship.</summary>
+    /// <summary>
+    /// Adds the chart to <paramref name="owner"/>, a slide or a Word document's main part, and returns the id of its
+    /// relationship.
+    /// </summary>
     /// <remarks>
-    /// <paramref name="text"/> colours the chart's text (on dark slides: white), <see langword="null"/> leaves the theme's;
-    /// <paramref name="grid"/> colours the gridlines and the category axis; <paramref name="font"/> is the family of all
-    /// its text, <see langword="null"/> for the theme font.
+    /// <paramref name="text"/> colours the chart's text (on dark slides: white) as an <c>a:solidFill</c> element,
+    /// <see langword="null"/> leaves the theme's; <paramref name="grid"/>, also an <c>a:solidFill</c>, colours the
+    /// gridlines and the category axis; <paramref name="font"/> is the family of all its text, <see langword="null"/> for
+    /// the theme font.
     /// </remarks>
-    public static string Add(SlidePart slide, ChartSpec chart, SlideColor? text, SlideColor grid, string? font)
+    public static string Add(OpenXmlPart owner, ChartSpec chart, string? text, string grid, string? font)
     {
-        var part = slide.AddNewPart<ChartPart>();
+        var part = owner.AddNewPart<ChartPart>();
         var workbook = part.AddEmbeddedPackagePart(EmbeddedPackagePartType.Xlsx);
         using (var data = new MemoryStream())
         {
@@ -36,10 +45,13 @@ internal static class ChartWriter
             part.FeedData(xml);
         }
 
-        return slide.GetIdOfPart(part);
+        return owner.GetIdOfPart(part);
     }
 
-    private static string Xml(ChartSpec chart, string workbook, SlideColor? text, SlideColor grid, string? font)
+    /// <summary>An <c>a:solidFill</c> of an RGB colour, upper-case hex without <c>#</c>.</summary>
+    public static string Solid(string hex) => $"<a:solidFill><a:srgbClr val=\"{hex}\"/></a:solidFill>";
+
+    private static string Xml(ChartSpec chart, string workbook, string? text, string grid, string? font)
     {
         var axes = "<c:axId val=\"111\"/><c:axId val=\"222\"/>";
         var series = string.Concat(chart.Series.Select((s, i) => Series(chart, s, i)));
@@ -66,7 +78,7 @@ internal static class ChartWriter
         var lowest = chart.Series.SelectMany(s => s.Values).OfType<double>().DefaultIfEmpty(0).Min();
         var minimum = chart.Kind == ChartKind.Line ? string.Empty
             : $"<c:min val=\"{Math.Min(0, Math.Floor(lowest)).ToString(CultureInfo.InvariantCulture)}\"/>";
-        var line = $"<a:ln w=\"9525\">{grid.Fill().OuterXml}</a:ln>";
+        var line = $"<a:ln w=\"9525\">{grid}</a:ln>";
         return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
             + "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" "
             + "xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
@@ -78,7 +90,7 @@ internal static class ChartWriter
             + $"<c:spPr>{line}</c:spPr>{labels}<c:crossAx val=\"222\"/><c:crosses val=\"autoZero\"/><c:auto val=\"1\"/><c:lblAlgn val=\"ctr\"/>"
             + "<c:lblOffset val=\"100\"/><c:noMultiLvlLbl val=\"0\"/></c:catAx>"
             + $"<c:valAx><c:axId val=\"222\"/><c:scaling><c:orientation val=\"minMax\"/>{minimum}</c:scaling><c:delete val=\"0\"/><c:axPos val=\"l\"/>"
-            + $"<c:majorGridlines><c:spPr><a:ln w=\"6350\">{grid.Fill().OuterXml}</a:ln></c:spPr></c:majorGridlines>{unit}"
+            + $"<c:majorGridlines><c:spPr><a:ln w=\"6350\">{grid}</a:ln></c:spPr></c:majorGridlines>{unit}"
             + "<c:numFmt formatCode=\"General\" sourceLinked=\"0\"/><c:majorTickMark val=\"none\"/><c:minorTickMark val=\"none\"/><c:tickLblPos val=\"nextTo\"/>"
             + $"<c:spPr><a:ln><a:noFill/></a:ln></c:spPr>{labels}<c:crossAx val=\"111\"/><c:crosses val=\"autoZero\"/><c:crossBetween val=\"between\"/></c:valAx>"
             + "<c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr></c:plotArea>"
@@ -113,12 +125,12 @@ internal static class ChartWriter
             + "</c:ser>";
     }
 
-    private static string TextProperties(int size, SlideColor? colour, string? font) =>
+    private static string TextProperties(int size, string? colour, string? font) =>
         $"<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr>{Run("defRPr", size, false, colour, font)}</a:pPr><a:endParaRPr lang=\"en-US\"/></a:p></c:txPr>";
 
-    private static string Run(string element, int size, bool bold, SlideColor? colour, string? font) =>
+    private static string Run(string element, int size, bool bold, string? colour, string? font) =>
         $"<a:{element} lang=\"en-US\" sz=\"{size}\" b=\"{(bold ? 1 : 0)}\">"
-        + (colour is { } c ? c.Fill().OuterXml : string.Empty)
+        + (colour ?? string.Empty)
         + (font is not null ? $"<a:latin typeface=\"{Escape(font)}\"/>" : string.Empty)
         + $"</a:{element}>";
 
@@ -167,5 +179,9 @@ internal static class ChartWriter
         return name;
     }
 
-    private static string Escape(string text) => SecurityElement.Escape(DeckWriter.XmlSafe(text));
+    private static string Escape(string text) => SecurityElement.Escape(XmlSafe(text));
+
+    // XML 1.0 has no place for control characters; tabs stay. The deck writer's rule, so that decks keep their bytes.
+    private static string XmlSafe(string text) =>
+        text.Any(c => char.IsControl(c) && c != '\t') ? new string(text.Where(c => !char.IsControl(c) || c == '\t').ToArray()) : text;
 }

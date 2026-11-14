@@ -1,6 +1,7 @@
 ## Charts
 
-A code block with the language `chart` becomes a chart in the design's colours: bars, lines or areas.
+A code block with the language `chart` becomes a chart in the design's colours: bars, lines or areas,
+as a native chart whose data can be edited in decks and Word documents, and drawn in PDFs.
 Settings come first, one `key: value` per line, then a line `---`, then the data as CSV: a header
 row (the name of the category column, then one name per series) and one row per category.
 

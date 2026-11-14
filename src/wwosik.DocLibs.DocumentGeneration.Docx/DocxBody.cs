@@ -43,7 +43,7 @@ internal sealed partial class DocxBody
 
     private readonly Dictionary<HeadingBlock, string> bookmarks = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<string, string> anchors = new(StringComparer.Ordinal);
-    private readonly Dictionary<(OpenXmlPart, DocumentResource), (string Id, ImageInfo Info)> images = [];
+    private readonly Dictionary<(OpenXmlPart, DocumentResource), (string Id, ImageInfo Info, string? Svg)> images = [];
     private readonly Dictionary<CaptionKind, int> captions = [];
     private readonly int[] headingCounters = new int[3];
     private readonly List<TocEntry> headings = [];
@@ -284,6 +284,20 @@ internal sealed partial class DocxBody
                 continue;
             }
 
+            // A `Figure:` paragraph right after a fenced block that was drawn is its caption, below it.
+            if (block is FencedCodeBlock fenced)
+            {
+                var figure = i + 1 < blocks.Count && blocks[i + 1] is ParagraphBlock next && Captions.Kind(next) == CaptionKind.Figure ? next : null;
+                if (this.Code(fenced, frame, target, figure is not null) && figure is not null)
+                {
+                    Captions.TakePrefix(figure, CaptionKind.Figure);
+                    target.Add(this.Caption(CaptionKind.Figure, this.runs.Runs(figure.Inline), frame.Part));
+                    i++;
+                }
+
+                continue;
+            }
+
             if (block is ParagraphBlock misplaced && Captions.Kind(misplaced) is { } kind)
             {
                 this.Context.Notes.Add(
@@ -350,7 +364,7 @@ internal sealed partial class DocxBody
                 this.Table(table, null, null, frame, target);
                 break;
             case CodeBlock code:
-                this.Code(code, target);
+                this.Code(code, frame, target, captioned: false);
                 break;
             case ThematicBreakBlock:
                 target.Add(this.Paragraph(DocxRoles.Rule));
@@ -506,6 +520,13 @@ internal sealed partial class DocxBody
             case "columns":
                 // The `---` between the columns only separates them.
                 this.Blocks([.. container.Where(c => c is not ThematicBreakBlock)], inner, target);
+                break;
+            case var visual when VisualContainers.IsVisual(visual):
+                if (!this.VisualContainer(container, frame, target))
+                {
+                    this.Blocks([.. container], inner, target);
+                }
+
                 break;
             default:
                 this.Blocks([.. container], inner, target);
@@ -870,26 +891,22 @@ internal sealed partial class DocxBody
         }
     }
 
-    // One paragraph per line in the code style, tabs as four spaces; a block a renderer would draw stays code for now.
-    private void Code(CodeBlock code, List<OpenXmlElement> target)
+    // A fenced block a renderer draws becomes a chart or a picture (DocxBody.Graphics.cs); every other block, and a
+    // drawing without an image converter, is one paragraph per line in the code style, tabs as four spaces. Returns
+    // whether the block was drawn.
+    private bool Code(CodeBlock code, Frame frame, List<OpenXmlElement> target, bool captioned)
     {
-        if (code is FencedCodeBlock fenced && this.Context.Options.CodeBlockRenderers.Count > 0
-            && CodeBlockRenderers.Render(
-                this.Context.Options.CodeBlockRenderers,
-                new CodeBlockRequest(fenced.Info ?? string.Empty, fenced.Lines.ToString(), this.Context.Brand)
-                {
-                    Line = this.LineOf(fenced),
-                    Report = (_, _) => { },
-                    Texts = this.Context.Texts,
-                },
-                Format.Docx) is not null)
+        if (code is FencedCodeBlock fenced && this.Graphic(fenced, frame, target, captioned))
         {
-            this.Context.Notes.Add(
-                NoteCodes.CodeNotDrawn,
-                this.LineOf(fenced),
-                $"The '{fenced.Info}' block is shown as code: Word documents do not draw diagrams and charts yet.");
+            return true;
         }
 
+        this.CodeLines(code, target);
+        return false;
+    }
+
+    private void CodeLines(CodeBlock code, List<OpenXmlElement> target)
+    {
         foreach (var line in code.Lines.ToString().Replace("\t", "    ", StringComparison.Ordinal).Split('\n'))
         {
             var paragraph = this.Paragraph(DocxRoles.Code);
@@ -1136,33 +1153,12 @@ internal sealed partial class DocxBody
         var url = link.GetDynamicUrl?.Invoke() ?? link.Url ?? string.Empty;
         if (QrDrawing.IsQr(url))
         {
-            // Drawn with the other drawings in a later version; until then its alt text.
-            ImageAttributes.Take(link, this.LineOf(link), Format.Docx);
-            target.Add(this.Paragraph(frame, [new DocxRun(AltText(link), RunFlags.None, null)]));
+            this.Qr(link, url, frame, target);
             return;
         }
 
         var (picture, caption) = this.Picture(link, this.Context.Page.TextWidth * DocxPage.EmuPerTwip, frame.Part);
-        var paragraph = this.Paragraph(frame.Style);
-        var properties = paragraph.ParagraphProperties!;
-        if (caption is not null)
-        {
-            properties.Append(new KeepNext());
-        }
-
-        if (frame.Indent is { } indent)
-        {
-            if (frame.SuppressNumbering)
-            {
-                properties.Append(new NumberingProperties(new NumberingLevelReference { Val = 0 }, new NumberingId { Val = 0 }));
-            }
-
-            properties.Append(new Indentation { Left = indent.ToString(CultureInfo.InvariantCulture) });
-        }
-
-        properties.Append(new Justification { Val = JustificationValues.Center });
-        paragraph.Append(picture);
-        target.Add(paragraph);
+        target.Add(this.PictureParagraph(frame, picture, keepNext: caption is not null));
         if (caption is not null)
         {
             target.Add(this.Caption(CaptionKind.Figure, [new DocxRun(caption, RunFlags.None, null)], frame.Part));
@@ -1235,21 +1231,32 @@ internal sealed partial class DocxBody
         }
 
         var scale = titleScale ?? attributes.Scale ?? 1.0;
-        var (id, info) = this.ImagePart(resource, scale, part);
-
-        // The natural size at 96 DPI times the scale, fitted to the width and 80 % of the text height, never enlarged.
-        var page = this.Context.Page;
-        var width = info.Width * EmuPerPixel * scale;
-        var height = info.Height * EmuPerPixel * scale;
-        var fit = Math.Min(1.0, Math.Min(maxWidth / width, (page.Height - page.Top - page.Bottom) * DocxPage.EmuPerTwip * 0.8 / height));
-        var cx = Math.Max(1, (long)(width * fit));
-        var cy = Math.Max(1, (long)(height * fit));
-        return (new Run(this.Picture(id, cx, cy, alt)), Captions.OfImage(link.Title, attributes.Caption, alt));
+        return (this.ResourcePicture(resource, scale, alt, maxWidth, part), Captions.OfImage(link.Title, attributes.Caption, alt));
     }
+
+    // An image resource as an inline picture at its natural size times `scale`, fitted; an SVG keeps its SVG beside.
+    private Run ResourcePicture(DocumentResource resource, double scale, string alt, double maxWidth, OpenXmlPart part)
+    {
+        var (id, info, svg) = this.ImagePart(resource, scale, part);
+        var (cx, cy) = this.Fit(info.Width * scale, info.Height * scale, maxWidth);
+        return new Run(this.Picture(id, cx, cy, alt, svg));
+    }
+
+    // A natural size in pixels at 96 DPI, in EMU, fitted to `maxWidth` (EMU) and 80 % of the text height, never enlarged.
+    private (long Cx, long Cy) Fit(double widthInPixels, double heightInPixels, double maxWidth)
+    {
+        var width = widthInPixels * EmuPerPixel;
+        var height = heightInPixels * EmuPerPixel;
+        var fit = Math.Min(1.0, Math.Min(maxWidth / width, this.TextHeight * 0.8 / height));
+        return (Math.Max(1, (long)(width * fit)), Math.Max(1, (long)(height * fit)));
+    }
+
+    // The height of the text area, in EMU.
+    private double TextHeight => (this.Context.Page.Height - this.Context.Page.Top - this.Context.Page.Bottom) * DocxPage.EmuPerTwip;
 
     // PNG, JPEG and GIF as they are; other formats through the image converters at twice the size, as in the PDF. Each
     // image once per part, however often it is used.
-    private (string Id, ImageInfo Info) ImagePart(DocumentResource resource, double scale, OpenXmlPart part)
+    private (string Id, ImageInfo Info, string? Svg) ImagePart(DocumentResource resource, double scale, OpenXmlPart part)
     {
         if (this.images.TryGetValue((part, resource), out var known))
         {
@@ -1273,34 +1280,43 @@ internal sealed partial class DocxBody
                 $"The image '{resource.Path}' is not a PNG, JPEG or GIF{(this.Context.Options.ImageConverters.Count == 0 ? string.Empty : ", and no image converter takes it")}.");
         }
 
-        var type = found.Format switch
-        {
-            ImageFormat.Jpeg => ImagePartType.Jpeg,
-            ImageFormat.Gif => ImagePartType.Gif,
-            _ => ImagePartType.Png,
-        };
+        // A converted SVG goes in as it came, beside its PNG.
+        var svg = ReferenceEquals(image, resource) || !SvgBlip.IsSvg(resource) ? null : AddImage(part, ImagePartType.Svg, resource.Content);
+        var result = (AddImage(part, PartType(found.Format), image.Content), found, svg);
+        this.images[(part, resource)] = result;
+        return result;
+    }
+
+    private static PartTypeInfo PartType(ImageFormat format) => format switch
+    {
+        ImageFormat.Jpeg => ImagePartType.Jpeg,
+        ImageFormat.Gif => ImagePartType.Gif,
+        _ => ImagePartType.Png,
+    };
+
+    // An image part of `part` (the body or the footnotes) with `content`; returns its relationship id.
+    private static string AddImage(OpenXmlPart part, PartTypeInfo type, ReadOnlyMemory<byte> content)
+    {
         var imagePart = part switch
         {
             MainDocumentPart main => main.AddImagePart(type),
             FootnotesPart footnotesPart => footnotesPart.AddImagePart(type),
             _ => throw new InvalidOperationException("Images go in the body and in footnotes."),
         };
-        using (var stream = new MemoryStream(image.Content.ToArray()))
+        using (var stream = new MemoryStream(content.ToArray()))
         {
             imagePart.FeedData(stream);
         }
 
-        var result = (part.GetIdOfPart(imagePart), found);
-        this.images[(part, resource)] = result;
-        return result;
+        return part.GetIdOfPart(imagePart);
     }
 
-    // An inline picture, its alt text in wp:docPr/@descr.
-    private WordDrawing Picture(string relationship, long cx, long cy, string alt)
+    // An inline picture, its alt text in wp:docPr/@descr; with `svg`, the SVG Word 2016 and later draw instead of the PNG.
+    private WordDrawing Picture(string relationship, long cx, long cy, string alt, string? svg = null)
     {
         var id = ++this.drawingId;
         var name = "Picture " + id.ToString(CultureInfo.InvariantCulture);
-        var description = SecurityElement.Escape(alt);
+        var description = SecurityElement.Escape(XmlSafe(alt));
         var size = $"cx=\"{cx.ToString(CultureInfo.InvariantCulture)}\" cy=\"{cy.ToString(CultureInfo.InvariantCulture)}\"";
         return new WordDrawing(
             "<w:drawing xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" "
@@ -1313,7 +1329,7 @@ internal sealed partial class DocxBody
             + "<wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect=\"1\"/></wp:cNvGraphicFramePr>"
             + "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic>"
             + $"<pic:nvPicPr><pic:cNvPr id=\"{id.ToString(CultureInfo.InvariantCulture)}\" name=\"{name}\" descr=\"{description}\"/><pic:cNvPicPr/></pic:nvPicPr>"
-            + $"<pic:blipFill><a:blip r:embed=\"{relationship}\"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>"
+            + $"<pic:blipFill><a:blip r:embed=\"{relationship}\">{(svg is null ? string.Empty : SvgBlip.Extension(svg))}</a:blip><a:stretch><a:fillRect/></a:stretch></pic:blipFill>"
             + $"<pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext {size}/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr>"
             + "</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>");
     }
@@ -1337,7 +1353,7 @@ internal sealed partial class DocxBody
     }
 
     // A block's line in the original Markdown, from 1.
-    private int LineOf(MarkdownObject block) => block.Line + 1 + this.Context.LineOffset;
+    internal int LineOf(MarkdownObject block) => block.Line + 1 + this.Context.LineOffset;
 
     [GeneratedRegex(@"[^A-Za-z0-9_]", RegexOptions.CultureInvariant)]
     private static partial Regex UnsafeCharacters();

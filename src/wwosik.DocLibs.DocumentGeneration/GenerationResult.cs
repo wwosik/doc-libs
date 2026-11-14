@@ -73,7 +73,10 @@ public static class NoteCodes
     /// <summary>An image was cropped by more than a tenth of its width or height to fill a picture placeholder of a slide layout.</summary>
     public const string ImageCropped = "image-cropped";
 
-    /// <summary>A renderer declined a code block in its own language, which therefore stays code.</summary>
+    /// <summary>
+    /// A renderer declined a code block in its own language, which therefore stays code; in Word documents also a drawing
+    /// (a diagram, a QR code, a drawn container) that no image converter turned into a picture.
+    /// </summary>
     public const string CodeNotDrawn = "code-not-drawn";
 
     /// <summary>Raw HTML was written as text.</summary>
@@ -132,13 +135,20 @@ public static class NoteCodes
         (NotesDropped, [DocumentFormat.Pptx], "a `::: notes` stands before the first heading, so it belongs to no slide and was left out. Move it under the heading of the slide it is for."),
         (NotesSimplified, [DocumentFormat.Pptx], "speaker notes hold only paragraphs and lists; a table, code block, image or quote in `::: notes` was written as plain text. Keep speaker notes to text and lists."),
         (AttributeIgnored, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "an image attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `focus` on an image that is not cropped. Remove it, or use it where it works."),
-        (IconNotDrawn, [DocumentFormat.Pptx, DocumentFormat.Pdf], "an icon was left out where it cannot be drawn. Move it as the *Icons* section says."),
+        (IconNotDrawn, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx],"an icon was left out where it cannot be drawn. Move it as the *Icons* section says."),
         (LayoutFallback, [DocumentFormat.Pptx], "the design has no layout for that kind of slide (`{.quote}` and the others), so it is drawn as a layout slide with the same content. Nothing to fix, unless the design's own look matters."),
         (AgendaEmpty, [DocumentFormat.Pptx, DocumentFormat.Pdf], "an empty `{.agenda}` found no `#` chapters to list. Add the chapters, or write the agenda as a list."),
         (CaptionIgnored, [DocumentFormat.Docx], "a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text."),
         (ListTooDeep, [DocumentFormat.Docx], "a list is nested deeper than three levels; the deeper items are set at the third level. Flatten the list to three levels."),
         (ClassificationKept, [DocumentFormat.Docx], "the front matter asks for a lower `classification` than the host set, and the host's applies. Leave the key out, or raise it."),
     ];
+
+    /// <summary>What the guides of one format add to a code's advice in <see cref="All"/>.</summary>
+    internal static readonly IReadOnlyDictionary<(string Code, DocumentFormat Format), string> FormatAdvice = new Dictionary<(string, DocumentFormat), string>
+    {
+        [(CodeNotDrawn, DocumentFormat.Docx)] = "In a Word document, diagrams, QR codes and drawn containers become pictures only where an image converter is set up; without one they stay code, alt text or their content. Ask whoever generates the document to set one up.",
+        [(IconNotDrawn, DocumentFormat.Docx)] = "In a Word document, icons are drawn only where an image converter is set up, and are left out otherwise.",
+    };
 }
 
 /// <summary>Collects the notes of one generation, in the order of the Markdown; a note repeated word for word is kept once.</summary>

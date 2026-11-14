@@ -54,7 +54,10 @@ internal sealed record DocxRun(string Text, RunFlags Flags, string? Link)
     /// <summary>Whether the run is set in bold, by Ctrl+B or by its style, for measuring.</summary>
     public bool LooksBold => this.Flags.HasFlag(RunFlags.Bold) || this.Flags.HasFlag(RunFlags.Mark) || this.Flags.HasFlag(RunFlags.Strong) || this.Category is not null;
 
-    public bool IsBlank => this.Footnote is null && (this.IsBreak || this.Text.Trim().Length == 0);
+    /// <summary>An icon (<c>:icon-name:</c>) the run stands for; its text is empty.</summary>
+    public InlineIcon? Icon { get; init; }
+
+    public bool IsBlank => this.Footnote is null && this.Icon is null && (this.IsBreak || this.Text.Trim().Length == 0);
 }
 
 /// <summary>
@@ -72,7 +75,8 @@ internal sealed class DocxRuns(DocxBody body)
     {
         var collector = new Collector(body, imagesAsText);
         collector.Add(inline, flags, null);
-        return [.. collector.Pieces.Select(p => p is List<DocxRun> runs ? Colour(runs) : p)];
+        var line = inline is null ? 0 : body.LineOf(inline);
+        return [.. collector.Pieces.Select(p => p is List<DocxRun> runs ? this.Icons(Colour(runs), line) : p)];
     }
 
     /// <summary>The runs of <paramref name="inline"/>, images as their alt text, trimmed.</summary>
@@ -114,7 +118,10 @@ internal sealed class DocxRuns(DocxBody body)
             var group = new List<OpenXmlElement>();
             for (; i < runs.Count && runs[i].Link == link; i++)
             {
-                group.Add(this.Run(runs[i], link is not null));
+                if (this.Run(runs[i], link is not null, part) is { } run)
+                {
+                    group.Add(run);
+                }
             }
 
             if (link is null)
@@ -134,11 +141,17 @@ internal sealed class DocxRuns(DocxBody body)
         return elements;
     }
 
-    private OpenXmlElement Run(DocxRun run, bool linked)
+    // A run of text, a break, a footnote reference or an icon's picture; null for an icon that is not drawn.
+    private OpenXmlElement? Run(DocxRun run, bool linked, OpenXmlPart part)
     {
         if (run.IsBreak)
         {
             return new Run(new Break());
+        }
+
+        if (run.Icon is { } icon)
+        {
+            return body.IconRun(icon, part);
         }
 
         if (run.Footnote is { } footnote)
@@ -208,6 +221,17 @@ internal sealed class DocxRuns(DocxBody body)
         r => r.Flags.HasFlag(RunFlags.Code) || r.IsBreak,
         (r, text) => r with { Text = text },
         (r, category) => r with { Category = category },
+        Format.Docx);
+
+    // `:icon-name:`: a run of its own that stands for the icon, outside code; an unknown name throws.
+    private List<DocxRun> Icons(List<DocxRun> runs, int line) => IconSyntax.Apply(
+        runs,
+        r => r.Footnote is null ? r.Text : string.Empty,
+        r => r.Flags.HasFlag(RunFlags.Code) || r.IsBreak,
+        (r, text) => r with { Text = text },
+        (r, icon) => r with { Icon = icon },
+        body.Context.Options.Icons,
+        line,
         Format.Docx);
 
     /// <summary>Collects runs, cut into pieces at images unless images count as their alt text.</summary>

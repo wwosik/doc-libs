@@ -18,16 +18,30 @@ public sealed record DocxOptions
     public IReadOnlyList<Brand> Brands { get; init; } = [];
 
     /// <summary>
-    /// Asked in order for every fenced code block. Reserved for drawings in Word documents: this version writes every
-    /// code block as code, with a <c>code-not-drawn</c> note for each block a renderer would draw. Default: none.
+    /// Asked in order for every fenced code block; the first graphic wins, a block nobody renders stays code. A chart
+    /// becomes a native Word chart with its data in an embedded workbook; a drawing, such as a Mermaid diagram, becomes a
+    /// picture (a PNG from <see cref="ImageConverters"/> with the SVG beside it), and stays code with a
+    /// <c>code-not-drawn</c> note when no image converter is registered. Default: none.
     /// </summary>
     public IReadOnlyList<ICodeBlockRenderer> CodeBlockRenderers { get; init; } = [];
 
     /// <summary>
-    /// Asked in order for every image that is not a PNG, JPEG or GIF, such as an <c>.svg</c> image; the first conversion
-    /// wins, drawn at twice the size it is placed at. An image no converter takes throws. Default: none.
+    /// Asked in order for every image that is not a PNG, JPEG or GIF, such as an <c>.svg</c> image, and for the PNG of
+    /// every drawing (diagrams, QR codes, icons, timelines and the other drawn containers); the first conversion wins,
+    /// drawn at twice the size it is placed at. An SVG keeps its SVG beside the PNG (<c>asvg:svgBlip</c>), which Word 2016
+    /// and later draw instead. Register <c>SvgImageConverter</c> from <c>wwosik.DocLibs.DocumentConversions.Svg</c>, with
+    /// the brand's fonts in its <c>Fonts</c> so that the PNG matches the SVG. An image no converter takes throws; without
+    /// a converter, drawings stay code, alt text or content, and icons are left out, each with a note. Default: none.
     /// </summary>
     public IReadOnlyList<IImageConverter> ImageConverters { get; init; } = [];
+
+    /// <summary>
+    /// The icons <c>:icon-name:</c> draws, inline in the text and one line high; an unknown name throws. Drawn only with an
+    /// image converter (<see cref="ImageConverters"/>); without one, an icon is left out with an <c>icon-not-drawn</c>
+    /// note. Default <see cref="TablerIcons.Outline"/>; <see langword="null"/> switches icons off, so <c>:icon-x:</c> stays
+    /// text.
+    /// </summary>
+    public IIconSet? Icons { get; init; } = TablerIcons.Outline;
 
     /// <summary>
     /// The font of inline code and code blocks. <see langword="null"/> (the default): the brand's mono family, else

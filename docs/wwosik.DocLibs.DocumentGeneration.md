@@ -287,7 +287,7 @@ if (result.HasNotes)
 | `layout-fallback` | PPTX | A slide kind (`{.agenda}`, `{.quote}`, `{.statement}`, `{.contact}`, `{.chart}`) asked for a layout the template does not have; it is drawn as a flow slide with the same content |
 | `agenda-empty` | PPTX, PDF | An empty `{.agenda}` found no `#` chapters to list, so it shows its title only |
 | `image-cropped` | PPTX | An image filling a layout's picture placeholder (`layout="…"`) was cut by more than a tenth of its width or height to the placeholder's shape |
-| `code-not-drawn` | PPTX, DOCX, PDF | A renderer declined a block in its own language and said why, such as `MermaidRenderer` for a diagram type it does not draw; blocks in languages no renderer claims stay code silently. In Word documents, which draw no diagrams yet, every block a renderer would draw stays code with this note |
+| `code-not-drawn` | PPTX, DOCX, PDF | A renderer declined a block in its own language and said why, such as `MermaidRenderer` for a diagram type it does not draw; blocks in languages no renderer claims stay code silently. In Word documents also a drawing (a diagram block, a `qr:` image, a drawn container) when no image converter is registered: it stays code, alt text or content, and the message says to register `SvgImageConverter` |
 | `html-as-text` | PPTX, DOCX, PDF | Raw HTML, a block or inline, was written as text; HTML comments are left out silently |
 | `character-replaced` | PDF | `PdfOptions.ReplaceUnsupported` replaced a character the fonts lack; once per character, without a line |
 | `footnote-missing` | PPTX, DOCX, PDF | A footnote reference such as `[^1]` has no definition, so it is shown as written |
@@ -295,7 +295,7 @@ if (result.HasNotes)
 | `notes-dropped` | PPTX | A `::: notes` stands before the first heading, so it belongs to no slide and was left out |
 | `notes-simplified` | PPTX | Speaker notes held a table, code block, image, quote, alert, heading or other container, written as plain text; one note per block |
 | `attribute-ignored` | PPTX, DOCX, PDF | An image attribute has no effect where it is: `fit=cover` on an image of its own in a PDF, `focus` on an image that is not cropped, `scale` with `fit=cover`, `.caption` in a PDF, `fit`, `focus`, `.round` and `.grey` in a Word document, or any attribute on an image shown as its alt text (in a heading or a table cell) |
-| `icon-not-drawn` | PPTX, PDF | An icon (`:icon-name:`) stands where the format cannot draw it and was left out of the text: in decks anywhere but a card's figure or an icon list (inside text, a heading, a table cell, speaker notes, a list where not every item starts with an icon); in PDFs in a heading, a table cell or on the cover |
+| `icon-not-drawn` | PPTX, PDF, DOCX | An icon (`:icon-name:`) stands where the format cannot draw it and was left out of the text: in decks anywhere but a card's figure or an icon list (inside text, a heading, a table cell, speaker notes, a list where not every item starts with an icon); in PDFs in a heading, a table cell or on the cover; in Word documents anywhere when no image converter is registered |
 | `caption-ignored` | DOCX | A `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text |
 | `list-too-deep` | DOCX | A list is nested deeper than three levels; the deeper items are set at the third level, once per list |
 | `classification-kept` | DOCX | The front matter's `classification` is lower than the host's (`DocxOptions.Classification`); the host's applies. Decks and PDFs join with E03-S04 |
@@ -523,7 +523,8 @@ is a BCP 47 tag such as `en`, `de`, `de-CH` or `en-GB`. Anything else is an erro
   `Eintrittswahrscheinlichkeit`, `Auswirkung`) and the heading of a Word document's table of contents
   (`Contents`; German `Inhalt`) and the labels of its captions (`Figure`, `Table`; German
   `Abbildung`, `Tabelle`) and the [classification marking](#classification) (`Internal`,
-  `Confidential`, `Draft`; German `Intern`, `Vertraulich`, `Entwurf`). Code-block
+  `Confidential`, `Draft`; German `Intern`, `Vertraulich`, `Entwurf`) and the alt text of a Word
+  document's chart without a title (`Chart`; German `Diagramm`). Code-block
   renderers get them as `CodeBlockRequest.Texts`. `GeneratedTexts.English` and `GeneratedTexts.German` are built in; a host adds or
   replaces languages with the options' `Texts`, by tag. Every property defaults to English, so a
   new language starts from `GeneratedTexts.English with { Warning = "…" }` and stays complete when

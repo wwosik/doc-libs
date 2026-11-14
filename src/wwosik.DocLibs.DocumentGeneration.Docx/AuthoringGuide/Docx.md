@@ -73,8 +73,8 @@ it.
 - The image's title is its caption, numbered through the document and set below it:
   `![Sales](sales.png "Sales by region, 2026")` gives "Figure 1: Sales by region, 2026".
   `"caption"` alone uses the alt text as the caption. A title of only `scale=…` gives no caption.
-- Images are PNG, JPEG or GIF. `fit=`, `focus`, `.round` and `.grey` have no effect in a Word
-  document.
+- {{imageFormats}}
+  `fit=`, `focus`, `.round` and `.grey` have no effect in a Word document.
 
 - A paragraph of nothing but two or more images is a row of them, side by side in cells of equal
   width, each with its caption under it: `![North](north.png "North") ![South](south.png "South")`.
@@ -96,10 +96,18 @@ takes a style of its own; the content of a container follows in sequence.
 | `==marked==` | Bold on a light tint of the highlight colour. A table row whose first cell is all `==…==` is shaded. |
 | `[words]{.success}` (`.info`, `.warning`, `.danger`, `.neutral`) | The words bold in that colour. |
 | A table cell that is only `` `Done` ``, with `labels.success: Done` in the front matter | A coloured label. Code in cells no `labels.` key names stays code. |
+| `::: conclusion`, `::: comment` | Their content in sequence. |
 | `## Title {kicker="…" layout="…"}`, `{.dark}`, transitions, `::: notes`, build markers | Checked as in decks, then left out. |
 
-Diagrams and charts (`mermaid`, `chart` blocks) stay code, a `qr:` image is its alt text, and icons
-(`:icon-name:`) stay as written. Unknown containers, alerts and heading attributes are errors.
+Unknown containers, alerts and heading attributes are errors.
+
+## Diagrams, charts and QR codes
+
+{{drawings}}
+
+{{icons}}
+
+{{diagrams}}
 
 ## Page breaks
 
@@ -131,8 +139,8 @@ host may already mark the document; the front matter can raise its classificatio
 ## When something is wrong
 
 Generation stops with a message that says what to fix, such as a front matter key that does not
-exist or a value it does not take, or an image that is missing. Fix the Markdown and generate
-again.
+exist or a value it does not take, an image that is missing, or a broken diagram or chart with its line.
+Fix the Markdown and generate again.
 
 ## Notes you may get back
 
@@ -166,6 +174,9 @@ The upgrade is on schedule: 14 of 20 substations are done.[^permits] The budget 
 Table: Progress at the end of October
 
 ## Next steps
+
+> [!IMPORTANT]
+> The southern permits decide the date of commissioning.
 
 1. Obtain the remaining permits in the first quarter.
 2. Commission the last sites.
