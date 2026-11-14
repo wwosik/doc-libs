@@ -17,7 +17,8 @@ same change that made it untrue — a stale fact here is worse than a missing on
     wiki markup; PdfPig only.
   - `wwosik.DocLibs.DocumentConversions.WindowsOnly` — Office automation for `.doc`, `.rtf`,
     `.xls`, `.xlsx`.
-  - `wwosik.DocLibs.DocumentConversions.Svg` — SVG to PNG with SkiaSharp, and `SvgImageConverter`.
+  - `wwosik.DocLibs.DocumentConversions.Svg` — SVG to PNG with SkiaSharp, `SvgImageConverter`, and
+    deck previews (`DeckPreview`, E07-S03).
   - `wwosik.DocLibs.DocumentGeneration` — shared by the generators: the public brand API
     (`Brand`, `BrandColors`, `BrandImage`, `BrandFonts`, `BrandFont`, `PptxBrandTemplate`,
     `BrandPack`), the drawing model (`Drawing` …), `ICodeBlockRenderer` and the AI tool (`DocumentTool`,
@@ -447,6 +448,14 @@ same change that made it untrue — a stale fact here is worse than a missing on
   `DeckReader.Read(pptx, fonts, slides)` and `SceneSvg.Write(…, SvgTarget.Painting)` plus `DeckScene.Faces`.
   Every item keeps its `cNvPr id` (`data-id`), every paragraph its index (`data-p`) for E07-S06.
   `RenderNotes` gives one note per kind with the slide numbers, `Line` 0.
+- **Deck previews (E07-S03):** `DeckSvg.Write` (Pptx, public) = `DeckReader.Read` → `SceneSvg.Write(…,
+  SvgTarget.Painting)` per slide, plus `Fonts` (`DeckScene.Faces` and the Liberation Sans faces of runs measured
+  by estimate) and `LabelFont`; `DeckPreview.Render`/`ContactSheet` (Svg) paint them through `SvgConverter`. The
+  hand-over is `SlideSvg` in the base package: Pptx and Svg must never reference each other. Golden images are
+  `Samples/<sample>-<template>-<n>.expected.png` (640 px) in the Svg test project, which links the Pptx tests'
+  `Samples.cs` and `DarkTemplate.cs` (hence its `InternalsVisibleTo` in DocumentGeneration and Pptx) and pins
+  the date with a fixed `TimeProvider`; `DOCLIBS_UPDATE_EXPECTED=1` rewrites them. A change to the reader or
+  the generator's drawing that moves pixels shows up there: review the new images, then rewrite them.
 - **The DrawingML subset is a contract:** `HtmlDeckTests.EverySampleDeck_IsDrawn_WithNothingLeftOut` generates
   every sample deck plus a features deck on the neutral, sample and dark templates and fails on any
   `drawing-unsupported`. A story that makes the generator write new DrawingML (a preset, an effect, a fill,
@@ -533,6 +542,9 @@ same change that made it untrue — a stale fact here is worse than a missing on
 - **Svg.Skia loads `<image href="file:…">` and web addresses whatever `SvgDocumentLoadOptions` or
   the global `SvgDocument.ResolveExternal*` settings say.** `SvgSanitizer` strips links before
   drawing; keep it in front of every Svg.Skia load.
+- **This machine has the Liberation fonts installed system-wide** (fontconfig), so a pixel test that removes
+  a Liberation face from `SvgPngOptions.Fonts` still paints it. Test "our face is used" with a face no system
+  has (the sample brand's Inconsolata or PT Sans Narrow).
 - **Svg.Skia's `CustomTypefaceProvider` matches width exactly,** so a condensed font is never found
   for normal-width text; `SvgConverter` has its own provider that matches by family name.
 - **The managed SkiaSharp version must match its native assets** (`libSkiaSharp` refuses another

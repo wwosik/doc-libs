@@ -1,7 +1,7 @@
 # E07-S03 Preview images
 
-> Status: in progress (doc-3)
-> Epic: [E07 Presenting](../../50-todo/E07-presenting.md)
+> Status: in verification
+> Epic: [E07 Presenting](../50-todo/E07-presenting.md)
 
 ## Summary
 
@@ -194,19 +194,19 @@ Hosts use them for thumbnails, chat replies, review pages and documentation.
 
 ## Acceptance criteria
 
-- [ ] `DeckSvg.Write` followed by `DeckPreview.Render` paints every visible slide of the sample
+- [x] `DeckSvg.Write` followed by `DeckPreview.Render` paints every visible slide of the sample
   decks as a PNG of the requested width, with no browser, no Office and no network.
-- [ ] A slide's PNG and the same slide in the HTML deck break lines in the same places.
-- [ ] Brand decks paint in their embedded faces; neutral decks in the Liberation stand-ins; a
+- [x] A slide's PNG and the same slide in the HTML deck break lines in the same places.
+- [x] Brand decks paint in their embedded faces; neutral decks in the Liberation stand-ins; a
   missing family is reported, never painted in a random system face.
-- [ ] `DeckPreview.ContactSheet` lays out all slides in the requested columns with slide numbers,
+- [x] `DeckPreview.ContactSheet` lays out all slides in the requested columns with slide numbers,
   and refuses a sheet above the size limit with a message naming a width that fits.
 - [ ] Own golden images pass on Linux and Windows; PowerPoint references pass at the calibrated
   tolerance, and the remaining differences are documented.
-- [ ] The preview is in `wwosik.DocLibs.DocumentConversions.Svg`, which still references only
+- [x] The preview is in `wwosik.DocLibs.DocumentConversions.Svg`, which still references only
   DocumentConversions and stays AOT-compatible; the Pptx package references neither the Svg
   package nor SkiaSharp.
-- [ ] Docs, README, the package table and CHANGELOG are updated, and all tests pass.
+- [x] Docs, README, the package table and CHANGELOG are updated, and all tests pass.
 
 ## Open questions
 
@@ -272,3 +272,102 @@ Hosts use them for thumbnails, chat replies, review pages and documentation.
     travel in `DeckSvgResult.Fonts` and `LabelFont`.
   - In return, Svg users who never touch decks pay nothing, the Svg package stays AOT-compatible,
     and the Pptx package stays without a native dependency.
+
+## Implementation notes
+
+Implemented by doc-3 on 2026-11-14.
+
+**What was built**
+
+- `SlideSvg(Number, Title, Svg, Width, Height)` in `wwosik.DocLibs.DocumentConversions` (`SlideSvg.cs`), as planned.
+- `DeckSvg.Write(Stream pptx, DeckSvgOptions?)`, `DeckSvgOptions` (`Fonts`, `Slides`) and `DeckSvgResult` (`Notes`,
+  `HasNotes`, `Pages`, `Slides`, `Fonts`, `LabelFont`, `ToString` as `GenerationResult`) in
+  `wwosik.DocLibs.DocumentGeneration.Pptx` (`DeckSvg.cs`): a thin wrapper over E07-S02's `DeckReader.Read(pptx, fonts,
+  slides)` and `SceneSvg.Write(…, SvgTarget.Painting)`. Nothing in the reader or `SceneSvg` changed.
+- `DeckPreview.Render`, `DeckPreview.ContactSheet`, `DeckPreviewOptions` (`Width` 1280, `Fonts`, `Background`
+  `FFFFFF`), `DeckPreviewResult`, `SlidePreview` (`Number`, `Title`, `Png`) and `ContactSheetOptions` (`Columns` 4,
+  `ThumbnailWidth` 320, `Gap` 16, `Labels`, `LabelFont`, `Background` `F2F2F2`) in
+  `wwosik.DocLibs.DocumentConversions.Svg` (`DeckPreview.cs`). Package references are unchanged: Svg references only
+  DocumentConversions (still `IsAotCompatible`), Pptx neither Svg nor SkiaSharp.
+- Docs: *Deck previews* in the Svg page (API, the two calls, sizes, size limit, errors, build slides, fonts and
+  stand-ins, relation to the HTML deck, known limits), *Slide SVGs for previews* in the Pptx page under *HTML deck*,
+  *Slide SVGs* in the DocumentConversions page; README, `docs/README.md`, the Svg `.csproj` description, CHANGELOG
+  under *New*, and `ai/memory.md`.
+
+**Decisions and deviations**
+
+- **Final build state** needed no code: the reader ignores `p:timing`, so every paragraph a step shows (exit
+  builds included) is drawn. A test checks it on `presenting.md`'s build slide.
+- **`DeckSvgResult.Fonts`** is `DeckScene.Faces` plus, for runs measured by estimate (no face), the Liberation Sans
+  face of their weight and style, since `SvgTarget.Painting` names Liberation Sans for them. Each file once (by
+  reference, so a face used in several styles is not repeated).
+- **`DeckSvgResult.Pages`** is computed from `Slides` rather than set; `DeckSvgResult` is its own record (not a
+  `GenerationResult`, which is sealed).
+- **The contact sheet:** rows are as tall as their tallest thumbnail; with fewer slides than `Columns` the sheet is
+  as narrow as the slides; the label is the slide number (question 8) in 1/20 of the thumbnail width (10–48 px)
+  under the thumbnail, in `404040`; the border is a 1 px `BFBFBF` hairline; scaling uses Mitchell cubic sampling.
+  An empty `DeckPreviewResult` is an `ArgumentException`. Without `LabelFont`, SkiaSharp's default typeface is
+  used, and when it has no glyphs the sheet is laid out without the label line.
+- **The size-limit hint** names the largest `ThumbnailWidth` that fits with the same columns, or, when no width
+  does (the labels and gaps alone are too tall), says to use more columns or fewer slides.
+- **Errors:** `Width` outside 1–16 384 is an `ArgumentOutOfRangeException` (an option, not the SVG); a slide that
+  cannot be painted is `DocumentConversionException` (`Format = Svg`) "Slide n cannot be painted: …".
+- **The embedded-face pixel test** (plan: "a glyph that only that face has") paints a sample-brand slide with code
+  in Inconsolata with and without that face and requires the pixels to differ. The sample brand's Liberation Serif
+  could not be used: this machine has the Liberation fonts installed system-wide, so Svg.Skia found them anyway
+  (recorded in `ai/memory.md`, *Traps*). Inconsolata is no system font here or on GitHub's Linux runners.
+- **The unknown-family test** sets the theme's minor font to *Made Up Sans*: the SVG names only Liberation Sans,
+  every face in `Fonts` is Liberation Sans, the body text is painted, and `font-missing` names the family.
+- **Goldens: our own only.** 48 images at 640 px, 1.1 MB, in `src/wwosik.DocLibs.DocumentConversions.Svg.Tests/Samples`
+  (`deck` on the neutral, sample and dark templates, `layouts` on neutral, and a `features` deck with a table, a
+  native chart, a Mermaid diagram, a financial chart and an SVG image on neutral). The plan listed `layouts` on all
+  three templates and the E07-S02 test template too; that would be about 80 images, against its own "at most about
+  40", so `layouts` is on neutral only and the test template (built inside `DeckReaderTests`, one slide of odd
+  DrawingML) has none. Tolerance as planned: mean absolute difference per channel ≤ 1 % and at most 0.5 % of pixels
+  off by more than 25 % (64) in some channel; `DOCLIBS_UPDATE_EXPECTED=1` rewrites them, a leftover golden for a
+  slide that no longer exists fails the test, and a failure writes the actual and the expected image to
+  `.tmp/review/`. The date in the footers is pinned (`TimeProvider` 15 Jan 2026), or the goldens would change daily.
+- **The Svg test project links the Pptx tests' `Samples.cs` and `DarkTemplate.cs`** and their sample decks and
+  images, so it generates the same decks; for that, DocumentGeneration and the Pptx package grant it
+  `InternalsVisibleTo` (internal only, not visible to consumers).
+- **PowerPoint references (`*.office.png`) and calibration (steps 7 and 9) are not done:** there is no Office
+  here, and PowerPoint exports cannot be made in this environment. No `*.office.png` is committed, no loose-tolerance
+  test exists, the text rules of E07-S02 were not adjusted, and the test project has no README step for re-exporting.
+  The acceptance box for goldens stays unticked for that reason (and for the unchecked Windows run).
+
+**Tests** (`DeckSvgTests` in the Pptx tests, `DeckPreviewTests` in the Svg tests)
+
+- `DeckSvg`: one SVG per visible slide in points with the deck's numbers (hidden slide skipped), `Slides` picks
+  slides, the build slide shows every step, a converted SVG image is a PNG `data:` URI and never `image/svg`, every
+  `font-family` names a face in `Fonts` and each face is there once (neutral and sample brand), a missing family is
+  Liberation Sans bold with its face in `Fonts` and a `font-missing` note, `LabelFont` is Liberation Sans, a
+  non-presentation throws with `Format = Pptx`.
+- `DeckPreview`: 1280 × 720 by default on 16:9, 400 × 300 at `Width = 400` on 4:3, the background colour behind a
+  slide without one, the embedded face and the unknown family (above), a broken slide names its number, contact
+  sheet geometry with and without labels and without `LabelFont`, fewer slides than columns, the size limit and the
+  width it names (which fits, while one pixel more does not), no slides, and the goldens.
+- Reviewed by eye: every golden and the five contact sheets in `.tmp/review/preview-*.png`. They show the slides as
+  the HTML deck does; the dark template's cover title is dark on dark, the fixture's own XML noted in E07-S02.
+
+**Open verification items**
+
+- **PowerPoint comparison:** export `deck.md` and `layouts.md` on the neutral, sample and dark templates from
+  PowerPoint (`.tmp/scripts/export.ps1`, `SaveAs` 18) at 640 px, compare with `.tmp/review/preview-*.png`, calibrate
+  E07-S02's text rules (line pitch, first baseline, bullet positions) until line breaks match and positions are
+  within 2 px at 1280 px, then commit the `*.office.png` references with a loose-tolerance test and list the
+  remaining differences in the docs' known limits. This is E07-S02's open item too.
+- **Windows:** run `DeckPreviewTests` once on Windows (`dotnet.exe test` from WSL, see `ai/memory.md`) to confirm
+  the Linux goldens pass within the tolerance.
+- **A container without fontconfig** (`SkiaSharp.NativeAssets.Linux.NoDependencies`): the labels need `LabelFont`
+  there; the slides need nothing more than `DeckSvgResult.Fonts`. Not tried here.
+
+**Loose ends**
+
+- The HTML deck's own paint test (`HtmlDeckTests.TheSlideSvgs_PaintWithSvgSkia`) still checks only size and "not
+  blank"; the goldens here cover the same slides by pixels, so it could be dropped later.
+- No JPEG or WebP (question 5) and no image per build step (question 3), as decided.
+
+**Breaking changes**
+
+None. New API only (`SlideSvg`, `DeckSvg`, `DeckPreview` and their options and results); decks, PDFs, Word
+documents, the HTML deck and `SvgConverter` are unchanged.

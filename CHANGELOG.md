@@ -179,6 +179,15 @@ updating, breaking changes first.
   to HTML is `PptxGenerator.Generate` into a stream, then `HtmlDeck.Write`. Two new note codes:
   `drawing-unsupported` (something on a slide was left out, such as a shadow or an EMF picture) and
   `font-missing` (a font measured with a stand-in of other widths, or by estimate).
+- **Deck previews:** each slide of a deck as a PNG (default 1280 px wide) and a contact sheet of all
+  slides as one PNG, painted with SkiaSharp — no browser, no Office. Two calls in two packages that
+  do not reference each other: `DeckSvg.Write(pptx, options)` (`wwosik.DocLibs.DocumentGeneration.Pptx`)
+  writes the slides as standalone SVGs — the HTML deck's drawing, build slides in their final state,
+  raster pictures — with the faces they name (`Fonts`, `LabelFont`) and the reader's notes;
+  `DeckPreview.Render(slides, options)` and `DeckPreview.ContactSheet(previews, options)`
+  (`wwosik.DocLibs.DocumentConversions.Svg`) paint them. The record between them, `SlideSvg`, is new in
+  `wwosik.DocLibs.DocumentConversions`. A contact sheet larger than 16 384 pixels a side is refused
+  with an `ArgumentException` naming a thumbnail width that fits. No existing output changes.
 - **The bundled Liberation fonts moved** from `wwosik.DocLibs.DocumentGeneration.Pdf` to
   `wwosik.DocLibs.DocumentGeneration` (with `Fonts/OFL.txt`), so the HTML deck measures Arial and
   Courier New text in them. PDFs embed the same bytes as before and do not change; the shared package

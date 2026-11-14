@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <IsAotCompatible>true</IsAotCompatible>
-    <Description>Converts SVG to PNG with SkiaSharp and Svg.Skia, and lets the wwosik.DocLibs document generators place .svg images in decks and PDFs.</Description>
+    <Description>Converts SVG to PNG with SkiaSharp and Svg.Skia, lets the wwosik.DocLibs document generators place .svg images in decks and PDFs, and paints deck previews: each slide as a PNG and a contact sheet.</Description>
   </PropertyGroup>
 
   <ItemGroup>

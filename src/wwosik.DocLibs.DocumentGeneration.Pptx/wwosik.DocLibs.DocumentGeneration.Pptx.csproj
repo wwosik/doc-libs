@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Pptx.Tests" />
+    <InternalsVisibleTo Include="wwosik.DocLibs.DocumentConversions.Svg.Tests" />
   </ItemGroup>
 
 </Project>

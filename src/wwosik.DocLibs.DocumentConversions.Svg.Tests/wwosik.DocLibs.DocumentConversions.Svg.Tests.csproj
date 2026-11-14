@@ -24,6 +24,10 @@
 
   <ItemGroup>
     <Compile Include="..\wwosik.DocLibs.DocumentGeneration.Charts.Tests\FinancialSamples.cs" Link="FinancialSamples.cs" />
+    <Compile Include="..\wwosik.DocLibs.DocumentGeneration.Pptx.Tests\Samples.cs;..\wwosik.DocLibs.DocumentGeneration.Pptx.Tests\DarkTemplate.cs" Link="Pptx\%(Filename)%(Extension)" />
+    <None Include="Samples\**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\wwosik.DocLibs.DocumentGeneration.Pptx.Tests\Samples\deck.md;..\wwosik.DocLibs.DocumentGeneration.Pptx.Tests\Samples\layouts.md;..\wwosik.DocLibs.DocumentGeneration.Pptx.Tests\Samples\photo.png;..\wwosik.DocLibs.DocumentGeneration.Pptx.Tests\Samples\diagram.png" Link="Samples\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\wwosik.DocLibs.DocumentGeneration.Tests\Samples\brand-sample\**" Link="Samples\brand-sample\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\wwosik.DocLibs.DocumentGeneration.Tests\Samples\brand-sample\fonts\table\**" Link="Samples\fonts\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

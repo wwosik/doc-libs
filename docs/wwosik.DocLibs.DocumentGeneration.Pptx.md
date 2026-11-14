@@ -807,6 +807,33 @@ font's Windows ascent below the top of a 100 % line, closer for tighter spacing.
 applied to the first paragraph. An empty paragraph has the height of its `endParaRPr`. No kerning,
 ligatures, shaping or hyphenation; East Asian and complex scripts are measured but not shaped.
 
+### Slide SVGs for previews
+
+`DeckSvg.Write(pptx, options)` writes the slides of any deck as standalone SVGs made for painting,
+which `DeckPreview` in
+[wwosik.DocLibs.DocumentConversions.Svg](wwosik.DocLibs.DocumentConversions.Svg.md#deck-previews)
+turns into PNGs and a contact sheet. It is the HTML deck's drawing — the same reader, the same lines
+— written to stand alone: every build step shown, pictures as their PNG, JPEG or GIF (never the
+`svgBlip` alternative, so there is no SVG inside the SVG), and each run's `font-family` the face its
+line was measured with (Liberation Sans for an estimate). This package draws no pixels and has no
+SkiaSharp.
+
+```csharp
+var svgs = DeckSvg.Write(pptx, new DeckSvgOptions { Slides = [1, 2] });
+var previews = DeckPreview.Render(svgs.Slides, new() { Fonts = svgs.Fonts });  // in the Svg package
+```
+
+| `DeckSvgOptions` | Default | |
+| ---------------- | ------- | - |
+| `Fonts` | none | TrueType files for families the deck names but does not embed, as in `HtmlDeckOptions.Fonts`. |
+| `Slides` | every visible slide | The slides to read and write, by their number in the deck; only these are read. |
+
+`DeckSvgResult` has `Notes`, `HasNotes` and `Pages` as `GenerationResult` (the notes are
+`drawing-unsupported` and `font-missing`), plus `Slides` (a `SlideSvg` per visible slide, in order),
+`Fonts` (every face the SVGs name, once each, as TrueType: embedded, passed and stand-ins) and
+`LabelFont` (Liberation Sans Regular, for a contact sheet). A file that is not a presentation throws
+`DocumentConversionException` with `Format = Pptx`.
+
 ## Known limits
 
 - Text heights are estimated from character widths, not measured with the font, so fitting is

@@ -120,6 +120,15 @@ between Markdown and the wiki markup of the description field in JIRA's REST API
   quotes pass through untranslated. Image alt text is lost on the way to wiki markup. The
   Atlassian Document Format of Jira Cloud's API v3 is not supported.
 
+## Slide SVGs
+
+`SlideSvg(Number, Title, Svg, Width, Height)` is one slide of a deck as a standalone SVG (UTF-8),
+with its position in the deck, its title and its size in points. `DeckSvg.Write` in
+[wwosik.DocLibs.DocumentGeneration.Pptx](wwosik.DocLibs.DocumentGeneration.Pptx.md#slide-svgs-for-previews)
+returns them and `DeckPreview.Render` in
+[wwosik.DocLibs.DocumentConversions.Svg](wwosik.DocLibs.DocumentConversions.Svg.md#deck-previews)
+paints them, so those two packages fit together without referencing each other.
+
 ## Markdown helpers
 
 `MarkdownText` holds the building blocks the converters use, public for consumers that write
