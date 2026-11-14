@@ -41,6 +41,51 @@ public sealed record DocxStyleNames
 
     /// <summary>Body text. Default <c>Normal</c>.</summary>
     public string? Normal { get; init; }
+
+    /// <summary>Items of bulleted lists. Default <c>List Bullet</c>.</summary>
+    public string? ListBullet { get; init; }
+
+    /// <summary>Items of numbered lists. Default <c>List Number</c>.</summary>
+    public string? ListNumber { get; init; }
+
+    /// <summary>Items of task lists, with a check box. Default <c>List Task</c>.</summary>
+    public string? ListTask { get; init; }
+
+    /// <summary>The term of a definition list. Default <c>Definition Term</c>.</summary>
+    public string? DefinitionTerm { get; init; }
+
+    /// <summary>The description of a term in a definition list. Default <c>Definition</c>.</summary>
+    public string? Definition { get; init; }
+
+    /// <summary>Quotes and alerts. Default <c>Quote</c>.</summary>
+    public string? Quote { get; init; }
+
+    /// <summary>Each line of a code block. Default <c>Code</c>.</summary>
+    public string? Code { get; init; }
+
+    /// <summary>Inline code (a character style). Default <c>Code Character</c>.</summary>
+    public string? CodeCharacter { get; init; }
+
+    /// <summary>A horizontal rule (<c>---</c>), an empty paragraph with a bottom border. Default <c>Rule</c>.</summary>
+    public string? Rule { get; init; }
+
+    /// <summary>The captions of figures and tables. Default <c>caption</c>.</summary>
+    public string? Caption { get; init; }
+
+    /// <summary>A paragraph of bold text right before a table. Default <c>Table Title</c>.</summary>
+    public string? TableTitle { get; init; }
+
+    /// <summary>Tables (a table style). Default <c>Doc Table</c>.</summary>
+    public string? Table { get; init; }
+
+    /// <summary>The text of footnotes. Default <c>footnote text</c>.</summary>
+    public string? FootnoteText { get; init; }
+
+    /// <summary>Footnote references (a character style). Default <c>footnote reference</c>.</summary>
+    public string? FootnoteReference { get; init; }
+
+    /// <summary>Links (a character style). Default <c>Hyperlink</c>.</summary>
+    public string? Hyperlink { get; init; }
 }
 
 /// <summary>

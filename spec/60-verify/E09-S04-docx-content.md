@@ -1,15 +1,15 @@
 # E09-S04 DOCX content
 
-> Status: in progress (doc-3)
-> Epic: [E09 DOCX generator](../../50-todo/E09-docx-generator.md)
+> Status: in verification
+> Epic: [E09 DOCX generator](../50-todo/E09-docx-generator.md)
 
 ## Summary
 
-The DOCX generator of [E09-S01](../../60-verify/E09-S01-docx-package-and-templates.md) writes the content of
+The DOCX generator of [E09-S01](E09-S01-docx-package-and-templates.md) writes the content of
 ordinary Markdown in Word: headings and their numbering, lists, tables with table titles,
 numbered captions, images, code, quotes, real Word footnotes, links, task and definition lists,
-and the document language. Deck syntax ([E09-S02](E09-S02-deck-syntax-in-word.md)) and charts and
-drawings ([E09-S03](E09-S03-charts-drawings-and-guide.md)) build on it.
+and the document language. Deck syntax ([E09-S02](../55-in-progress/doc-3/E09-S02-deck-syntax-in-word.md)) and charts and
+drawings ([E09-S03](../55-in-progress/doc-3/E09-S03-charts-drawings-and-guide.md)) build on it.
 
 ## Context
 
@@ -315,3 +315,192 @@ drawings ([E09-S03](E09-S03-charts-drawings-and-guide.md)) build on it.
 - **Order within E09.** E09-S01 → E09-S04 → E09-S02 → E09-S03, although the number says
   otherwise.
 - **Out of scope** by the human's decision: cross-references, abbreviations and accessibility.
+
+## Implementation notes
+
+### Breaking changes
+
+None for consumers. The DOCX package is unreleased (it came with E09-S01, under *Unreleased*), so its
+plain body turning into real content changes no released output. Everything public is added:
+`DocxOptions.HeadingNumbers`, the fifteen content roles of `DocxStyleNames` (and their `docx.styles`
+properties in `brand.json`), `GeneratedTexts.Figure` and `Table`, `NoteCodes.CaptionIgnored` and
+`ListTooDeep`. `CHANGELOG.md` lists them under *New*. Decks and PDFs are unchanged (verified below).
+Inside the unreleased package: the built-in `Normal` style no longer sets its size and spacing (the
+document defaults carry the same values), heading levels shift, and the brand's table and code
+families are now always embedded, because the built-in table and code styles name them.
+
+### Decisions and deviations
+
+- **Body writer.** `DocxBody` replaces `PlainBody` behind `IBodyWriter` (`DocxBody.Instance` makes a new
+  writer per document, since it keeps counters and ids). Inline content goes through `DocxRuns`
+  (a run model like the PDF's `RunCollector`, then Word elements), lists and headings through
+  `DocxNumbering`, footnotes through `DocxFootnotes`, the language through `DocxLanguage`.
+- **Roles.** `StyleRole` gained `Kind` (paragraph, character, table) and `Description` (the guide's
+  words, which replaced `RoleText`). `DocxStyles` looks a role up among the template's styles of its
+  kind; the error for a missing mapped name lists the styles of that kind. Default names: `List Bullet`,
+  `List Number`, `List Task`, `Definition Term`, `Definition`, `Quote`, `Code`, `Code Character`
+  (character), `Rule`, `caption`, `Table Title`, `Doc Table` (table), `footnote text`,
+  `footnote reference` (character), `Hyperlink` (character). Added character and table styles are
+  based on nothing.
+- **`Normal` is empty in the built-in template**, its 10.5 pt and spacing in `w:docDefaults` (where
+  they already were): Word lets a paragraph style's own settings win over a table style's, so the
+  table style's 9.5 pt and zero spacing would not reach the cells otherwise. The E09-S01 test that read
+  the size from `Normal` now reads it from the defaults.
+- **Heading numbers.** On the built-in template the Heading 1–3 styles carry `w:numPr` to the
+  multilevel list `numId` 1, which the template builder writes into a new `numbering.xml`
+  (`DocxNumbering.BuiltInXml`); `HeadingNumbers = false` / `headingNumbers: false` leaves the `numPr`
+  out. The option reaches the template through `DocxTemplateOptions.Write(output, date, headingNumbers,
+  codeFont)`. Caller and brand templates: their heading styles decide; styles added to them never get
+  numbering (`StyleDesign.HeadingNumbers` false). `{.unnumbered}` is a paragraph `numPr` with `numId` 0
+  on every template. `headingNumbers` is a key on every template (it has no effect but on the built-in
+  one), so one Markdown serves all.
+- **Skipped levels.** Word counts a level that has not occurred as 0, so a `Heading 3` straight after
+  `Heading 1` reads `1.0.1`, and in `report.md` (`##` sections before a later `#`) the `##` headings read
+  `0.1`, `0.2`. The TOC's pre-filled numbers copy that counting, so they match what Word shows after an
+  update. This differs from E03-S02's rule for PDFs ("a skipped level is not counted as 0"); matching it
+  in Word would take per-paragraph `ilvl` overrides that desynchronise style and number. The guide tells
+  writers not to skip levels. **Question for the human** (see below).
+- **`{.unnumbered}` in the shared `HeadingAttributes`:** `Unnumbered` and `SplitDeep` (E03-S02's rule for
+  `###`–`######`: a trailing `{…}` comes off only when every token is `.unnumbered`) are known to
+  `DocumentFormat.Docx` only, so PDFs and decks still reject `.unnumbered` as before until E03-S02
+  enables it for them (`KnowsUnnumbered`). In Word documents `#`/`##` still go through `Split` (slide
+  settings checked and dropped, as in E09-S01); on `###`–`######` other braces now stay text, where
+  E09-S01's plain body dropped them.
+- **Captions (shared).** `Captions` in DocumentGeneration: `OfImage` (title without `scale=` and a
+  standalone `caption`; `"caption"` or `.caption` → alt text), `Kind`/`TakePrefix` for `Table: ` /
+  `Figure: ` paragraphs, `Label`; `CaptionKind`. Only DOCX calls it, so decks and PDFs are unchanged,
+  as is `ImageAttributes`. E03-S02 reuses it and widens `caption-ignored` to PDF and PPTX. Since no
+  drawings are drawn yet, every `Figure:` paragraph gets `caption-ignored`. A `.caption` attribute on an
+  image counts as asking for the alt text as caption, like the title's `caption`.
+- **No blank line, no table.** The plan allows a blank line between a table and its `Table:` line;
+  it is in fact required: Markdig turns a pipe table followed directly by a line without `|` into one
+  paragraph. Guide and docs say so.
+- **Captions' runs.** Label, `SEQ` field and its result, and the colon are bold runs (E03-S02 sets label
+  and number bold); the field result is filled in. The caption style is centred, 9 pt; table captions
+  get `keepNext`, a captioned image paragraph gets `keepNext`.
+- **Lists.** Every item paragraph carries `w:numPr` (`ilvl` 0–2) in `List Bullet` / `List Number`;
+  `DocxNumbering` uses the `numPr` of the template's list style when it has one, else adds the built-in
+  abstract definitions on first use (bullets `•`, `–`, `▪`; `1.`, `a.`, `i.`; 18 pt a level). So the
+  built-in template's `numbering.xml` holds the heading list, and the list definitions are added with the
+  first list, not written up front as the plan said. Every ordered Markdown list is a new `w:num` with a
+  `w:lvlOverride`/`w:startOverride` at its level. `list-too-deep` once per list nested four deep.
+  Further paragraphs of an item keep its indent (`w:ind`), with `numId` 0 only where the style numbers
+  itself.
+- **Task items** are `List Task` paragraphs with a direct hanging indent of the level, a run-level
+  `w:sdt` with `w14:checkbox` (☐/☒, U+2610/U+2612, in Segoe UI Symbol, the font `HarveyBall` uses),
+  then a tab. `w14` and `mc:Ignorable="w14"` are declared on the document root when there is a check box
+  (merged into a template's own `mc:Ignorable`).
+- **Tables.** `Doc Table`: grid lines, 4 pt cell margins, header row bold white on `TableHeader`
+  (`tblStylePr firstRow` with `tblHeader`), every second body row in `TableBand` (`band2Horz`); 9.5 pt
+  as the PDF's table text. `w:tblW` 5000 pct, fixed layout, `w:tblLook` first row on when the Markdown
+  has a header. Widths: `DocxBody.ColumnWidths` is the PDF's rule on `TextMetrics` (minimum longest
+  word plus margins, the rest by content), floored to twips with the remainder on the last column, so
+  the sum is the text width exactly. `w:cantSplit` unless the estimated row height (lines × 9.5 pt ×
+  1.2) exceeds the text height (`long.md`'s tall row). Cells are `Normal` paragraphs with `w:jc` from
+  the alignment; images in cells are their alt text.
+- **Table titles** lose their run bold (the style is bold). The PDF still shows such a paragraph as bold
+  text, as agreed.
+- **Images** are inline in a centred `Normal` paragraph (`w:jc` direct, as the plan says), 9525 EMU per
+  pixel × scale, fitted to the text width and 80 % of the text height. One image part per resource and
+  part. Ids of `wp:docPr` continue after the highest id in the template's document, headers and footers
+  (the built-in header pictures use 1001 on). `fit`, `focus`, `.round`, `.grey` give `attribute-ignored`;
+  `scale` in both title and attributes throws, as in the PDF. `qr:` images are their alt text until
+  E09-S03 draws them (no note: there is no fitting code yet; recorded as a loose end).
+- **Footnotes.** The footnotes part is made with separator (−1) and continuation separator (0) and
+  `w:footnotePr` in the settings only when the document has a footnote. Each reference gets its own
+  Word footnote (Word cannot refer to one footnote twice), so a footnote referred to twice appears twice.
+  Links in footnotes get their relationship on the footnotes part.
+- **Links.** `http`, `https`, `mailto`, `ftp` URLs become external hyperlinks; `#id` an anchor when a
+  heading has that Markdig id; anything else (relative paths) stays text. Bookmark names: the id with
+  other characters as `_`, `h_` before a leading non-letter, at most 40 characters, `_2`, `_3` … for
+  repeats (Markdig already makes ids unique, `-1` → `_1`). The TOC entries are `w:hyperlink w:anchor`
+  around the entry run, with the number and a space before the text.
+- **Code** blocks with a renderer that would draw them: `CodeBlockRenderers.Render` is called and its
+  graphic thrown away, giving `code-not-drawn`; the renderer's own `Report` is muted. The code style
+  uses `contextualSpacing` so a block has its spacing only at the edges.
+- **Page breaks.** A `#` heading gets `w:pageBreakBefore` unless it is the first element of the body (the
+  cover and the TOC already end with a page break).
+- **Deck syntax.** Containers (`LayoutSyntax.CheckContainer`; the columns' `---` dropped), drawn
+  containers (`timeline`, …) included, give their content in sequence; alerts a bold title paragraph in
+  `Quote` and their content in `Quote`; slide kinds checked per section by `SlideKinds` like the PDF; an
+  empty-titled kind heading (`## {.quote}`) is left out. `[words]{.success}` is bold through
+  `ColouredWords`. Top-level `::: notes` are checked and left out, nested ones throw; build markers are
+  checked by `BuildMarker.Check` and left out. Icons (`:icon-…:`) are not interpreted: left as typed
+  (E09-S02).
+- **Language.** `w:lang` in `w:rPrDefault` (created if the template has no document defaults) and
+  `w:themeFontLang` in the settings (an existing element keeps its `eastAsia`/`bidi`).
+- **Notes.** `code-not-drawn`, `html-as-text`, `footnote-missing`, `attribute-ignored` list DOCX now;
+  `caption-ignored` and `list-too-deep` are new, DOCX only for now; docs rows added.
+- **Converter round trip.** The nine `*.roundtrip.expected.md` were regenerated: headings, lists, tables,
+  emphasis, links and images survive; code loses its style (each line a paragraph), footnotes vanish,
+  check boxes come back as `☐`/`☒` and a tab, the `Rule` paragraph vanishes. `DocxConverter` classifies
+  any style whose id or name contains "title" as a heading, so a `Table Title` paragraph would come back
+  as `#`; no sample has one. Left to E08.
+
+### Verification
+
+- `./run.sh build`: 0 warnings, 0 errors (several runs died with "Internal CLR error";
+  `dotnet build-server shutdown` and a `-m:1` build fixed it). `./run.sh test` all green:
+  1 + 123 + 78 + 260 + 78 + 22 + 71 + 207 + 371 = 1,211 passed, 6 Windows-only skipped.
+- **New tests.** `Docx.Tests/ContentTests.cs` (21): a full document on all three templates valid and
+  written for review; heading shift and page breaks; heading numbers on by default, off from front
+  matter and options, `{.unnumbered}` and the TOC numbers; bookmarks, `#id` links and TOC links;
+  external links; run formatting and inline code; list restart, three levels and `list-too-deep`;
+  check boxes and definition lists; code, quote and rule styles; tables (title and caption above,
+  `SEQ`, style, width, header repeat, alignment, grid sum); column widths; image fitting, alt text,
+  unique ids, figure captions below, `caption-ignored`; image-title captions; a missing image; footnote
+  ids, part, styles and hyperlinks; `lang: de` (`w:lang`, `w:themeFontLang`, "Tabelle", "Abbildung") and
+  `de-CH` on a caller's template; missing content-role styles (paragraph, character, table) added on a
+  caller's template; a mapped character style looked up among character styles; deck syntax shown
+  plainly; `code-not-drawn`; `html-as-text`. `DocumentGeneration.Tests/CaptionSyntaxTests.cs` (3):
+  `.unnumbered` for DOCX only, `SplitDeep`, caption prefixes and labels. E09-S01's tests were updated
+  for the level shift, the numbered TOC entries, the empty `Normal`, the embedded table and code
+  families, and the `headingNumbers` key.
+- **Validator.** Every `.docx` the tests write passes `OpenXmlValidator(Microsoft365)` with no errors:
+  the samples × templates, `content-*.docx`, `embedded-fonts-sample.docx`, the guide examples.
+- **Unchanged output.** Every PPTX and PDF the tests write to `.tmp/review/`, from E09-S01's commit
+  `4e73924` in a separate worktree and from this change: 50 files, all identical — decks part by part
+  with the SDK's relationship ids masked (embedded workbooks included), PDFs byte for byte with `/ID`
+  and dates masked.
+- **For review** in `.tmp/review/`: `report-`, `long-`, `layouts-` × `neutral`, `sample`, `custom`
+  `.docx` (with a TOC), `content-neutral.docx`, `content-sample.docx`, `content-custom.docx` (every
+  content feature), `embedded-fonts-sample.docx`.
+
+### To verify by hand (no Word or LibreOffice on this machine)
+
+Open the review files in Word (and *File → Export → PDF*), especially `content-*.docx` and
+`report-sample.docx`, and check:
+
+1. **No repair prompt** on any file (check boxes with `w14`, footnotes part made by the generator,
+   numbering added to a caller's template in `content-custom.docx`).
+2. **Headings** numbered `1`, `1.1`, `1.1.1` with a hanging number; Heading 4–6 unnumbered; "Details"
+   (`{.unnumbered}`) without a number; "Second chapter" on a new page. Record what Word shows for
+   `report-*.docx`'s `##` before `# Outlook` (expected `0.1`, `0.2`) and whether the pre-filled TOC
+   numbers match Word's after the field update.
+3. **TOC** after updating fields: numbers, dotted leaders, page numbers; clicking an entry jumps.
+4. **Lists:** `1. 2.` then the second list starting at `3.`; bullets `•`, `–`, `▪` by level; the task
+   boxes tick on a click; the item text aligned after the box.
+5. **Tables:** full width, header bold white on the header colour and repeated on the next page
+   (`long-*.docx`), banded rows, the tall row split across pages, columns no narrower than their longest
+   word, right-aligned numbers; the table title and "Table 1: …" above the table.
+6. **Cells:** 9.5 pt without paragraph spacing — this checks the empty `Normal` decision; if Word still
+   applies 10.5 pt and 6 pt after in cells, the cell paragraphs need a style of their own.
+7. **Images** centred, the large one within the margins, "Figure n: …" centred below and on the same
+   page; right-click → *Update field* keeps the numbers.
+8. **Footnotes** at the foot of the page, numbered 1, 2, …, with the separator line; the link in the
+   footnote works.
+9. **Links:** the external link opens, the `#details` link jumps.
+10. **Code** grey background as one block, quotes with the bar on the left, the rule as a line.
+11. **Language:** *Review → Language* shows English (German for a `lang: de` document) on body text.
+12. **LibreOffice:** not installed here; `soffice --headless --convert-to pdf` of the same files not done.
+
+### Loose ends
+
+- **Question for the human:** heading numbers with a skipped level follow Word (`0.1`, `1.0.1`) rather
+  than E03-S02's PDF rule. Keep it (documented), or should E03-S02 adopt Word's counting so PDF and
+  Word agree?
+- `qr:` images and icons are not drawn (E09-S03, E09-S02); `Figure:` captions wait for drawn diagrams
+  (E09-S03).
+- PDFs and decks do not yet read captions or `{.unnumbered}`; E03-S02 turns on `Captions` and
+  `HeadingAttributes.Unnumbered` for them and widens `caption-ignored`.
+- `DocxConverter` misreads `Table Title` as a heading and drops footnotes (E08).

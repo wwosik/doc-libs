@@ -18,6 +18,7 @@ public static class DocxGenerator
 {
     private const string TocKey = "toc";
     private const string TocDepthKey = "tocDepth";
+    private const string HeadingNumbersKey = "headingNumbers";
 
     // Keys of decks, accepted so that one Markdown serves every format: their values are checked, then ignored.
     private const string TransitionKey = "transition";
@@ -52,6 +53,11 @@ public static class DocxGenerator
         var notes = new GenerationNotes();
         var language = DocumentLanguage.Resolve(frontMatter.Language, options.Language, options.Texts, notes, Format.Docx);
         var content = DocxContent.Parse(frontMatter.Body);
+        int LineOf(Markdig.Syntax.MarkdownObject block) => block.Line + 1 + frontMatter.BodyLine;
+        MarkdownSyntax.ReportMissingFootnotes(content.Source, LineOf, notes);
+
+        // Build markers are for decks: checked like there, then left out wherever they are.
+        BuildMarker.Check(content.Source, Format.Docx, LineOf);
         var now = options.TimeProvider.GetUtcNow();
         var date = template.ShowsDate ? options.TimeProvider.GetLocalNow().ToString("dd.MM.yyyy", CultureInfo.InvariantCulture) : null;
         var title = frontMatter.Title ?? document.Metadata.GetValueOrDefault(MetadataKeys.Title) ?? content.Cover?.Title;
@@ -59,7 +65,7 @@ public static class DocxGenerator
         var codeFont = options.CodeFont ?? brand?.CodeFontFamily ?? DocxOptions.DefaultCodeFont;
 
         using var buffer = new MemoryStream();
-        template.Write(buffer, date);
+        template.Write(buffer, date, options.HeadingNumbers, codeFont);
         DocxPackage.ChangeMainType(buffer, DocxPackage.TemplateType, DocxPackage.DocumentType);
         try
         {
@@ -74,10 +80,19 @@ public static class DocxGenerator
                 var main = package.MainDocumentPart ?? throw new InvalidDataException("The package has no word/document.xml.");
                 var section = main.Document?.Body?.Elements<SectionProperties>().LastOrDefault();
                 var page = DocxPage.Of(section);
-                var design = new StyleDesign(brand ?? ResolvedBrand.Neutral, page.CoverTitleSpace, page.TextWidth);
+                // Styles a template lacks are added unnumbered: a caller's headings keep their own numbering.
+                var design = new StyleDesign(brand ?? ResolvedBrand.Neutral, page.CoverTitleSpace, page.TextWidth) { CodeFont = codeFont };
                 var styles = DocxStyles.Resolve(main, template.StyleNames, design, template.Description);
-                var context = new DocxContext(main, styles, notes, language.Texts, language.Tag, codeFont, options);
-                DocxWriter.Write(content, context, PlainBody.Instance, author, date, options.TableOfContents, options.TableOfContentsDepth);
+                DocxLanguage.Set(main, language.Tag);
+                var context = new DocxContext(main, styles, notes, language.Texts, language.Tag, codeFont, options)
+                {
+                    Page = page,
+                    Document = document,
+                    LineOffset = frontMatter.BodyLine,
+                    Brand = template.BrandValue ?? Brand.Neutral,
+                    HeadingNumbers = template.IsBuiltIn && options.HeadingNumbers,
+                };
+                DocxWriter.Write(content, context, DocxBody.Instance, author, date, options.TableOfContents, options.TableOfContentsDepth);
 
                 var fields = DocxPlaceholders.Fill(main, title, author);
                 if (options.TableOfContents || fields)
@@ -124,10 +139,13 @@ public static class DocxGenerator
             ["embedFonts"] = "`true` or `false`. Leave it out: by default the document carries its fonts.",
             [TocKey] = $"`true` or `false`: a table of contents after the cover. Default `{(options.TableOfContents ? "true" : "false")}`.",
             [TocDepthKey] = $"`1`, `2` or `3`: the heading levels the table of contents lists. Default `{options.TableOfContentsDepth.ToString(CultureInfo.InvariantCulture)}`.",
+            [HeadingNumbersKey] = template.IsBuiltIn
+                ? $"`true` or `false`: numbers on the first three heading levels (1, 1.1, 1.1.1). Default `{(options.HeadingNumbers ? "true" : "false")}`."
+                : "`true` or `false`. This template's heading styles decide the numbers, so it has no effect.",
         };
         foreach (var role in DocxRoles.All.Where(r => r.Key is not null))
         {
-            meanings[DocxRoles.KeyPrefix + role.Key] = $"The name of the template's style for {RoleText(role)}, as Word shows it.";
+            meanings[DocxRoles.KeyPrefix + role.Key] = $"The name of the template's style for {role.Description}, as Word shows it.";
         }
 
         (string, string) deckKeys = (
@@ -143,8 +161,13 @@ public static class DocxGenerator
                 ["frontMatter"] = AuthoringGuides.FrontMatter(
                     registry.Expected,
                     options.Language,
-                    [.. template.Keys.Concat([TocKey, TocDepthKey]).Select(k => (k, meanings[k])), deckKeys, labels]),
+                    [.. template.Keys.Concat([TocKey, TocDepthKey, HeadingNumbersKey]).Select(k => (k, meanings[k])), deckKeys, labels]),
                 ["characters"] = Characters(brand?.Fonts, codeFont),
+                ["headingNumbers"] = !template.IsBuiltIn
+                    ? "The template's heading styles decide whether headings are numbered; `headingNumbers` has no effect."
+                    : options.HeadingNumbers
+                        ? "Headings of the first three levels are numbered `1`, `1.1`, `1.1.1`; deeper ones are not. `headingNumbers: false` in the front matter removes the numbers."
+                        : "Headings are not numbered. `headingNumbers: true` in the front matter numbers the first three levels `1`, `1.1`, `1.1.1`.",
                 ["notes"] = AuthoringGuides.Notes(Format.Docx),
             });
     }
@@ -161,27 +184,18 @@ public static class DocxGenerator
                 : current with { Template = new BrandDocxTemplateOptions { Brand = brand } },
             brands.Expected,
             current => current.Template.Name,
-            current => [.. current.Template.Keys, TocKey, TocDepthKey, TransitionKey, BuildKey, NumberChaptersKey],
+            current => [.. current.Template.Keys, TocKey, TocDepthKey, HeadingNumbersKey, TransitionKey, BuildKey, NumberChaptersKey],
             (current, key, value) => key switch
             {
                 TocKey => current with { TableOfContents = frontMatter.Bool(key, value) },
                 TocDepthKey => current with { TableOfContentsDepth = frontMatter.OneOf(key, value, ("1", 1), ("2", 2), ("3", 3)) },
+                HeadingNumbersKey => current with { HeadingNumbers = frontMatter.Bool(key, value) },
                 TransitionKey => frontMatter.OneOf(key, value, [.. LayoutSyntax.Transitions.Select(t => (t, current))]),
                 BuildKey => frontMatter.OneOf(key, value, ("none", current), ("lists", current)),
                 NumberChaptersKey => frontMatter.Bool(key, value) ? current : current,
                 _ => current with { Template = current.Template.With(frontMatter, key, value) },
             });
     }
-
-    private static string RoleText(StyleRole role) => role.Key switch
-    {
-        "title" => "the cover title",
-        "subtitle" => "the paragraphs under the cover title",
-        "coverDetails" => "the author and date on the cover",
-        "tocHeading" => "the heading of the table of contents",
-        "normal" => "body text",
-        var key => "headings of level " + key![^1],
-    };
 
     // The characters the brand's fonts lack, which Word shows in a substitute font.
     private static string Characters(ResolvedFonts? fonts, string codeFont)

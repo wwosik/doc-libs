@@ -35,7 +35,7 @@ It also adds the Word side of two features whose syntax other stories own: page 
 - **What E09-S04 does with it:** the same as the PDF, so every sample generates. This story
   replaces that with Word styles.
 - **Order.** This story comes after [E09-S01](../../60-verify/E09-S01-docx-package-and-templates.md) (package,
-  templates, styles by role) and [E09-S04](E09-S04-docx-content.md) (content: headings, lists,
+  templates, styles by role) and [E09-S04](../../60-verify/E09-S04-docx-content.md) (content: headings, lists,
   definition lists, captions, image fitting), which is implemented before it despite its number.
 - **Colours come from the brand:**
   - `ResolvedBrand.Highlight` for marks and important alerts;

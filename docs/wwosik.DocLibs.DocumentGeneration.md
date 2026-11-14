@@ -211,7 +211,9 @@ dividers.
 
 `docx` holds the brand's Word template (`Brand.Docx`): `template` is required, and `styles` names
 the template's style for each role, by the property names of `DocxStyleNames` in camel case —
-`title`, `subtitle`, `coverDetails`, `tocHeading`, `heading1` to `heading6` and `normal`. A role
+`title`, `subtitle`, `coverDetails`, `tocHeading`, `heading1` to `heading6`, `normal`, `listBullet`,
+`listNumber`, `listTask`, `definitionTerm`, `definition`, `quote`, `code`, `codeCharacter`, `rule`,
+`caption`, `tableTitle`, `table`, `footnoteText`, `footnoteReference` and `hyperlink`. A role
 left out takes its default style name; a misspelt role is an unknown key.
 
 | Load from | Call |
@@ -285,15 +287,17 @@ if (result.HasNotes)
 | `layout-fallback` | PPTX | A slide kind (`{.agenda}`, `{.quote}`, `{.statement}`, `{.contact}`, `{.chart}`) asked for a layout the template does not have; it is drawn as a flow slide with the same content |
 | `agenda-empty` | PPTX, PDF | An empty `{.agenda}` found no `#` chapters to list, so it shows its title only |
 | `image-cropped` | PPTX | An image filling a layout's picture placeholder (`layout="…"`) was cut by more than a tenth of its width or height to the placeholder's shape |
-| `code-not-drawn` | PPTX, PDF | A renderer declined a block in its own language and said why, such as `MermaidRenderer` for a diagram type it does not draw; blocks in languages no renderer claims stay code silently |
-| `html-as-text` | PPTX, PDF | Raw HTML, a block or inline, was written as text; HTML comments are left out silently |
+| `code-not-drawn` | PPTX, DOCX, PDF | A renderer declined a block in its own language and said why, such as `MermaidRenderer` for a diagram type it does not draw; blocks in languages no renderer claims stay code silently. In Word documents, which draw no diagrams yet, every block a renderer would draw stays code with this note |
+| `html-as-text` | PPTX, DOCX, PDF | Raw HTML, a block or inline, was written as text; HTML comments are left out silently |
 | `character-replaced` | PDF | `PdfOptions.ReplaceUnsupported` replaced a character the fonts lack; once per character, without a line |
-| `footnote-missing` | PPTX, PDF | A footnote reference such as `[^1]` has no definition, so it is shown as written |
+| `footnote-missing` | PPTX, DOCX, PDF | A footnote reference such as `[^1]` has no definition, so it is shown as written |
 | `language-unknown` | PPTX, DOCX, PDF | The document language has no `GeneratedTexts` of its own, built in or from the options; the texts are English, the tag is kept; without a line |
 | `notes-dropped` | PPTX | A `::: notes` stands before the first heading, so it belongs to no slide and was left out |
 | `notes-simplified` | PPTX | Speaker notes held a table, code block, image, quote, alert, heading or other container, written as plain text; one note per block |
-| `attribute-ignored` | PPTX, PDF | An image attribute has no effect where it is: `fit=cover` on an image of its own in a PDF, `focus` on an image that is not cropped, `scale` with `fit=cover`, `.caption` in a PDF, or any attribute on an image shown as its alt text (in a heading or a table cell) |
+| `attribute-ignored` | PPTX, DOCX, PDF | An image attribute has no effect where it is: `fit=cover` on an image of its own in a PDF, `focus` on an image that is not cropped, `scale` with `fit=cover`, `.caption` in a PDF, `fit`, `focus`, `.round` and `.grey` in a Word document, or any attribute on an image shown as its alt text (in a heading or a table cell) |
 | `icon-not-drawn` | PPTX, PDF | An icon (`:icon-name:`) stands where the format cannot draw it and was left out of the text: in decks anywhere but a card's figure or an icon list (inside text, a heading, a table cell, speaker notes, a list where not every item starts with an icon); in PDFs in a heading, a table cell or on the cover |
+| `caption-ignored` | DOCX | A `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text |
+| `list-too-deep` | DOCX | A list is nested deeper than three levels; the deeper items are set at the third level, once per list |
 
 ## Drawings and code-block renderers
 
@@ -459,7 +463,8 @@ is a BCP 47 tag such as `en`, `de`, `de-CH` or `en-GB`. Anything else is an erro
   `MonthFormat`, `QuarterFormat`, `WeekFormat`) and the axis titles of
   [risk matrices](#steps-harvey-balls-and-risk-matrices) (`Likelihood`, `Impact`; German
   `Eintrittswahrscheinlichkeit`, `Auswirkung`) and the heading of a Word document's table of contents
-  (`Contents`; German `Inhalt`). Code-block
+  (`Contents`; German `Inhalt`) and the labels of its captions (`Figure`, `Table`; German
+  `Abbildung`, `Tabelle`). Code-block
   renderers get them as `CodeBlockRequest.Texts`. `GeneratedTexts.English` and `GeneratedTexts.German` are built in; a host adds or
   replaces languages with the options' `Texts`, by tag. Every property defaults to English, so a
   new language starts from `GeneratedTexts.English with { Warning = "…" }` and stays complete when
@@ -470,7 +475,8 @@ is a BCP 47 tag such as `en`, `de`, `de-CH` or `en-GB`. Anything else is an erro
 - **Tags.** Decks write it on every run and paragraph end (`lang`, PowerPoint's spell checking),
   drawings and tables included, and as `dc:language` in the core properties. PDFs write it as the
   catalog's `/Lang` and as `dc:language` in the XMP metadata. Word documents write it as
-  `dc:language` in the core properties.
+  `dc:language` in the core properties, as `w:lang` in the document defaults and as
+  `w:themeFontLang` in the settings, so Word spell-checks in it.
 - The cover date stays `dd.MM.yyyy` in every language.
 
 ## Footnotes, task lists and definition lists
@@ -484,6 +490,26 @@ one shows them is in its own documentation.
 - `- [ ] item` and `- [x] item` are task list items: a box instead of the bullet, empty or ticked.
 - A paragraph of one line followed by `:   description` lines is a definition list: the line is the
   term, each `:` line a description. Several terms in a row share the descriptions after them.
+
+## Captions
+
+The caption syntax, read by Word documents today; PDFs and decks are planned to read it the same
+way (until then a `Table: …` paragraph is ordinary text there, and image titles keep their old
+meaning).
+
+- **Image.** The title of an image is its caption, once a `scale=N` token and the word `caption`
+  standing alone are taken out. A title of settings only gives none; `"caption"` alone (or the
+  attribute `.caption`) uses the alt text. `![Sales](s.png "Sales by region, 2026")` and
+  `![Sales by region](s.png "caption")` both get a caption.
+- **Table.** A paragraph starting `Table: ` right after a table is its caption. A blank line
+  between them is needed: without one, Markdown does not end the table.
+- **Diagram or chart.** A paragraph starting `Figure: ` right after a fenced block a renderer drew
+  is its caption.
+- `Table:` and `Figure:` are syntax and stay English whatever `lang` says. The label written is the
+  document language's (`GeneratedTexts.Table`, `GeneratedTexts.Figure`: "Table", "Figure"; German
+  "Tabelle", "Abbildung"), and a caption reads `<label> <n>: <text>`, figures and tables numbered
+  separately through the whole document. Table captions go above the table, figure captions below.
+- A `Table:` or `Figure:` paragraph anywhere else stays text, with the note `caption-ignored`.
 
 ## Timelines and Gantt charts
 

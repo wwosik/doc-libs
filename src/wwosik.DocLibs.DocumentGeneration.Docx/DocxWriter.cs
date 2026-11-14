@@ -13,14 +13,38 @@ internal sealed record DocxContext(
     GeneratedTexts Texts,
     string Language,
     string CodeFont,
-    DocxOptions Options);
+    DocxOptions Options)
+{
+    /// <summary>The page of the template's last section.</summary>
+    public DocxPage Page { get; init; } = DocxPage.For(DocxPageSize.A4, DocxOrientation.Portrait);
 
-/// <summary>A heading the table of contents lists: its level (1 for Heading 1) and text.</summary>
-internal sealed record TocEntry(int Level, string Text);
+    /// <summary>The Markdown document, for its images.</summary>
+    public DocumentConversions.MarkdownDocument? Document { get; init; }
+
+    /// <summary>The lines of front matter cut off the Markdown, so notes give lines of the original.</summary>
+    public int LineOffset { get; init; }
+
+    /// <summary>The brand code-block renderers would draw in.</summary>
+    public Brand Brand { get; init; } = Brand.Neutral;
+
+    /// <summary>Whether Heading 1–3 carry the built-in numbers, so the table of contents shows them too.</summary>
+    public bool HeadingNumbers { get; init; }
+}
+
+/// <summary>
+/// A heading the table of contents lists: its level (1 for Heading 1), text, its number if it has one ("1.2") and the
+/// bookmark its entry links to.
+/// </summary>
+internal sealed record TocEntry(int Level, string Text)
+{
+    public string? Number { get; init; }
+
+    public string? Bookmark { get; init; }
+}
 
 /// <summary>
 /// The body's blocks as Word paragraphs, and the headings among them for the table of contents. The one way the body
-/// is written; the content of later stories replaces <see cref="PlainBody"/> behind it.
+/// is written (<see cref="DocxBody"/>); deck syntax in Word (E09-S02) and drawings (E09-S03) extend it.
 /// </summary>
 internal interface IBodyWriter
 {
@@ -82,7 +106,27 @@ internal static class DocxWriter
             body.Append(section);
         }
 
+        // Check boxes are Word 2010 markup: declared on the root, ignorable for older readers.
+        if (body.Descendants<DocumentFormat.OpenXml.Office2010.Word.SdtContentCheckBox>().Any())
+        {
+            Declare(document, "w14", "http://schemas.microsoft.com/office/word/2010/wordml");
+            Declare(document, "mc", "http://schemas.openxmlformats.org/markup-compatibility/2006");
+            var ignorable = document.MCAttributes?.Ignorable?.Value?.Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [];
+            if (!ignorable.Contains("w14"))
+            {
+                document.MCAttributes = new MarkupCompatibilityAttributes { Ignorable = string.Join(" ", [.. ignorable, "w14"]) };
+            }
+        }
+
         document.Save();
+    }
+
+    private static void Declare(OpenXmlElement root, string prefix, string uri)
+    {
+        if (root.LookupNamespace(prefix) is null)
+        {
+            root.AddNamespaceDeclaration(prefix, uri);
+        }
     }
 
     /// <summary>A paragraph in the style <paramref name="style"/> with <paramref name="pieces"/>, hard breaks as <c>w:br</c>.</summary>
@@ -114,8 +158,9 @@ internal static class DocxWriter
         return elements;
     }
 
-    // The heading, then a TOC field whose result is one entry per heading, without page numbers: a viewer that does not
-    // update fields still shows the headings, and Word fills in the page numbers when it updates the field on opening.
+    // The heading, then a TOC field whose result is one entry per heading, with its number but without page numbers, a
+    // link to the heading's bookmark: a viewer that does not update fields still shows the headings, and Word fills in
+    // the page numbers when it updates the field on opening.
     private static List<OpenXmlElement> TableOfContents(IReadOnlyList<TocEntry> entries, int depth, DocxContext context)
     {
         var styles = context.Styles;
@@ -146,7 +191,8 @@ internal static class DocxWriter
                 paragraph.Append(begin);
             }
 
-            paragraph.Append(Run(entry.Text));
+            var text = Run(entry.Number is null ? entry.Text : entry.Number + " " + entry.Text);
+            paragraph.Append(entry.Bookmark is null ? text : new Hyperlink(text) { Anchor = entry.Bookmark, History = true });
             if (i == entries.Count - 1)
             {
                 paragraph.Append(end);

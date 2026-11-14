@@ -67,7 +67,7 @@ public class DocxGeneratorTests
 
         Assert.NotNull(Section(withCover).GetFirstChild<TitlePage>());
         Assert.Null(Section(without).GetFirstChild<TitlePage>());
-        Assert.Equal("Heading2", Style(Body(without).Elements<Paragraph>().First()));
+        Assert.Equal("Heading1", Style(Body(without).Elements<Paragraph>().First()));
     }
 
     [Fact]
@@ -166,7 +166,7 @@ public class DocxGeneratorTests
         Assert.Equal("Contents", Texts(paragraphs[heading]));
         Assert.Equal(" TOC \\o \"1-2\" \\h \\z \\u ", Assert.Single(Body(package).Descendants<FieldCode>()).Text);
         var entries = paragraphs.Skip(heading + 1).TakeWhile(p => Style(p).StartsWith("TOC", StringComparison.Ordinal)).ToList();
-        Assert.Equal([("TOC2", "One"), ("TOC2", "Two")], entries.Select(p => (Style(p), Texts(p))));
+        Assert.Equal([("TOC1", "1 One"), ("TOC2", "1.1 One a"), ("TOC1", "2 Two")], entries.Select(p => (Style(p), Texts(p))));
         Assert.Equal(FieldCharValues.Begin, entries[0].Descendants<FieldChar>().First().FieldCharType!.Value);
         Assert.Equal(FieldCharValues.End, entries[^1].Descendants<FieldChar>().Last().FieldCharType!.Value);
         Assert.Contains(entries[^1].Descendants<Break>(), b => b.Type?.Value == BreakValues.Page);
@@ -182,7 +182,7 @@ public class DocxGeneratorTests
         using var fromFrontMatter = Samples.Open(Samples.Generate(Samples.Markdown("---\ntoc: true\ntocDepth: 1\n---\n" + markdown)));
 
         Assert.Contains("\"1-3\"", Assert.Single(Body(fromOptions).Descendants<FieldCode>()).Text, StringComparison.Ordinal);
-        Assert.Equal(["One", "One a"], Body(fromOptions).Elements<Paragraph>().Where(p => Style(p).StartsWith("TOC", StringComparison.Ordinal) && Style(p) != "TOCHeading").Select(p => Texts(p)));
+        Assert.Equal(["1 One", "1.1 One a", "1.1.1 Deep"], Body(fromOptions).Elements<Paragraph>().Where(p => Style(p).StartsWith("TOC", StringComparison.Ordinal) && Style(p) != "TOCHeading").Select(p => Texts(p)));
         Assert.Contains("\"1-1\"", Assert.Single(Body(fromFrontMatter).Descendants<FieldCode>()).Text, StringComparison.Ordinal);
     }
 
@@ -212,7 +212,8 @@ public class DocxGeneratorTests
         Assert.Equal(["40", "32", "27", "24", "22", "21"], Enumerable.Range(1, 6).Select(l => styles["Heading" + l].StyleRunProperties!.FontSize!.Val!.Value));
         Assert.All(Enumerable.Range(1, 6), l => Assert.Equal("0E7C86", styles["Heading" + l].StyleRunProperties!.Color!.Val!.Value));
         Assert.All(Enumerable.Range(1, 6), l => Assert.NotNull(styles["Heading" + l].StyleParagraphProperties!.KeepNext));
-        Assert.Equal("21", styles["Normal"].StyleRunProperties!.FontSize!.Val!.Value);
+        Assert.Equal("21", package.MainDocumentPart.StyleDefinitionsPart.Styles.DocDefaults!.RunPropertiesDefault!.RunPropertiesBaseStyle!.FontSize!.Val!.Value);
+        Assert.Null(styles["Normal"].StyleRunProperties);
         Assert.Equal("60", styles["Title"].StyleRunProperties!.FontSize!.Val!.Value);
         Assert.Equal("heading 1", styles["Heading1"].StyleName!.Val!.Value);
         Assert.Equal("toc 2", styles["TOC2"].StyleName!.Val!.Value);

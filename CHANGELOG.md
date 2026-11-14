@@ -236,9 +236,8 @@ updating, breaking changes first.
 - **The authoring guides** describe the kinds and both containers; the deck guide says which kinds
   have a layout of their own in the design, and which layout two text columns go to.
 - **New package `wwosik.DocLibs.DocumentGeneration.Docx`:** `DocxGenerator.Generate` writes Markdown
-  to Word (`.docx`) and returns a `GenerationResult` (`Pages` is 0: Word lays out the pages). This
-  version writes the frame of the document; the body is plain text (headings in their styles,
-  everything else as `Normal` paragraphs) until lists, tables, images, footnotes and links follow.
+  to Word (`.docx`) and returns a `GenerationResult` (`Pages` is 0: Word lays out the pages). The
+  slide syntax of decks is shown plainly, and diagrams and charts stay code, until later versions.
   - **Templates:** `BrandDocxTemplateOptions` (the built-in template written from the brand, with
     `ShowDate`, `ShowTagline`, `EmbedFonts`, `PageSize` `A4`/`Letter`/`A3` and `Orientation`) and
     `CustomDocxTemplateOptions(Stream)` for a caller's `.dotx` / `.docx`, whose styles, numbering,
@@ -256,10 +255,30 @@ updating, breaking changes first.
     page numbers when it opens the document.
   - **Fonts:** the brand's faces are embedded as obfuscated `.odttf` parts by default, restricted
     faces skipped (front matter `embedFonts`).
+  - **Content** in Word's own form: headings shifted so that the highest level after the cover is
+    Heading 1, numbered `1`, `1.1`, `1.1.1` on the built-in template (`DocxOptions.HeadingNumbers`,
+    front matter `headingNumbers`, `{.unnumbered}` on a heading), with bookmarks that `#id` links and
+    the table of contents' entries jump to, and a new page at every later `#`; bold, italic and
+    strike-through runs; lists to three levels that restart at their own first number; task items
+    with Word check boxes; definition lists; tables at the text width with a repeating header row,
+    column widths from the content, and a table title from a bold paragraph right before them;
+    numbered captions with `SEQ` fields (`Table: …` above a table, an image's title below it);
+    images fitted to the page with their alt text, converted through `ImageConverters` when not
+    PNG, JPEG or GIF; code, quotes and rules; real Word footnotes; links; and the document language
+    as Word's spell-checking language.
+  - **More roles:** `ListBullet`, `ListNumber`, `ListTask`, `DefinitionTerm`, `Definition`, `Quote`,
+    `Code`, `CodeCharacter`, `Rule`, `Caption`, `TableTitle`, `Table`, `FootnoteText`,
+    `FootnoteReference` and `Hyperlink`, each with its `styles.<role>` key and `docx.styles`
+    property; character and table styles are found among the template's character and table styles.
+  - **Notes** in Word documents: `code-not-drawn`, `html-as-text`, `footnote-missing`,
+    `attribute-ignored`, and the new `caption-ignored` and `list-too-deep` (`NoteCodes.CaptionIgnored`,
+    `NoteCodes.ListTooDeep`).
   - `DocxGenerator.AuthoringGuide(options)` describes it for the writer of the Markdown.
 - **`Brand.Docx`** (`DocxBrandTemplate` with `Styles`): a brand's own Word template, and the
   `docx` section of `brand.json` (`template`, `styles`). Decks and PDFs ignore it.
 - **`GeneratedTexts.Contents`:** the heading of a table of contents ("Contents", German "Inhalt").
+- **`GeneratedTexts.Figure` and `GeneratedTexts.Table`:** the labels of captions ("Figure", "Table";
+  German "Abbildung", "Tabelle").
 
 ## 2610.28.22
 

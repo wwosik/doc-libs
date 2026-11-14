@@ -37,8 +37,9 @@ tests generate every example and compare the guides with `authoring-guide-*.expe
   Cross-platform.
 - [wwosik.DocLibs.DocumentGeneration.Docx](wwosik.DocLibs.DocumentGeneration.Docx.md): Markdown to
   `.docx`, on the built-in template in a brand's design or on a caller's `.dotx` / `.docx` whose
-  styles are found by name, with a cover, header and footer, a table of contents and the brand's
-  fonts embedded. Cross-platform.
+  styles are found by name, with a cover, header and footer, numbered headings, lists, tables,
+  numbered captions, images, Word footnotes, a table of contents and the brand's fonts embedded.
+  Cross-platform.
 - [wwosik.DocLibs.DocumentGeneration.Pdf](wwosik.DocLibs.DocumentGeneration.Pdf.md): Markdown to
   PDF/A-2b, in a brand's design, with embedded fonts (the brand's, else Liberation).
   Cross-platform.

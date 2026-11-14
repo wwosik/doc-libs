@@ -35,8 +35,9 @@ public class FontEmbeddingTests
             Assert.Equal(original, DocxFontEmbedding.Obfuscate(data.ToArray(), relationship.FontKey!.Value!));
         }
 
-        // Neither the table nor the code family is used by this document's styles.
-        Assert.Equal(4, table.FontParts.Count());
+        // The table style names the table family and the code styles the code family, so both are embedded too.
+        Assert.Contains(table.Fonts.Elements<Font>(), f => f.Name == "PT Sans Narrow" && f.GetFirstChild<EmbedRegularFont>() is not null);
+        Assert.Contains(table.Fonts.Elements<Font>(), f => f.Name == "Inconsolata" && f.GetFirstChild<EmbedRegularFont>() is not null);
         Assert.NotNull(package.MainDocumentPart.DocumentSettingsPart!.Settings!.GetFirstChild<EmbedTrueTypeFonts>());
         Samples.AssertValid(docx);
     }
@@ -77,8 +78,7 @@ public class FontEmbeddingTests
         var font = bold.MainDocumentPart!.FontTablePart!.Fonts!.Elements<Font>().Single(f => f.Name == "Liberation Serif");
         Assert.Null(font.GetFirstChild<EmbedBoldFont>());
         Assert.NotNull(font.GetFirstChild<EmbedItalicFont>());
-        Assert.Empty(regular.MainDocumentPart!.FontTablePart!.FontParts);
-        Assert.Null(regular.MainDocumentPart.DocumentSettingsPart!.Settings!.GetFirstChild<EmbedTrueTypeFonts>());
+        Assert.Null(regular.MainDocumentPart!.FontTablePart!.Fonts!.Elements<Font>().Single(f => f.Name == "Liberation Serif").GetFirstChild<EmbedRegularFont>());
     }
 
     [Fact]

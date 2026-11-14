@@ -28,6 +28,31 @@ internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
     public string? Kind { get; init; }
 
     /// <summary>
+    /// <c>.unnumbered</c>: the heading gets no number and does not count. Known only to Word documents for now (the
+    /// other formats read it with heading numbers, E03-S02), so it is unknown elsewhere, as before.
+    /// </summary>
+    public bool Unnumbered { get; init; }
+
+    /// <summary>
+    /// Splits the end of a heading of level 3 to 6, where slide settings do not apply: a trailing <c>{…}</c> is taken
+    /// off only when every token in it is one that applies at that level (<c>.unnumbered</c>, in
+    /// <paramref name="format"/>s that know it); any other braces stay text, without an error.
+    /// </summary>
+    public static (string Text, HeadingAttributes? Attributes) SplitDeep(string text, DocumentFormat format)
+    {
+        var match = BlockPattern().Match(text);
+        if (!match.Success || !KnowsUnnumbered(format))
+        {
+            return (text, null);
+        }
+
+        var tokens = TokenPattern().Matches(match.Groups[1].Value);
+        return tokens.All(t => t.Groups["class"].Success && t.Groups["class"].Value == "unnumbered")
+            ? (text[..match.Index].TrimEnd(), new HeadingAttributes(false, null) { Unnumbered = true })
+            : (text, null);
+    }
+
+    /// <summary>
     /// Splits <paramref name="text"/>, the end of a heading, into the text before the attributes and the attributes.
     /// Without attributes, the text comes back unchanged with <see langword="null"/>.
     /// </summary>
@@ -46,6 +71,7 @@ internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
         string? layout = null;
         string? transition = null;
         string? kind = null;
+        var unnumbered = false;
         foreach (Match token in TokenPattern().Matches(match.Groups[1].Value))
         {
             switch (token.Groups["class"].Success ? "." + token.Groups["class"].Value : token.Groups["key"].Value)
@@ -55,6 +81,9 @@ internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
                     break;
                 case ".closing":
                     closing = true;
+                    break;
+                case ".unnumbered" when KnowsUnnumbered(format):
+                    unnumbered = true;
                     break;
                 case var name when name.Length > 1 && name[0] == '.' && SlideKinds.Names.Contains(name[1..]):
                     if (kind is not null && kind != name[1..])
@@ -78,7 +107,7 @@ internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
                 case var unknown:
                     throw new DocumentConversionException(
                         format,
-                        $"Unknown heading attribute '{unknown}' in '{match.Value.Trim()}'. Valid attributes: {Valid}.");
+                        $"Unknown heading attribute '{unknown}' in '{match.Value.Trim()}'. Valid attributes: {Valid}{(KnowsUnnumbered(format) ? ", .unnumbered" : string.Empty)}.");
             }
         }
 
@@ -87,8 +116,11 @@ internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
             throw new DocumentConversionException(format, $"The heading attributes '{match.Value.Trim()}' combine .{kind} with .dark; a kind of slide has its own layout, so leave out .dark.");
         }
 
-        return (text[..match.Index].TrimEnd(), new HeadingAttributes(dark, kicker) { Layout = layout, Transition = transition, Closing = closing, Kind = kind });
+        return (text[..match.Index].TrimEnd(), new HeadingAttributes(dark, kicker) { Layout = layout, Transition = transition, Closing = closing, Kind = kind, Unnumbered = unnumbered });
     }
+
+    // `.unnumbered` comes with heading numbers: in Word documents now, in PDFs and decks with E03-S02.
+    private static bool KnowsUnnumbered(DocumentFormat format) => format == DocumentFormat.Docx;
 
     [GeneratedRegex(@"\s*\{((?:\s*(?:\.[A-Za-z][\w-]*|[A-Za-z][\w-]*=""[^""]*""))+)\s*\}\s*$", RegexOptions.CultureInvariant)]
     private static partial Regex BlockPattern();

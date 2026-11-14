@@ -184,6 +184,21 @@ internal sealed record BrandManifest(
             Heading5 = styles.Heading5,
             Heading6 = styles.Heading6,
             Normal = styles.Normal,
+            ListBullet = styles.ListBullet,
+            ListNumber = styles.ListNumber,
+            ListTask = styles.ListTask,
+            DefinitionTerm = styles.DefinitionTerm,
+            Definition = styles.Definition,
+            Quote = styles.Quote,
+            Code = styles.Code,
+            CodeCharacter = styles.CodeCharacter,
+            Rule = styles.Rule,
+            Caption = styles.Caption,
+            TableTitle = styles.TableTitle,
+            Table = styles.Table,
+            FootnoteText = styles.FootnoteText,
+            FootnoteReference = styles.FootnoteReference,
+            Hyperlink = styles.Hyperlink,
         };
 
     private static PptxTemplateRoles ToRoles(PptxSection pptx) =>
@@ -414,7 +429,22 @@ internal sealed record BrandManifest(
         string? Heading4 = null,
         string? Heading5 = null,
         string? Heading6 = null,
-        string? Normal = null);
+        string? Normal = null,
+        string? ListBullet = null,
+        string? ListNumber = null,
+        string? ListTask = null,
+        string? DefinitionTerm = null,
+        string? Definition = null,
+        string? Quote = null,
+        string? Code = null,
+        string? CodeCharacter = null,
+        string? Rule = null,
+        string? Caption = null,
+        string? TableTitle = null,
+        string? Table = null,
+        string? FootnoteText = null,
+        string? FootnoteReference = null,
+        string? Hyperlink = null);
 }
 
 [JsonSourceGenerationOptions(

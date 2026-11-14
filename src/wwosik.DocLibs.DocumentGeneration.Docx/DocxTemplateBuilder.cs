@@ -44,6 +44,7 @@ internal static class DocxTemplateBuilder
     private const string FooterId = "rId6";
     private const string CoverHeaderId = "rId7";
     private const string CoverFooterId = "rId8";
+    private const string NumberingId = "rId9";
 
     /// <summary>Writes the template for <paramref name="brand"/> as a <c>.docx</c> with an empty body.</summary>
     /// <param name="output">Where the package goes.</param>
@@ -51,15 +52,18 @@ internal static class DocxTemplateBuilder
     /// <param name="page">The page size and margins.</param>
     /// <param name="showTagline">Whether the cover shows the brand's tagline.</param>
     /// <param name="date">The date in the footer; <see langword="null"/>: none.</param>
-    public static void Write(Stream output, ResolvedBrand brand, DocxPage page, bool showTagline, string? date)
+    /// <param name="headingNumbers">Whether Heading 1–3 are numbered 1, 1.1, 1.1.1.</param>
+    /// <param name="codeFont">The family of code.</param>
+    public static void Write(Stream output, ResolvedBrand brand, DocxPage page, bool showTagline, string? date, bool headingNumbers = true, string codeFont = DocxOptions.DefaultCodeFont)
     {
         using var package = WordprocessingDocument.Create(output, WordprocessingDocumentType.Document);
         var main = package.AddMainDocumentPart();
-        var design = new StyleDesign(brand, page.CoverTitleSpace, page.TextWidth);
+        var design = new StyleDesign(brand, page.CoverTitleSpace, page.TextWidth) { CodeFont = codeFont, HeadingNumbers = headingNumbers };
         Feed(main.AddNewPart<StyleDefinitionsPart>(StylesId), Styles(design, page));
         Feed(main.AddNewPart<DocumentSettingsPart>(SettingsId), Settings);
         Feed(main.AddNewPart<FontTablePart>(FontTableId), FontTable(brand));
         Feed(main.AddNewPart<ThemePart>(ThemeId), Theme(brand));
+        Feed(main.AddNewPart<NumberingDefinitionsPart>(NumberingId), DocxNumbering.BuiltInXml(Namespaces));
 
         var ids = new DrawingIds();
         var header = main.AddNewPart<HeaderPart>(HeaderId);

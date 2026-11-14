@@ -25,17 +25,29 @@ internal readonly record struct TextPiece(string Text)
 /// </summary>
 internal sealed record DocxContent(DocxCover? Cover, IReadOnlyList<Block> Body)
 {
+    /// <summary>The whole parsed Markdown, for the checks that look at all of it (footnotes, build markers).</summary>
+    public Markdig.Syntax.MarkdownDocument Source { get; init; } = new();
+
     private static readonly MarkdownPipeline Pipeline = BuildPipeline();
 
     public static DocxContent Parse(string markdown)
     {
         var document = Markdown.Parse(markdown, Pipeline);
+
+        // Speaker notes are for decks: checked like there, then left out.
+        foreach (var notes in document.OfType<CustomContainer>().Where(c => c.Info == LayoutSyntax.Notes))
+        {
+            LayoutSyntax.CheckContainer(LayoutSyntax.Notes, notes.Arguments?.Trim() ?? string.Empty, Format.Docx);
+            LayoutSyntax.CheckNoNestedNotes(notes, Format.Docx);
+        }
+
         var blocks = document.Where(b => !(b is ParagraphBlock paragraph && BuildMarker.IsMarker(paragraph))
             && b is not CustomContainer { Info: LayoutSyntax.Notes }
-            && b is not LinkReferenceDefinitionGroup).ToList();
+            && b is not LinkReferenceDefinitionGroup
+            && b is not Markdig.Extensions.Footnotes.FootnoteGroup).ToList();
         if (blocks.FirstOrDefault() is not HeadingBlock { Level: 1 } first)
         {
-            return new DocxContent(null, blocks);
+            return new DocxContent(null, blocks) { Source = document };
         }
 
         var start = 1;
@@ -46,7 +58,7 @@ internal sealed record DocxContent(DocxCover? Cover, IReadOnlyList<Block> Body)
             start++;
         }
 
-        return new DocxContent(new DocxCover(HeadingText(first), subtitle), blocks[start..]);
+        return new DocxContent(new DocxCover(HeadingText(first), subtitle), blocks[start..]) { Source = document };
     }
 
     /// <summary>A heading's text without its slide attributes (<c>{.dark}</c> and the others), which are checked as in the PDF.</summary>

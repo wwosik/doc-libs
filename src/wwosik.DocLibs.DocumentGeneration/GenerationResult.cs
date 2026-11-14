@@ -105,6 +105,12 @@ public static class NoteCodes
     /// <summary>An empty <c>{.agenda}</c> found no chapters to list, so it shows its title only.</summary>
     public const string AgendaEmpty = "agenda-empty";
 
+    /// <summary>A <c>Table: …</c> or <c>Figure: …</c> paragraph follows no table or drawn diagram, so it is shown as text.</summary>
+    public const string CaptionIgnored = "caption-ignored";
+
+    /// <summary>A list is nested deeper than three levels; the deeper items are set at the third level.</summary>
+    public const string ListTooDeep = "list-too-deep";
+
     /// <summary>Every code, with the formats it occurs in and what a writer changes about it, for the authoring guides.</summary>
     internal static readonly IReadOnlyList<(string Code, DocumentFormat[] Formats, string Advice)> All =
     [
@@ -113,17 +119,19 @@ public static class NoteCodes
         (SlideOverfull, [DocumentFormat.Pptx], "one item, such as a long list entry or a table with very long cells, does not fit even on a slide of its own. Shorten it."),
         (ImageEnlarged, [DocumentFormat.Pptx], "the image is small and was enlarged; it may look blurred. Use a larger image, or `\"scale=1\"` in its title to keep it at its size."),
         (ImageCropped, [DocumentFormat.Pptx], "an image was cut to fill a picture placeholder of the layout, and much of it is not shown. Use an image of the placeholder's shape, or `focus=` to say which part stays."),
-        (CodeNotDrawn, [DocumentFormat.Pptx, DocumentFormat.Pdf], "a diagram could not be drawn, for example a diagram type that is not supported, and stays code. Use a supported type."),
-        (HtmlAsText, [DocumentFormat.Pptx, DocumentFormat.Pdf], "HTML is not interpreted: it is shown as text. Write Markdown instead."),
+        (CodeNotDrawn, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "a diagram could not be drawn, for example a diagram type that is not supported, and stays code. Use a supported type."),
+        (HtmlAsText, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "HTML is not interpreted: it is shown as text. Write Markdown instead."),
         (CharacterReplaced, [DocumentFormat.Pdf], "a character the fonts lack was replaced. Write it as one of the replacements under *Characters*."),
-        (FootnoteMissing, [DocumentFormat.Pptx, DocumentFormat.Pdf], "a footnote reference such as `[^1]` has no definition `[^1]: text`, so it is shown as written. Add the definition, or remove the reference."),
+        (FootnoteMissing, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "a footnote reference such as `[^1]` has no definition `[^1]: text`, so it is shown as written. Add the definition, or remove the reference."),
         (LanguageUnknown, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "the language in `lang` has no texts of its own, so alert titles and similar texts are in English. Use `en` or `de`."),
         (NotesDropped, [DocumentFormat.Pptx], "a `::: notes` stands before the first heading, so it belongs to no slide and was left out. Move it under the heading of the slide it is for."),
         (NotesSimplified, [DocumentFormat.Pptx], "speaker notes hold only paragraphs and lists; a table, code block, image or quote in `::: notes` was written as plain text. Keep speaker notes to text and lists."),
-        (AttributeIgnored, [DocumentFormat.Pptx, DocumentFormat.Pdf], "an image attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `focus` on an image that is not cropped. Remove it, or use it where it works."),
+        (AttributeIgnored, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "an image attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `focus` on an image that is not cropped. Remove it, or use it where it works."),
         (IconNotDrawn, [DocumentFormat.Pptx, DocumentFormat.Pdf], "an icon was left out where it cannot be drawn. Move it as the *Icons* section says."),
         (LayoutFallback, [DocumentFormat.Pptx], "the design has no layout for that kind of slide (`{.quote}` and the others), so it is drawn as a layout slide with the same content. Nothing to fix, unless the design's own look matters."),
         (AgendaEmpty, [DocumentFormat.Pptx, DocumentFormat.Pdf], "an empty `{.agenda}` found no `#` chapters to list. Add the chapters, or write the agenda as a list."),
+        (CaptionIgnored, [DocumentFormat.Docx], "a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text."),
+        (ListTooDeep, [DocumentFormat.Docx], "a list is nested deeper than three levels; the deeper items are set at the third level. Flatten the list to three levels."),
     ];
 }
 

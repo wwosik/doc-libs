@@ -39,8 +39,12 @@ public abstract record DocxTemplateOptions
     /// <summary>A copy with the front-matter <paramref name="key"/> (one of <see cref="Keys"/>) set to <paramref name="value"/>.</summary>
     internal abstract DocxTemplateOptions With(FrontMatter source, string key, string value);
 
-    /// <summary>Writes the template as a <c>.docx</c> or <c>.dotx</c>; <paramref name="date"/> is the date of generation, if shown.</summary>
-    internal abstract void Write(Stream output, string? date);
+    /// <summary>
+    /// Writes the template as a <c>.docx</c> or <c>.dotx</c>; <paramref name="date"/> is the date of generation, if shown.
+    /// The built-in template numbers Heading 1–3 when <paramref name="headingNumbers"/> is set and sets code in
+    /// <paramref name="codeFont"/>; other templates keep their own.
+    /// </summary>
+    internal abstract void Write(Stream output, string? date, bool headingNumbers = true, string codeFont = DocxOptions.DefaultCodeFont);
 }
 
 /// <summary>
@@ -99,7 +103,7 @@ public sealed record BrandDocxTemplateOptions : DocxTemplateOptions
         _ => this with { ShowDate = source.Bool(key, value) },
     };
 
-    internal override void Write(Stream output, string? date)
+    internal override void Write(Stream output, string? date, bool headingNumbers = true, string codeFont = DocxOptions.DefaultCodeFont)
     {
         var brand = ResolvedBrand.Resolve(this.Brand);
         if (brand.Docx is { } template)
@@ -108,7 +112,7 @@ public sealed record BrandDocxTemplateOptions : DocxTemplateOptions
         }
         else
         {
-            DocxTemplateBuilder.Write(output, brand, DocxPage.For(this.PageSize, this.Orientation), this.ShowTagline, date);
+            DocxTemplateBuilder.Write(output, brand, DocxPage.For(this.PageSize, this.Orientation), this.ShowTagline, date, headingNumbers, codeFont);
         }
     }
 }
@@ -139,7 +143,7 @@ public sealed record CustomDocxTemplateOptions(Stream Template) : DocxTemplateOp
     internal override DocxTemplateOptions With(FrontMatter source, string key, string value) =>
         this with { Styles = DocxRoles.OfKey(key).With!(this.StyleNames, value) };
 
-    internal override void Write(Stream output, string? date)
+    internal override void Write(Stream output, string? date, bool headingNumbers = true, string codeFont = DocxOptions.DefaultCodeFont)
     {
         ArgumentNullException.ThrowIfNull(this.Template);
         this.Template.CopyTo(output);

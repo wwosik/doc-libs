@@ -48,7 +48,7 @@ generator understands.
   (question 9), but no generator references it today.
 - **[E09-S01](../../60-verify/E09-S01-docx-package-and-templates.md)** puts the shared Open XML sources in
   `src/Shared/OpenXml/` (decided, its question 2) and starts `AuthoringGuide/Docx.md`.
-- **[E09-S04](E09-S04-docx-content.md)** places images and captions and fits images to the width
+- **[E09-S04](../../60-verify/E09-S04-docx-content.md)** places images and captions and fits images to the width
   and 80 % of the height. It is implemented before E09-S02 and this story despite its number.
   E09-S04 adds the content sections to the guide, and E09-S02 the deck syntax.
 - **Captions (E03-S02).** A paragraph starting `Figure: ` directly after a fenced block that a

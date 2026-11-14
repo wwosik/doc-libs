@@ -18,14 +18,14 @@ public sealed record DocxOptions
     public IReadOnlyList<Brand> Brands { get; init; } = [];
 
     /// <summary>
-    /// Asked in order for every fenced code block; the first graphic wins. Reserved for drawings in Word documents:
-    /// this version writes every code block as text. Default: none.
+    /// Asked in order for every fenced code block. Reserved for drawings in Word documents: this version writes every
+    /// code block as code, with a <c>code-not-drawn</c> note for each block a renderer would draw. Default: none.
     /// </summary>
     public IReadOnlyList<ICodeBlockRenderer> CodeBlockRenderers { get; init; } = [];
 
     /// <summary>
     /// Asked in order for every image that is not a PNG, JPEG or GIF, such as an <c>.svg</c> image; the first conversion
-    /// wins. Reserved for images in Word documents: this version writes an image as its alt text. Default: none.
+    /// wins, drawn at twice the size it is placed at. An image no converter takes throws. Default: none.
     /// </summary>
     public IReadOnlyList<IImageConverter> ImageConverters { get; init; } = [];
 
@@ -70,6 +70,13 @@ public sealed record DocxOptions
     /// <c>2</c>. Another value throws <see cref="ArgumentOutOfRangeException"/> when a document is generated.
     /// </summary>
     public int TableOfContentsDepth { get; init; } = 2;
+
+    /// <summary>
+    /// Numbers on Heading 1–3 of the built-in template (1, 1.1, 1.1.1), unless the front matter sets
+    /// <c>headingNumbers</c>. A caller's template, or a brand's own, numbers headings as its heading styles say, whatever
+    /// this is. Default <see langword="true"/>.
+    /// </summary>
+    public bool HeadingNumbers { get; init; } = true;
 }
 
 /// <summary>Paper sizes of the built-in template.</summary>

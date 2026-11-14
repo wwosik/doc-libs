@@ -344,11 +344,27 @@ same change that made it untrue — a stale fact here is worse than a missing on
   default name as Word stores it, e.g. `heading 1`, built-in id, the `DocxStyleNames` property and the
   built-in definition); `DocxStyles.Resolve` maps each to the template's style id by `w:name`
   (case-insensitive; `Normal` also by `w:default`), adds a missing one from the definition based on the
-  template's `Normal` under a free id, and throws for a name the caller mapped that is missing. Content
-  roles (E09-S04) and deck-syntax roles (E09-S02) are added to `DocxRoles` and `DocxStyleNames` the same
-  way, with a `styles.<key>` front-matter key and a `brand.json` `docx.styles` property each. The body is
-  written behind `IBodyWriter` (`PlainBody` until E09-S04); `DocxWriter` puts the cover and the TOC
-  before it and keeps the template's final `w:sectPr`.
+  template's `Normal` under a free id, and throws for a name the caller mapped that is missing. A role has
+  a `StyleKind` (paragraph, character, table) and is looked up among the styles of its kind. New roles
+  (E09-S02's deck-syntax roles) are added to `DocxRoles.All` and `DocxStyleNames` the same way, with a
+  `styles.<key>` front-matter key and a `brand.json` `docx.styles` property each. The body is written by
+  `DocxBody` behind `IBodyWriter` (a new instance per document: it keeps numbers and ids); `DocxWriter`
+  puts the cover and the TOC before it and keeps the template's final `w:sectPr`.
+- **DOCX content (E09-S04):** headings are shifted so that the highest Markdown level after the cover is
+  Heading 1 (`DocxBody.shift`; E03-S02 numbers PDF headings by the same rule). Heading numbers default
+  **on** in DOCX (built-in template only: `numPr` in the Heading 1–3 styles, `StyleDesign.HeadingNumbers`,
+  numbering part written by the template builder, `DocxNumbering.HeadingNumId` = 1) and **off** in PDF;
+  `{.unnumbered}` is a paragraph `numId` 0 and is known to `HeadingAttributes` for `Docx` only until
+  E03-S02. The TOC's pre-filled numbers copy Word's counting (a skipped level shows 0). The built-in
+  `Normal` style is empty, its size and spacing in the document defaults, because a paragraph style's own
+  settings beat a table style's in cells. Lists get `w:numPr` on every item paragraph (the converter
+  reads lists from it); list numbering comes from the template's list style if it has `numPr`, else
+  `DocxNumbering` adds abstract definitions on first use, and every ordered list gets its own `w:num`
+  with a `startOverride`. The shared `Captions` (image title, `Table:` / `Figure:` prefixes,
+  `GeneratedTexts.Figure`/`Table`) is used only by DOCX until E03-S02, so decks and PDFs are unchanged.
+  A pipe table followed by a line without `|` is no table at all in Markdig: a `Table:` caption needs a
+  blank line before it. Drawing ids continue after the highest `docPr`/`cNvPr` id of the template's
+  parts; check boxes declare `w14` with `mc:Ignorable` on the root.
 
 ## Traps
 

@@ -15,7 +15,7 @@ like the PPTX generator:
 This story builds the package and its frame: the three kinds of template, the cover, header and
 footer, core properties, the table of contents field and embedded fonts, and moves the code the
 generators share. The body is written plainly until
-[E09-S04](../55-in-progress/doc-3/E09-S04-docx-content.md) writes the content (headings and numbering, lists, tables,
+[E09-S04](E09-S04-docx-content.md) writes the content (headings and numbering, lists, tables,
 captions, images, code, quotes, footnotes, links, task and definition lists, `lang`). Deck syntax
 ([E09-S02](../55-in-progress/doc-3/E09-S02-deck-syntax-in-word.md)) and charts and drawings
 ([E09-S03](../55-in-progress/doc-3/E09-S03-charts-drawings-and-guide.md)) build on both.
@@ -24,7 +24,7 @@ captions, images, code, quotes, footnotes, links, task and definition lists, `la
 
 - **Split.** The first plan of E09-S01 held the package and the content together; it was split as
   its question 1 proposed. This story is the former S01a; S01b is now
-  [E09-S04](../55-in-progress/doc-3/E09-S04-docx-content.md).
+  [E09-S04](E09-S04-docx-content.md).
 - **Order.** E09-S04 is implemented right after this story and before E09-S02 and E09-S03, despite
   its number: story IDs are allocated as the next free number.
 - **Generator packages.** Each generator is its own package on the shared
