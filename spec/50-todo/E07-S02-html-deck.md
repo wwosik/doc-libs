@@ -301,63 +301,63 @@ previews, so the HTML deck and the previews show the same thing.
    reported (proposed: caller templates bring arbitrary DrawingML anyway, so "doc-libs decks only"
    is no real boundary); or only decks the generator wrote, refusing others?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 2. Where does it live? In `wwosik.DocLibs.DocumentGeneration.Pptx` (proposed: Open XML SDK,
    `TrueTypeInfo` and the generator's own knowledge are there, no new package); a new package
    `wwosik.DocLibs.DocumentGeneration.Pptx.Html`; or in `wwosik.DocLibs.DocumentConversions` beside
    `PptxConverter`, read with XLinq?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 3. How is a slide drawn in the page? As SVG with text broken into lines by the reader (proposed:
    the same SVG becomes the PNG in E07-S03, so HTML and previews agree); or as HTML boxes with CSS
    that the browser wraps, which reflows better but breaks lines differently from both PowerPoint
    and the PNG?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 4. Fonts for line breaking when the deck embeds none (the neutral brand's Arial, the Consolas code
    font): move the Liberation files from the PDF package to DocumentGeneration and use them as
    metric-compatible stand-ins (proposed: one copy, Pptx users download about 1.5 MB more); copy
    them into the Pptx package; or estimate with `TextMetrics` only and let callers pass fonts?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 5. Fonts in the HTML file: embed the faces the deck embeds as `@font-face` (proposed, whole faces,
    so a brand deck shows its typeface anywhere; switchable with `EmbedFonts`); or never embed and
    rely on the viewer's installed fonts?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 6. Charts: a painter of `ChartWriter`'s subset inside the reader (proposed: it reads what is in the
    chart part, colours included, and needs no new reference); or a reference from the Pptx package
    to `wwosik.DocLibs.DocumentGeneration.Charts`, rebuilding a `ChartSpec` from the part and
    drawing it with `ChartRenderer`?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 7. Build effects in HTML: map E07-S01's effects to CSS (appear, fade, fly, wipe, exit, a pulse for
    emphasis; proposed); or show steps instantly with no effects?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 8. Morph in HTML: fade for now, and E07-S04 adds the movement of shapes matched by name (proposed:
    scenes are E07-S04's); or interpolate matched shapes' position, size and colour here already?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 9. Speaker notes: a notes view beside the slide and a presenter window synced between two windows
    (proposed); or only the notes view in the same window?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 10. Should the work split into two stories: the reader, the SVG and the static page (slides, keys,
     overview, print) first, and the presenting parts (builds, transitions, notes view, presenter
     window) after E07-S01 (proposed: the first part does not wait for E07-S01, and E07-S03 can start
     after it)?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 ## Notes
 

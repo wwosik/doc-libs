@@ -219,57 +219,57 @@ names. PDFs show each scene as one still drawing.
    writers and AI agents to keep aligned), or named values `box api x=65 y=34 w=30 h=22
    text="API"`?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 2. Steps: a `step=N` / `exit=N` attribute per shape (proposed: a shape can come and go at any
    step), or groups of lines separated by `---`, each group appearing on one click? A `---` would
    need a blank line before it, because of the setext-heading trap.
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 3. Colours: only the palette roles and label categories (proposed: the brand decides, and dark
    slides and caller themes keep working), or also hex colours such as `fill=#2E7D32`?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 4. Shape kinds: `box`, `round`, `ellipse`, `text`, `arrow` and `line` (proposed). Should `image
    name x y w h path` come now as well, for logos and screenshots that move with Morph, or with the
    icons of E04-S05?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 5. Slides that are not 16:9 (a 4:3 caller template): the grid stretches per axis, so units are not
    square and a circle becomes an ellipse (proposed, as decided: the grid covers the whole slide),
    or square units over a 16:9 band centred on the slide?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 6. What else a scene slide may hold: only its title, the scene and `::: notes`, with anything else
    an error (proposed), or text and other blocks in the content area under or over the scene?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 7. The PDF still: the final state, every shape that is visible after the last step (proposed), the
    first state, or one drawing per step?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 8. Morph: only where a heading says `transition="morph"` (proposed: explicit, like every other
    transition), or automatically between consecutive scene slides that share a shape name?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 9. Each scene states all its shapes (proposed: each slide reads on its own and errors stay local),
    or a `::: scene continue` that starts from the previous slide's scene and only lists what
    changes?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 10. The title: keep the heading as the slide's title on the title-only layout (proposed), or allow
     a scene without a visible title (such as `{.notitle}`, with the title kept off the slide for
     the outline and accessibility)?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 ## Notes
 

@@ -186,7 +186,7 @@ generator understands.
    ratio as a slide's chart area)? Or a size set in the `chart` block (a new `height:` setting),
    which the Charts package would have to learn for all formats?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 2. Drawings when no image converter is registered: stay code with `code-not-drawn` (proposed: no
    broken or blank picture)? Alternatives:
@@ -195,43 +195,43 @@ generator understands.
    - the Docx package referencing `DocumentConversions.Svg` itself (SkiaSharp is accepted), so
      drawings always work, but every consumer then needs SkiaSharp's native assets.
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 3. Charts on caller templates without a brand: series colours from the neutral brand, as decks do
    (proposed)? Or theme colour references (accent 1–6), so the chart follows the template's theme?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 4. SVG written into the document as it came (proposed), or the sanitized SVG (`SvgSanitizer`), so
    the file carries no scripts or external links even if a viewer would follow them? Sanitizing is
    safer for documents that are passed on. It needs the sanitizer, which lives in the Svg package,
    to be callable from Docx.
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 5. Fonts of the PNG fallback: leave them to the host's `SvgImageConverter.Fonts`, documented
    (proposed: the interface cannot pass fonts)? Or extend `IImageConverter.Convert` with the
    brand's fonts, a breaking change of a public interface?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 6. Alt text for drawings: the first line of the code block (proposed: always there, if terse), or
    empty with a note asking for a caption, as an accessibility check would? Accessibility is out of
    scope by decision, which argues for the simple default.
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 7. Captions for charts and diagrams: whatever E03-S02 sets for code-block graphics (proposed: one
    rule for all formats), or a Word-only default where a chart's `title` becomes its "Figure n"
    caption?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 8. Should the guide coverage test (every key, container, alert and note code appears) be added to
    the PPTX and PDF guides too in this story? Proposed: no, Docx only here, with a technical story
    for the others, to keep this story to Word.
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 ## Notes
 

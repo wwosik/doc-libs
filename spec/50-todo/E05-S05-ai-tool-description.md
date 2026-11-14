@@ -204,37 +204,37 @@ not tie the host to a model vendor.
    it offers)? Or in a new package `wwosik.DocLibs.DocumentGeneration.Tool` that references every
    generator and offers all formats with one call?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 2. The combined guide: each format's guide in full, headings moved down (proposed: simple, and
    always in step with the single guides)? Or the shared sections (front matter, characters,
    notes) merged once, with per-format differences marked, which is shorter but needs the guides
    split into parts?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 3. Parameters: `format`, `markdown` and `mode` only (proposed)? Or also a `fileName` or `title`
    the agent may suggest? The title already comes from front matter, and file names are the
    host's.
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 4. Should a `"check"` mode be part of the tool (proposed: an agent can check before it commits
    to a file, and E05-S04 makes it cheap)? Or should the tool only generate, with checks left to
    the host?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 5. The tool name: default `create_document`, changeable by the host (proposed)? Or one name per
    format (`create_pptx`, `create_pdf`), one tool each?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 6. A second tool for the converters (`read_document`: file → Markdown for the agent)? Not in this
    story (proposed: the converters need no guide and their output is plain Markdown). Or add it
    now, while the pattern is fresh?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 ## Notes
 

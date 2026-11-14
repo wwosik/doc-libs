@@ -225,57 +225,57 @@ the same content, and a note.
    layout role's name), or `{.interim}` as in the fork? `.statement` on a heading means the whole
    slide; `::: statement` stays a block on a flow slide.
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 2. Chart slides only from `{.chart}` (proposed), or automatically for every section of nothing but
    one or two charts? Automatic would move existing decks whose sections hold only charts onto the
    chart layout.
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 3. Two text columns in the two-content layout only when the brand pack or options declare the role
    (proposed: no existing deck moves)? Or whenever the template has the role, the built-in master
    and layouts found by type included? That moves every existing text-only `::: columns` slide,
    which would be a breaking change.
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 4. A kind the template has no layout for: a flow slide with a `layout-fallback` note (proposed),
    silently, or an error? The writer cannot change the template, but the note tells them the
    slide looks different from the design's own.
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 5. More than five people on a `{.contact}` slide: continue on a further slide (proposed, as
    fitting does), or throw because a contact slide holds one to five?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 6. A quote's `##` text: the title where the layout has a title placeholder, else not shown
    (proposed), always shown (in a text box), or used as the byline when there is no `—` line?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 7. The agenda: should it repeat before each chapter with the current chapter highlighted? Proposed:
    not now. It needs a highlight style per template and multiplies slides; a later story can add
    `{.agenda .repeat}`.
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 8. `::: conclusion`: only as the last block (proposed: Markdown order matches the slide), or
    anywhere, always drawn at the foot?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 9. `::: comment`: always at the top right of the block before it (proposed), or with a position
    argument (`::: comment left`, `below`)?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 10. An empty `{.agenda}` in PDFs: list the chapters (proposed), or leave the heading out, since
     E03-S02's table of contents does the same job?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 ## Notes
 

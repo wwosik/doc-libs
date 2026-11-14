@@ -203,39 +203,39 @@ already done so (question 1).
    comes earlier in the order, and its round trip through the converter is the natural test)?
    Then this story drops step 8. Or does E08-S01 own them, as the epic's scope row says?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 2. Superscripts: `[^n]` with its definition when the note is found at the page foot, otherwise
    plain text on the line (proposed)? Or always plain text on the line, the fork's minimum?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 3. Header row: always the first row (proposed: pipe tables need one, and the generator's PDFs
    always have it). Or only when the first row is bold or filled, otherwise an empty header row?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 4. A cell's several lines: joined with a space (proposed: wrapped lines are usually one
    sentence, and `<br>` is shown as text by the generators). Or kept apart with `<br>`, as the
    PPTX converter does?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 5. A table continued across pages: written on each page with its header (proposed: the output
    keeps one section per page). Or merged into one table on the first page?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 6. Numbered lists with a hanging indent as `1.` lists (proposed), or leave numbered lines as
    escaped text, as today? The rule must not catch numbered headings such as "1 Introduction".
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 7. Inline monospace words in normal lines as `` `code` ``? Not in this story (proposed: font
    switches inside a line are noisy in PDFs from other tools). Or yes, since the generator writes
    inline code that way?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 ## Notes
 

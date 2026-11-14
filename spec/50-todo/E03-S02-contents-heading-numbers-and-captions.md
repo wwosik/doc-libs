@@ -225,47 +225,47 @@ for these features, so the DOCX generator (E09) reads the same source the same w
    page-foot footnotes, justified text and page breaks; S04 classification marking (proposed).
    Or keep it as one story?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 2. Table of contents: one layout pass with a fixed-width number column, numbers filled in
    afterwards (proposed: the contents cannot change height, so one pass is exact and there is
    no loop to tune)? Or repeat the layout until the numbers settle, at most 4 passes, as the fork
    does?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 3. Table captions above the table (proposed: the usual convention in reports, and what Word's
    caption style suggests), or below it, where the `Table:` line is written?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 4. Numbering of figures and tables: through the whole document (proposed: simple, and it matches
    DOCX `SEQ` fields without chapter numbering), or per chapter ("Figure 2.3") when heading
    numbers are on?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 5. Decks and captions: keep image titles as they are and only strip the `Table:` / `Figure:`
    prefix (proposed: no deck changes beyond the prefix)? Or show any image title as a caption on
    slides too, as in PDFs and DOCX?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 6. Heading numbers: three levels from the top (proposed, as the DOCX plan's numbered
    Heading 1–3), or as deep as the headings go?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 7. Should decks accept and ignore the document keys (`toc`, `tocDepth`, `headingNumbers`, and
    later `justify`) (proposed: one source serves all formats, as with `lang`)? Or reject them as
    unsupported, as decks do with every other unknown key today?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 8. Key names: `toc`, `tocDepth` and `headingNumbers` (proposed: short, and camelCase like
    `pageSize` and `showDate`)? Or a nested-looking `toc.depth`, like `labels.*` and `layouts.*`?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 ## Notes
 

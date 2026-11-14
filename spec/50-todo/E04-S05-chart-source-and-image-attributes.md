@@ -153,40 +153,40 @@ Harvey balls and risk matrix.
    Harvey balls and risk matrix) (proposed: each is a few hundred lines with its own risks and
    Office checks), or merge them back into one?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 2. `source:` prefix: written by the generator from the document's texts, "Source: …" (proposed,
    needs `CodeBlockRequest.Texts`), or shown exactly as written, so the writer types "Source:"?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 3. Where SkiaSharp goes: referenced by the PDF package only (proposed: decks do grey and round
    natively, PDFs only need pixels for `.grey`), by the shared DocumentGeneration package for all
    generators (DOCX will want it too), or kept out of the generators behind an opt-in hook
    implemented in the SVG package, so PDF users who never grey an image carry no native library?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 4. `fit=cover` and `focus` on a single PDF image: no effect with a note (proposed), or a new
    attribute such as `ratio=16:9` that gives PDF images a box to crop to?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 5. Decimal comma: only with `;` unless `decimal:` says otherwise (proposed), or guessed per
    number?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 6. `scale` in the attributes: the same meaning as `scale=` in the title, which differs between
    decks and PDFs (proposed: one syntax, no new meaning), or a new, shared meaning such as a share of
    the available width?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 7. `.grey` on a converted SVG in decks: rely on `a:grayscl` if PowerPoint applies it to the SVG
    (proposed, checked in Office), or always drop the SVG blip for grey images?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 ## Notes
 

@@ -136,36 +136,36 @@ ground for drawn containers that E04-S08 builds on.
    (proposed, as specified, with Markdown inside), or fenced ```` ```gantt ```` blocks handled by an
    `ICodeBlockRenderer` in the Charts package, which would keep them opt-in?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 2. Date display: formatted per language from `GeneratedTexts` (proposed), or shown exactly as
    written, so any text such as "Spring 2026" is allowed but past entries cannot be told?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 3. Timeline spacing: even (proposed: labels never collide), or to scale by date?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 4. Today: from the `TimeProvider`, overridable with `today=` (proposed), or always pinned by the
    writer, so the output never depends on the day it is generated?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 5. Gantt rows: 1–20 rows (proposed), with longer plans an error, or split onto continuation slides
    like long tables?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 6. Gantt columns: the first three by position, headers free (proposed: works in any language), or
    recognised headers (`Task`, `Start`, `End`) and optional extra columns such as an owner or
    progress?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 7. Week labels: ISO week numbers ("W12" / "KW 12", proposed), or the date of each week's Monday?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 ## Notes
 

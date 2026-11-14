@@ -236,54 +236,54 @@ It also adds the Word side of two features whose syntax other stories own: page 
    writer can apply in Word, as the fork does), or a one-cell table per alert, which keeps nested
    lists and tables inside the box more reliably?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 2. Headings inside containers (a card's `###`): an unnumbered `ContainerHeading` outside the TOC
    (proposed: a card title is not a chapter), or ordinary numbered headings, as the PDF shows
    them?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 3. `::: columns` and `::: panel` with tables or lists inside: columns in sequence and panels as
    shaded paragraphs (proposed, simple and editable), or a borderless table for columns and a
    one-cell table for panels, which looks closer to the slide?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 4. `::: rows`: the definition-list look, with the term bold and the text under it (proposed), or a
    two-column borderless table, with the term left and the text right as on the slide?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 5. Status labels: only code-only cells that front matter `labels.*` names (proposed: Word has no
    flow slides to limit them, and every other code cell stays code), or every code-only table cell
    as a neutral label, as on flow slides?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 6. Highlighted table rows: shade the cells directly (proposed: the only way, and a documented
    exception to "no direct formatting"), or show the first cell's `==…==` as `Mark` text only,
    without row shading?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 7. Page breaks: `w:pageBreakBefore` on the next paragraph (proposed: no empty paragraph, and it
    moves with the paragraph when edited), or a paragraph holding a page-break run
    (`w:br w:type="page"`), which Word users see as a visible page break mark?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 8. Classification on caller templates: fill a content control tagged `classification`, else add a
    paragraph at the top of each header (proposed)? Or only the content control, with nothing shown
    if the template lacks one?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 9. The draft watermark: Word's own VML text watermark (proposed: Word manages and removes it in its
    UI, and LibreOffice shows it), or a DrawingML WordArt shape, which validates more strictly but
    Word does not treat as its watermark?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 ## Notes
 

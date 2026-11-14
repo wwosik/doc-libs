@@ -417,20 +417,20 @@ Word footnotes, links, task and definition lists, captions and the document lang
    properties, TOC) and S01b (content)? Proposed: split, because each half is about as big as a
    PPTX story. S01a's tests can use plain paragraphs.
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 2. How do Markdown levels map to Word headings? Proposed: the highest level used after the cover
    becomes Heading 1, so `# Title` + `##` sections gives "1, 2, 3" and not "0.1, 0.2". E03-S02
    should number PDF headings by the same rule. The alternative is `#` → Heading 1 always, as the
    PDF's sizes do.
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 3. Should headings be numbered by default in Word? Proposed: yes on the built-in template, as Word
    reports usually are, with E03-S02's `headingNumbers: false` to switch it off. On caller
    templates their own heading styles decide. The alternative is off by default, as in the PDF.
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 4. Where does the Open XML code both generators need live (core properties, SVG blip, later
    `ChartWriter`)? Proposed: source files in `src/Shared/OpenXml/`, linked into Pptx and Docx as
@@ -440,7 +440,7 @@ Word footnotes, links, task and definition lists, captions and the document lang
    - Docx referencing the Pptx package;
    - the Open XML SDK in the shared package, which Charts and Diagrams would then pull in.
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 5. How does the TOC get its page numbers? Proposed: entries pre-filled without numbers, plus
    `w:updateFields`, so Word asks once on opening to update fields. Alternatives:
@@ -449,36 +449,36 @@ Word footnotes, links, task and definition lists, captions and the document lang
 
    It has to be checked whether Word drops the setting when the document is saved.
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 6. A caller template lacks a role's style. Proposed: create it from the built-in definition based
    on its `Normal`, as the fork does. Throw only when a name the caller mapped explicitly does not
    exist. The alternative is to throw for every missing style.
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 7. Should brand fonts be embedded in Word documents? Proposed: yes by default, as in decks (`EmbedFonts`,
    `embedFonts`), as obfuscated `.odttf` parts, skipping restricted faces. The alternative is to
    name the families only.
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 8. A paragraph of only bold text right before a table: should it become a table title? Proposed:
    yes in Word (`TableTitle`, kept with the table), next to E03-S02's captions. The PDF goes on
    showing it as a bold paragraph. The alternative is no table titles, captions only.
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 9. Task-list boxes: should they be Word check-box content controls that can be clicked in Word?
    Proposed: yes, with ☐/☒ in the template's symbol font. The alternative is the plain characters
    ☐/☒ as the bullet, which other viewers show the same way.
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 10. Lists deeper than three levels: stay at level 3 with a `list-too-deep` note (proposed, as the
     fork does), or use Word's levels 4–9 with the definitions continued?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 ## Notes
 

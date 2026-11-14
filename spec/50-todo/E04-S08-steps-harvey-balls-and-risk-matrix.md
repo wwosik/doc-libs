@@ -118,37 +118,37 @@ the ground E04-S07 lays; Harvey balls live inside tables.
 1. Order: implement after E04-S07, reusing its drawn-container ground (proposed), or make the shared
    part its own technical story first?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 2. Harvey balls in decks: glyphs in the cell (proposed: aligned and editable, but they depend on
    Office's font fallback), or drawn shapes laid over the table, which look like the PDF's but can
    drift when PowerPoint grows a row?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 3. Harvey values: quarters only, plus `[1/2]` (proposed), or any fraction drawn as a sector, such as
    `[2/3]`?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 4. Risk matrix input: a table (proposed, like the Gantt), or list items with attributes such as
    `- Supplier delay {likelihood=4 impact=3}`?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 5. Score bands: 1–4 / 5–9 / 10–25 (proposed), or configurable per brand or per container
    (`bands=4,9`)?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 6. Steps without `.current`: all alike in the accent colour (proposed), or all treated as done?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 7. Axis orientation of the risk matrix: likelihood up, impact right (proposed, the common layout), or
    the other way round, or an argument to choose?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 ## Notes
 

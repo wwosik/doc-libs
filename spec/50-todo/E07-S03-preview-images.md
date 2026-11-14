@@ -165,45 +165,45 @@ Hosts use them for thumbnails, chat replies, review pages and documentation.
    the reader's model straight onto an `SKCanvas` (no SVG step, full control over text, but a
    second painter to keep in step)?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 2. Where does it live? A new package `wwosik.DocLibs.DocumentGeneration.Pptx.Preview` on top of
    the Pptx and Svg packages (proposed: the native dependency stays out of the generator); inside
    `wwosik.DocLibs.DocumentConversions.Svg`, which would then depend on the PPTX generator; or in
    the Pptx package itself, if E04-S05 already brings SkiaSharp there for image styles?
 
->
+> Answered by the human (2026-11-14): Inside `wwosik.DocLibs.DocumentConversions.Svg`, not a new package (the human chose fewer packages).
 
 3. Build slides: paint the final state only (proposed: a thumbnail should look complete); or add
    an option that paints each build step as its own image?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 4. Default size: 1280 px wide per slide (proposed: sharp on a laptop screen, small enough for chat
    replies), or 1920 px?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 5. Image formats: PNG only (proposed: lossless, what the analysis asked for); or also JPEG or WebP
    with a quality setting, for smaller files of photo-heavy decks?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 6. A contact sheet of a long deck that exceeds the size limit: refuse with a hint (proposed);
    shrink the thumbnails until it fits; or return several sheets?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 7. Golden tests: commit both our own goldens (tight tolerance) and PowerPoint references (loose
    tolerance) as PNGs in the test project (proposed: a few MB, catches regressions and drift from
    Office); only our own goldens; or no images at all, only structural tests of the SVG?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 8. Contact sheet labels: the slide number only (proposed: neutral, never too long), or number and
    title?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 ## Notes
 

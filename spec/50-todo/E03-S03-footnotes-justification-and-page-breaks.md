@@ -188,39 +188,39 @@ generator (E09) reads it the same way.
    (proposed: they all change how lines and pages fill). Or should footnotes be a story of their
    own?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 2. A footnote too long for the room left: split it across pages (proposed: as LaTeX does; keeping
    it whole can push a line and its paragraph a page on). Or always keep it whole and move the
    referencing line?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 3. Footnote numbers: through the whole document (proposed: what E06-S02 does, and what Word
    does by default), or restarting on every page?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 4. Justification: leave a line ragged when its spaces would grow past 3× (proposed). Or always
    justify, even with very wide gaps? Without hyphenation, narrow list items can get loose.
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 5. `::: pagebreak` in decks: accepted and ignored (proposed: a slide is already a page). Or an
    explicit split, so that the section continues on a new slide with the same title?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 6. Should `justify` also be a brand option (`BrandPdfTemplateOptions`), so a design can justify
    by default? Or stay a document setting, `PdfOptions` plus front matter (proposed)?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 7. May `::: pagebreak` hold content, with its closing `:::` optional (proposed: an unclosed
    container would otherwise swallow the rest of the document, and both readings give the same
    pages)? Or must it be empty and closed, as E09-S02 currently assumes, with content an error?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 ## Notes
 

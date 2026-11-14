@@ -313,52 +313,52 @@ chapter dividers, `{layout="…"}` across placeholders) and E02-S05 (slide kinds
    filling picture and chart placeholders)? Proposed: yes. Each half can be reviewed on its own,
    and E02-S05 depends on both.
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 2. Layout roles without an OOXML type (agenda, quote, statement, contact, picture, two charts):
    found only when declared (proposed), or also by English name patterns as the closing layout is
    (`^agenda`, `^quote`, …)? Patterns help templates nobody configured, but they fail on
    templates named in other languages and can catch the wrong layout.
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 3. Placeholders are named by their shape name as the Selection Pane shows it (proposed: visible
    to whoever edits the template). The alternative is their `idx`, which is stable when a
    placeholder is renamed but visible nowhere in PowerPoint. Or accept both, with an `idx:13`
    form?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 4. Front matter for caller templates: only the layout roles as `layouts.*` keys (proposed), or
    also placeholder roles and text levels? They describe the template, not the document, so they
    belong in the options or the brand pack.
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 5. Decorative placeholders: never written to the slide (proposed). Or written with a single
    no-break space, so that a fill or outline the placeholder draws shows in the slide show?
    PowerPoint hides empty placeholders in the show, so this only matters for templates that put
    decoration into placeholders. To be checked in PowerPoint.
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 6. The built-in master: all eight new layouts (proposed: every role works without a caller
    template, and the decks stay editable in PowerPoint), or only what E02-S05 cannot draw as a
    flow slide, and none at all if every kind falls back well? All eight make built-in decks a few
    kilobytes bigger.
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 7. Text levels are 1-based, as PowerPoint's *Increase list level* shows them (proposed), rather
    than OOXML's 0-based `lvl`?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 8. Footer pattern fields: `{footer}`, `{title}`, `{chapter}` and `{author}` (proposed). Should
    the date also be a field, for templates without a date placeholder, or stay in its own
    placeholder only?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 ## Notes
 

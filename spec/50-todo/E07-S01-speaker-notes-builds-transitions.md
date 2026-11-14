@@ -288,58 +288,58 @@ built-in master gets a notes master, and the PPTX converter reads speaker notes 
    (markers), 2 (builds), 5 and the build parts of 9–11, implemented after E07-S01. E07-S04 then
    depends on both. This plan stays one file until the split is agreed.
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 2. A `##` section that produces several slides without being split (text, then two tables, so two
    visual slides): its speaker notes on every one of them (proposed, consistent with split slides),
    or only on the first?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 3. Blocks in `::: notes` other than paragraphs and lists (tables, code blocks, images, quotes,
    alerts): write them as plain text with a new note `notes-simplified` (proposed), or throw?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 4. PDFs: leave speaker notes out silently (proposed), or add an option, such as
    `PdfOptions.SpeakerNotes`, that prints them as a quote under the section, for a handout?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 5. Should the PDF accept the front-matter keys `transition` and `build`, check their values and
    ignore them, so one Markdown serves both formats (proposed)? Or reject them as deck-only, as it
    rejects `listBullets` today?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 6. A paragraph that is only `{…}` with a class other than the build markers, such as `{.note}`:
    throw and list the valid markers (proposed, as for heading attributes), or leave it as text?
    Throwing is a breaking change for documents that have such a paragraph.
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 7. The effects: `{.build}` as Appear, `fly` from the bottom, `wipe` from the left, `{.exit}` as
    Disappear and `{.emphasize}` as Pulse (proposed: Pulse leaves nothing changed after it plays and
    works on any shape). Or should `.emphasize` change the colour to the accent, as a lasting
    highlight?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 8. Transition options: only the names, with PowerPoint's default direction and speed (proposed), or
    also a direction and speed (`transition="push left slow"`)?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 9. The converter reads speaker notes by default (proposed, as the analysis says; a breaking change to
    its output), or only with a new `ConversionOptions.IncludeSpeakerNotes`?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 10. Speaker notes repeated on continuation slides come back from the converter once per slide.
     Leave them repeated (proposed: the converter reads slides, not the Markdown they came from), or
     drop a slide's notes when they equal the previous slide's and its title is the same?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 ## Notes
 

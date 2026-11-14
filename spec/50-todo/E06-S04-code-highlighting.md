@@ -132,38 +132,38 @@ Split from the analysis's "typography and code highlighting" item; typography is
    definitions for JSON, YAML and shell), or TextMateSharp (MIT, far more languages, but a native
    regex library per platform and several MB of grammars)?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 2. Opt-in: a separate package passed as `CodeHighlighter` (proposed: no output change and no new
    dependency for anyone who does not want it), or highlighting built into the generators and on by
    default, as a breaking change?
 
->
+> Answered by the human (2026-11-14): No separate package: the highlighter (ColorCode.Core) lives in the shared package `wwosik.DocLibs.DocumentGeneration` (the human chose fewer packages). Highlighting stays off unless switched on, so output does not change.
 
 3. Own languages: add `json`, `yaml` and `bash` (proposed), more (Go, Rust, Kotlin, Dockerfile), or
    only what ColorCode ships?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 4. Default colours: derived from existing brand colours with a contrast correction (proposed), or a
    fixed neutral palette (such as GitHub's light and dark themes) unless the brand sets
    `colors.code.*`?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 5. Comments: colour only (proposed: Liberation Mono has no italic and a missing face is an error), or
    italic where the mono font has an italic face?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 6. The note `code-language-unknown`: give it (proposed: a typo such as `csharpp` is otherwise
    invisible), or stay silent, since many blocks name languages on purpose for readers only?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 7. Inline code with a language (`` `x`{.cs} ``): out of scope (proposed), or part of this story?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 ## Notes
 

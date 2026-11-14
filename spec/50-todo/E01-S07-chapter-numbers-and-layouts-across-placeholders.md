@@ -180,33 +180,33 @@ Two opt-in uses of the template roles from [E01-S06](E01-S06-template-roles-for-
    pack) with front matter to override it (proposed), or only the document (front matter /
    `PptxOptions`)? A design whose dividers have a number placeholder usually wants it filled.
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 2. A section layout without a chapter-number placeholder: the number in a text box above the
    title (proposed), the number prefixed to the title ("01 Market"), or no number with a note?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 3. Number format: two digits from "01" (proposed, as the fork), or plain "1", "2", or a pattern
    in the roles (`"00"`, `"0."`)?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 4. Containers, alerts, `.dark` and `kicker` in a split `layout="…"` section: throw (proposed:
    placeholders have no room for flow blocks, and an error says so at once), or fall back to a
    flow slide on that layout with a note?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 5. Images in picture placeholders: cropped to fill, centred (proposed, as the fork and PowerPoint
    do), or fitted inside like everywhere else, with cropping only after E04-S05's `fit=cover`?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 6. Too many `---` parts: continue on a further slide on the same layout (proposed, as E02-S04
    does), or join the surplus to the last placeholder?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 ## Notes
 

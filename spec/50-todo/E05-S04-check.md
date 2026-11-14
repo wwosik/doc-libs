@@ -196,39 +196,39 @@ problem at once instead of the first exception.
 1. Do the style rules come only from `Check` (proposed: `Generate`'s notes stay about what the
    generator did, as E05-S03 defined them)? Or does `Generate` report them too?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 2. Limits as a property of the generator options, `PptxOptions.Checks` (proposed: the guide and
    the AI tool see the same limits), or as a separate parameter of `Check`?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 3. Should `Check` return document errors as `Error` instead of throwing (proposed: a check that
    throws on the first problem is no check)? Or keep throwing, like `Generate`?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 4. Talk time: slide words at 130 words per minute with at least 30 seconds per content slide,
    and the speaker notes once they exist (proposed)? Or a flat time per slide, which is simpler
    and as rough?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 5. Default limits: 6 bullets, 80 words per slide, 60 characters per title, 150 words per PDF
    paragraph, alt text required (proposed, close to the fork's)? Or every rule off unless the
    host sets a limit?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 6. Deck rules per source section (proposed: what the writer wrote), or per slide after
    splitting, which can hide a section that is far too long?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 7. A DOCX check (E09): left to E09, with estimated pages from words and visuals there, since
    Word decides the pages (proposed)? Or should this story define the estimate now?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 ## Notes
 

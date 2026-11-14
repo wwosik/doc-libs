@@ -158,43 +158,43 @@ their meaning are shared, so the DOCX generator (E09) marks Word documents from 
    currently assumes the single key `classification: confidential | internal | draft`, and
    follows whichever is chosen here.
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 2. Can front matter lower the classification a host set? No: the higher one wins, with a note
    (proposed: a host that marks everything confidential should not be overruled by a writer).
    Or does front matter always win, as with every other key?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 3. Three fixed levels, renamed through `GeneratedTexts` (proposed: simple, and enough for
    public/internal/confidential schemes). Or free text (`classification: Restricted – Finance`)
    shown as written?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 4. Colour of the marking: `Labels.Danger` for confidential and the footer colour otherwise
    (proposed). Or the footer colour for all, so it never clashes with a brand? E09-S02 proposes
    `Labels.Warning` for internal and draft; all formats should use the same rule.
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 5. A draft watermark on slides too (a large diagonal "DRAFT" behind the content)? Or only the
    corner label (proposed: a watermark over slides hampers presenting, and decks are rarely
    printed)?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 6. Decks: the corner label on every slide, cover and closing included (proposed)? Or on the
    cover and in the footer line only, which caller templates may not have?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 7. Should the marking also go into the file's metadata: `cp:contentStatus` in decks and DOCX
    (proposed), and nothing in PDFs? Or nowhere, since some organisations use their own
    sensitivity labels? E09-S02 proposes a custom document property `Classification` instead;
    decks and Word should agree.
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 ## Notes
 

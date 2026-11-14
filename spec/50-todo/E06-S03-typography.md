@@ -129,44 +129,44 @@ so code highlighting is E06-S04 (question 1).
 1. Split: typography here (E06-S03) and code highlighting as its own story (E06-S04) (proposed:
    different code, a dependency only for highlighting), or both in one story as the analysis has it?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 2. Default: off, switched on by `typography: true` or the option (proposed: existing documents
    keep their text), or on by default as a breaking change, since it is what most writers want?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 3. Own pass or Markdig's `UseSmartyPants`: an own pass over runs (proposed: per-language quotes
    without per-language pipelines, quotes across emphasis, dashes and no-break spaces, font checks),
    or SmartyPants for quotes, dashes and ellipsis plus an own pass only for no-break spaces?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 4. A character the fonts lack: keep the typed one with a note (proposed), keep it silently, or let
    PDFs throw as for any missing character?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 5. Which no-break space: U+00A0 everywhere (proposed: every font has it, Office and PDF viewers
    handle it), or the narrow U+202F inside German abbreviations and before units, as typesetting
    rules ask, where the font has it?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 6. English dash: spaced en dash "a – b" (proposed: British style, same as German), or unspaced em
    dash "a—b" (American style), or a choice between `en-GB` and `en-US` profiles?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 7. Swiss German (`de-CH`): the German profile through the language fallback (proposed), or a
    built-in `de-CH` profile with «…» guillemets?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 8. Drawings: leave the text of Mermaid diagrams and charts as typed (proposed: their labels are
    often identifiers), or apply the pass there too?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 ## Notes
 

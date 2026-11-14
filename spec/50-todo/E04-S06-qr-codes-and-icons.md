@@ -143,42 +143,42 @@ PDF text. Both are `Drawing`s, so decks get editable shapes and PDFs vectors, as
    ourselves), or an own encoder of about 500 lines without a dependency, tested against QRCoder in
    the tests only?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 2. How many icons: the whole Tabler outline set, about 5 000 (proposed: writers, often AI agents,
    know Tabler names, and a subset would make "unknown icon" common; the size is measured by the
    import tool and the set is cut to a curated list only if it exceeds 1 MB compressed), or a
    curated set of about 150–200 business icons as the fork has?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 3. Where the icons live: a separate package `wwosik.DocLibs.DocumentGeneration.Icons`, passed in the
    options (proposed: no size cost for callers who don't want it, and `:icon-…:` stays text without
    it), or embedded in the shared DocumentGeneration package and always on?
 
->
+> Answered by the human (2026-11-14): No separate package: the icons live in the shared package `wwosik.DocLibs.DocumentGeneration` (the human chose fewer packages). The whole outline set stays (question 2), so its size counts against every consumer of the shared package — keep the compressed size in check.
 
 4. Unknown icon names: throw with suggestions (proposed, as for unknown containers), or leave the
    text with a note?
 
->
+> Answered by the human (2026-11-14): as proposed.
 
 5. Icon bullets in decks: an icon list as a flow block with our own layout (proposed: the icon and
    its text cannot drift apart), or a picture bullet (`a:buBlip`), which stays an editable list but
    needs a PNG per icon, and so SkiaSharp in the PPTX package?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 6. QR colour: the brand's primary colour with a fallback to the diagram text colour below 4.5:1
    contrast (proposed), or always black on white for the safest scan?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 7. QR caption: the alt text under the code when the title says `caption`, as for images
    (proposed), or the title itself as the caption text, as the fork writes it
    (`"Scan for the survey"`)?
 
->
+> Accepted as proposed (the human, 2026-11-14, without discussion).
 
 ## Notes
 
