@@ -1,7 +1,7 @@
 # E01-S07 Chapter numbers and layouts across placeholders
 
-> Status: todo
-> Epic: [E01 Brands and templates](E01-brands-and-templates.md)
+> Status: in progress (doc-3)
+> Epic: [E01 Brands and templates](../../50-todo/E01-brands-and-templates.md)
 
 ## Summary
 

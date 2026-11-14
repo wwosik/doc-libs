@@ -1,7 +1,7 @@
 # E01-S06 Template roles for decks
 
-> Status: todo
-> Epic: [E01 Brands and templates](E01-brands-and-templates.md)
+> Status: in progress (doc-3)
+> Epic: [E01 Brands and templates](../../50-todo/E01-brands-and-templates.md)
 
 ## Summary
 
@@ -73,7 +73,7 @@ chapter dividers, `{layout="…"}` across placeholders) and E02-S05 (slide kinds
 - **Test template.** `brand-dark` (`DarkTemplate` in the PPTX tests) is built at test time from
   the built-in master, with two copied and renamed layouts. There is no binary sample.
 - **Decided.**
-  - In the [analysis](../10-analysis/2026-11-13%20python-fork-port.md) (answer 3): roles are
+  - In the [analysis](../../10-analysis/2026-11-13%20python-fork-port.md) (answer 3): roles are
     designed for templates in general, not to cover any particular design.
   - In the epic:
     - Roles are brand-pack data with English names, and nothing here names a client's layouts or

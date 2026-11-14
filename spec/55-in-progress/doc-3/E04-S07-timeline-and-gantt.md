@@ -1,7 +1,7 @@
 # E04-S07 Timeline and Gantt
 
-> Status: todo
-> Epic: [E04 Diagrams and charts](E04-diagrams-and-charts.md)
+> Status: in progress (doc-3)
+> Epic: [E04 Diagrams and charts](../../50-todo/E04-diagrams-and-charts.md)
 
 ## Summary
 

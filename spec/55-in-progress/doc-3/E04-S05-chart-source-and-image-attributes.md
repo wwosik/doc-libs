@@ -1,14 +1,14 @@
 # E04-S05 Chart source, semicolon CSV and image attributes
 
-> Status: todo
-> Epic: [E04 Diagrams and charts](E04-diagrams-and-charts.md)
+> Status: in progress (doc-3)
+> Epic: [E04 Diagrams and charts](../../50-todo/E04-diagrams-and-charts.md)
 
 ## Summary
 
 Three small extensions of what decks and PDFs already draw. A `chart` block gets a `source:`
 setting, drawn under the chart, and accepts CSV separated by `;` with a decimal comma, as a
 spreadsheet in a German locale exports it. An image takes attributes after it,
-`![Team](team.jpg){focus=top fit=cover scale=0.8 .round .grey}`, to crop it to its box, make it a
+`![Team](../../50-todo/team.jpg){focus=top fit=cover scale=0.8 .round .grey}`, to crop it to its box, make it a
 circle or show it in grey.
 
 This is the first of four stories split from the analysis's single "visual blocks" item (see
@@ -35,7 +35,7 @@ Harvey balls and risk matrix.
     different things: on slides an upper bound on enlargement (`SlideImage.Scale`, against
     `PptxOptions.MaxImageUpscale`), in PDFs a factor on the natural size (`ImageBlock.Scale`).
   - Markdig is not given generic attributes (see the memory on `HeadingAttributes`), so
-    `![a](x.png){.round}` is an image followed by the literal text `{.round}`, which both generators
+    `![a](../../50-todo/x.png){.round}` is an image followed by the literal text `{.round}`, which both generators
     write as text today.
   - Decks: `DeckWriter.Picture` fits the image into its box keeping its aspect ratio, writes a
     `p:pic` with `a:stretch` and a rectangle preset, and adds the SVG as `asvg:svgBlip` for converted

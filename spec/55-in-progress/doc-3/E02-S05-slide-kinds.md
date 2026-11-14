@@ -1,7 +1,7 @@
 # E02-S05 Slide kinds
 
-> Status: todo
-> Epic: [E02 Deck layouts](E02-deck-layouts.md)
+> Status: in progress (doc-3)
+> Epic: [E02 Deck layouts](../../50-todo/E02-deck-layouts.md)
 
 ## Summary
 

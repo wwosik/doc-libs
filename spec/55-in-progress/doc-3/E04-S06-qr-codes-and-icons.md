@@ -1,11 +1,11 @@
 # E04-S06 QR codes and icons
 
-> Status: todo
-> Epic: [E04 Diagrams and charts](E04-diagrams-and-charts.md)
+> Status: in progress (doc-3)
+> Epic: [E04 Diagrams and charts](../../50-todo/E04-diagrams-and-charts.md)
 
 ## Summary
 
-Two kinds of small vector graphics written in the Markdown. `![Survey](qr:https://example.com/s)`
+Two kinds of small vector graphics written in the Markdown. `![Survey](../../50-todo/qr:https://example.com/s)`
 draws a QR code for the address, in the brand's colour. `:icon-check:` draws an icon from the
 Tabler Icons outline set (MIT), embedded whole in the shared package
 `wwosik.DocLibs.DocumentGeneration` and available without any option: as a card figure and as a

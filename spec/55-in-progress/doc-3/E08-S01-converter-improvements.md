@@ -1,7 +1,7 @@
 # E08-S01 Converter improvements
 
-> Status: todo
-> Epic: [E08 Document converters](E08-document-converters.md)
+> Status: in progress (doc-3)
+> Epic: [E08 Document converters](../../50-todo/E08-document-converters.md)
 
 ## Summary
 
