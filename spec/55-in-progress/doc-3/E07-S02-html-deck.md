@@ -1,7 +1,7 @@
 # E07-S02 HTML deck
 
-> Status: todo
-> Epic: [E07 Presenting](E07-presenting.md)
+> Status: in progress (doc-3)
+> Epic: [E07 Presenting](../../50-todo/E07-presenting.md)
 
 ## Summary
 

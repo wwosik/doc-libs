@@ -1,7 +1,7 @@
 # E03-S02 Contents, heading numbers and captions
 
-> Status: todo
-> Epic: [E03 PDF layout](E03-pdf-layout.md)
+> Status: in progress (doc-3)
+> Epic: [E03 PDF layout](../../50-todo/E03-pdf-layout.md)
 
 ## Summary
 

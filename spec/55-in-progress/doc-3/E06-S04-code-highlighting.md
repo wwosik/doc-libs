@@ -1,7 +1,7 @@
 # E06-S04 Code highlighting
 
-> Status: todo
-> Epic: [E06 Markdown syntax](E06-markdown-syntax.md)
+> Status: in progress (doc-3)
+> Epic: [E06 Markdown syntax](../../50-todo/E06-markdown-syntax.md)
 
 ## Summary
 

@@ -9,7 +9,7 @@ The DOCX generator of [E09-S01](E09-S01-docx-package-and-templates.md) writes th
 ordinary Markdown in Word: headings and their numbering, lists, tables with table titles,
 numbered captions, images, code, quotes, real Word footnotes, links, task and definition lists,
 and the document language. Deck syntax ([E09-S02](E09-S02-deck-syntax-in-word.md)) and charts and
-drawings ([E09-S03](../55-in-progress/doc-3/E09-S03-charts-drawings-and-guide.md)) build on it.
+drawings ([E09-S03](E09-S03-charts-drawings-and-guide.md)) build on it.
 
 ## Context
 

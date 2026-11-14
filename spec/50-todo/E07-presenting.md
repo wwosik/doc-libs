@@ -15,11 +15,11 @@ A generated deck should be ready to present without opening PowerPoint to add no
 | Story | Title | State |
 | ----- | ----- | ----- |
 | [E07-S01](../60-verify/E07-S01-speaker-notes-and-transitions.md) | Speaker notes and transitions | in verification |
-| [E07-S02](E07-S02-html-deck.md) | HTML deck | todo |
-| [E07-S03](E07-S03-preview-images.md) | Preview images | todo |
-| [E07-S04](E07-S04-scenes.md) | Scenes | todo |
+| [E07-S02](../55-in-progress/doc-3/E07-S02-html-deck.md) | HTML deck | in progress (doc-3) |
+| [E07-S03](../55-in-progress/doc-3/E07-S03-preview-images.md) | Preview images | in progress (doc-3) |
+| [E07-S04](../55-in-progress/doc-3/E07-S04-scenes.md) | Scenes | in progress (doc-3) |
 | [E07-S05](../60-verify/E07-S05-builds.md) | Builds | in verification |
-| [E07-S06](E07-S06-presenting-the-html-deck.md) | Presenting the HTML deck | todo |
+| [E07-S06](../55-in-progress/doc-3/E07-S06-presenting-the-html-deck.md) | Presenting the HTML deck | in progress (doc-3) |
 
 Stories marked *to plan* come from the
 [Python fork analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed

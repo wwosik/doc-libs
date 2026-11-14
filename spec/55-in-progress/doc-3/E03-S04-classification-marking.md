@@ -1,7 +1,7 @@
 # E03-S04 Classification marking
 
-> Status: todo
-> Epic: [E03 PDF layout](E03-pdf-layout.md)
+> Status: in progress (doc-3)
+> Epic: [E03 PDF layout](../../50-todo/E03-pdf-layout.md)
 
 ## Summary
 

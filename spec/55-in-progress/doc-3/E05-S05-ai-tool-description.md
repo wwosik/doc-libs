@@ -1,7 +1,7 @@
 # E05-S05 AI tool description
 
-> Status: todo
-> Epic: [E05 Authoring feedback](E05-authoring-feedback.md)
+> Status: in progress (doc-3)
+> Epic: [E05 Authoring feedback](../../50-todo/E05-authoring-feedback.md)
 
 ## Summary
 

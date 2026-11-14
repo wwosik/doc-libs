@@ -1,7 +1,7 @@
 # E03-S05 Columns and plain documents (invoices)
 
-> Status: todo
-> Epic: [E03 PDF layout](E03-pdf-layout.md)
+> Status: in progress (doc-3)
+> Epic: [E03 PDF layout](../../50-todo/E03-pdf-layout.md)
 
 ## Summary
 
@@ -44,6 +44,6 @@ one- or two-page business document that starts with its content on page 1.
 1. DOCX: should the plain layout and columns apply there too in the same story, or PDF only
    (faktury needs only PDF)?
 
->
+> Answered by the human (2026-11-14): PDF only. DOCX later, as its own story, if needed.
 
 ## Notes

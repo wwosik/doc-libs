@@ -1,7 +1,7 @@
 # E05-S04 Check
 
-> Status: todo
-> Epic: [E05 Authoring feedback](E05-authoring-feedback.md)
+> Status: in progress (doc-3)
+> Epic: [E05 Authoring feedback](../../50-todo/E05-authoring-feedback.md)
 
 ## Summary
 
@@ -118,7 +118,7 @@ problem at once instead of the first exception.
    | `too-many-words` | PPTX | A `##` section's text, title excluded, has more words than `MaxWordsPerSlide` |
    | `long-paragraph` | PDF | A paragraph has more words than `MaxWordsPerParagraph` |
    | `title-too-long` | both | A slide title or a PDF heading is longer than `MaxTitleLength` text elements |
-   | `alt-text-missing` | both | An image has empty alt text (`![](a.png)`) and `RequireAltText` is on |
+   | `alt-text-missing` | both | An image has empty alt text (`![](../../50-todo/a.png)`) and `RequireAltText` is on |
    | `image-source` | both | An image is not among the resources, or is a remote or `data:` URL |
 
    - **Per section.** The deck rules count per source section, the slide the writer wrote, at its
