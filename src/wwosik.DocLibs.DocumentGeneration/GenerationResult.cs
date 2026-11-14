@@ -67,6 +67,9 @@ public static class NoteCodes
     /// <summary>An image was drawn at more than twice its natural size, and may look blurred.</summary>
     public const string ImageEnlarged = "image-enlarged";
 
+    /// <summary>An image was cropped by more than a tenth of its width or height to fill a picture placeholder of a slide layout.</summary>
+    public const string ImageCropped = "image-cropped";
+
     /// <summary>A renderer declined a code block in its own language, which therefore stays code.</summary>
     public const string CodeNotDrawn = "code-not-drawn";
 
@@ -100,6 +103,7 @@ public static class NoteCodes
         (SlideShrunk, [DocumentFormat.Pptx], "the slide's text was set at the smallest size to fit. Shorten it."),
         (SlideOverfull, [DocumentFormat.Pptx], "one item, such as a long list entry or a table with very long cells, does not fit even on a slide of its own. Shorten it."),
         (ImageEnlarged, [DocumentFormat.Pptx], "the image is small and was enlarged; it may look blurred. Use a larger image, or `\"scale=1\"` in its title to keep it at its size."),
+        (ImageCropped, [DocumentFormat.Pptx], "an image was cut to fill a picture placeholder of the layout, and much of it is not shown. Use an image of the placeholder's shape, or `focus=` to say which part stays."),
         (CodeNotDrawn, [DocumentFormat.Pptx, DocumentFormat.Pdf], "a diagram could not be drawn, for example a diagram type that is not supported, and stays code. Use a supported type."),
         (HtmlAsText, [DocumentFormat.Pptx, DocumentFormat.Pdf], "HTML is not interpreted: it is shown as text. Write Markdown instead."),
         (CharacterReplaced, [DocumentFormat.Pdf], "a character the fonts lack was replaced. Write it as one of the replacements under *Characters*."),

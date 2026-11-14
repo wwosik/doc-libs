@@ -217,6 +217,18 @@ The end date does not move.
   own marker.
 - Other braces alone in a paragraph, such as `{.note}`, are a mistake; `\{` keeps them as text.
 
+**Layouts with several boxes.** On a `layout="…"` slide, lines `---` (each after a blank line) cut the text into parts, which fill the layout's text boxes in order; images fill its picture boxes, cropped to their shape, and charts its chart boxes. What has no box left continues on a further slide. Such a slide takes text, images, charts, tables and diagrams, but no `:::` containers, alerts, `.dark` or `kicker`.
+
+````text
+## Two offers {layout="Two Content"}
+
+- Basic: 10 users
+
+---
+
+- Premium: unlimited
+````
+
 ## Icons
 
 `:icon-name:` draws the icon of that name of [Tabler Icons](https://tabler.io/icons) (3.52.0, outline), such as `:icon-circle-check:`. Slides show it only alone after a card's `###` (as its figure) and at the start of every item of a list (as bullets); elsewhere it is left out. An unknown name is an error.
@@ -256,6 +268,7 @@ author: Planning team
 | `layouts.chart` | The name of the template's layout for one chart. |
 | `layouts.twoCharts` | The name of the template's layout for two charts. |
 | `layouts.dark` | The name of the template's layout for `{.dark}` slides. |
+| `numberChapters` | `true` or `false`: "01", "02", … on the section dividers after the cover. Default: as the design says. |
 | `listBullets` | `always` to show bullets on every list level, also where the design's first level has none; `template` (the default) leaves it to the design. |
 | `transition` | How every slide is brought on when presented: `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut`, `morph`. Default `none`. A heading's `transition="…"` wins; see [Presenting](#presenting). |
 | `build` | `lists` builds every top-level list item by item; `none` (the default) only what has a marker. See [Presenting](#presenting). |
@@ -284,6 +297,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `slide-shrunk`: the slide's text was set at the smallest size to fit. Shorten it.
 - `slide-overfull`: one item, such as a long list entry or a table with very long cells, does not fit even on a slide of its own. Shorten it.
 - `image-enlarged`: the image is small and was enlarged; it may look blurred. Use a larger image, or `"scale=1"` in its title to keep it at its size.
+- `image-cropped`: an image was cut to fill a picture placeholder of the layout, and much of it is not shown. Use an image of the placeholder's shape, or `focus=` to say which part stays.
 - `code-not-drawn`: a diagram could not be drawn, for example a diagram type that is not supported, and stays code. Use a supported type.
 - `html-as-text`: HTML is not interpreted: it is shown as text. Write Markdown instead.
 - `footnote-missing`: a footnote reference such as `[^1]` has no definition `[^1]: text`, so it is shown as written. Add the definition, or remove the reference.

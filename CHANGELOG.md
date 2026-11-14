@@ -79,6 +79,23 @@ updating, breaking changes first.
   generators and every table: decks write the glyph ○ ◔ ◑ ◕ ● (in `Segoe UI Symbol`), PDFs draw it,
   instead of the text as typed. A cell with anything beside it stays text; write `\[3/4]` to keep
   such a cell as text.
+- **`## Title {layout="…"}` on a layout with a picture or chart placeholder puts its image or
+  chart into that placeholder** (brand's own and caller templates): an image is cropped to the
+  placeholder's shape, centred (or around its `focus=`), instead of being fitted whole into the
+  content area, and a chart takes the placeholder's box; the section's text goes into the layout's
+  text placeholders. This applies when every part of the section finds a placeholder there;
+  otherwise the slides stay as they were. A crop of more than a tenth gives the note
+  `image-cropped`. To keep an image whole, use an image of the placeholder's shape, or a layout
+  without a picture placeholder.
+- **A top-level `---` in a `## … {layout="…"}` section now cuts its text** into parts for the
+  layout's placeholders, where it used to be dropped; surplus parts continue on a further slide. In
+  such a section, `:::` containers, alerts, `.dark` and `kicker` now throw
+  `DocumentConversionException`, and so does content the layout has no placeholder for (text on a
+  layout with only a picture, a table without an `obj` body). Remove the `---`, or move the flow
+  blocks to a slide without it.
+- **`numberChapters` is a front-matter key of every deck template and of PDFs** (checked, then
+  ignored there). A host that lists or checks front-matter keys sees it; nothing changes unless it
+  is set or a template declares `NumberChapters`.
 
 ### New
 
@@ -180,6 +197,18 @@ updating, breaking changes first.
   quarters (see Breaking changes).
 - **`GeneratedTexts` has `Likelihood` and `Impact`,** the risk matrix's axis titles (German
   `Eintrittswahrscheinlichkeit`, `Auswirkung`).
+- **Numbered chapters:** `PptxTemplateRoles.NumberChapters` (brand pack `pptx.numberChapters`) or
+  front matter `numberChapters: true` gives every section divider after the cover "01", "02", … in
+  the section layout's chapter-number placeholder (the built-in master has one), else in a text
+  box above its title. The cover and the `{.closing}` slide do not count.
+- **`layout="…"` across placeholders:** with `---` lines, a `##` section fills all of its layout's
+  placeholders: text parts the text placeholders in order, images the picture placeholders,
+  charts the chart placeholders, and tables, diagrams and the rest `obj` bodies. Each text part is
+  shrunk in its own placeholder; unused placeholders are not written.
+- **The note `image-cropped`** (`NoteCodes.ImageCropped`), for an image cut by more than a tenth to
+  fill a picture placeholder.
+- **The deck authoring guide** explains `---` on `layout="…"` slides for brand and caller
+  templates.
 
 ## 2610.28.22
 

@@ -27,6 +27,7 @@ internal sealed partial class DeckWriter
             ContentSlide content => (this.FitContent(content).ToList(), this.MaxContentStep),
             VisualSlide visual => (this.FitVisual(visual).ToList(), MaxVisualStep),
             FlowSlide flow => (this.FitFlow(flow).ToList(), MaxFlowStep),
+            PlaceholderSlide placeholders => (this.FitPlaceholders(placeholders).ToList(), 0),
             _ => ([(slide, 0, true)], 0),
         };
 
@@ -166,6 +167,23 @@ internal sealed partial class DeckWriter
             var step = Step(blocks);
             return ((Slide)new FlowSlide(this.Continued(slide.Title, i), slide.Kicker, slide.Dark, blocks) { Layout = slide.Layout, Line = slide.Line }, step ?? MaxFlowStep, step is not null);
         });
+    }
+
+    // Surplus parts and visuals continue on further slides on the same layout; each text part is shrunk in its own
+    // placeholder, and never split, since its `---` is the writer's cut.
+    private IEnumerable<(Slide Slide, int Step, bool Fits)> FitPlaceholders(PlaceholderSlide slide)
+    {
+        var layout = this.LayoutOf(slide, this.contentLayout);
+        var slots = this.SlotsOf(layout);
+        var parts = PlaceholderFill.Distribute(slide.Items, [.. slots.Select(s => s.Kind)])
+            ?? throw new wwosik.DocLibs.DocumentConversions.DocumentConversionException(
+                wwosik.DocLibs.DocumentConversions.DocumentFormat.Pptx,
+                $"The layout '{LayoutName(layout)}' has no placeholder for {PlaceholderFill.Unplaceable(slide.Items, [.. slots.Select(s => s.Kind)])!.Kind} (the slide '{Plain(slide.Title)}'). "
+                + "Choose a layout that has one, or move it to a slide of its own.");
+        return parts.Select((part, i) => (
+            (Slide)new PlaceholderSlide(this.Continued(slide.Title, i), [.. part.Select(p => p.Item)]) { Layout = slide.Layout, Line = slide.Line },
+            0,
+            part.All(p => p.Item.Text is not { } text || this.PlaceholderFit(layout, slots[p.Slot].Shape, text).Fits)));
     }
 
     private FlowStyle FlowStyleOf(FlowSlide slide, int step)
@@ -322,7 +340,7 @@ internal sealed partial class DeckWriter
     }
 
     // The size of level-1 text in the content layout's body: its own list style, else the master's body style.
-    private int ReadBodySize(SlideLayoutPart layout) => this.LevelSize(layout, 1) ?? TextSize;
+    private int ReadBodySize(SlideLayoutPart layout) => this.LevelSize(layout, this.Bodies(layout).FirstOrDefault(), 1) ?? TextSize;
 
     // The sizes of the nine outline levels of the content layout's body; a level without one takes the level above's.
     private int[] ReadLevelSizes(SlideLayoutPart layout)
@@ -330,20 +348,20 @@ internal sealed partial class DeckWriter
         var sizes = new int[9];
         for (var level = 1; level <= 9; level++)
         {
-            sizes[level - 1] = this.LevelSize(layout, level) ?? (level == 1 ? this.bodySize : sizes[level - 2]);
+            sizes[level - 1] = this.LevelSize(layout, this.Bodies(layout).FirstOrDefault(), level) ?? (level == 1 ? this.bodySize : sizes[level - 2]);
         }
 
         return sizes;
     }
 
-    // The size of an outline level (1–9) in the layout's first body: its own list style, else the master's body style.
-    private int? LevelSize(SlideLayoutPart layout, int level)
+    // The size of an outline level (1–9) in a placeholder of the layout: its own list style, else the master's body style.
+    private int? LevelSize(SlideLayoutPart layout, DocumentFormat.OpenXml.Presentation.PlaceholderShape? placeholder, int level)
     {
         static int? Size(DocumentFormat.OpenXml.OpenXmlElement? styles, int level) =>
             styles?.ChildElements.FirstOrDefault(e => e.LocalName == $"lvl{level}pPr")?
                 .GetFirstChild<DocumentFormat.OpenXml.Drawing.DefaultRunProperties>()?.FontSize?.Value;
 
-        var own = this.Bodies(layout).FirstOrDefault()?.Parent?.Parent?.Parent?.Descendants<DocumentFormat.OpenXml.Drawing.ListStyle>().FirstOrDefault();
+        var own = placeholder?.Parent?.Parent?.Parent?.Descendants<DocumentFormat.OpenXml.Drawing.ListStyle>().FirstOrDefault();
         return Size(own, level) ?? Size(layout.SlideMasterPart?.SlideMaster?.TextStyles?.BodyStyle, level);
     }
 

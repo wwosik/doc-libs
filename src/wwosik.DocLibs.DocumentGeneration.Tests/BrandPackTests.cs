@@ -144,7 +144,8 @@ public class BrandPackTests : IDisposable
                 "Chart": { "T": "chartTitle", "U": "chartUnit", "S": "chartSource", "P": "picture", "Sub": "subtitle", "N": "chapterNumber", "B": "body" } },
               "textLevels": { "heading": 1, "paragraph": 2, "bullet": 3 },
               "footer": "{footer} | {chapter}",
-              "contentArea": "guides" } }
+              "contentArea": "guides",
+              "numberChapters": true } }
             """,
             ("t.potx", [1])));
 
@@ -168,8 +169,10 @@ public class BrandPackTests : IDisposable
         Assert.Equal(new PptxTextLevels(1, 2, 3), roles.TextLevels);
         Assert.Equal("{footer} | {chapter}", roles.FooterPattern);
         Assert.Equal(PptxContentArea.Guides, roles.ContentArea);
+        Assert.True(roles.NumberChapters);
         Assert.Equal(brand.Pptx, brand.Pptx with { Roles = roles with { Placeholders = [.. roles.Placeholders] } });
         Assert.NotEqual(brand.Pptx, brand.Pptx with { Roles = roles with { FooterPattern = "{title}" } });
+        Assert.NotEqual(brand.Pptx, brand.Pptx with { Roles = roles with { NumberChapters = false } });
     }
 
     [Fact]
@@ -180,6 +183,7 @@ public class BrandPackTests : IDisposable
         Assert.Equal(new PptxTemplateRoles(), brand.Pptx!.Roles);
         Assert.Null(brand.Pptx.Roles.TextLevels);
         Assert.Equal(PptxContentArea.Placeholders, brand.Pptx.Roles.ContentArea);
+        Assert.False(brand.Pptx.Roles.NumberChapters);
     }
 
     [Fact]

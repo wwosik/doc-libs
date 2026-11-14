@@ -129,6 +129,8 @@ internal abstract record Slide(IReadOnlyList<TextRun> Title)
         VisualSlide visual => visual.Above.Concat(visual.Below).SelectMany(p => p.Runs)
             .Concat(visual.Table?.Rows.SelectMany(r => r).SelectMany(c => c) ?? []),
         FlowSlide flow => flow.Blocks.SelectMany(Runs),
+        PlaceholderSlide placeholders => placeholders.Items.SelectMany(i => (i.Text ?? []).SelectMany(p => p.Runs)
+            .Concat(i.Visual?.Table?.Rows.SelectMany(r => r).SelectMany(c => c) ?? [])),
         _ => [],
     });
 
@@ -166,6 +168,9 @@ internal sealed record TitleSlide(IReadOnlyList<TextRun> Title, IReadOnlyList<Te
 {
     /// <summary>From <c># … {.closing}</c>: the closing slide, on the template's closing layout, without a footer.</summary>
     public bool Closing { get; init; }
+
+    /// <summary>The chapter number of a section divider when chapters are numbered (from 1); <see langword="null"/>: none.</summary>
+    public int? Number { get; init; }
 }
 
 /// <summary>Text only, in the body placeholder of a title-and-content layout.</summary>
@@ -190,6 +195,95 @@ internal sealed record VisualSlide(
 
     /// <summary>How <see cref="Drawing"/> is sized: a QR code is held to a third of the width.</summary>
     public DrawingPlacement Placement { get; init; } = DrawingPlacement.Default;
+}
+
+/// <summary>
+/// A <c>##</c> section with <c>layout="…"</c> that fills the layout's placeholders: its text cut at top-level <c>---</c>
+/// into parts, one per text placeholder, and its images, charts, tables and drawings in the picture, chart and
+/// <c>obj</c> placeholders, all in the order they appear in the Markdown.
+/// </summary>
+internal sealed record PlaceholderSlide(IReadOnlyList<TextRun> Title, IReadOnlyList<PlaceholderItem> Items) : Slide(Title);
+
+/// <summary>One part of a <see cref="PlaceholderSlide"/>: a text part, or one visual.</summary>
+internal sealed record PlaceholderItem(IReadOnlyList<TextParagraph>? Text, PlaceholderVisual? Visual)
+{
+    /// <summary>Whether a placeholder of that kind takes it: an <c>obj</c> body takes anything.</summary>
+    public bool Accepts(SlotKind slot) => slot == SlotKind.Object || (this.Text is not null ? slot == SlotKind.Text
+        : this.Visual?.Image is not null ? slot == SlotKind.Picture
+        : this.Visual?.Chart is not null && slot == SlotKind.Chart);
+
+    /// <summary>What it is, for messages.</summary>
+    public string Kind => this.Text is not null ? "text" : this.Visual?.Image is not null ? "an image" : this.Visual?.Chart is not null ? "a chart"
+        : this.Visual?.Table is not null ? "a table" : "a diagram";
+}
+
+/// <summary>An image, chart, table or drawing of a <see cref="PlaceholderSlide"/>, with its build marker.</summary>
+internal sealed record PlaceholderVisual(SlideTable? Table, SlideImage? Image, Drawing? Drawing, ChartSpec? Chart)
+{
+    public BuildMark? Build { get; init; }
+
+    /// <inheritdoc cref="VisualSlide.Placement"/>
+    public DrawingPlacement Placement { get; init; } = DrawingPlacement.Default;
+}
+
+/// <summary>
+/// A placeholder of a layout as a <see cref="PlaceholderSlide"/> fills it: text only (<c>body</c>, untyped or the
+/// subtitle), an <c>obj</c> body (text or any visual), a picture or a chart placeholder.
+/// </summary>
+internal enum SlotKind
+{
+    Text,
+    Object,
+    Picture,
+    Chart,
+}
+
+/// <summary>How the items of a <see cref="PlaceholderSlide"/> are spread over the placeholders of its layout.</summary>
+internal static class PlaceholderFill
+{
+    /// <summary>
+    /// The items slide by slide, each with the slot it goes into: in order, each into the first free slot that takes it
+    /// (an image first into a picture, a chart into a chart placeholder, then an <c>obj</c> body; text into the text
+    /// slots in their order); an item that finds none starts a further slide. <see langword="null"/> when an item finds
+    /// no slot even on an empty slide.
+    /// </summary>
+    public static List<List<(PlaceholderItem Item, int Slot)>>? Distribute(IReadOnlyList<PlaceholderItem> items, IReadOnlyList<SlotKind> slots)
+    {
+        var slides = new List<List<(PlaceholderItem Item, int Slot)>> { new() };
+        var used = new HashSet<int>();
+        foreach (var item in items)
+        {
+            if (Free(item, slots, used) is not { } slot)
+            {
+                used.Clear();
+                if (Free(item, slots, used) is not { } fresh)
+                {
+                    return null;
+                }
+
+                slides.Add([]);
+                slot = fresh;
+            }
+
+            used.Add(slot);
+            slides[^1].Add((item, slot));
+        }
+
+        return slides;
+    }
+
+    /// <summary>The first item that no slot takes, even on an empty slide; <see langword="null"/>: every one has a slot.</summary>
+    public static PlaceholderItem? Unplaceable(IReadOnlyList<PlaceholderItem> items, IReadOnlyList<SlotKind> slots) =>
+        items.FirstOrDefault(i => Free(i, slots, new HashSet<int>()) is null);
+
+    // Its own kind first, then an `obj` body; text goes to the text slots in their order, `obj` bodies among them.
+    private static int? Free(PlaceholderItem item, IReadOnlyList<SlotKind> slots, IReadOnlySet<int> used)
+    {
+        int? First(Func<SlotKind, bool> match) =>
+            Enumerable.Range(0, slots.Count).Cast<int?>().FirstOrDefault(i => !used.Contains(i!.Value) && match(slots[i.Value]));
+        return item.Text is not null ? First(k => k is SlotKind.Text or SlotKind.Object)
+            : First(k => k != SlotKind.Object && item.Accepts(k)) ?? First(k => k == SlotKind.Object);
+    }
 }
 
 /// <summary>

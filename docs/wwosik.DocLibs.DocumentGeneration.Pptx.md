@@ -267,7 +267,7 @@ as plain Markdown.
 | A table row whose first cell is all `==…==` | The row filled in a light tint of the highlight colour — on every slide. |
 | A table cell that is one code span, on a flow slide | A status label: bold, its cell in a light tint of its category's colour. Front matter assigns labels to categories (`labels.success: Done`, see [wwosik.DocLibs.DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md#slide-layouts-in-markdown)); others are neutral. |
 | `[words]{.success}` (`.info`, `.warning`, `.danger`, `.neutral`) | The words bold in that status colour — on every slide. |
-| `## Title {layout="Name"}`, `# Title {layout="Name"}` | The slide on the template's layout of that name (case-insensitive), on a brand's own or a caller's template. Plain slides stay plain: text goes into the layout's body placeholder. |
+| `## Title {layout="Name"}`, `# Title {layout="Name"}` | The slide on the template's layout of that name (case-insensitive), on a brand's own or a caller's template. Plain slides stay plain: text goes into the layout's body placeholder. A `##` with `---` lines, or with an image or chart where the layout has a picture or chart placeholder, fills the layout's placeholders instead, see [Layouts across placeholders](#layouts-across-placeholders). |
 | `# Thank you {.closing}` | The closing slide: on `PptxBrandTemplate.ClosingLayout` / `Layouts.Closing`, else a layout named like *Closing*, *End* or *Thank you*, else the cover's (the section layout on the built-in master). Title and subtitle go into the layout's placeholders if it has them; no footer. |
 
 - **What makes a flow slide:** heading attributes, a `:::` container or an alert anywhere in the
@@ -296,6 +296,52 @@ as plain Markdown.
 - **Sizes** on flow slides: text 16 pt, inside cards 14 pt, card titles 16 pt, figures 32 pt,
   statements 26 pt, kickers and chips 12 pt. Images, drawings and charts share the height the other
   blocks leave, each at least a quarter of the slide.
+
+### Layouts across placeholders
+
+`## Title {layout="Name"}` fills all of the layout's placeholders, not just its first body, when
+the section has a top-level `---` line, or when the layout has a picture or chart placeholder and
+the section an image or chart that, like everything else in it, finds a placeholder there.
+Otherwise it stays a text or visual slide, exactly as before.
+
+````markdown
+## Two offers {layout="Two Content"}
+
+- Basic: 10 users
+
+---
+
+- Premium: unlimited
+````
+
+- **Text** is cut at top-level `---` lines (a blank line before each, or Markdown reads the line
+  above as a heading) into parts; parts without text are left out. The parts fill the layout's
+  text placeholders in order: the subtitle first, then the bodies in their
+  [roles'](#template-roles) order — declared bodies, then the others in reading order.
+- **Visuals** fill the visual placeholders in the order they appear, whatever the `---`: an image
+  goes into a picture placeholder, else an `obj` (or untyped) body; a chart into a chart
+  placeholder, else an `obj` body; tables and diagrams only into `obj` bodies. The images of a row
+  each take a placeholder of their own. Texts and visuals are placed in the order they appear, each
+  into the first free placeholder that takes it, so an `obj` body that takes a visual takes no text.
+- **Pictures** are written as a `p:pic` with the placeholder's `ph` (type `pic` and its `idx`) and
+  no position of their own, so they take the layout's box; the image is cropped to the box's shape
+  by `a:srcRect` around its `focus` (the centre by default). Cutting off more than a tenth of the
+  width or height gives the note `image-cropped`; `scale=` has no effect there
+  (`attribute-ignored`).
+- **Charts** in a chart placeholder are a `p:graphicFrame` with the placeholder's `ph` and an
+  explicit position, the placeholder's box less a line for the chart's source.
+- **In `obj` bodies** visuals are placed as on other slides, fitted into the body's box and not
+  cropped.
+- **Too much content** continues on a further slide on the same layout, with `slide-split`: an item
+  that finds no free placeholder starts the next slide. **Placeholders left over** are not written,
+  so the slide shows none of their prompts. Byline, chart title, unit and source placeholders stay
+  empty.
+- **Each text part is shrunk on its own,** with `normAutofit` by 2 pt steps down to 12 pt from its
+  placeholder's size, and never split: a part that still does not fit gives `slide-overfull`.
+  Footnotes go below the lowest placeholder written.
+- **Mistakes throw** `DocumentConversionException`: a `:::` container, an alert, `.dark` or
+  `kicker` in a section with `layout` and `---`, or content of a kind the layout has no
+  placeholder for (text on a layout without text placeholders, a table without an `obj` body).
 
 ### Dark templates
 
@@ -371,14 +417,15 @@ One master design, written in code (`TemplateBuilder`), parameterized by a brand
 - **Layouts:** `title` (cover: large title, subtitle, and — where the brand has them — the logo
   top right, the artwork in the bottom right corner below the subtitle, the tagline over it; no
   footer line), `obj`, `titleOnly`, `secHead` (brand gradient, white title, white footer
-  line, the logo for dark backgrounds, and a chapter-number placeholder above the title that no
-  slide fills yet), and *Title Only Dark* (type `cust`, found by name: the
+  line, the logo for dark backgrounds, and a chapter-number placeholder above the title for
+  [numbered chapters](#numbered-chapters)), and *Title Only Dark* (type `cust`, found by name: the
   primary colour as background, white title and footer line, the logo for dark backgrounds — for
   [dark slides](#layouts)).
 - **A layout for every [layout role](#template-roles)**, after those five, in the same design. The
   master declares their roles itself, so they are found as on any template. Slides do not use them
   yet: the Markdown for them comes with later releases, and `layout="…"` stays an error on the
-  built-in master.
+  built-in master (through a caller's copy of it, they fill as
+  [layouts across placeholders](#layouts-across-placeholders)).
 
   | Layout | Type | Placeholders |
   | ------ | ---- | ------------ |
@@ -487,8 +534,22 @@ var template = new CustomTemplateOptions(stream)
 };
 ```
 
-What the roles put on slides beyond this — chapter numbers, `{layout="…"}` across placeholders,
-slide kinds on the role layouts — comes with later releases.
+- **Numbered chapters** (`NumberChapters`, brand pack `pptx.numberChapters`), see
+  [Numbered chapters](#numbered-chapters).
+
+`{layout="…"}` fills the roles' placeholders as [layouts across
+placeholders](#layouts-across-placeholders); slide kinds on the role layouts come with a later
+release.
+
+### Numbered chapters
+
+With `PptxTemplateRoles.NumberChapters` (default `false`), or front matter `numberChapters: true`,
+which wins on every template, each `#` divider after the cover gets its number: "01", "02", …, at
+least two digits. Neither the cover nor the `{.closing}` slide counts. The number goes into the
+section layout's chapter-number placeholder (declared, or the built-in master's); a section layout
+without one gets it in a text box above its title area, in the heading font at the subtitle's size,
+in the brand's accent colour (`Link`; on a caller's template accent 1). Text under the `#` stays
+its subtitle. Without it, decks are unchanged.
 
 ## Front matter
 
@@ -515,6 +576,7 @@ author: Team Docs
 | `showDate`, `showTagline` | `true`, `false` | brands on the built-in master |
 | `embedFonts` | `true`, `false` | brands on the built-in master or their own `Pptx` template |
 | `showFooter` | `true`, `false` | brands with their own `Pptx` template |
+| `numberChapters` | `true`, `false` | all — see [Numbered chapters](#numbered-chapters) |
 | `listBullets` | `template`, `always` | all |
 | `transition` | `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut`, `morph` | all — see [Presenting](#presenting) |
 | `build` | `none`, `lists` | all — see [Presenting](#presenting) |

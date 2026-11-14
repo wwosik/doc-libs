@@ -85,7 +85,7 @@ internal sealed partial class DeckWriter
     private readonly int bodySize;
     private readonly TemplateRoles roles;
     private readonly string? footerPattern;
-    private readonly string? deckTitle;
+    private string? deckTitle;
     private readonly string? author;
     private readonly string templateName;
 
@@ -98,6 +98,9 @@ internal sealed partial class DeckWriter
     private readonly string language;
     private readonly GeneratedTexts texts;
     private Slide? current;
+
+    // Where the footnotes of a slide that fills its layout's placeholders go: below the lowest of them.
+    private long? footnoteTop;
 
     // The footnotes of the slide being fitted or written; the content area leaves room for them at its foot.
     private IReadOnlyList<SlideFootnote> footnotes = [];
@@ -115,8 +118,8 @@ internal sealed partial class DeckWriter
     /// <paramref name="labels"/> the categories of status labels, from front matter; <paramref name="texts"/> the texts of
     /// the document language, such as the word before a chart's source; <paramref name="roles"/> what the template's
     /// layouts and placeholders are for (the built-in master declares its own); <paramref name="footerPattern"/> the text of
-    /// the footer placeholder instead of <paramref name="footerText"/>, with the fields of <paramref name="deckTitle"/> and
-    /// <paramref name="author"/>; <paramref name="templateName"/> how errors name the template.
+    /// the footer placeholder instead of <paramref name="footerText"/>, with the fields of the deck's title (given to
+    /// <see cref="Write"/>) and <paramref name="author"/>; <paramref name="templateName"/> how errors name the template.
     /// </remarks>
     public DeckWriter(
         PresentationDocument package,
@@ -135,12 +138,10 @@ internal sealed partial class DeckWriter
         GeneratedTexts? texts = null,
         PptxTemplateRoles? roles = null,
         string? footerPattern = null,
-        string? deckTitle = null,
         string? author = null,
         string templateName = "the template")
     {
         this.footerPattern = footerPattern;
-        this.deckTitle = deckTitle;
         this.author = author;
         this.templateName = templateName;
         this.notes = notes ?? new GenerationNotes();
@@ -199,9 +200,26 @@ internal sealed partial class DeckWriter
             : BuiltInTableStyleId;
     }
 
-    /// <summary>Writes the slides, fitted, with their speaker notes, transitions and builds; returns how many were written.</summary>
-    public int Write(IReadOnlyList<Slide> slides)
+    /// <summary>Whether the template numbers its chapters, unless front matter says otherwise.</summary>
+    public bool NumbersChapters => this.roles.Declared.NumberChapters;
+
+    /// <summary>
+    /// The placeholders the layout named <paramref name="name"/> (case-insensitive, as <c>layout="…"</c> finds it) offers
+    /// a slide that fills them, in the order they are filled; <see langword="null"/> on the built-in master or for a
+    /// layout the template lacks, which the writer reports.
+    /// </summary>
+    public IReadOnlyList<SlotKind>? Slots(string name) =>
+        this.builtIn || this.layouts.FirstOrDefault(l => string.Equals(LayoutName(l), name, StringComparison.OrdinalIgnoreCase)) is not { } layout
+            ? null
+            : [.. this.SlotsOf(layout).Select(s => s.Kind)];
+
+    /// <summary>
+    /// Writes the slides, fitted, with their speaker notes, transitions and builds; returns how many were written.
+    /// <paramref name="deckTitle"/> is the deck's title, for the footer pattern.
+    /// </summary>
+    public int Write(IReadOnlyList<Slide> slides, string? deckTitle = null)
     {
+        this.deckTitle = deckTitle;
         var number = 0;
         var speakerNotes = new List<(SlidePart Slide, IReadOnlyList<TextParagraph> Notes)>();
         foreach (var (slide, step) in slides.SelectMany(this.Fit))
@@ -219,6 +237,7 @@ internal sealed partial class DeckWriter
                 ContentSlide content => this.WriteContentSlide(content, step),
                 VisualSlide visual => this.WriteVisualSlide(visual, step),
                 FlowSlide flow => this.WriteFlowSlide(flow, step),
+                PlaceholderSlide placeholders => this.WritePlaceholderSlide(placeholders),
                 _ => throw new InvalidOperationException("Unknown kind of slide."),
             };
 
@@ -273,6 +292,11 @@ internal sealed partial class DeckWriter
         }
 
         this.Title(canvas, slide.Title, titleInBody ? bodies[0] : null);
+        if (slide.Number is { } number)
+        {
+            this.ChapterNumber(canvas, layout, number);
+        }
+
         if (slide.Subtitle.Count == 0)
         {
             return canvas;
@@ -291,6 +315,104 @@ internal sealed partial class DeckWriter
         }
 
         return canvas;
+    }
+
+    // "01", "02", …: in the layout's chapter-number placeholder, else in a text box above the title, in the heading font
+    // at the subtitle's size and in the accent colour.
+    private void ChapterNumber(Canvas canvas, SlideLayoutPart layout, int number)
+    {
+        var text = number.ToString("00", CultureInfo.InvariantCulture);
+        if (this.roles.Placeholders(layout).ChapterNumber is { } placeholder)
+        {
+            canvas.Add(Placeholder(canvas, placeholder, "Chapter Number", [new A.Paragraph(new A.Run(new A.RunProperties(), new A.Text(text)), new A.EndParagraphRunProperties())]));
+            return;
+        }
+
+        var subtitle = FindPlaceholder(layout, p => p.Type?.Value == P.PlaceholderValues.SubTitle && !this.roles.IsExcluded(layout, p)) ?? this.Bodies(layout).FirstOrDefault();
+        var size = this.LevelSize(layout, subtitle, 1) ?? TextSize;
+        var title = this.TitleArea(layout);
+        var height = LineHeight(size) + TextInsets;
+        var paragraph = new A.Paragraph(
+            new A.ParagraphProperties(new A.NoBullet()) { LeftMargin = 0, Indent = 0 },
+            this.Run(canvas, new TextRun(text, RunStyle.None), size, font: "+mj-lt", color: this.palette.Accent),
+            new A.EndParagraphRunProperties { FontSize = size });
+        canvas.Add(TextBoxShape(canvas, new Rect(title.X, Math.Max(title.Y - height, 0), title.W, height), [paragraph]));
+    }
+
+    // The placeholders of a layout a placeholder slide fills, in order: the text ones (the subtitle first, then the
+    // bodies in their order, `obj` and untyped ones among them, which also take visuals), then pictures, then charts.
+    private List<(P.PlaceholderShape Shape, SlotKind Kind)> SlotsOf(SlideLayoutPart layout)
+    {
+        var found = this.roles.Placeholders(layout);
+        var slots = new List<(P.PlaceholderShape Shape, SlotKind Kind)>();
+        if (found.Subtitle is { } subtitle && !found.Bodies.Contains(subtitle))
+        {
+            slots.Add((subtitle, SlotKind.Text));
+        }
+
+        slots.AddRange(found.Bodies.Select(b => (b, b.Type is null || b.Type.Value == P.PlaceholderValues.Object ? SlotKind.Object : SlotKind.Text)));
+        slots.AddRange(found.Pictures.Select(p => (p, SlotKind.Picture)));
+        slots.AddRange(found.Charts.Select(c => (c, SlotKind.Chart)));
+        return slots;
+    }
+
+    // Each text part in its placeholder, shrunk on its own; images cropped into picture placeholders, charts in chart
+    // placeholders, anything in an `obj` body fitted into its box. Placeholders left over are not written.
+    private Canvas WritePlaceholderSlide(PlaceholderSlide slide)
+    {
+        var layout = this.LayoutOf(slide, this.contentLayout);
+        var canvas = this.NewSlide(layout);
+        this.Title(canvas, slide.Title);
+        var slots = this.SlotsOf(layout);
+        var levels = this.roles.Declared.TextLevels;
+        long bottom = 0;
+        foreach (var (item, index) in PlaceholderFill.Distribute(slide.Items, [.. slots.Select(s => s.Kind)])?.FirstOrDefault() ?? [])
+        {
+            var (placeholder, kind) = slots[index];
+            var box = this.PlaceholderBox(layout, placeholder);
+            bottom = Math.Max(bottom, box.Bottom);
+            if (item.Text is { } text)
+            {
+                var (step, scale, _) = this.PlaceholderFit(layout, placeholder, text);
+                var properties = step == 0 ? null : new A.BodyProperties(new A.NormalAutoFit { FontScale = scale });
+                canvas.AddText(Placeholder(canvas, placeholder, "Text", text.Select(p => this.Paragraph(canvas, p, explicitBullets: this.listBullets, null, levels: levels)), null, properties), text);
+                continue;
+            }
+
+            var visual = item.Visual!;
+            canvas.Building(visual.Build, () => kind switch
+            {
+                SlotKind.Picture => this.PicturePlaceholder(canvas, visual.Image!, placeholder, box, LayoutName(layout)),
+                SlotKind.Chart => this.Chart(canvas, visual.Chart!, box, placeholder),
+                _ => visual.Table is { } table ? this.Table(canvas, table, box with { H = 0 })
+                    : visual.Image is { } image ? box with { H = this.Images(canvas, [image], box) }
+                    : visual.Chart is { } chart ? this.Chart(canvas, chart, box)
+                    : this.Drawing(canvas, visual.Drawing!, box, visual.Placement),
+            });
+        }
+
+        this.footnoteTop = bottom > 0 ? bottom : null;
+        return canvas;
+    }
+
+    // The box of a layout's placeholder: its own, else that of the master's placeholder it inherits from, else the content area.
+    private Rect PlaceholderBox(SlideLayoutPart layout, P.PlaceholderShape placeholder) =>
+        Bounds(layout.SlideLayout?.CommonSlideData?.ShapeTree, p => ReferenceEquals(p, placeholder))
+        ?? Bounds(layout.SlideMasterPart?.SlideMaster?.CommonSlideData?.ShapeTree, m =>
+            placeholder.Index is { } index ? m.Index?.Value == index.Value : m.Type?.Value == (placeholder.Type?.Value ?? P.PlaceholderValues.Body))
+        ?? this.FullContentArea(layout);
+
+    // The step a text part is shrunk by in its placeholder (as text slides: 2 pt per step, down to 12 pt), the font scale
+    // that gives, and whether it then fits.
+    private (int Step, int Scale, bool Fits) PlaceholderFit(SlideLayoutPart layout, P.PlaceholderShape placeholder, IReadOnlyList<TextParagraph> text)
+    {
+        var box = this.PlaceholderBox(layout, placeholder);
+        var size = this.LevelSize(layout, placeholder, 1) ?? TextSize;
+        var maxStep = Math.Max((size - MinTextSize) / SizeStep, 0);
+        int Size(int step) => Math.Max(size - (step * SizeStep), Math.Min(MinTextSize, size));
+        var fits = Enumerable.Range(0, maxStep + 1).Cast<int?>().FirstOrDefault(s => EstimateHeight(text, Size(s!.Value), box.W) <= box.H);
+        var step = fits ?? maxStep;
+        return (step, (int)(Size(step) * 100000L / size), fits is not null);
     }
 
     // Shrunk by `step`: the placeholder scales its text (normAutofit), so PowerPoint keeps it fitted when edited.
@@ -466,9 +588,11 @@ internal sealed partial class DeckWriter
         var area = this.ContentArea(canvas.Part.SlideLayoutPart!);
         var paragraphs = FootnoteParagraphs(slide.Footnotes);
         var color = this.PaintsDark(slide) ? SlideColor.White : this.palette.Text;
+        var top = (this.footnoteTop ?? area.Bottom) + (Gap / 2);
+        this.footnoteTop = null;
         canvas.Add(TextBoxShape(
             canvas,
-            new Rect(area.X, area.Bottom + (Gap / 2), area.W, EstimateHeight(paragraphs, FootnoteSize, area.W)),
+            new Rect(area.X, top, area.W, EstimateHeight(paragraphs, FootnoteSize, area.W)),
             paragraphs.Select(p => this.Paragraph(canvas, p, explicitBullets: true, FootnoteSize, color: color))));
     }
 
@@ -1017,17 +1141,7 @@ internal sealed partial class DeckWriter
     private static P.Shape Placeholder(Canvas canvas, P.PlaceholderShape layoutPlaceholder, string name, IEnumerable<A.Paragraph> paragraphs, Rect? box = null, A.BodyProperties? bodyProperties = null)
     {
         var id = canvas.NextId();
-        var placeholder = new P.PlaceholderShape();
-        if (layoutPlaceholder.Type is { } type)
-        {
-            placeholder.Type = type.Value;
-        }
-
-        if (layoutPlaceholder.Index is { } index)
-        {
-            placeholder.Index = index.Value;
-        }
-
+        var placeholder = Reference(layoutPlaceholder);
         var body = new P.TextBody(new OpenXmlElement[] { bodyProperties ?? new A.BodyProperties(), new A.ListStyle() }.Concat(paragraphs));
         if (!body.Elements<A.Paragraph>().Any())
         {
@@ -1280,7 +1394,63 @@ internal sealed partial class DeckWriter
             fit = Math.Max(placed.W / (naturalWidth * EmuPerPixel * visibleWidth), placed.H / (naturalHeight * EmuPerPixel * visibleHeight));
         }
 
-        // A converted SVG is drawn as a vector by PowerPoint, so only its PNG would blur.
+        this.Enlarged(image, fit);
+        var relationshipId = this.ImageRelationship(canvas, image, info);
+        var id = canvas.NextId();
+        canvas.Add(new P.Picture(
+            new P.NonVisualPictureProperties(
+                new P.NonVisualDrawingProperties { Id = id, Name = "Picture " + id, Description = XmlSafe(image.AltText) },
+                new P.NonVisualPictureDrawingProperties(new A.PictureLocks { NoChangeAspect = true }),
+                new P.ApplicationNonVisualDrawingProperties()),
+            BlipFill(this.Blip(canvas, image, relationshipId), crop),
+            new P.ShapeProperties(
+                placed.Transform(),
+                new A.PresetGeometry(new A.AdjustValueList()) { Preset = attributes.Round ? A.ShapeTypeValues.Ellipse : A.ShapeTypeValues.Rectangle })));
+        return placed;
+    }
+
+    // An image in a picture placeholder: cropped to the placeholder's shape around its focus (the centre by default),
+    // without a position of its own, so that it takes the layout's box. Cutting off more than a tenth is reported.
+    private Rect PicturePlaceholder(Canvas canvas, SlideImage image, P.PlaceholderShape placeholder, Rect box, string? layout)
+    {
+        var info = ImageInfo.Read(image.Resource.Content.Span)
+            ?? throw new DocumentConversionException(Format.Pptx, $"The image '{image.Resource.Path}' is not a PNG, JPEG or GIF.");
+        var (naturalWidth, naturalHeight) = image.Natural ?? (info.Width, info.Height);
+        var crop = image.Attributes.Crop(naturalWidth, naturalHeight, box.H > 0 ? box.W / (double)box.H : 1);
+        var (visibleWidth, visibleHeight) = crop.Visible;
+        var line = this.current?.Line ?? 0;
+        if (Math.Max(1 - visibleWidth, 1 - visibleHeight) > 0.1)
+        {
+            var side = visibleWidth < visibleHeight ? "width" : "height";
+            var share = Math.Round(100 * Math.Max(1 - visibleWidth, 1 - visibleHeight));
+            this.notes.Add(
+                NoteCodes.ImageCropped,
+                line,
+                $"The image '{image.Resource.Path}' is cut by {share.ToString(CultureInfo.InvariantCulture)} % of its {side} to fill the picture placeholder of the layout '{layout}'. "
+                + "Use an image of the placeholder's shape, or focus=top, bottom, left or right to choose the part that stays.");
+        }
+
+        if (image.Scale is not null)
+        {
+            this.notes.Add(NoteCodes.AttributeIgnored, line, $"The scale of the image '{image.Resource.Path}' has no effect: it fills the picture placeholder of the layout '{layout}'.");
+        }
+
+        this.Enlarged(image, Math.Max(box.W / (naturalWidth * EmuPerPixel * visibleWidth), box.H / (naturalHeight * EmuPerPixel * visibleHeight)));
+        var relationshipId = this.ImageRelationship(canvas, image, info);
+        var id = canvas.NextId();
+        canvas.Add(new P.Picture(
+            new P.NonVisualPictureProperties(
+                new P.NonVisualDrawingProperties { Id = id, Name = "Picture " + id, Description = XmlSafe(image.AltText) },
+                new P.NonVisualPictureDrawingProperties(new A.PictureLocks { NoGrouping = true, NoChangeAspect = true }),
+                new P.ApplicationNonVisualDrawingProperties(Reference(placeholder))),
+            BlipFill(this.Blip(canvas, image, relationshipId), crop),
+            new P.ShapeProperties()));
+        return box;
+    }
+
+    // A converted SVG is drawn as a vector by PowerPoint, so only its PNG would blur.
+    private void Enlarged(SlideImage image, double fit)
+    {
         if (fit > MaxSharpUpscale && image.Scale is null && image.Vector is null)
         {
             this.notes.Add(
@@ -1288,7 +1458,11 @@ internal sealed partial class DeckWriter
                 this.current?.Line ?? 0,
                 $"The image '{image.Resource.Path}' is drawn at {fit.ToString("0.#", CultureInfo.InvariantCulture)} times its size and may look blurred. Use a larger image, or \"scale=1\" in its title to keep its size.");
         }
+    }
 
+    // The relationship from the slide to the image's part, which is added once per deck.
+    private string ImageRelationship(Canvas canvas, SlideImage image, ImageInfo info)
+    {
         if (!this.images.TryGetValue(image.Resource, out var part))
         {
             part = canvas.Part.AddImagePart(info.Format switch
@@ -1302,19 +1476,25 @@ internal sealed partial class DeckWriter
             this.images[image.Resource] = part;
         }
 
-        var relationshipId = canvas.Part.Parts.Where(p => p.OpenXmlPart == part).Select(p => p.RelationshipId).FirstOrDefault()
+        return canvas.Part.Parts.Where(p => p.OpenXmlPart == part).Select(p => p.RelationshipId).FirstOrDefault()
             ?? canvas.Part.CreateRelationshipToPart(part);
-        var id = canvas.NextId();
-        canvas.Add(new P.Picture(
-            new P.NonVisualPictureProperties(
-                new P.NonVisualDrawingProperties { Id = id, Name = "Picture " + id, Description = XmlSafe(image.AltText) },
-                new P.NonVisualPictureDrawingProperties(new A.PictureLocks { NoChangeAspect = true }),
-                new P.ApplicationNonVisualDrawingProperties()),
-            BlipFill(this.Blip(canvas, image, relationshipId), crop),
-            new P.ShapeProperties(
-                placed.Transform(),
-                new A.PresetGeometry(new A.AdjustValueList()) { Preset = attributes.Round ? A.ShapeTypeValues.Ellipse : A.ShapeTypeValues.Rectangle })));
-        return placed;
+    }
+
+    // A placeholder of the slide that inherits from `layoutPlaceholder`: its type and index.
+    private static P.PlaceholderShape Reference(P.PlaceholderShape layoutPlaceholder)
+    {
+        var placeholder = new P.PlaceholderShape();
+        if (layoutPlaceholder.Type is { } type)
+        {
+            placeholder.Type = type.Value;
+        }
+
+        if (layoutPlaceholder.Index is { } index)
+        {
+            placeholder.Index = index.Value;
+        }
+
+        return placeholder;
     }
 
     // The crop as `a:srcRect`, in thousandths of a percent of each side; none when nothing is cut off.
@@ -1362,12 +1542,13 @@ internal sealed partial class DeckWriter
     }
 
     // A native chart filling the box's width, at most about 16:10 tall, so that it neither stretches nor squashes. Its
-    // source takes a line off that height, in a text box under it in the table font at the smallest table size.
-    private Rect Chart(Canvas? canvas, ChartSpec chart, Rect box)
+    // source takes a line off that height, in a text box under it in the table font at the smallest table size. In a
+    // chart `placeholder` it fills the placeholder's box, less the source's line.
+    private Rect Chart(Canvas? canvas, ChartSpec chart, Rect box, P.PlaceholderShape? placeholder = null)
     {
         var source = chart.Source is { } text ? new TextParagraph([new TextRun($"{this.texts.Source}: {text}", RunStyle.None)]) : null;
         var sourceHeight = source is null ? 0 : EstimateHeight([source], MinTableSize, box.W);
-        var placed = box with { H = Math.Max(Math.Min(box.H - sourceHeight, box.W * 5 / 8), 0) };
+        var placed = box with { H = Math.Max(placeholder is null ? Math.Min(box.H - sourceHeight, box.W * 5 / 8) : box.H - sourceHeight, 0) };
         if (canvas is null)
         {
             return placed with { H = placed.H + sourceHeight };
@@ -1378,8 +1559,8 @@ internal sealed partial class DeckWriter
         canvas.Add(new P.GraphicFrame(
             new P.NonVisualGraphicFrameProperties(
                 new P.NonVisualDrawingProperties { Id = id, Name = "Chart " + id },
-                new P.NonVisualGraphicFrameDrawingProperties(),
-                new P.ApplicationNonVisualDrawingProperties()),
+                placeholder is null ? new P.NonVisualGraphicFrameDrawingProperties() : new P.NonVisualGraphicFrameDrawingProperties(new A.GraphicFrameLocks { NoGrouping = true }),
+                placeholder is null ? new P.ApplicationNonVisualDrawingProperties() : new P.ApplicationNonVisualDrawingProperties(Reference(placeholder))),
             new P.Transform(new A.Offset { X = placed.X, Y = placed.Y }, new A.Extents { Cx = placed.W, Cy = placed.H }),
             new A.Graphic(new A.GraphicData(new DocumentFormat.OpenXml.Drawing.Charts.ChartReference { Id = relationshipId }) { Uri = ChartGraphicUri })));
 

@@ -104,6 +104,7 @@ The shared syntax and rules are in
 | `lang` | a language tag such as `en`, `de`, `de-CH` | all |
 | `transition` | `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut`, `morph` | all — a deck's key: checked, then ignored |
 | `build` | `none`, `lists` | all — a deck's key: checked, then ignored |
+| `numberChapters` | `true`, `false` | all — a deck's key: checked, then ignored; heading numbers in PDFs are not generated |
 
 ## Design
 
@@ -296,7 +297,9 @@ Markdown written for the PPTX generator's
 
 - **Heading attributes** at the end of a `##` heading (`{.dark kicker="Label" layout="Name"}`) and of
   a `#` heading (`{.closing}`) are checked and dropped; the kicker is not shown. So is
-  `transition="…"`.
+  `transition="…"`. A `---` that cuts a `layout="…"` slide into
+  [placeholders](wwosik.DocLibs.DocumentGeneration.Pptx.md#layouts-across-placeholders) stays
+  what a `---` is everywhere in a PDF.
 - **Speaker notes** (`::: notes` … `:::` at the top level) are left out, with no option to print
   them; a `::: notes` inside another block throws, as in decks.
 - **Build markers** (a paragraph such as `{.build}`, `{.frag .exit}` or `{.emphasize}`) are checked

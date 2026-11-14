@@ -60,7 +60,7 @@ public class PresentingTests
             "---\ntitle: Plan\n---\n# Plan\n\nIntro.\n\n## One\n\nText.\n\n- A\n- B\n\n::: panel\nInside.\n\nMore.\n:::\n\n"
             + "> [!NOTE]\n> Noted.\n\n| A |\n| - |\n| 1 |\n");
         var built = Generate(
-            "---\ntitle: Plan\nbuild: lists\n---\n# Plan\n\n{.build=fly}\n\nIntro.\n\n## One\n\n{.frag}\n\nText.\n\n{.build .exit}\n\n- A\n- B\n\n"
+            "---\ntitle: Plan\nbuild: lists\nnumberChapters: true\n---\n# Plan\n\n{.build=fly}\n\nIntro.\n\n## One\n\n{.frag}\n\nText.\n\n{.build .exit}\n\n- A\n- B\n\n"
             + "{.emphasize}\n\n::: panel\nInside.\n\n{.frag}\n\nMore.\n:::\n\n> [!NOTE]\n> {.build=wipe}\n>\n> Noted.\n\n{.exit}\n\n| A |\n| - |\n| 1 |\n");
 
         Assert.Equal(WithoutId(plain), WithoutId(built));

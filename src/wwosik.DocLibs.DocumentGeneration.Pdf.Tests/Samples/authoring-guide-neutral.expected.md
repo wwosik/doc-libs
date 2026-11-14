@@ -172,6 +172,7 @@ author: Planning team
 | `orientation` | `portrait` or `landscape`. Default `portrait`. |
 | `transition` | The transition between slides in a deck: `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut`, `morph`. A PDF accepts it and ignores it. |
 | `build` | `lists` builds every list of a deck item by item, `none` does not. A PDF accepts it and ignores it. |
+| `numberChapters` | `true` or `false`: chapter numbers on a deck's section dividers. A PDF accepts it and ignores it. |
 | `labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral` | Status labels for decks, separated by `;`. A PDF accepts them and shows the labels as code. |
 
 An unknown key, a key given twice or an invalid value is an error that lists the valid keys.

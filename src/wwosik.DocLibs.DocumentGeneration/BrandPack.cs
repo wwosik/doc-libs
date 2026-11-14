@@ -193,6 +193,7 @@ internal sealed record BrandManifest(
                 "guides" => PptxContentArea.Guides,
                 var other => throw new InvalidDataException($"{BrandPack.ManifestFile}: 'pptx.contentArea' is '{other}'; expected 'placeholders' or 'guides'."),
             },
+            NumberChapters = pptx.NumberChapters ?? false,
         };
 
     // One layout's placeholders: `body1`, `body2`, … give the order of its bodies; plain `body`s come first, as listed.
@@ -356,7 +357,8 @@ internal sealed record BrandManifest(
         Dictionary<string, Dictionary<string, string>?>? Placeholders = null,
         TextLevelsSection? TextLevels = null,
         string? Footer = null,
-        string? ContentArea = null);
+        string? ContentArea = null,
+        bool? NumberChapters = null);
 
     internal sealed record LayoutsSection(
         string? Title,

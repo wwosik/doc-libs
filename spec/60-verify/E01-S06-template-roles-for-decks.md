@@ -16,7 +16,7 @@ exist without a caller template.
 
 This story builds the model, its discovery in the template and the three features that work on
 their own: text levels, footer pattern and grid. The Markdown that puts content into the new
-roles comes in [E01-S07](../55-in-progress/doc-3/E01-S07-chapter-numbers-and-layouts-across-placeholders.md) (numbered
+roles comes in [E01-S07](E01-S07-chapter-numbers-and-layouts-across-placeholders.md) (numbered
 chapter dividers, `{layout="…"}` across placeholders) and E02-S05 (slide kinds).
 
 ## Context

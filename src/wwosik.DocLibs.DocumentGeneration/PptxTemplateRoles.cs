@@ -38,6 +38,13 @@ public sealed partial record PptxTemplateRoles
     /// <summary>Where the content of slides is placed. Default <see cref="PptxContentArea.Placeholders"/>.</summary>
     public PptxContentArea ContentArea { get; init; }
 
+    /// <summary>
+    /// Whether every section divider after the cover gets its chapter number ("01", "02", …): in the section layout's
+    /// <see cref="PlaceholderRole.ChapterNumber"/> placeholder, else in a text box above its title. Front matter
+    /// <c>numberChapters</c> overrides it. Default <see langword="false"/>.
+    /// </summary>
+    public bool NumberChapters { get; init; }
+
     /// <summary>The fields a <see cref="FooterPattern"/> can hold.</summary>
     internal static IReadOnlyList<string> FooterFields { get; } = ["footer", "title", "chapter", "author"];
 
@@ -45,10 +52,11 @@ public sealed partial record PptxTemplateRoles
     public bool Equals(PptxTemplateRoles? other) =>
         other is not null && this.Layouts == other.Layouts
         && (this.Placeholders is null ? other.Placeholders is null : other.Placeholders is not null && this.Placeholders.SequenceEqual(other.Placeholders))
-        && this.TextLevels == other.TextLevels && this.FooterPattern == other.FooterPattern && this.ContentArea == other.ContentArea;
+        && this.TextLevels == other.TextLevels && this.FooterPattern == other.FooterPattern && this.ContentArea == other.ContentArea
+        && this.NumberChapters == other.NumberChapters;
 
     /// <inheritdoc/>
-    public override int GetHashCode() => HashCode.Combine(this.Layouts, this.Placeholders?.Count, this.TextLevels, this.FooterPattern, this.ContentArea);
+    public override int GetHashCode() => HashCode.Combine(this.Layouts, this.Placeholders?.Count, this.TextLevels, this.FooterPattern, this.ContentArea, this.NumberChapters);
 
     /// <summary>What is wrong with the roles, as the property and a reason; <see langword="null"/> if nothing is.</summary>
     internal (string Property, string Reason)? Problem()

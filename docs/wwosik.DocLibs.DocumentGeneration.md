@@ -182,7 +182,8 @@ paths relative to the pack.
     "placeholders": { "Quote": { "Text Placeholder 3": "byline", "Picture Placeholder 5": "decorative" } },
     "textLevels": { "heading": 1, "paragraph": 2, "bullet": 3 },
     "footer": "{footer} | {chapter}",
-    "contentArea": "guides"
+    "contentArea": "guides",
+    "numberChapters": true
   }
 }
 ```
@@ -199,7 +200,8 @@ name to its placeholders' shape names and their roles: `subtitle`, `byline`, `ch
 `body`, `picture`, `chartTitle`, `chartUnit`, `chartSource` or `decorative` — `body1`, `body2`, …
 give several bodies their order, after any plain `body`; `textLevels` needs all three of `heading`,
 `paragraph` and `bullet` (1–9); `footer` is the footer pattern; `contentArea` is `placeholders`
-(the default) or `guides`.
+(the default) or `guides`; `numberChapters` (`true` or `false`, the default) numbers the section
+dividers.
 
 | Load from | Call |
 | --------- | ---- |
@@ -268,6 +270,7 @@ if (result.HasNotes)
 | `slide-shrunk` | PPTX | A slide's text or table had to be set at the smallest size to fit; smaller steps above it are not reported, nor are the parts of a split slide |
 | `slide-overfull` | PPTX | Something runs past the content area even at the smallest size: one list item, table row or block too big for a slide of its own |
 | `image-enlarged` | PPTX | An image was drawn at more than twice its natural size; not when its title gives `scale=`, nor for a converted SVG, which PowerPoint draws as a vector |
+| `image-cropped` | PPTX | An image filling a layout's picture placeholder (`layout="…"`) was cut by more than a tenth of its width or height to the placeholder's shape |
 | `code-not-drawn` | PPTX, PDF | A renderer declined a block in its own language and said why, such as `MermaidRenderer` for a diagram type it does not draw; blocks in languages no renderer claims stay code silently |
 | `html-as-text` | PPTX, PDF | Raw HTML, a block or inline, was written as text; HTML comments are left out silently |
 | `character-replaced` | PDF | `PdfOptions.ReplaceUnsupported` replaced a character the fonts lack; once per character, without a line |

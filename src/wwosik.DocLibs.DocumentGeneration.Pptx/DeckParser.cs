@@ -20,7 +20,15 @@ namespace wwosik.DocLibs.DocumentGeneration.Pptx;
 /// Turns Markdown into slides: the cover from the first <c>#</c>, a section divider per later <c>#</c>, one slide per
 /// <c>##</c>, and a slide per table or image. A <c>##</c> section that uses layouts becomes one <see cref="FlowSlide"/>.
 /// </summary>
-internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions options, Brand brand, int lineOffset, GenerationNotes notes, GeneratedTexts texts)
+internal sealed partial class DeckParser(
+    MarkdownDocument document,
+    PptxOptions options,
+    Brand brand,
+    int lineOffset,
+    GenerationNotes notes,
+    GeneratedTexts texts,
+    bool numberChapters,
+    Func<string, IReadOnlyList<SlotKind>?>? layoutSlots)
 {
     private static readonly MarkdownPipeline Pipeline = BuildPipeline();
 
@@ -29,6 +37,12 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
     // The footnotes referenced in the current section, numbered from 1 in the order of their first reference.
     private readonly Dictionary<Footnote, int> footnotes = [];
     private bool hasCover;
+
+    // The number of the latest section divider, when chapters are numbered.
+    private int chapters;
+
+    // Whether the section being walked fills a layout with picture placeholders, where every image is cropped.
+    private bool pictureSlots;
 
     // The build marker of the block being walked, and that block, while it is walked; see WalkMarked.
     private BuildMark? build;
@@ -41,12 +55,22 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
     /// <paramref name="brand"/> is the brand code-block renderers draw in; <paramref name="lineOffset"/> the lines of
     /// front matter cut off the Markdown, so renderers get the block's line in the original; <paramref name="notes"/>
     /// collects what the writer should know, such as HTML shown as text; <paramref name="texts"/> are the texts of the
-    /// document language, for code-block renderers.
+    /// document language, for code-block renderers; with <paramref name="numberChapters"/> every section divider gets
+    /// its number; <paramref name="layoutSlots"/> gives the placeholders a layout named by <c>layout="…"</c> offers
+    /// (<see langword="null"/>: unknown), which decides whether a section fills them.
     /// </remarks>
     public static IReadOnlyList<Slide> Parse(
-        MarkdownDocument document, PptxOptions options, Brand? brand = null, int lineOffset = 0, GenerationNotes? notes = null, GeneratedTexts? texts = null)
+        MarkdownDocument document,
+        PptxOptions options,
+        Brand? brand = null,
+        int lineOffset = 0,
+        GenerationNotes? notes = null,
+        GeneratedTexts? texts = null,
+        bool numberChapters = false,
+        Func<string, IReadOnlyList<SlotKind>?>? layoutSlots = null)
     {
-        var parser = new DeckParser(document, options, brand ?? Brand.Neutral, lineOffset, notes ?? new GenerationNotes(), texts ?? GeneratedTexts.English);
+        var parser = new DeckParser(
+            document, options, brand ?? Brand.Neutral, lineOffset, notes ?? new GenerationNotes(), texts ?? GeneratedTexts.English, numberChapters, layoutSlots);
         HeadingBlock? heading = null;
         var blocks = new List<Block>();
         var markdown = Markdown.Parse(document.Markdown, Pipeline);
@@ -356,13 +380,32 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             throw Error("{.closing} goes on a '#' heading: the closing slide.");
         }
 
-        // `layout="…"` alone keeps a plain slide plain, on the layout asked for.
+        // `layout="…"` with `---` fills the layout's placeholders, which have no room for flow blocks.
+        var split = !isTitle && attributes?.Layout is not null && blocks.Any(b => b is ThematicBreakBlock);
+        if (split && (attributes is { Dark: true } or { Kicker: not null } || blocks.Any(this.UsesLayouts)))
+        {
+            throw Error(
+                $"layout=\"{attributes!.Layout}\" with '---' takes text, images, charts, tables and diagrams (the slide '{PlainText(title)}' at line {this.LineOf(heading)}); "
+                + "use a flow slide, without '---', for containers, alerts, .dark and kicker=\"…\".");
+        }
+
+        // `layout="…"` alone keeps a plain slide plain, on the layout asked for, unless it fills the layout's placeholders.
         if (attributes is not ({ Dark: true } or { Kicker: not null }) && (isTitle || !blocks.Any(this.UsesLayouts)))
         {
             var closing = attributes?.Closing ?? false;
-            var section = new SectionBuilder(this, this.slides, title, isTitle, isTitle && this.hasCover && !closing, attributes?.Layout, closing);
+            var isSection = isTitle && this.hasCover && !closing;
+            var section = new SectionBuilder(this, this.slides, title, isTitle, isSection, attributes?.Layout, closing, isSection && numberChapters ? ++this.chapters : null);
             this.hasCover |= isTitle && !closing;
-            this.WalkMarked(blocks, section, section: true);
+            if (!isTitle && attributes?.Layout is { } layout
+                && (split || (layoutSlots?.Invoke(layout) is { } slots && slots.Any(k => k is SlotKind.Picture or SlotKind.Chart))))
+            {
+                this.Placeholders(title, blocks, layout, split, section);
+            }
+            else
+            {
+                this.WalkMarked(blocks, section, section: true);
+            }
+
             section.Finish();
             return Transition(attributes);
         }
@@ -374,6 +417,50 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         this.slides.Add(new FlowSlide(title, attributes?.Kicker, attributes?.Dark ?? false, flow.Finish()) { Layout = attributes?.Layout });
         return Transition(attributes);
     }
+
+    // The section's text parts (cut at top-level `---`) and visuals into the placeholders of `layout`. Without `---`
+    // only when each of them has a placeholder there and an image or chart is among them; otherwise it becomes the
+    // slides it always did, through `section`.
+    private void Placeholders(List<TextRun> title, List<Block> blocks, string layout, bool split, SectionBuilder section)
+    {
+        var slots = layoutSlots?.Invoke(layout);
+        var collector = new PlaceholderCollector(this);
+        this.pictureSlots = slots?.Contains(SlotKind.Picture) ?? false;
+        var part = new List<Block>();
+        foreach (var block in blocks.Append(new ThematicBreakBlock(null!)))
+        {
+            if (block is ThematicBreakBlock)
+            {
+                this.WalkMarked(part, collector, section: true);
+                collector.NextPart();
+                part = [];
+            }
+            else
+            {
+                part.Add(block);
+            }
+        }
+
+        this.pictureSlots = false;
+        var items = collector.Items();
+        var unplaceable = slots is null ? null : PlaceholderFill.Unplaceable(items, slots);
+        if (split && unplaceable is not null)
+        {
+            throw Error(
+                $"The layout '{layout}' has no placeholder for {unplaceable.Kind} (the slide '{PlainText(title)}'). "
+                + "Choose a layout that has one, or move it to a slide of its own.");
+        }
+
+        if (split || (slots is not null && unplaceable is null && items.Any(i => i.Visual is { Image: not null } or { Chart: not null })))
+        {
+            section.Placeholders(new PlaceholderSlide(title, items) { Layout = layout });
+            return;
+        }
+
+        collector.Replay(section);
+    }
+
+    private static string PlainText(IReadOnlyList<TextRun> runs) => string.Concat(runs.Select(r => r.IsBreak ? " " : r.Text)).Trim();
 
     private static SlideTransition? Transition(HeadingAttributes? attributes) =>
         attributes?.Transition is { } name ? Transitions.Parse(name) : null;
@@ -1061,7 +1148,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             throw Error($"The image '{url}' at line {this.LineOf(link)} has scale both in its title and in its attributes '{attributes.Text}'; keep one.");
         }
 
-        this.Ignored(link, attributes, attributes.Focus is not null && attributes.Fit == ImageFit.Contain && !attributes.Round, "focus", "it is not cropped; add fit=cover or .round");
+        this.Ignored(link, attributes, attributes.Focus is not null && attributes.Fit == ImageFit.Contain && !attributes.Round && !this.pictureSlots, "focus", "it is not cropped; add fit=cover or .round");
         this.Ignored(link, attributes, attributes.Scale is not null && attributes.Fit == ImageFit.Cover, "scale", "with fit=cover it fills its box");
         var caption = (link.Title is { } words && CaptionPattern().IsMatch(words)) || attributes.Caption;
         return this.Placeable(new SlideImage(resource, AltText(link), scale ?? attributes.Scale, caption) { Attributes = attributes });
@@ -1237,8 +1324,10 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
     /// Collects the text and visuals of one heading's section and turns them into slides; each paragraph and visual
     /// takes the build marker of the block it comes from.
     /// </summary>
-    private sealed class SectionBuilder(DeckParser parser, List<Slide> slides, IReadOnlyList<TextRun> title, bool isTitle, bool isSection, string? layout, bool closing) : ITarget
+    private sealed class SectionBuilder(
+        DeckParser parser, List<Slide> slides, IReadOnlyList<TextRun> title, bool isTitle, bool isSection, string? layout, bool closing, int? number) : ITarget
     {
+        private bool done;
         private List<TextParagraph> above = [];
         private List<TextParagraph> below = [];
         private SlideTable? table;
@@ -1258,7 +1347,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         {
             if (this.titlePending)
             {
-                slides.Add(new TitleSlide(title, this.above, isSection) { Layout = layout, Closing = closing });
+                slides.Add(new TitleSlide(title, this.above, isSection) { Layout = layout, Closing = closing, Number = number });
                 this.above = [];
                 this.titlePending = false;
             }
@@ -1275,11 +1364,23 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             this.placement = newPlacement ?? DrawingPlacement.Default;
         }
 
+        /// <summary>The section as one slide filling its layout's placeholders, instead of what it would become.</summary>
+        public void Placeholders(PlaceholderSlide slide)
+        {
+            slides.Add(slide);
+            this.done = true;
+        }
+
         public void Finish()
         {
+            if (this.done)
+            {
+                return;
+            }
+
             if (this.titlePending)
             {
-                slides.Add(new TitleSlide(title, this.above, isSection) { Layout = layout, Closing = closing });
+                slides.Add(new TitleSlide(title, this.above, isSection) { Layout = layout, Closing = closing, Number = number });
             }
             else if (this.HasVisual)
             {
@@ -1309,6 +1410,81 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             this.chart = null;
             this.visualBuild = null;
         }
+    }
+
+    /// <summary>
+    /// Collects the text parts and visuals of a section that fills a layout's placeholders, in their order, each with its
+    /// build marker; or replays them into a <see cref="SectionBuilder"/> as the slides the section would otherwise be.
+    /// </summary>
+    private sealed class PlaceholderCollector(DeckParser parser) : ITarget
+    {
+        private readonly List<Call> calls = [];
+        private int part;
+
+        public void NextPart() => this.part++;
+
+        public void Text(TextParagraph paragraph) => this.calls.Add(new Call(this.part, parser.build, paragraph, null, null, null, null, null));
+
+        public void Visual(SlideTable? table, IReadOnlyList<SlideImage>? images, Drawing? drawing = null, ChartSpec? chart = null, DrawingPlacement? placement = null) =>
+            this.calls.Add(new Call(this.part, parser.build, null, table, images, drawing, chart, placement));
+
+        // Text parts in the order of their first paragraph; the images of a row each on its own.
+        public List<PlaceholderItem> Items()
+        {
+            var items = new List<PlaceholderItem>();
+            var texts = new Dictionary<int, List<TextParagraph>>();
+            foreach (var call in this.calls)
+            {
+                if (call.Text is { } text)
+                {
+                    if (!texts.TryGetValue(call.Part, out var paragraphs))
+                    {
+                        texts[call.Part] = paragraphs = [];
+                        items.Add(new PlaceholderItem(paragraphs, null));
+                    }
+
+                    paragraphs.Add(call.Mark is { } mark ? text with { Build = mark } : text);
+                }
+                else if (call.Images is { } images)
+                {
+                    items.AddRange(images.Select((image, i) => new PlaceholderItem(
+                        null,
+                        new PlaceholderVisual(null, image, null, null) { Build = images.Count > 1 && call.Mark is { } mark ? mark with { Item = i } : call.Mark })));
+                }
+                else
+                {
+                    items.Add(new PlaceholderItem(null, new PlaceholderVisual(call.Table, null, call.Drawing, call.Chart)
+                    {
+                        Build = call.Mark,
+                        Placement = call.Placement ?? DrawingPlacement.Default,
+                    }));
+                }
+            }
+
+            return items;
+        }
+
+        public void Replay(SectionBuilder section)
+        {
+            var outer = parser.build;
+            foreach (var call in this.calls)
+            {
+                parser.build = call.Mark;
+                if (call.Text is { } text)
+                {
+                    section.Text(text);
+                }
+                else
+                {
+                    section.Visual(call.Table, call.Images, call.Drawing, call.Chart, call.Placement);
+                }
+            }
+
+            parser.build = outer;
+        }
+
+        private sealed record Call(
+            int Part, BuildMark? Mark, TextParagraph? Text, SlideTable? Table, IReadOnlyList<SlideImage>? Images, Drawing? Drawing, ChartSpec? Chart, DrawingPlacement? Placement);
     }
 
     /// <summary>

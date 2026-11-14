@@ -17,6 +17,7 @@ public static class PdfGenerator
     // Keys of decks, accepted so that one Markdown serves both formats: their values are checked, then ignored.
     private const string TransitionKey = "transition";
     private const string BuildKey = "build";
+    private const string NumberChaptersKey = "numberChapters";
 
     /// <summary>
     /// Writes <paramref name="document"/> as a PDF to <paramref name="output"/>. Returns the number of pages and the
@@ -83,6 +84,9 @@ public static class PdfGenerator
         (string, string) build = (
             BuildKey,
             "`lists` builds every list of a deck item by item, `none` does not. A PDF accepts it and ignores it.");
+        (string, string) numberChapters = (
+            NumberChaptersKey,
+            "`true` or `false`: chapter numbers on a deck's section dividers. A PDF accepts it and ignores it.");
         return AuthoringGuides.Fill(
             AuthoringGuides.Template(typeof(PdfGenerator).Assembly, "Pdf"),
             new Dictionary<string, string>
@@ -91,7 +95,7 @@ public static class PdfGenerator
                 ["frontMatter"] = AuthoringGuides.FrontMatter(
                     registry.Expected,
                     options.Language,
-                    [.. options.Template.Keys.Concat([PageSizeKey, OrientationKey]).Select(k => (k, meanings[k])), transition, build, labels]),
+                    [.. options.Template.Keys.Concat([PageSizeKey, OrientationKey]).Select(k => (k, meanings[k])), transition, build, numberChapters, labels]),
                 ["characters"] = Characters(FontSet.For(ResolvedBrand.Resolve(options.Template.BrandValue)), options.ReplaceUnsupported is not null),
                 ["icons"] = AuthoringGuides.Icons(
                     options.Icons,
@@ -128,7 +132,7 @@ public static class PdfGenerator
                 : current with { Template = new BrandPdfTemplateOptions { Brand = brand } },
             brands.Expected,
             current => current.Template.Name,
-            current => [.. current.Template.Keys, PageSizeKey, OrientationKey, TransitionKey, BuildKey],
+            current => [.. current.Template.Keys, PageSizeKey, OrientationKey, TransitionKey, BuildKey, NumberChaptersKey],
             (current, key, value) => key switch
             {
                 PageSizeKey => current with
@@ -141,6 +145,7 @@ public static class PdfGenerator
                 },
                 TransitionKey => frontMatter.OneOf(key, value, [.. LayoutSyntax.Transitions.Select(t => (t, current))]),
                 BuildKey => frontMatter.OneOf(key, value, ("none", current), ("lists", current)),
+                NumberChaptersKey => frontMatter.Bool(key, value) ? current : current,
                 _ => current with { Template = current.Template.With(frontMatter, key, value) },
             });
     }

@@ -71,19 +71,13 @@ public static class PptxGenerator
                 : own.Tone == SlideTone.Auto ? TemplateTone.Detect(package.PresentationPart!)
                 : own.Tone;
             var dark = tone == SlideTone.Dark;
-            var slides = DeckParser.Parse(
-                document with { Markdown = frontMatter.Body },
-                options with { Transition = template.TransitionOverride ?? options.Transition, Build = template.BuildOverride ?? options.Build },
-                brand is null ? null : dark ? ResolvedBrand.DarkSlideBrand(brand) : ResolvedBrand.SlideBrand(brand),
-                frontMatter.BodyLine,
-                notes,
-                language.Texts);
             var resolved = brand is null ? null : ResolvedBrand.ForSlides(brand);
             var palette = resolved is null ? SlidePalette.Scheme : dark ? SlidePalette.ForDark(resolved) : SlidePalette.From(resolved);
             var codeFont = options.CodeFont ?? resolved?.CodeFontFamily ?? PptxOptions.DefaultCodeFont;
-            var title = frontMatter.Title ?? Title(document, slides);
             var author = frontMatter.Author ?? document.Metadata.GetValueOrDefault(MetadataKeys.Author);
-            count = new DeckWriter(
+
+            // The writer opens the template first: the parser asks it which placeholders a layout has.
+            var writer = new DeckWriter(
                 package,
                 options,
                 template.LayoutNames,
@@ -100,9 +94,19 @@ public static class PptxGenerator
                 language.Texts,
                 template.TemplateRoles,
                 template.FooterPattern,
-                title,
                 author,
-                template.Description).Write(slides);
+                template.Description);
+            var slides = DeckParser.Parse(
+                document with { Markdown = frontMatter.Body },
+                options with { Transition = template.TransitionOverride ?? options.Transition, Build = template.BuildOverride ?? options.Build },
+                brand is null ? null : dark ? ResolvedBrand.DarkSlideBrand(brand) : ResolvedBrand.SlideBrand(brand),
+                frontMatter.BodyLine,
+                notes,
+                language.Texts,
+                template.NumberChaptersOverride ?? writer.NumbersChapters,
+                writer.Slots);
+            var title = frontMatter.Title ?? Title(document, slides);
+            count = writer.Write(slides, title);
             if (template.EmbedsFonts && resolved?.Fonts is { } fonts)
             {
                 FontEmbedding.Embed(package.PresentationPart!, fonts, codeFont);
@@ -208,6 +212,15 @@ public static class PptxGenerator
                 + string.Join(", ", roles.Select(r => $"{RoleText(r.Role)} `{r.Name}`")) + ".");
         }
 
+        if (template is not null || custom is not null)
+        {
+            parts.Add("**Layouts with several boxes.** On a `layout=\"…\"` slide, lines `---` (each after a blank line) cut the text "
+                + "into parts, which fill the layout's text boxes in order; images fill its picture boxes, cropped to their "
+                + "shape, and charts its chart boxes. What has no box left continues on a further slide. Such a slide takes "
+                + "text, images, charts, tables and diagrams, but no `:::` containers, alerts, `.dark` or `kicker`.\n\n"
+                + "````text\n## Two offers {layout=\"Two Content\"}\n\n- Basic: 10 users\n\n---\n\n- Premium: unlimited\n````");
+        }
+
         if ((template?.Roles ?? custom)?.TextLevels is not null)
         {
             parts.Add("On text slides a `###` heading is a sub-headline in the design's own style, not a bold line.");
@@ -246,6 +259,7 @@ public static class PptxGenerator
         ["layouts.twoCharts"] = "The name of the template's layout for two charts.",
         ["layouts.dark"] = "The name of the template's layout for `{.dark}` slides.",
         ["showFooter"] = "`true` or `false`: the design's footer text on every slide but the cover. Default `true`.",
+        ["numberChapters"] = "`true` or `false`: \"01\", \"02\", … on the section dividers after the cover. Default: as the design says.",
         ["listBullets"] = "`always` to show bullets on every list level, also where the design's first level has none; `template` (the default) leaves it to the design.",
         ["transition"] = "How every slide is brought on when presented: " + string.Join(", ", LayoutSyntax.Transitions.Select(t => $"`{t}`")) + ". Default `none`. A heading's `transition=\"…\"` wins; see [Presenting](#presenting).",
         ["build"] = "`lists` builds every top-level list item by item; `none` (the default) only what has a marker. See [Presenting](#presenting).",

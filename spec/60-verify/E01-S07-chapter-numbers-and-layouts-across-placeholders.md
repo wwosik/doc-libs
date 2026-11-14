@@ -1,11 +1,11 @@
 # E01-S07 Chapter numbers and layouts across placeholders
 
-> Status: in progress (doc-3)
-> Epic: [E01 Brands and templates](../../50-todo/E01-brands-and-templates.md)
+> Status: in verification
+> Epic: [E01 Brands and templates](../50-todo/E01-brands-and-templates.md)
 
 ## Summary
 
-Two opt-in uses of the template roles from [E01-S06](../../60-verify/E01-S06-template-roles-for-decks.md):
+Two opt-in uses of the template roles from [E01-S06](E01-S06-template-roles-for-decks.md):
 
 - **Numbered chapter dividers.** Every `#` divider after the cover gets "01", "02", … in the
   section layout's chapter-number placeholder.
@@ -211,3 +211,139 @@ Two opt-in uses of the template roles from [E01-S06](../../60-verify/E01-S06-tem
 ## Notes
 
 <!-- Free space for remarks that are not answers to the questions above. -->
+
+## Implementation notes
+
+### Breaking changes
+
+- **Images and charts go into picture and chart placeholders** (question 5, accepted): a `##` with
+  `layout="…"` on a layout that has a picture or chart placeholder, whose image or chart (and every
+  other part of the section) finds a placeholder there, becomes a placeholder slide: the image is
+  cropped to the placeholder's shape instead of being fitted whole into the content area, the
+  chart takes the placeholder's box, and the text goes into the layout's text placeholders instead
+  of a text box above the visual. Only brand-own and caller templates are affected (`layout="…"`
+  is an error on the built-in master). In `CHANGELOG.md`.
+- **`---` in a `layout="…"` section** now cuts its text, where it was dropped; containers, alerts,
+  `.dark` and `kicker` in such a section now throw, and so does content the layout has no
+  placeholder for. In `CHANGELOG.md`.
+- **`numberChapters` is a new front-matter key** of every deck template and of PDFs; it changes
+  nothing unless set, but hosts that list keys (and the guides' front-matter tables) show it.
+- Nothing else: with numbering off (the default everywhere, the built-in master included) and
+  without `layout="…"`, decks are unchanged part by part (see *Verification*).
+
+### Decisions and deviations
+
+- **Model.** `PlaceholderSlide(Title, Items)` holds one ordered list of `PlaceholderItem`s (a text
+  part or one `PlaceholderVisual`) instead of the planned separate `Texts` and `Visuals`: texts and
+  visuals are placed in the order they appear, each into the first free placeholder that takes it,
+  which is what decides who gets an `obj` body (text before an image takes the first one).
+  `PlaceholderFill.Distribute` is the one assignment, shared by the parser's check, fitting and the
+  writer. Slots in order: the subtitle, the bodies in their E01-S06 order (`obj` and **untyped**
+  bodies are `obj` slots, since an untyped placeholder is OOXML's `obj`; `body` ones take text
+  only), then pictures, then charts. An image looks for a picture slot first, a chart for a chart
+  slot, then both for an `obj` body; tables and diagrams only `obj` bodies.
+- **When a section becomes a placeholder slide.** With a top-level `---` always (errors as below);
+  without `---` only when the layout has a picture or chart placeholder, the section has an image or
+  chart, **and every item finds a placeholder** on that layout. The last condition is an addition to
+  the plan: without it, an old section with an image and a table on a picture layout would start to
+  throw. Otherwise the section comes out exactly as before: the parser records the `ITarget` calls
+  once (`PlaceholderCollector`) and replays them into the `SectionBuilder`, so nothing is walked
+  twice and no note repeats.
+- **Errors** (`DocumentConversionException`): a container, alert, `.dark` or `kicker` with `---` and
+  `layout` ("layout="…" with '---' takes text, images, charts, tables and diagrams (the slide 'T' at
+  line n); use a flow slide, without '---', for containers, alerts, .dark and kicker="…"."), and in a
+  split section an item the layout has no placeholder kind for ("The layout 'Picture' has no
+  placeholder for text …"), checked in the parser and again in `Fit`. Without that check a
+  continuation slide could never take the item.
+- **Text parts** without text (two `---` in a row, a part with only an image) are left out. Each
+  part is fitted in its own placeholder: `normAutofit` by 2 pt steps from the placeholder's level-1
+  size (its own list style, else the master's body style) down to 12 pt, measured at that size
+  (declared text levels are not measured per level here). A part that does not fit gives
+  `slide-overfull`; there is no `slide-shrunk` for placeholder slides. Paragraphs use the template's
+  levels, or the declared text levels, and `ListBullets.Always`, as on content slides.
+- **Images in rows** (`![A](a.png) ![B](b.png)`) are one item per image, so a row fills several
+  picture placeholders (the contact layout's five); a row marked `{.build}` builds image by image.
+- **Pictures:** `p:pic` with `ph type="pic"` and the layout's `idx`, `noGrp` and `noChangeAspect`
+  locks, an empty `spPr`, the crop from `ImageAttributes.Crop` at the box's aspect ratio (so
+  `focus=` chooses what stays; without it, centred), `.grey` as elsewhere; `.round`, captions and
+  `fit=` have no effect there. The `focus` "not cropped" note is not given while a section on a
+  layout with picture placeholders is walked. `scale=` gives `attribute-ignored`. `image-cropped`
+  when more than 10 % of the width or height is cut; `image-enlarged` as for other pictures.
+- **Charts** in a chart placeholder: `p:graphicFrame` with the chart's `ph`, `noGrp`, and an
+  explicit `p:xfrm` of the placeholder's box less one line for the chart's source, which is written
+  as today's text box under it (the chart-source placeholder is E02-S05's).
+- **Footnotes** of a placeholder slide go below the lowest placeholder written (a simplification of
+  the plan's "below the content area unless bodies reach the foot").
+- **Chapter numbers:** `TitleSlide.Number` (1-based), formatted `00` with invariant digits. In the
+  layout's `ChapterNumber` placeholder, else a text box whose bottom is the title area's top (at
+  least at the slide's top edge), as wide as the title, `+mj-lt`, at the level-1 size of the
+  subtitle placeholder (else the first body, else 18 pt), in `SlidePalette.Accent` (the brand's
+  `Link`, theme accent 1 on caller templates). Numbering is front matter `numberChapters` ?? the
+  template's `PptxTemplateRoles.NumberChapters` (the built-in master: `false`).
+- **`PptxGenerator`** now opens the `DeckWriter` before parsing (the deck title moved from the
+  constructor to `Write`), because the parser asks it for a layout's slots (`DeckWriter.Slots`,
+  `null` on the built-in master or for an unknown layout, which the writer then reports as before).
+- **PDF:** `numberChapters` is accepted and ignored like `transition` and `build`, with a row in the
+  PDF guide's front-matter table; a `---` stays what it is in PDFs.
+- **Guide:** the deck guide's word-limit test is now 3,500 words, the human's decision of
+  2026-11-14 (the sample guide reached 2,649 with the new key row and note); no guide text was cut.
+  The paragraph on `---` (with a `text` example, not a `markdown` one, since the layout name depends
+  on the template and the examples are generated with every guide's options) appears for brand-own
+  and caller templates only, where `layout="…"` works. Expected guides regenerated: PPTX sample and
+  custom, PDF neutral and sample.
+- **A loose consistency:** a plain content slide on a layout with a declared body order still uses
+  the first body in tree order (E01-S06, unchanged); a placeholder slide uses the declared order.
+
+### Verification
+
+- After rebasing onto E04-S08 (`64b59c0`): `./run.sh build` without warnings of this story (one
+  `CS8602` in E04-S08's `StepsAndRisksTests` remains); `./run.sh test` all green: 1, 123, 251, 78,
+  71, 22, 197 and 337 passed (1,080), 6 Windows-only skipped.
+- New `PlaceholderLayoutTests` (19): numbering in the parser (cover and closing not counted, off by
+  default), the built-in master's placeholder (both brands), the text box on `brand-dark`, the
+  design switching it on and front matter switching it off; on `brand-roles` two parts into two
+  bodies in declared order, three parts continuing on a second slide with `slide-split` and the
+  unused placeholder not written, an image cropped into the picture placeholder (`srcRect`, no
+  `xfrm`, `image-cropped`), `focus=left` and an image row filling two contact pictures, a chart in
+  the chart placeholder with the layout's box, a table in an `obj` body, containers, alerts, `.dark`
+  and `kicker` throwing, text on a picture-only layout throwing, layout sections without split or a
+  fitting visual staying as before, and a text part shrunk and reported overfull. Brand pack
+  `numberChapters` and equality in `BrandPackTests`, the PDF accepting the key in `PresentingTests`.
+- **Open XML validator** (`Microsoft365`): every new deck passes (`Samples.AssertValid`).
+- **Unchanged decks:** every sample (`deck`, `layouts`, `presenting`, `presenting-lists`,
+  `schedules`, `steps-and-risks`) plus a deck with `---` in a plain section and `layout="…"`
+  sections, generated by this branch and by `origin/main` (`06c2d5d` before the rebase, `64b59c0`
+  after it, from `git archive`) on the neutral and sample brands, a
+  caller template and a brand-own template (both a deck of the built-in master), fixed date,
+  relationship ids masked: every part is identical except the one slide with an image on
+  `layout="Picture"` (the accepted breaking change). All round-trip expectations are unchanged.
+
+### To verify by hand (no PowerPoint on this machine)
+
+The tests write the decks to `.tmp/review/`.
+
+1. **No repair prompt** opening `chapters-neutral.pptx`, `chapters-sample.pptx`,
+   `chapters-brand-dark.pptx`, `placeholders-two-parts.pptx`, `placeholders-picture.pptx`,
+   `placeholders-chart.pptx` and `placeholders-table.pptx`.
+2. **Chapter numbers:** in `chapters-neutral.pptx` and `chapters-sample.pptx` the dividers *Market*
+   and *Plan* show "01" and "02" in the white chapter-number box above the title; the cover and
+   *Thank you* show none. In `chapters-brand-dark.pptx` the number sits just above the title, in the
+   heading font, in the accent colour, at the subtitle's size, without overlapping the title.
+3. **Picture placeholder** (`placeholders-picture.pptx`): the wide image fills the *Picture*
+   layout's box, cropped left and right, undistorted; *Reset slide* (Home → Reset) keeps the picture
+   in the placeholder with its crop; *Picture Format → Crop* shows the crop as editable.
+4. **Chart placeholder** (`placeholders-chart.pptx`): the chart sits exactly in the *Figure*
+   layout's chart box, opens with *Edit Data*, and *Reset slide* keeps it there. Also open the deck
+   in LibreOffice Impress: the chart keeps that box (the explicit `p:xfrm`).
+5. **Two bodies** (`placeholders-two-parts.pptx`): "Basic" in the right column (declared first on
+   `brand-roles`), "Premium" in the left; neither shows a placeholder prompt; *Reset slide* keeps
+   both.
+6. **Table in an `obj` body** (`placeholders-table.pptx`): the table sits inside the left column's
+   box and the text in the right one; the left placeholder's prompt does not show behind the table.
+
+### Loose ends
+
+- The acceptance "opens in PowerPoint without repair" depends on item 1.
+- E02-S05 fills byline, chart title, unit and source placeholders and the agenda (from
+  `TitleSlide.Number`).
+- Placeholder text is measured at the placeholder's level-1 size even with declared text levels.

@@ -54,6 +54,9 @@ public abstract record PptxTemplateOptions
     /// <summary>Front matter <c>build</c>, which wins over <see cref="PptxOptions.Build"/>.</summary>
     internal DeckBuild? BuildOverride { get; init; }
 
+    /// <summary>Front matter <c>numberChapters</c>, which wins over <see cref="PptxTemplateRoles.NumberChapters"/>.</summary>
+    internal bool? NumberChaptersOverride { get; init; }
+
     // `listBullets`, `transition` and `build` are taken by every template; the other keys by the template's own `With`.
     private protected PptxTemplateOptions WithListBullets(FrontMatter source, string key, string value) =>
         this with { ListBulletsOverride = source.OneOf(key, value, ("template", ListBullets.Template), ("always", ListBullets.Always)) };
@@ -63,6 +66,11 @@ public abstract record PptxTemplateOptions
 
     private protected PptxTemplateOptions WithBuild(FrontMatter source, string key, string value) =>
         this with { BuildOverride = source.OneOf(key, value, ("none", DeckBuild.None), ("lists", DeckBuild.Lists)) };
+
+    private protected PptxTemplateOptions WithNumberChapters(FrontMatter source, string key, string value) =>
+        this with { NumberChaptersOverride = source.Bool(key, value) };
+
+    private protected const string NumberChaptersKey = "numberChapters";
 
     private protected const string ListBulletsKey = "listBullets";
 
@@ -103,8 +111,8 @@ public abstract record PptxTemplateOptions
 public sealed record BrandTemplateOptions : PptxTemplateOptions
 {
     // Static, so that records with equal values stay equal.
-    private static readonly string[] FrontMatterKeys = ["showDate", "showTagline", "embedFonts", ListBulletsKey, TransitionKey, BuildKey];
-    private static readonly string[] OwnTemplateKeys = ["embedFonts", "showFooter", ListBulletsKey, TransitionKey, BuildKey];
+    private static readonly string[] FrontMatterKeys = ["showDate", "showTagline", "embedFonts", NumberChaptersKey, ListBulletsKey, TransitionKey, BuildKey];
+    private static readonly string[] OwnTemplateKeys = ["embedFonts", "showFooter", NumberChaptersKey, ListBulletsKey, TransitionKey, BuildKey];
 
     /// <summary>The brand. Default <see cref="DocumentGeneration.Brand.Neutral"/>.</summary>
     public Brand Brand { get; init; } = Brand.Neutral;
@@ -163,6 +171,7 @@ public sealed record BrandTemplateOptions : PptxTemplateOptions
         ListBulletsKey => this.WithListBullets(source, key, value),
         TransitionKey => this.WithTransition(source, key, value),
         BuildKey => this.WithBuild(source, key, value),
+        NumberChaptersKey => this.WithNumberChapters(source, key, value),
         "showFooter" => this with { ShowFooter = source.Bool(key, value) },
         "showTagline" => this with { ShowTagline = source.Bool(key, value) },
         "embedFonts" => this with { EmbedFonts = source.Bool(key, value) },
@@ -225,7 +234,7 @@ public sealed record CustomTemplateOptions(Stream Template) : PptxTemplateOption
     private static readonly string[] FrontMatterKeys =
     [
         "layouts.title", "layouts.content", "layouts.titleOnly", "layouts.sectionHeader", "layouts.closing",
-        .. RoleKeys.Keys, ListBulletsKey, TransitionKey, BuildKey,
+        .. RoleKeys.Keys, NumberChaptersKey, ListBulletsKey, TransitionKey, BuildKey,
     ];
 
     internal override IReadOnlyList<string> Keys => FrontMatterKeys;
@@ -247,6 +256,11 @@ public sealed record CustomTemplateOptions(Stream Template) : PptxTemplateOption
         if (key == BuildKey)
         {
             return this.WithBuild(source, key, value);
+        }
+
+        if (key == NumberChaptersKey)
+        {
+            return this.WithNumberChapters(source, key, value);
         }
 
         if (RoleKeys.TryGetValue(key, out var role))

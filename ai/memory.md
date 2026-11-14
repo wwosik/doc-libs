@@ -252,7 +252,7 @@ same change that made it untrue — a stale fact here is worse than a missing on
   pictures, charts, chart texts, `Excluded`). The built-in master declares its roles in
   `TemplateBuilder.Roles`. The old lookups (content, title-only, section, cover) keep their code and
   only skip `Excluded` placeholders (`DeckWriter.Bodies`), so templates without declarations are
-  untouched. E01-S07 and E02-S05 fill the role placeholders from there. Text levels act only in the
+  untouched. E01-S07 fills chapter numbers and `layout="…"` slides from there, E02-S05 the slide kinds. Text levels act only in the
   content slide's body placeholder (`Paragraph(…, levels:)`, `LevelParagraph`, `MappedLevel`); `###`
   paragraphs carry `TextParagraph.Heading`, and the writer drops the parser's bold under text levels.
   Master guides (`p15:guide/@pos`) are in eighths of a point (1587.5 EMU), a guide without `orient`
@@ -304,6 +304,20 @@ same change that made it untrue — a stale fact here is worse than a missing on
   the flow by it. A footnote reference is a private-use placeholder (`\uE000n\uE001`) in the line text until
   the Markdown is escaped. PdfPig's `DrawRectangle(fill: true)` also strokes: filled-and-stroked
   rectangles are fills, only stroke-only rectangles give rules.
+
+- **Placeholder slides and chapter numbers (E01-S07):** `PptxGenerator` builds the `DeckWriter` before
+  parsing (the deck title goes to `Write`), because the parser asks `DeckWriter.Slots(layout)` which
+  placeholders a `layout="…"` layout has, and gets `numberChapters` (front matter ?? the roles').
+  `DeckParser.Placeholders` walks such a section into a `PlaceholderCollector`, which records every
+  `ITarget` call with its build mark: it becomes a `PlaceholderSlide` (`PlaceholderItem`s in Markdown
+  order) or is replayed into the `SectionBuilder`, so the old slides come out without a second walk
+  (and without repeated notes). `PlaceholderFill.Distribute` is the one assignment (each item into the
+  first free slot that takes it, an item with none starts the next slide), used by the parser's check,
+  `Fit` and the writer. Untyped placeholders are `obj` (OOXML's default type). `TitleSlide.Number`
+  carries the chapter number.
+- **The slide that fills placeholders writes `p:pic` / `p:graphicFrame` with a `ph`,** a pic without
+  `spPr` transform (it takes the layout's box), a chart frame with an explicit `xfrm` — to be confirmed
+  in PowerPoint (E01-S07 verification).
 
 ## Traps
 

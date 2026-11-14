@@ -37,7 +37,7 @@ the same content, and a note.
     containers, alerts, definition lists, tag paragraphs) becomes a `FlowSlide`. Everything else
     becomes a `ContentSlide` or `VisualSlide`, unchanged since E02-S01.
   - `#` dividers are `TitleSlide { IsSection: true }`. With
-    [E01-S07](E01-S07-chapter-numbers-and-layouts-across-placeholders.md) they carry a
+    [E01-S07](../../60-verify/E01-S07-chapter-numbers-and-layouts-across-placeholders.md) they carry a
     `Number` when chapters are numbered.
 - **Writing.**
   - `DeckWriter.WriteFlowSlide` stacks blocks (`Stack`, `Place`) in `ContentArea`. Images,
@@ -55,7 +55,7 @@ the same content, and a note.
     quote, statement, contact, chart, two charts, two content) and the placeholder roles (body
     order, subtitle, byline, picture, chart title, unit and source). It also gives text levels
     and the built-in master's layouts for each role.
-  - [E01-S07](E01-S07-chapter-numbers-and-layouts-across-placeholders.md) gives
+  - [E01-S07](../../60-verify/E01-S07-chapter-numbers-and-layouts-across-placeholders.md) gives
     `PlaceholderSlide`, which writes text, pictures (cropped) and charts into a layout's
     placeholders, and the chapter numbers.
 - **Decided** in the epic: each slide kind needs its layout role from E01-S06, and existing decks

@@ -269,6 +269,7 @@ author: Planning team
 | `showDate` | `true` or `false`: today's date in the footer. Default `true`. |
 | `showTagline` | `true` or `false`: the design's tagline on the cover, if it has one. Default `true`. |
 | `embedFonts` | `true` or `false`. Leave it out: by default the deck carries its fonts. |
+| `numberChapters` | `true` or `false`: "01", "02", … on the section dividers after the cover. Default: as the design says. |
 | `listBullets` | `always` to show bullets on every list level, also where the design's first level has none; `template` (the default) leaves it to the design. |
 | `transition` | How every slide is brought on when presented: `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut`, `morph`. Default `none`. A heading's `transition="…"` wins; see [Presenting](#presenting). |
 | `build` | `lists` builds every top-level list item by item; `none` (the default) only what has a marker. See [Presenting](#presenting). |
@@ -330,6 +331,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `slide-shrunk`: the slide's text was set at the smallest size to fit. Shorten it.
 - `slide-overfull`: one item, such as a long list entry or a table with very long cells, does not fit even on a slide of its own. Shorten it.
 - `image-enlarged`: the image is small and was enlarged; it may look blurred. Use a larger image, or `"scale=1"` in its title to keep it at its size.
+- `image-cropped`: an image was cut to fill a picture placeholder of the layout, and much of it is not shown. Use an image of the placeholder's shape, or `focus=` to say which part stays.
 - `code-not-drawn`: a diagram could not be drawn, for example a diagram type that is not supported, and stays code. Use a supported type.
 - `html-as-text`: HTML is not interpreted: it is shown as text. Write Markdown instead.
 - `footnote-missing`: a footnote reference such as `[^1]` has no definition `[^1]: text`, so it is shown as written. Add the definition, or remove the reference.
