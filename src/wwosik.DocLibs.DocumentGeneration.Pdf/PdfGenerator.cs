@@ -33,8 +33,37 @@ public static class PdfGenerator
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(output);
-        options ??= PdfOptions.Default;
+        var notes = new GenerationNotes();
+        var laidOut = Lay(document, options ?? PdfOptions.Default, notes);
+        Renders++;
+        output.Write(PdfRenderer.Render(laidOut.Layout, laidOut.Fonts, laidOut.Layout.Title, laidOut.Author, laidOut.LanguageTag));
+        return notes.Result(laidOut.Layout.Pages.Count);
+    }
 
+    /// <summary>
+    /// Checks <paramref name="document"/> without writing a PDF: lays it out, without rendering, and returns the notes
+    /// <see cref="Generate"/> would, the notes of the style rules of <see cref="PdfOptions.Checks"/> (paragraph length,
+    /// heading length, alt text), every image that is missing or a web address, and statistics with the pages. An error
+    /// in the document is returned as <see cref="CheckResult.Error"/>, not thrown.
+    /// </summary>
+    /// <exception cref="ArgumentException">
+    /// The brand or <see cref="PdfOptions.Checks"/> is invalid, or two of <see cref="PdfOptions.Brands"/> share a name.
+    /// </exception>
+    public static CheckResult Check(MarkdownDocument document, PdfOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        options ??= PdfOptions.Default;
+        return DocumentCheck.Run(document, options.Checks ?? CheckOptions.Default, DocumentFormat.Pdf, options.CodeBlockRenderers, (checkedDocument, renderers, notes) =>
+            new CheckRun(Lay(checkedDocument, options with { CodeBlockRenderers = renderers }, notes).Layout.Pages.Count));
+    }
+
+    /// <summary>How often this thread rendered a PDF: a test seam, so a test can see that a check renders nothing.</summary>
+    [ThreadStatic]
+    internal static int Renders;
+
+    // Generate's work up to the layout: front matter, parsing and layout, with the notes added to notes.
+    private static LaidOut Lay(MarkdownDocument document, PdfOptions options, GenerationNotes notes)
+    {
         var frontMatter = FrontMatter.Read(document.Markdown, DocumentFormat.Pdf);
         frontMatter.Labels(); // checked like in decks; PDFs show status labels as code
 
@@ -43,7 +72,6 @@ public static class PdfGenerator
         options = Apply(frontMatter, options);
         var brand = ResolvedBrand.Resolve(options.Template.BrandValue);
         var fonts = FontSet.For(brand);
-        var notes = new GenerationNotes();
         var language = DocumentLanguage.Resolve(frontMatter.Language, options.Language, options.Texts, notes, DocumentFormat.Pdf);
         var model = MarkdownParser.Parse(document with { Markdown = frontMatter.Body }, options, options.Template.BrandValue, frontMatter.BodyLine, notes, language.Texts);
         var title = frontMatter.Title ?? document.Metadata.GetValueOrDefault(MetadataKeys.Title)
@@ -55,8 +83,7 @@ public static class PdfGenerator
 
         var design = new Design(brand, options.Template.ShowsTagline, date, title);
         var layout = new LayoutEngine(fonts, PageGeometry.For(options.PageSize, options.Orientation), design, options.ReplaceUnsupported, notes).Run(model);
-        output.Write(PdfRenderer.Render(layout, fonts, layout.Title, author, language.Tag));
-        return notes.Result(layout.Pages.Count);
+        return new LaidOut(layout, fonts, author, language.Tag);
     }
 
     /// <summary>
@@ -104,6 +131,7 @@ public static class PdfGenerator
                     options.Icons,
                     "A PDF draws it inside text, one letter wide in the text's colour; at the start of a list item, in place "
                     + "of its bullet; and alone in a paragraph, large. In headings, table cells and on the cover it is left out."),
+                ["limits"] = AuthoringGuides.Limits(options.Checks ?? CheckOptions.Default, DocumentFormat.Pdf),
                 ["notes"] = options.ReplaceUnsupported is null
                     ? AuthoringGuides.Notes(DocumentFormat.Pdf, NoteCodes.CharacterReplaced)
                     : AuthoringGuides.Notes(DocumentFormat.Pdf),
@@ -152,4 +180,7 @@ public static class PdfGenerator
                 _ => current with { Template = current.Template.With(frontMatter, key, value) },
             });
     }
+
+    // A document laid out, with what rendering it needs besides.
+    private sealed record LaidOut(Layout Layout, FontSet Fonts, string? Author, string LanguageTag);
 }

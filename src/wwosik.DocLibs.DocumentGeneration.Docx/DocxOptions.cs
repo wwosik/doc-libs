@@ -73,6 +73,12 @@ public sealed record DocxOptions
     public TimeProvider TimeProvider { get; init; } = TimeProvider.System;
 
     /// <summary>
+    /// The limits <see cref="DocxGenerator.Check"/> holds the document to, which <see cref="DocxGenerator.AuthoringGuide"/> lists
+    /// for the writer; <see cref="DocxGenerator.Generate"/> never applies them. Default <see cref="CheckOptions.Default"/>.
+    /// </summary>
+    public CheckOptions Checks { get; init; } = CheckOptions.Default;
+
+    /// <summary>
     /// A table of contents after the cover, unless the front matter sets <c>toc</c>: the headings down to
     /// <see cref="TableOfContentsDepth"/>, which Word gives their page numbers when it opens the document. Default
     /// <see langword="false"/>.

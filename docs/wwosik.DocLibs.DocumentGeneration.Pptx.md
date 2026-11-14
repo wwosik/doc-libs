@@ -64,6 +64,12 @@ string guide = PptxGenerator.AuthoringGuide(options);   // starts at "##"
 - **Notes:** `Generate` returns a `GenerationResult` with the slides written and notes for the
   writer — slides split, set at the smallest size or still overfull, images enlarged, diagrams left as code, HTML shown as text — each with its line. Pass them back too; the guide explains each code. See
   [Generation results and notes](wwosik.DocLibs.DocumentGeneration.md#generation-results-and-notes).
+- **Check first:** `PptxGenerator.Check(document, options)` writes nothing. It generates the deck in
+  full into nothing, so it returns every note `Generate` would, and adds the style rules of
+  `PptxOptions.Checks` per `#` or `##` section (bullets, words, title length, alt text), every
+  missing or web image at once, and a document error as `Error` instead of an exception. Its
+  statistics count the slides by kind and estimate the talk time from the speaker notes or the slide
+  text. See [Checking a document](wwosik.DocLibs.DocumentGeneration.md#checking-a-document).
 - It is generated on each call, so it follows the package version, and it stays under about
   2,500 words.
 

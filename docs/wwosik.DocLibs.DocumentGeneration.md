@@ -299,6 +299,92 @@ if (result.HasNotes)
 | `caption-ignored` | DOCX | A `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text |
 | `list-too-deep` | DOCX | A list is nested deeper than three levels; the deeper items are set at the third level, once per list |
 | `classification-kept` | DOCX | The front matter's `classification` is lower than the host's (`DocxOptions.Classification`); the host's applies. Decks and PDFs join with E03-S04 |
+| `too-many-bullets` | PPTX | Check only: a `#` or `##` section has more list items, all levels, than `CheckOptions.MaxBulletsPerSlide` |
+| `too-many-words` | PPTX | Check only: a `#` or `##` section has more words than `CheckOptions.MaxWordsPerSlide`; its title, speaker notes, tables, code and drawn containers are not counted |
+| `long-paragraph` | PDF, DOCX | Check only: a paragraph (not a table cell) has more words than `CheckOptions.MaxWordsPerParagraph` |
+| `title-too-long` | PPTX, PDF, DOCX | Check only: a slide title (`#`, `##`) or any heading of a PDF or Word document has more text elements than `CheckOptions.MaxTitleLength`, the settings in braces at its end not counted |
+| `alt-text-missing` | PPTX, PDF, DOCX | Check only: an image has empty alt text (`![](a.png)`) and `CheckOptions.RequireAltText` is on; `qr:` codes too |
+| `image-source` | PPTX, PDF, DOCX | Check only: an image is not among the document's resources, or is an `http:`, `https:` or `data:` URL, which the generators never load. `Generate` throws for the first one instead |
+
+## Checking a document
+
+`PptxGenerator.Check`, `PdfGenerator.Check` and `DocxGenerator.Check` take the same document and
+options as `Generate`, write nothing, and return a `CheckResult`: everything at once, where
+`Generate` stops at the first error.
+
+```csharp
+CheckResult check = PptxGenerator.Check(document, options);
+if (!check.IsClean)
+{
+    Console.WriteLine(check);
+    // - line 7: The slide 'Agenda' has 7 bullets; keep it to 6.
+    // 9 slides, 85 words, 3 images, 1 tables, 0 diagrams; cover 1, section 1, text 3, visual 4; talk time 4 min.
+}
+```
+
+- **`CheckResult(Notes, Statistics)`**: `Notes` are the notes `Generate` would return (the same
+  codes, lines and messages) together with the notes of the check's own rules, ordered by line.
+  `Error` is the `Reason` of the `DocumentConversionException` `Generate` would throw, such as an
+  unknown front matter key, and `null` when the document can be generated; with an error, the notes
+  and statistics are those found before it. `IsClean`: no error and no notes. `ToString()` lists the
+  notes like `GenerationResult`, then `Error: …`, then one line of statistics.
+- **Not thrown:** document errors. An invalid brand or `CheckOptions` still throws
+  `ArgumentException`, as in `Generate`.
+- **Images first.** Before generating, every image reference is checked against the document's
+  resources; each missing one, and each `http:`, `https:` or `data:` URL, gives `image-source` with
+  its line. Such images are replaced by their alt text for the rest of the check, so three missing
+  images give three notes and the check goes on.
+- **What runs.** A deck is generated in full into nothing, so fitting reports `slide-split` as
+  `Generate` does; a PDF is laid out but not rendered (no font subsetting, no PDF/A); a Word
+  document is generated in full into nothing.
+
+### Limits and rules
+
+The limits are `CheckOptions`, set on the generator options as `PptxOptions.Checks`,
+`PdfOptions.Checks` and `DocxOptions.Checks` (default `CheckOptions.Default`), so the check, the
+authoring guide (section *Limits*) and an AI tool see the same ones. `null` switches a rule off.
+`Generate` never applies them.
+
+| Option | Default | Rule | Formats |
+| ------ | ------- | ---- | ------- |
+| `MaxBulletsPerSlide` | 6 | `too-many-bullets` | PPTX |
+| `MaxWordsPerSlide` | 80 | `too-many-words` | PPTX |
+| `MaxTitleLength` | 60 | `title-too-long` | all |
+| `MaxWordsPerParagraph` | 150 | `long-paragraph` | PDF, DOCX |
+| `RequireAltText` | `true` | `alt-text-missing` | all |
+| `WordsPerMinute` | 130 | talk time | PPTX |
+| `MinTimePerSlide` | 30 s | talk time | PPTX |
+
+- **Per source section.** The deck rules count per `#` or `##` section of the Markdown, at its
+  heading's line: a section that fitting split counts once (`slide-split` says it was split), and
+  a section that becomes a text slide and a table slide counts once too. Speaker notes are never
+  counted, nor checked.
+- **Words, in any language:** runs of letters, digits and combining marks between whitespace or
+  punctuation, with `'`, `’` or `-` inside a word (`end-to-end` is one word). A code span counts as
+  one word; code blocks, drawn containers and alt text do not count, `:icon-name:` and the
+  `{.success}` of coloured words neither. Han, Hiragana, Katakana and Thai, written without spaces,
+  count one word for every two characters. Nothing language-specific (stop words, spelling) is
+  checked.
+- **Title length** is in text elements, what a reader sees as one character (`é` written as `e` and
+  a combining accent is one).
+
+### Statistics
+
+`CheckStatistics`: `Pages` (slides of a deck, pages of a PDF, 0 for Word documents and after an
+error), `Words` (all text: tables, headings and footnotes included, speaker notes not), `Images`
+(each image of a row, not `qr:` codes), `Tables`, `Diagrams` (code blocks a renderer drew, and the
+drawn containers such as `::: timeline`), and for decks:
+
+- **`SlidesByKind`**, over the written slides, split parts included, in the order of
+  `CheckStatistics.SlideKinds`, kinds without a slide left out: `cover`, `section`, `text` (a text
+  slide), `visual` (a table, image or diagram on a slide of its own), `layout` (a flow slide, or a
+  `layout="…"` slide that fills placeholders), `agenda`, `quote`, `statement`, `contact`, `chart`
+  (the slide kinds; one drawn as a flow slide because the template lacks its layout counts as
+  `layout`), and `closing`. The names are stable, like note codes.
+- **`TalkTime`**, rounded to whole minutes: each content slide its speaker notes' words, or else its
+  own words without the title, at `WordsPerMinute`, and at least `MinTimePerSlide`; the parts of a
+  split slide share their notes, which count on the first part; cover, section and closing slides
+  10 seconds each.
 
 ## Drawings and code-block renderers
 

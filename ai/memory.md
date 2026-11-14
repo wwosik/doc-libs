@@ -207,6 +207,17 @@ same change that made it untrue — a stale fact here is worse than a missing on
   heading's `Line` (set by `DeckParser.Section`, kept on split parts). Renderers report through
   `CodeBlockRequest.Report`, which is excluded from the request's equality. Notes never change the
   output: the files stay as before for the same input.
+- **Check (E05-S04):** `PptxGenerator.Check`, `PdfGenerator.Check`, `DocxGenerator.Check` all go through
+  `DocumentCheck.Run` (shared): front matter, then a pass over the Markdown with its own Markdig pipeline
+  (image sources, style rules, counts; bad images replaced by their alt text by source span), then the
+  generator's internal `Write`/`Lay` with one `GenerationNotes` and the renderers wrapped to count drawings.
+  **Check never throws for document errors** (`DocumentConversionException` → `CheckResult.Error`, its
+  `Reason`); `ArgumentException` still throws. **Style rules come only from Check**, never from `Generate`:
+  their codes are in `NoteCodes.CheckOnly`, and the guides list them apart. The rules work on the Markdown,
+  not the generators' models, so the PDF block model still has no lines. Decks collect the written slides
+  through `DeckWriter.Written` (kinds, talk time); a PDF check stops before `PdfRenderer.Render`
+  (`PdfGenerator.Renders` is the thread-static test seam). The limits live on the options (`Checks`), so
+  the guides' *Limits* section and the AI tool (E05-S05) see the same ones.
 - **Markdown foundations (E06-S02):** both pipelines add `UseDocumentSyntax()` (footnotes, task
   lists, definition lists; `MarkdownSyntax` in DocumentGeneration, which therefore references
   Markdig). `FootnoteGroup` is skipped where blocks are walked and handled apart: PDFs list it at

@@ -1,7 +1,7 @@
 # E05-S04 Check
 
-> Status: in progress (doc-3)
-> Epic: [E05 Authoring feedback](../../50-todo/E05-authoring-feedback.md)
+> Status: in verification
+> Epic: [E05 Authoring feedback](../50-todo/E05-authoring-feedback.md)
 
 ## Summary
 
@@ -118,7 +118,7 @@ problem at once instead of the first exception.
    | `too-many-words` | PPTX | A `##` section's text, title excluded, has more words than `MaxWordsPerSlide` |
    | `long-paragraph` | PDF | A paragraph has more words than `MaxWordsPerParagraph` |
    | `title-too-long` | both | A slide title or a PDF heading is longer than `MaxTitleLength` text elements |
-   | `alt-text-missing` | both | An image has empty alt text (`![](../../50-todo/a.png)`) and `RequireAltText` is on |
+   | `alt-text-missing` | both | An image has empty alt text (`![](a.png)`) and `RequireAltText` is on |
    | `image-source` | both | An image is not among the resources, or is a remote or `data:` URL |
 
    - **Per section.** The deck rules count per source section, the slide the writer wrote, at its
@@ -233,3 +233,127 @@ problem at once instead of the first exception.
 ## Notes
 
 <!-- Free space for remarks that are not answers to the questions above. -->
+
+## Implementation notes
+
+### Breaking changes
+
+None. `Generate` keeps its signatures, notes and output (verified below); everything else is
+added: `CheckOptions`, `CheckResult`, `CheckStatistics`, the `Check` methods, the `Checks` options
+and six note codes. The authoring guides gained a section *Limits* and a list of the check codes, so
+the expected guides changed (guides only, no output).
+
+### Decisions and deviations
+
+- **One shared driver.** `DocumentCheck.Run` (internal, shared package) does what every `Check`
+  shares: validate `CheckOptions` (`ArgumentException` for a negative limit, a non-positive
+  `WordsPerMinute` or a negative `MinTimePerSlide`), read the front matter, a pass over the body
+  with its own Markdig pipeline (the generators' extensions), then the generator's own internal
+  `Write` (decks, Word) or `Lay` (PDF) with one `GenerationNotes`, so rule notes and generation
+  notes are ordered by line together. Each generator's `Generate` now calls the same internal method
+  with a fresh `GenerationNotes`; nothing else in it moved.
+- **Deviation: the rules work on the Markdown, not on the generators' models.** The plan gave the
+  PDF block model source lines (`Block.Line`) for the PDF rules. Walking Markdig's blocks in the shared
+  package gives the lines directly, serves PDF and Word alike, and leaves the PDF model (which E03-S02
+  is changing in parallel) untouched. So E05-S03's loose end (no lines in the PDF block model) stays
+  open; `character-replaced` keeps line 0 as planned.
+- **Deck rules per source section** (question 6): a top-level `#` or `##` heading starts a section,
+  at its heading's line. The plan's table says `##`; the cover and section dividers are slides too,
+  so the bullet and word limits hold for `#` sections as well (a cover rarely reaches them). Words
+  per slide count paragraphs, list items, `###` headings, quotes, alerts and container text; not the
+  title, speaker notes, tables (a table gets a slide of its own and is fitted there), code blocks,
+  drawn containers or alt text. Bullets are list items at every level outside tables.
+- **PDF and Word rules:** `long-paragraph` for every paragraph outside table cells, `title-too-long`
+  for every heading level. Both skip `::: notes`.
+- **Title length** is counted in text elements (`StringInfo`), after the settings in braces at the
+  end of the heading (`{.dark kicker="…"}`, `{.unnumbered}`) and the `{.category}` of coloured words
+  are taken off; code spans count with their text.
+- **Words:** `DocumentCheck.Words` walks runes: letters, digits and combining marks make words, `'`,
+  `’` or `-` between two such characters keep the word going (`end-to-end` is one), Han, Hiragana,
+  Katakana (with half-width forms) and Thai count one word per two characters. `:icon-name:` and
+  `{.success}` are not counted, a code span or autolink is one word.
+- **Images first** (question 3): every image outside `::: notes` is checked: `qr:` is skipped, an
+  `http:`/`https:` URL, a `data:` URL and one `FindResource` does not find give `image-source` (with
+  different messages). Those images are replaced by their alt text by Markdig source span (an
+  attribute group `{…}` right after it on the same line goes too), and the generator runs on that
+  Markdown. Images in speaker notes are not checked.
+- **`alt-text-missing`** also fires for `qr:` images (their alt text is the code's description).
+- **Errors** (question 3): `Error` is the exception's **`Reason`** (without the `Pptx: ` prefix of
+  `Message`), what the docs already tell hosts to pass on. With an error, `Statistics` keeps the counts
+  of the Markdown pass (words, images, tables, drawn containers), `Pages` is 0 and decks have no kinds
+  or talk time. An error in the front matter or in `::: pagebreak` comes before that pass, so then the
+  statistics are empty.
+- **Diagrams** count the code blocks a renderer drew (the renderers are wrapped, counting distinct
+  line and code, so a block asked twice counts once) plus the drawn containers (`timeline`, `gantt`,
+  `steps`, `riskmatrix`), which the plan did not name; QR codes and icons are not counted.
+- **Images** count every image outside notes but `qr:` codes, including broken ones.
+- **Slide kinds:** the plan's six plus the E02-S05 slide kinds `agenda`, `quote`, `statement`,
+  `contact`, `chart` (the plan predates none of them, but did not list them); a `layout="…"` slide
+  that fills placeholders and a slide kind drawn as a flow slide (`layout-fallback`) count as `layout`.
+  `CheckStatistics.SlideKinds` gives the order, which E05-S05 can use for its JSON. The written slides
+  come from `DeckWriter.Written`, filled in the write loop after fitting.
+- **Talk time** (question 4): speaker notes exist (E07-S01), so a content slide with notes takes the
+  notes' words; a split section copies its notes to every part, so they count on the first part and
+  later parts take their own words. Without notes, the slide's runs after its title. Every slide but a
+  `TitleSlide` is a content slide. The total is rounded half away from zero to whole minutes.
+- **The PDF check does not render:** `Generate` is `Lay` (front matter, parsing, layout) plus
+  `PdfRenderer.Render`; `Check` runs `Lay` only. `PdfGenerator.Renders` (thread-static, internal) is
+  the test seam.
+- **DOCX** (question 7, recorded as asked): `DocxGenerator.Check` was a small addition with the same
+  driver and the PDF rules, so it is in. `Pages` is 0; the page estimate from words and visuals is
+  left to E09, as the answer said.
+- **`CheckStatistics.ToString()`** says "slides" for decks and "pages" otherwise, and leaves pages out
+  when there are none (Word documents, errors); `CheckResult.ToString()` starts with the notes as
+  `GenerationResult` does ("No notes." when there are none).
+- **Records compare by content:** `CheckResult` and `CheckStatistics` override equality for their
+  lists and the dictionary, like `GenerationResult`.
+- **Guides:** `{{limits}}` before *When something is wrong* in all three guides, from
+  `AuthoringGuides.Limits(checks, format)`: the active limits of that format in one sentence, nothing
+  (no heading either) when all are off. *Notes you may get back* lists the check codes after "A check
+  before generating writes nothing and returns these notes too, and also:" (`NoteCodes.CheckOnly`).
+  Words: PPTX sample 3,352 and custom 3,369 (limit 3,500), PDF about 2,135 (limit 2,500), DOCX about
+  3,141 (limit 3,500).
+- **For E05-S05:** `Check(MarkdownDocument, options)` has the same shape in all three generators, the
+  options carry the limits, and `CheckResult`/`CheckStatistics` are plain records with stable codes
+  and kind names, ready for an `IMarkdownGenerator.Check` and a JSON reply.
+
+### Verification
+
+- `./run.sh build`: 0 warnings, 0 errors. `./run.sh test` all green: 1 + 123 + 289 + 78 + 22 + 71 +
+  147 + 220 + 391 = 1,342 passed, 6 Windows-only skipped.
+- **New tests** (`CheckTests.cs` in the shared, PPTX, PDF and DOCX test projects):
+  - each rule with the smallest Markdown that triggers it, at the right line (front matter included),
+    silent at the limit and with `null`;
+  - four missing, remote and `data:` images in one check, which goes on and counts the slides;
+  - a document error and bad front matter as `Error`, with the notes found before;
+  - the word count over English, contractions and hyphens, German, Polish, Japanese, Thai and a
+    supplementary-plane Han pair; code spans as one word;
+  - golden statistics for `deck.md` and `layouts.md` (decks) and `report.md` (PDF); talk time with
+    and without notes and options; diagrams counted with and without renderers;
+  - for every sample (six decks, five PDFs, four Word documents): `Check` contains every note of
+    `Generate`, only check codes besides, and the same `Pages`; the PDF check leaves
+    `PdfGenerator.Renders` unchanged;
+  - the guides: *Limits* follows `Checks`, disappears with all rules off, and every check code of the
+    format is listed; `EveryCode_HasAFormatAndAdvice_AndIsDocumented` covers the new codes.
+- **Unchanged output:** `.tmp/compare/` generates six decks (with and without the Mermaid and chart
+  renderers), five PDFs and four Word documents from the base commit and from this change: identical,
+  decks and Word documents part by part with relationship ids masked, PDFs with `/ID` and dates
+  masked, and the same `GenerationResult`s. The only differences are the embedded chart workbooks
+  (`package.xlsx`), which differ between two runs of the base commit too.
+
+### To verify by hand
+
+1. Read the *Limits* section and the check codes in `PptxGenerator.AuthoringGuide()`: are the
+   sentences clear to a writer who has not seen a check?
+2. Run `PptxGenerator.Check` on a real deck with speaker notes and compare the talk time with how
+   long the talk takes.
+3. Judge whether `#` sections should be held to the bullet and word limits (a long cover subtitle
+   gives `too-many-words`).
+
+### Loose ends
+
+- The PDF block model still has no source lines (E05-S03's loose end), as the rules did not need them.
+- A DOCX page estimate (E09, question 7).
+- `Words` counts a word with formatting inside it (`bo**ld**`) once in rules, twice in the talk time
+  (runs are joined with spaces there): talk time is an estimate.
+- Images inside speaker notes are not checked; a deck writes them as text, so they never fail.

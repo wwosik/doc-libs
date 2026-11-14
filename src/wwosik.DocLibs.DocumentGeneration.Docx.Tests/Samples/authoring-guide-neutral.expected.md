@@ -170,6 +170,10 @@ An unknown key, a key given twice or an invalid value is an error that lists the
 
 Each character is shown in the document's font, or in a substitute where that font lacks it. Prefer plain characters (`•`, `–`, `→`, typographic quotes) to symbols, and leave out emoji.
 
+## Limits
+
+A check before generating reports what goes beyond these: at most 150 words in a paragraph; at most 60 characters in a heading; alt text for every image. Keep to them from the start.
+
 ## When something is wrong
 
 Generation stops with a message that says what to fix, such as a front matter key that does not
@@ -189,6 +193,13 @@ The document is still written, but whoever passes it to you may also pass on not
 - `caption-ignored`: a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text.
 - `list-too-deep`: a list is nested deeper than three levels; the deeper items are set at the third level. Flatten the list to three levels.
 - `classification-kept`: the front matter asks for a lower `classification` than the host set, and the host's applies. Leave the key out, or raise it.
+
+A check before generating writes nothing and returns these notes too, and also:
+
+- `long-paragraph`: a paragraph has more words than *Limits* allows. Split it, or make a list of it.
+- `title-too-long`: a title or heading is longer than *Limits* allows. Shorten it; the detail goes in the text.
+- `alt-text-missing`: an image has no alt text. Say what it shows: `![Sales by region](sales.png)`.
+- `image-source`: an image is not among the files given to you, or is a web address or `data:` URL, which is never loaded. Use only the paths you were given.
 
 ## Example
 

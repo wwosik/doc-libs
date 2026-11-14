@@ -213,6 +213,9 @@ internal sealed partial class DeckWriter
             ? null
             : [.. this.SlotsOf(layout).Select(s => s.Kind)];
 
+    /// <summary>Where <see cref="Write"/> adds each slide it writes, split parts included, for a check; <see langword="null"/>: nowhere.</summary>
+    public List<Slide>? Written { get; init; }
+
     /// <summary>
     /// Writes the slides, fitted, with their speaker notes, transitions and builds; returns how many were written.
     /// <paramref name="deckTitle"/> is the deck's title, for the footer pattern.
@@ -225,6 +228,7 @@ internal sealed partial class DeckWriter
         foreach (var (slide, step) in slides.Select(this.Resolve).SelectMany(this.Fit))
         {
             this.current = slide;
+            this.Written?.Add(slide);
             this.footnotes = slide.Footnotes;
             if (slide is TitleSlide { IsSection: true, Closing: false })
             {

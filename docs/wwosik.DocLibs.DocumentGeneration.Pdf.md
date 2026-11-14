@@ -68,6 +68,11 @@ string guide = PdfGenerator.AuthoringGuide(options);   // starts at "##"
 - **Notes:** `Generate` returns a `GenerationResult` with the pages written and notes for the
   writer — diagrams left as code, HTML shown as text, characters replaced — each with its line. Pass them back too; the guide explains each code. See
   [Generation results and notes](wwosik.DocLibs.DocumentGeneration.md#generation-results-and-notes).
+- **Check first:** `PdfGenerator.Check(document, options)` writes nothing. It lays the document
+  out without rendering it (no font subsetting, no PDF/A), so it returns every note `Generate` would
+  and the pages, and adds the rules of `PdfOptions.Checks` (words per paragraph, heading length,
+  alt text), every missing or web image at once, and a document error as `Error` instead of an
+  exception. See [Checking a document](wwosik.DocLibs.DocumentGeneration.md#checking-a-document).
 - It is generated on each call, so it follows the package version, and it stays under about
   2,500 words.
 

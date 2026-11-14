@@ -155,11 +155,55 @@ internal static partial class AuthoringGuides
     /// The notes a generator of <paramref name="format"/> may give back, each with what to change in the Markdown, as a
     /// list under an introduction; leaving out <paramref name="without"/>, codes that cannot occur with the options.
     /// </summary>
-    public static string Notes(DocumentConversions.DocumentFormat format, params string[] without) =>
-        "The document is still written, but whoever passes it to you may also pass on notes about it, each with its "
-        + "line. Each names what happened:\n\n"
-        + string.Join("\n", NoteCodes.All.Where(n => n.Formats.Contains(format) && !without.Contains(n.Code)).Select(n => $"- `{n.Code}`: {n.Advice}"
-            + (NoteCodes.FormatAdvice.TryGetValue((n.Code, format), out var more) ? " " + more : string.Empty)));
+    public static string Notes(DocumentConversions.DocumentFormat format, params string[] without)
+    {
+        string List(bool check) => string.Join("\n", NoteCodes.All
+            .Where(n => n.Formats.Contains(format) && !without.Contains(n.Code) && NoteCodes.CheckOnly.Contains(n.Code) == check)
+            .Select(n => $"- `{n.Code}`: {n.Advice}" + (NoteCodes.FormatAdvice.TryGetValue((n.Code, format), out var more) ? " " + more : string.Empty)));
+        return "The document is still written, but whoever passes it to you may also pass on notes about it, each with its "
+            + "line. Each names what happened:\n\n"
+            + List(check: false)
+            + "\n\nA check before generating writes nothing and returns these notes too, and also:\n\n"
+            + List(check: true);
+    }
+
+    /// <summary>
+    /// The <em>Limits</em> section: the limits of <paramref name="checks"/> that apply to <paramref name="format"/>, which a
+    /// check holds the document to; empty when none is set.
+    /// </summary>
+    public static string Limits(CheckOptions checks, DocumentConversions.DocumentFormat format)
+    {
+        var deck = format == DocumentConversions.DocumentFormat.Pptx;
+        var limits = new List<string>();
+        if (deck && checks.MaxBulletsPerSlide is { } bullets)
+        {
+            limits.Add(CultureInvariant($"at most {bullets} bullets on a slide, counting every level"));
+        }
+
+        if (deck && checks.MaxWordsPerSlide is { } words)
+        {
+            limits.Add(CultureInvariant($"at most {words} words on a slide, its title and speaker notes not counted"));
+        }
+
+        if (!deck && checks.MaxWordsPerParagraph is { } paragraph)
+        {
+            limits.Add(CultureInvariant($"at most {paragraph} words in a paragraph"));
+        }
+
+        if (checks.MaxTitleLength is { } title)
+        {
+            limits.Add(CultureInvariant($"at most {title} characters in a {(deck ? "slide title" : "heading")}"));
+        }
+
+        if (checks.RequireAltText)
+        {
+            limits.Add("alt text for every image");
+        }
+
+        return limits.Count == 0 ? string.Empty
+            : "## Limits\n\nA check before generating reports what goes beyond these: "
+                + string.Join("; ", limits) + ". Keep to them from the start.";
+    }
 
     /// <summary>How many words a guide has: runs of letters or digits.</summary>
     public static int Words(string guide) => WordPattern().Count(guide);

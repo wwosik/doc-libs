@@ -136,6 +136,8 @@ host may already mark the document; the front matter can raise its classificatio
 
 {{characters}}
 
+{{limits}}
+
 ## When something is wrong
 
 Generation stops with a message that says what to fix, such as a front matter key that does not

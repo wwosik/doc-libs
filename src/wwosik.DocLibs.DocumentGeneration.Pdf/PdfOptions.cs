@@ -71,6 +71,12 @@ public sealed record PdfOptions
     /// with <c>today=</c>. Default <see cref="TimeProvider.System"/>.
     /// </summary>
     public TimeProvider TimeProvider { get; init; } = TimeProvider.System;
+
+    /// <summary>
+    /// The limits <see cref="PdfGenerator.Check"/> holds the document to, which <see cref="PdfGenerator.AuthoringGuide"/> lists
+    /// for the writer; <see cref="PdfGenerator.Generate"/> never applies them. Default <see cref="CheckOptions.Default"/>.
+    /// </summary>
+    public CheckOptions Checks { get; init; } = CheckOptions.Default;
 }
 
 /// <summary>Paper sizes.</summary>

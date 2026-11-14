@@ -67,6 +67,12 @@ which depends on the image converters), the characters the brand's fonts lack, t
 example that generates. Every key, container, alert and note code of Word documents is in it. Put it
 under a heading of your own and add what only you know.
 
+`DocxGenerator.Check(document, options)` generates the document into nothing and returns every note
+`Generate` would, the rules of `DocxOptions.Checks` (words per paragraph, heading length, alt text,
+as for PDFs), every missing or web image at once, and a document error as `Error` instead of an
+exception. Its `Pages` is 0: Word lays out the pages. See
+[Checking a document](wwosik.DocLibs.DocumentGeneration.md#checking-a-document).
+
 ## Options
 
 | Option | Default | |

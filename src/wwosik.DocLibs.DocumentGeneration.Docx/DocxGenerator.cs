@@ -42,7 +42,36 @@ public static class DocxGenerator
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(output);
+        var notes = new GenerationNotes();
+        Write(document, output, options ?? DocxOptions.Default, notes);
+        return notes.Result(0);
+    }
+
+    /// <summary>
+    /// Checks <paramref name="document"/> without writing a document: generates it into nothing and returns the notes
+    /// <see cref="Generate"/> would, the notes of the style rules of <see cref="DocxOptions.Checks"/> (paragraph length,
+    /// heading length, alt text), every image that is missing or a web address, and statistics;
+    /// <see cref="CheckStatistics.Pages"/> is 0, because Word lays out the pages. An error in the document is returned as
+    /// <see cref="CheckResult.Error"/>, not thrown.
+    /// </summary>
+    /// <exception cref="ArgumentException">
+    /// The brand or <see cref="DocxOptions.Checks"/> is invalid, or two of <see cref="DocxOptions.Brands"/> share a name.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException"><see cref="DocxOptions.TableOfContentsDepth"/> is not 1, 2 or 3.</exception>
+    public static CheckResult Check(MarkdownDocument document, DocxOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(document);
         options ??= DocxOptions.Default;
+        return DocumentCheck.Run(document, options.Checks ?? CheckOptions.Default, Format.Docx, options.CodeBlockRenderers, (checkedDocument, renderers, notes) =>
+        {
+            Write(checkedDocument, Stream.Null, options with { CodeBlockRenderers = renderers }, notes);
+            return new CheckRun(0);
+        });
+    }
+
+    // Generate's work: the document written to output, the notes added to notes.
+    private static void Write(MarkdownDocument document, Stream output, DocxOptions options, GenerationNotes notes)
+    {
         ArgumentOutOfRangeException.ThrowIfLessThan(options.TableOfContentsDepth, 1, nameof(options));
         ArgumentOutOfRangeException.ThrowIfGreaterThan(options.TableOfContentsDepth, 3, nameof(options));
 
@@ -51,7 +80,6 @@ public static class DocxGenerator
         options = Apply(frontMatter, options);
         var template = options.Template ?? DocxOptions.Default.Template;
         var brand = template.BrandValue is { } value ? ResolvedBrand.Resolve(value) : null;
-        var notes = new GenerationNotes();
         var marking = Marking.Resolve(frontMatter, options.Classification, options.Draft, notes, Format.Docx);
         var language = DocumentLanguage.Resolve(frontMatter.Language, options.Language, options.Texts, notes, Format.Docx);
         var content = DocxContent.Parse(frontMatter.Body);
@@ -125,7 +153,6 @@ public static class DocxGenerator
 
         buffer.Position = 0;
         buffer.CopyTo(output);
-        return notes.Result(0);
     }
 
     /// <summary>
@@ -197,6 +224,7 @@ public static class DocxGenerator
                     : options.HeadingNumbers
                         ? "Headings of the first three levels are numbered `1`, `1.1`, `1.1.1`; deeper ones are not. `headingNumbers: false` in the front matter removes the numbers."
                         : "Headings are not numbered. `headingNumbers: true` in the front matter numbers the first three levels `1`, `1.1`, `1.1.1`.",
+                ["limits"] = AuthoringGuides.Limits(options.Checks ?? CheckOptions.Default, Format.Docx),
                 ["notes"] = AuthoringGuides.Notes(Format.Docx),
             });
     }

@@ -327,6 +327,10 @@ An unknown key, a key given twice or an invalid value is an error that lists the
 
 Each character is shown in the deck's font, or in a substitute where that font lacks it. Prefer plain characters (`•`, `–`, `→`, typographic quotes) to symbols, and leave out emoji.
 
+## Limits
+
+A check before generating reports what goes beyond these: at most 6 bullets on a slide, counting every level; at most 80 words on a slide, its title and speaker notes not counted; at most 60 characters in a slide title; alt text for every image. Keep to them from the start.
+
 ## When something is wrong
 
 Generation stops with a message that says what to fix: an unknown container (`::: grid`), heading
@@ -356,6 +360,14 @@ The document is still written, but whoever passes it to you may also pass on not
 - `icon-not-drawn`: an icon was left out where it cannot be drawn. Move it as the *Icons* section says.
 - `layout-fallback`: the design has no layout for that kind of slide (`{.quote}` and the others), so it is drawn as a layout slide with the same content. Nothing to fix, unless the design's own look matters.
 - `agenda-empty`: an empty `{.agenda}` found no `#` chapters to list. Add the chapters, or write the agenda as a list.
+
+A check before generating writes nothing and returns these notes too, and also:
+
+- `too-many-bullets`: a slide has more list items, counting every level, than *Limits* allows. Cut them, or split the slide into slides of your own.
+- `too-many-words`: a slide has more words than *Limits* allows, its title and speaker notes not counted. Shorten it, or move detail into `::: notes`.
+- `title-too-long`: a title or heading is longer than *Limits* allows. Shorten it; the detail goes in the text.
+- `alt-text-missing`: an image has no alt text. Say what it shows: `![Sales by region](sales.png)`.
+- `image-source`: an image is not among the files given to you, or is a web address or `data:` URL, which is never loaded. Use only the paths you were given.
 
 ## Example
 

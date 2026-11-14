@@ -119,6 +119,27 @@ public static class NoteCodes
     /// </summary>
     public const string ClassificationKept = "classification-kept";
 
+    /// <summary>Check only: a slide has more list items, at every level, than <see cref="CheckOptions.MaxBulletsPerSlide"/>.</summary>
+    public const string TooManyBullets = "too-many-bullets";
+
+    /// <summary>Check only: a slide has more words, its title excluded, than <see cref="CheckOptions.MaxWordsPerSlide"/>.</summary>
+    public const string TooManyWords = "too-many-words";
+
+    /// <summary>Check only: a paragraph of a PDF or Word document has more words than <see cref="CheckOptions.MaxWordsPerParagraph"/>.</summary>
+    public const string LongParagraph = "long-paragraph";
+
+    /// <summary>Check only: a slide title or heading is longer than <see cref="CheckOptions.MaxTitleLength"/>.</summary>
+    public const string TitleTooLong = "title-too-long";
+
+    /// <summary>Check only: an image has no alt text, and <see cref="CheckOptions.RequireAltText"/> is on.</summary>
+    public const string AltTextMissing = "alt-text-missing";
+
+    /// <summary>
+    /// Check only: an image is not among the document's resources, or is a web address or <c>data:</c> URL, which the
+    /// generators never load. <c>Generate</c> throws for it instead.
+    /// </summary>
+    public const string ImageSource = "image-source";
+
     /// <summary>Every code, with the formats it occurs in and what a writer changes about it, for the authoring guides.</summary>
     internal static readonly IReadOnlyList<(string Code, DocumentFormat[] Formats, string Advice)> All =
     [
@@ -141,7 +162,19 @@ public static class NoteCodes
         (CaptionIgnored, [DocumentFormat.Docx], "a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text."),
         (ListTooDeep, [DocumentFormat.Docx], "a list is nested deeper than three levels; the deeper items are set at the third level. Flatten the list to three levels."),
         (ClassificationKept, [DocumentFormat.Docx], "the front matter asks for a lower `classification` than the host set, and the host's applies. Leave the key out, or raise it."),
+        (TooManyBullets, [DocumentFormat.Pptx], "a slide has more list items, counting every level, than *Limits* allows. Cut them, or split the slide into slides of your own."),
+        (TooManyWords, [DocumentFormat.Pptx], "a slide has more words than *Limits* allows, its title and speaker notes not counted. Shorten it, or move detail into `::: notes`."),
+        (LongParagraph, [DocumentFormat.Pdf, DocumentFormat.Docx], "a paragraph has more words than *Limits* allows. Split it, or make a list of it."),
+        (TitleTooLong, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "a title or heading is longer than *Limits* allows. Shorten it; the detail goes in the text."),
+        (AltTextMissing, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "an image has no alt text. Say what it shows: `![Sales by region](sales.png)`."),
+        (ImageSource, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "an image is not among the files given to you, or is a web address or `data:` URL, which is never loaded. Use only the paths you were given."),
     ];
+
+    /// <summary>The codes only a check returns, never <c>Generate</c>: the guides list them apart.</summary>
+    internal static readonly IReadOnlySet<string> CheckOnly = new HashSet<string>(StringComparer.Ordinal)
+    {
+        TooManyBullets, TooManyWords, LongParagraph, TitleTooLong, AltTextMissing, ImageSource,
+    };
 
     /// <summary>What the guides of one format add to a code's advice in <see cref="All"/>.</summary>
     internal static readonly IReadOnlyDictionary<(string Code, DocumentFormat Format), string> FormatAdvice = new Dictionary<(string, DocumentFormat), string>

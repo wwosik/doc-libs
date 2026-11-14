@@ -99,6 +99,12 @@ public sealed record PptxOptions
     /// with <c>today=</c>. Default <see cref="TimeProvider.System"/>.
     /// </summary>
     public TimeProvider TimeProvider { get; init; } = TimeProvider.System;
+
+    /// <summary>
+    /// The limits <see cref="PptxGenerator.Check"/> holds the document to, which <see cref="PptxGenerator.AuthoringGuide"/> lists
+    /// for the writer; <see cref="PptxGenerator.Generate"/> never applies them. Default <see cref="CheckOptions.Default"/>.
+    /// </summary>
+    public CheckOptions Checks { get; init; } = CheckOptions.Default;
 }
 
 /// <summary>Who decides the bullets of lists on text slides.</summary>

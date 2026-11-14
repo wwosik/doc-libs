@@ -222,6 +222,10 @@ The fonts are embedded in the PDF and have no emoji and no Asian scripts; never 
 | ─ (fine in code) | `-` |
 | │ (fine in code) | `\|` |
 
+## Limits
+
+A check before generating reports what goes beyond these: at most 150 words in a paragraph; at most 60 characters in a heading; alt text for every image. Keep to them from the start.
+
 ## When something is wrong
 
 Generation stops with a message that says what to fix: a character the fonts lack, an image that
@@ -239,6 +243,13 @@ The document is still written, but whoever passes it to you may also pass on not
 - `attribute-ignored`: an image attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `focus` on an image that is not cropped. Remove it, or use it where it works.
 - `icon-not-drawn`: an icon was left out where it cannot be drawn. Move it as the *Icons* section says.
 - `agenda-empty`: an empty `{.agenda}` found no `#` chapters to list. Add the chapters, or write the agenda as a list.
+
+A check before generating writes nothing and returns these notes too, and also:
+
+- `long-paragraph`: a paragraph has more words than *Limits* allows. Split it, or make a list of it.
+- `title-too-long`: a title or heading is longer than *Limits* allows. Shorten it; the detail goes in the text.
+- `alt-text-missing`: an image has no alt text. Say what it shows: `![Sales by region](sales.png)`.
+- `image-source`: an image is not among the files given to you, or is a web address or `data:` URL, which is never loaded. Use only the paths you were given.
 
 ## Example
 

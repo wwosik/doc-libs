@@ -32,8 +32,84 @@ public static class PptxGenerator
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(output);
-        options ??= PptxOptions.Default;
+        var notes = new GenerationNotes();
+        var count = Write(document, output, options ?? PptxOptions.Default, notes, null);
+        return notes.Result(count);
+    }
 
+    /// <summary>
+    /// Checks <paramref name="document"/> without writing a deck: generates it into nothing and returns the notes
+    /// <see cref="Generate"/> would, the notes of the style rules of <see cref="PptxOptions.Checks"/> per <c>#</c> or
+    /// <c>##</c> section (bullets, words, title length, alt text), every image that is missing or a web address, and
+    /// statistics: slides by kind and the estimated talk time. An error in the document is returned as
+    /// <see cref="CheckResult.Error"/>, not thrown.
+    /// </summary>
+    /// <exception cref="ArgumentException">
+    /// The brand or <see cref="PptxOptions.Checks"/> is invalid, two of <see cref="PptxOptions.Brands"/> share a name, or
+    /// the roles of a <see cref="CustomTemplateOptions"/> are invalid.
+    /// </exception>
+    public static CheckResult Check(MarkdownDocument document, PptxOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        options ??= PptxOptions.Default;
+        var checks = options.Checks ?? CheckOptions.Default;
+        return DocumentCheck.Run(document, checks, Format.Pptx, options.CodeBlockRenderers, (checkedDocument, renderers, notes) =>
+        {
+            var written = new List<Slide>();
+            var count = Write(checkedDocument, Stream.Null, options with { CodeBlockRenderers = renderers }, notes, written);
+            return new CheckRun(count) { SlidesByKind = Kinds(written), TalkTime = TalkTime(written, checks) };
+        });
+    }
+
+    // The slides by kind, in the order of CheckStatistics.SlideKinds.
+    private static Dictionary<string, int> Kinds(List<Slide> slides)
+    {
+        var counts = slides.GroupBy(Kind).ToDictionary(g => g.Key, g => g.Count());
+        return CheckStatistics.SlideKinds.Where(counts.ContainsKey).ToDictionary(k => k, k => counts[k]);
+    }
+
+    private static string Kind(Slide slide) => slide switch
+    {
+        TitleSlide { Closing: true } => "closing",
+        TitleSlide { IsSection: true } => "section",
+        TitleSlide => "cover",
+        ContentSlide => "text",
+        VisualSlide => "visual",
+        AgendaSlide => "agenda",
+        QuoteSlide => "quote",
+        StatementSlide => "statement",
+        ContactSlide => "contact",
+        ChartSlide => "chart",
+        _ => "layout",
+    };
+
+    // Each content slide its speaker notes' words, or its own without the title, at the options' rate; the parts of a split
+    // slide share their notes, which count on the first part only.
+    private static TimeSpan TalkTime(List<Slide> slides, CheckOptions checks)
+    {
+        static int Words(IEnumerable<TextRun> runs) =>
+            DocumentCheck.Words(runs.Where(r => !r.IsBreak).Select(r => (r.Text, r.Style.HasFlag(RunStyle.Code))));
+
+        var spoken = new HashSet<IReadOnlyList<TextParagraph>>(ReferenceEqualityComparer.Instance);
+        var total = TimeSpan.Zero;
+        foreach (var slide in slides)
+        {
+            total += slide switch
+            {
+                TitleSlide => DocumentCheck.TitleSlideTime,
+                _ when slide.SpeakerNotes.Count > 0 && spoken.Add(slide.SpeakerNotes) =>
+                    DocumentCheck.ContentSlideTime(Words(slide.SpeakerNotes.SelectMany(p => p.Runs)), checks),
+                _ => DocumentCheck.ContentSlideTime(Words(slide.AllRuns().Skip(slide.Title.Count)), checks),
+            };
+        }
+
+        return DocumentCheck.RoundTalkTime(total);
+    }
+
+    // Generate's work: the deck written to output, the notes added to notes, and when written is given, each slide
+    // written added to it (split parts included). Returns the number of slides.
+    private static int Write(MarkdownDocument document, Stream output, PptxOptions options, GenerationNotes notes, List<Slide>? written)
+    {
         var frontMatter = FrontMatter.Read(document.Markdown, Format.Pptx);
         var template = PptxTemplateOptions.Apply(frontMatter, options.Template ?? PptxOptions.Default.Template, options.Brands);
         var labels = frontMatter.Labels();
@@ -51,7 +127,6 @@ public static class PptxGenerator
 
         using var buffer = new MemoryStream();
         template.Write(buffer);
-        var notes = new GenerationNotes();
         var language = DocumentLanguage.Resolve(frontMatter.Language, options.Language, options.Texts, notes, Format.Pptx);
         int count;
 
@@ -94,7 +169,10 @@ public static class PptxGenerator
                 template.TemplateRoles,
                 template.FooterPattern,
                 author,
-                template.Description);
+                template.Description)
+            {
+                Written = written,
+            };
             var slides = DeckParser.Parse(
                 document with { Markdown = frontMatter.Body },
                 options with { Transition = template.TransitionOverride ?? options.Transition, Build = template.BuildOverride ?? options.Build },
@@ -120,7 +198,7 @@ public static class PptxGenerator
 
         buffer.Position = 0;
         buffer.CopyTo(output);
-        return notes.Result(count);
+        return count;
     }
 
     /// <summary>
@@ -150,6 +228,7 @@ public static class PptxGenerator
                     options.Icons,
                     "Slides show it only alone after a card's `###` (as its figure) and at the start of every item of a list "
                     + "(as bullets); elsewhere it is left out."),
+                ["limits"] = AuthoringGuides.Limits(options.Checks ?? CheckOptions.Default, Format.Pptx),
                 ["notes"] = AuthoringGuides.Notes(Format.Pptx),
             });
     }

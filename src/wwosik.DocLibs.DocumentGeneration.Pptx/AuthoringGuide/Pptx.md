@@ -274,6 +274,8 @@ ignores `{.newpage}` on a heading, as it ignores `classification:` and `draft:` 
 
 {{characters}}
 
+{{limits}}
+
 ## When something is wrong
 
 Generation stops with a message that says what to fix: an unknown container (`::: grid`), heading

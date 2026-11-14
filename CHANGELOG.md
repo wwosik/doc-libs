@@ -120,6 +120,18 @@ updating, breaking changes first.
 
 ### New
 
+- **Checking a document before generating it:** `PptxGenerator.Check`, `PdfGenerator.Check` and
+  `DocxGenerator.Check` take the document and options of `Generate`, write nothing, and return a
+  `CheckResult`: the notes `Generate` would return, the notes of style rules, `Error` (the reason
+  `Generate` would throw with, instead of an exception) and `CheckStatistics` (pages, words,
+  images, tables, diagrams; for decks the slides by kind and an estimated talk time). Every missing
+  image and every `http:`, `https:` or `data:` image is reported at once. The limits are
+  `CheckOptions` on the new `PptxOptions.Checks`, `PdfOptions.Checks` and `DocxOptions.Checks`
+  (default 6 bullets and 80 words per slide, 60-character titles, 150 words per paragraph, alt text
+  required; `null` switches a rule off). New codes, from checks only: `too-many-bullets`,
+  `too-many-words`, `long-paragraph`, `title-too-long`, `alt-text-missing`, `image-source`. The
+  authoring guides have a section *Limits* and list the check codes. `Generate` and its output are
+  unchanged.
 - **The PDF converter reads a page's drawn shapes** with PdfPig: table rules (full grids, merged
   cells, tables ruled only horizontally), drawn bullets and task boxes, code backgrounds. A page whose
   analysis fails falls back to plain paragraphs. The documentation lists what it reads and its limits.

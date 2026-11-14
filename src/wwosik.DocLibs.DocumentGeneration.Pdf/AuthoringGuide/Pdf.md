@@ -135,6 +135,8 @@ around a table of 1–15 rows of risk, likelihood and impact (each 1–5) puts n
 
 {{characters}}
 
+{{limits}}
+
 ## When something is wrong
 
 Generation stops with a message that says what to fix: a character the fonts lack, an image that
