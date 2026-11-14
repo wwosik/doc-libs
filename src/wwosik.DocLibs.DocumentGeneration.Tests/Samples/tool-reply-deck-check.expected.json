@@ -1,0 +1,25 @@
+{
+  "status": "checked",
+  "format": "pptx",
+  "pages": 9,
+  "notes": [
+    {
+      "code": "too-many-bullets",
+      "line": 7,
+      "message": "The slide 'Agenda' has 7 bullets; keep it to 6."
+    }
+  ],
+  "statistics": {
+    "words": 85,
+    "images": 3,
+    "tables": 1,
+    "diagrams": 0,
+    "slidesByKind": {
+      "cover": 1,
+      "section": 1,
+      "text": 3,
+      "visual": 4
+    },
+    "talkTimeMinutes": 4
+  }
+}

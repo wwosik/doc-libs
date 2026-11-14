@@ -156,6 +156,13 @@ public static class DocxGenerator
     }
 
     /// <summary>
+    /// This generator bound to <paramref name="options"/>, as an <see cref="IMarkdownGenerator"/> (format <c>docx</c>) for
+    /// <see cref="DocumentTool"/>: its <c>Generate</c>, <c>Check</c> and <c>AuthoringGuide</c> are this class's methods with
+    /// these options. The options are not checked until one of them is called.
+    /// </summary>
+    public static IMarkdownGenerator ForOptions(DocxOptions? options = null) => new Bound(options ?? DocxOptions.Default);
+
+    /// <summary>
     /// The authoring guide for whoever writes the Markdown (often an AI agent): how headings become the cover and the
     /// table of contents, the front matter keys of the options' template and brands, and the characters the brand's fonts
     /// lack. Markdown starting at <c>##</c>, in English, so a host can put it under a heading of its own and add what
@@ -355,5 +362,24 @@ public static class DocxGenerator
             c => mono is null || TrueTypeInfo.HasCharacter(mono, c),
             $"The document is set in {fonts.Family}. A character this font lacks is shown in a substitute font and looks "
                 + "out of place. Leave out emoji, and write these symbols as shown:");
+    }
+
+    private sealed class Bound(DocxOptions options) : IMarkdownGenerator
+    {
+        public string Format => "docx";
+
+        public string Title => "Word document";
+
+        public string FileExtension => ".docx";
+
+        public string ContentType => "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+        public string AuthoringGuide() => DocxGenerator.AuthoringGuide(options);
+
+        public GenerationResult Generate(MarkdownDocument document, Stream output) => DocxGenerator.Generate(document, output, options);
+
+        public CheckResult Check(MarkdownDocument document) => DocxGenerator.Check(document, options);
+
+        public override string ToString() => $"{this.Title} ({this.Format})";
     }
 }

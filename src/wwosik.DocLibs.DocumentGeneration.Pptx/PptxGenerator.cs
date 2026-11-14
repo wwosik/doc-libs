@@ -202,6 +202,13 @@ public static class PptxGenerator
     }
 
     /// <summary>
+    /// This generator bound to <paramref name="options"/>, as an <see cref="IMarkdownGenerator"/> (format <c>pptx</c>) for
+    /// <see cref="DocumentTool"/>: its <c>Generate</c>, <c>Check</c> and <c>AuthoringGuide</c> are this class's methods with
+    /// these options. The options are not checked until one of them is called.
+    /// </summary>
+    public static IMarkdownGenerator ForOptions(PptxOptions? options = null) => new Bound(options ?? PptxOptions.Default);
+
+    /// <summary>
     /// The authoring guide for whoever writes the Markdown (often an AI agent): how headings become slides, the
     /// layouts, the diagrams the options' renderers draw, the front matter keys of the options' template and brands,
     /// and the characters the brand's fonts lack. Markdown starting at <c>##</c>, in English, so a host can put it under
@@ -398,5 +405,24 @@ public static class PptxGenerator
 
         var slide = slides.OfType<TitleSlide>().FirstOrDefault() ?? slides.FirstOrDefault();
         return slide is null ? null : string.Concat(slide.Title.Select(r => r.IsBreak ? " " : r.Text));
+    }
+
+    private sealed class Bound(PptxOptions options) : IMarkdownGenerator
+    {
+        public string Format => "pptx";
+
+        public string Title => "PowerPoint deck";
+
+        public string FileExtension => ".pptx";
+
+        public string ContentType => "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+
+        public string AuthoringGuide() => PptxGenerator.AuthoringGuide(options);
+
+        public GenerationResult Generate(MarkdownDocument document, Stream output) => PptxGenerator.Generate(document, output, options);
+
+        public CheckResult Check(MarkdownDocument document) => PptxGenerator.Check(document, options);
+
+        public override string ToString() => $"{this.Title} ({this.Format})";
     }
 }

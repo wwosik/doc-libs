@@ -138,6 +138,17 @@ updating, breaking changes first.
 
 ### New
 
+- **A tool for AI agents:** `DocumentTool` in wwosik.DocLibs.DocumentGeneration gives a host a tool
+  description for the formats it offers: `Name` (default `create_document`, set with
+  `DocumentToolOptions.Name`), `Description`, `ParametersSchema` (JSON Schema with `format`,
+  `markdown` and `mode`: `generate` or `check`), `Guide` (every offered format's authoring guide under
+  one `#` heading) and `Run`, which takes the model's arguments as JSON, generates or checks the
+  document and returns `DocumentToolRun` with a reply in a fixed JSON shape (`"status"` `ok`,
+  `checked` or `error`; the keys are a public contract). The agent's mistakes come back as error
+  replies; only host errors throw. Written with System.Text.Json without reflection, AOT-safe. The
+  generators join it through the new `IMarkdownGenerator`, from `PptxGenerator.ForOptions`,
+  `PdfGenerator.ForOptions` and `DocxGenerator.ForOptions`; the shared package references no
+  generator, so a host offering only PDFs takes no Open XML SDK.
 - **Checking a document before generating it:** `PptxGenerator.Check`, `PdfGenerator.Check` and
   `DocxGenerator.Check` take the document and options of `Generate`, write nothing, and return a
   `CheckResult`: the notes `Generate` would return, the notes of style rules, `Error` (the reason

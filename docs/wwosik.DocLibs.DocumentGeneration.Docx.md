@@ -73,6 +73,10 @@ as for PDFs), every missing or web image at once, and a document error as `Error
 exception. Its `Pages` is 0: Word lays out the pages. See
 [Checking a document](wwosik.DocLibs.DocumentGeneration.md#checking-a-document).
 
+`DocxGenerator.ForOptions(options)` binds the generator to its options as an `IMarkdownGenerator`
+(format `docx`), which `DocumentTool` offers to an AI agent with its name, parameter schema,
+combined guide and JSON replies. See [A tool for AI agents](wwosik.DocLibs.DocumentGeneration.md#a-tool-for-ai-agents).
+
 ## Options
 
 | Option | Default | |

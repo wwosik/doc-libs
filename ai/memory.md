@@ -20,7 +20,8 @@ same change that made it untrue — a stale fact here is worse than a missing on
   - `wwosik.DocLibs.DocumentConversions.Svg` — SVG to PNG with SkiaSharp, and `SvgImageConverter`.
   - `wwosik.DocLibs.DocumentGeneration` — shared by the generators: the public brand API
     (`Brand`, `BrandColors`, `BrandImage`, `BrandFonts`, `BrandFont`, `PptxBrandTemplate`,
-    `BrandPack`), the drawing model (`Drawing` …) and `ICodeBlockRenderer`; internally
+    `BrandPack`), the drawing model (`Drawing` …), `ICodeBlockRenderer` and the AI tool (`DocumentTool`,
+    `IMarkdownGenerator`); internally
     `ResolvedBrand`, `BrandRegistry`, `TrueTypeInfo`, `TrueTypeMetrics`, `FrontMatter`, `ImageInfo`,
     the bundled Liberation fonts (`StandInFonts`, `Fonts/*.ttf`, since E07-S02), and what both
     generators share about slide-layout syntax (`HeadingAttributes`, `LayoutSyntax`) and the
@@ -236,6 +237,17 @@ same change that made it untrue — a stale fact here is worse than a missing on
   through `DeckWriter.Written` (kinds, talk time); a PDF check stops before `PdfRenderer.Render`
   (`PdfGenerator.Renders` is the thread-static test seam). The limits live on the options (`Checks`), so
   the guides' *Limits* section and the AI tool (E05-S05) see the same ones.
+- **AI tool (E05-S05):** `DocumentTool` lives in the shared package and knows no generator: the
+  generators join through `IMarkdownGenerator` (`PptxGenerator.ForOptions`, `PdfGenerator.ForOptions`,
+  `DocxGenerator.ForOptions`, each a private `Bound` class over the static methods). The shared package
+  must never reference a generator (a test checks its assembly references). **The reply shape is a public
+  contract** (statuses `ok`, `checked`, `error`, keys, property order): a change is a breaking change in the
+  CHANGELOG. Schema and replies are written by hand with `Utf8JsonWriter` (`UnsafeRelaxedJsonEscaping`,
+  `NewLine = "\n"`), arguments read with `JsonDocument`, never a reflection serializer. The combined guide
+  moves each format guide's ATX headings down by one outside fenced code (`DocumentTool.HeadingsDown`).
+  The shared test project references the three generators for the tool's tests and aliases the Open XML
+  assemblies (`extern alias OpenXml`, target `AliasOpenXml` in its csproj) so that `DocumentFormat` stays the
+  enum there. A change to any guide also changes `tool-guide.expected.md` (PPTX + PDF) in the shared tests.
 - **Markdown foundations (E06-S02):** both pipelines add `UseDocumentSyntax()` (footnotes, task
   lists, definition lists; `MarkdownSyntax` in DocumentGeneration, which therefore references
   Markdig). `FootnoteGroup` is skipped where blocks are walked and handled apart: PDFs list it at

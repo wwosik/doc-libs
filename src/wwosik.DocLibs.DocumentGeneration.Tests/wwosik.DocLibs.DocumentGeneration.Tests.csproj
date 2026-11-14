@@ -13,11 +13,31 @@
 
   <ItemGroup>
     <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration\wwosik.DocLibs.DocumentGeneration.csproj" />
+    <!-- Only for DocumentTool's tests, which offer the real generators; the shared package itself references none. -->
+    <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration.Pptx\wwosik.DocLibs.DocumentGeneration.Pptx.csproj" />
+    <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration.Pdf\wwosik.DocLibs.DocumentGeneration.Pdf.csproj" />
+    <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration.Docx\wwosik.DocLibs.DocumentGeneration.Docx.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="Samples\**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\wwosik.DocLibs.DocumentGeneration.Pptx.Tests\Samples\deck.md" Link="Samples\deck.md" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\wwosik.DocLibs.DocumentGeneration.Pdf.Tests\Samples\report.md" Link="Samples\report.md" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\wwosik.DocLibs.DocumentGeneration.Pdf.Tests\Samples\diagram.png" Link="Samples\diagram.png" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\wwosik.DocLibs.DocumentGeneration.Pdf.Tests\Samples\photo.png" Link="Samples\photo.png" CopyToOutputDirectory="PreserveNewest" />
     <EmbeddedResource Include="Samples\brand-sample\**" LogicalName="Brand.%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
+
+  <!--
+    The generators bring the Open XML SDK, whose root namespace DocumentFormat hides the DocumentFormat enum these tests
+    use everywhere: its assemblies are referenced under the alias OpenXml instead (extern alias OpenXml).
+  -->
+  <Target Name="AliasOpenXml" AfterTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <ReferencePath Condition="$([System.String]::Copy('%(Filename)').StartsWith('DocumentFormat.OpenXml'))">
+        <Aliases>OpenXml</Aliases>
+      </ReferencePath>
+    </ItemGroup>
+  </Target>
 
 </Project>

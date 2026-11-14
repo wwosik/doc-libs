@@ -70,6 +70,9 @@ string guide = PptxGenerator.AuthoringGuide(options);   // starts at "##"
   missing or web image at once, and a document error as `Error` instead of an exception. Its
   statistics count the slides by kind and estimate the talk time from the speaker notes or the slide
   text. See [Checking a document](wwosik.DocLibs.DocumentGeneration.md#checking-a-document).
+- **As a tool for an AI agent:** `PptxGenerator.ForOptions(options)` binds the generator to its
+  options as an `IMarkdownGenerator` (format `pptx`), which `DocumentTool` offers with its name,
+  parameter schema, combined guide and JSON replies. See [A tool for AI agents](wwosik.DocLibs.DocumentGeneration.md#a-tool-for-ai-agents).
 - It is generated on each call, so it follows the package version, and it stays under about
   2,500 words.
 

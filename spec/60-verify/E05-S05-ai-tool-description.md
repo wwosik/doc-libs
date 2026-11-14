@@ -1,7 +1,7 @@
 # E05-S05 AI tool description
 
-> Status: in progress (doc-3)
-> Epic: [E05 Authoring feedback](../../50-todo/E05-authoring-feedback.md)
+> Status: in verification
+> Epic: [E05 Authoring feedback](../50-todo/E05-authoring-feedback.md)
 
 ## Summary
 
@@ -239,3 +239,107 @@ not tie the host to a model vendor.
 ## Notes
 
 <!-- Free space for remarks that are not answers to the questions above. -->
+
+## Implementation notes
+
+### Breaking changes
+
+None. Everything is added: `IMarkdownGenerator`, `PptxGenerator.ForOptions`, `PdfGenerator.ForOptions`,
+`DocxGenerator.ForOptions`, `DocumentTool`, `DocumentToolOptions`, `DocumentToolRun`. The static
+generator methods, their output and the format guides are unchanged. From now on the reply shape
+(statuses, keys, their order) is a public contract: changing it is a breaking change.
+
+### Decisions and deviations
+
+- **DOCX is offered** through `DocxGenerator.ForOptions`, as the plan foresaw for E09 (the generator
+  exists now). Titles: `PowerPoint deck`, `PDF document`, `Word document`; content types the
+  registered Office and PDF MIME types.
+- **`ForOptions(options = null)`** returns a private `Bound` class per generator that calls the static
+  methods with the options (`null` means the options' `Default`). The options are not checked when
+  bound, only when a method runs, as with the static methods.
+- **`DocumentTool.Generators`** (the offered generators, in order) is public in addition to the plan,
+  so a host can list the formats.
+- **Format names are unique ignoring case**, and `format` and `mode` are matched ignoring case and
+  surrounding spaces: a model sending `"PDF"` gets a PDF, not an error. The schema's `enum` keeps the
+  exact names.
+- **Argument errors beyond the plan's list**, each an error reply: a property given twice (`JsonDocument`
+  would otherwise silently take one), and a blank `markdown` (whitespace only), which would otherwise
+  give an empty file. A JSON `null` counts as not given, because some models send every property with
+  `null` for the ones they skip; `{"markdown": null}` is "missing".
+- **Line endings** of `markdown` are made `\n` (`\r\n` and lone `\r`), so lines in notes match what the
+  converters and tests use; nothing else is changed.
+- **Order of the check reply:** `status`, `format`, `error` (only with a document error), `pages`,
+  `notes`, `statistics`. The plan said `error` "is added"; it comes right after `format` so a model reads it
+  first. `slidesByKind` and `talkTimeMinutes` are written when `CheckStatistics.TalkTime` is set, which is
+  exactly decks whose check got as far as the slides (E05-S04: with an error, decks have no kinds or
+  talk time).
+- **`pages` is always present**, 0 for Word documents, so the keys of a status never depend on the format;
+  the guide says that 0 means the program that opens the file lays out the pages.
+- **`line` is always present**, 0 when unknown, as in `GenerationNote`.
+- **The error reply** holds only `status` and `error`, as planned; with a document error in generate mode
+  `DocumentToolRun.Generator` still says which format was asked for.
+- **JSON writing:** indented, `\n` line breaks on every OS (golden files), and
+  `JavaScriptEncoder.UnsafeRelaxedJsonEscaping`, so `é`, `'` and `<` stay readable for the model instead
+  of `é`; the JSON is never embedded in HTML. The schema is written the same way.
+- **Description** (generated): one paragraph naming the formats as "a PowerPoint deck (format "pptx")",
+  saying one call per document, the check mode (when offered), the three statuses, and the guide by its
+  title "Writing documents with <name>". A blank `DocumentToolOptions.Description` throws.
+- **Guide:** after the `#` heading, two short sections *Calling the tool* and *What comes back*, then
+  `## <Title> (format: "<format>")` per generator. `HeadingsDown` moves ATX headings (up to three spaces
+  of indent) down one level and skips fenced code (backticks or tildes, closed by a fence at least as long),
+  so the examples inside the guides keep their `#` and `##`. A `######` heading stays at level 6. Setext
+  headings are not moved (no guide has one). The guide is built on first use of `Guide` and kept.
+- **Tests live in the shared test project,** which now references the three generators (only the tests;
+  the package references none). Because the Open XML SDK's namespace `DocumentFormat` would hide the
+  `DocumentFormat` enum used throughout those tests, a target `AliasOpenXml` in the test csproj gives the
+  SDK's assemblies the alias `OpenXml`; `DocumentToolTests` uses `extern alias OpenXml` for the
+  validator. The samples `deck.md`, `report.md` and the two images are linked from the PPTX and PDF tests.
+
+### Verification
+
+- `./run.sh build`: 0 warnings, 0 errors. `./run.sh test`: all green, 1 + 123 + 78 + 22 + 339 + 71 + 148 +
+  236 + 441 = 1,459 passed, 6 Windows-only skipped (shared tests 295 → 339: 44 new in `DocumentToolTests`), after
+  rebasing onto E03-S02 and E07-S02 (whose PDF guide changes are in `tool-guide.expected.md`).
+- **New tests** (`DocumentToolTests`):
+  - `ForOptions`: format, title, extension, content type of all three; the bound methods give the same
+    guide and check as the static ones with the same options;
+  - construction: default name, a custom name and description, invalid names (empty, space, non-ASCII,
+    dot, 65 characters), no generator, a `null` one, two with the same format, a blank description;
+  - schema: golden `tool-schema.expected.json` (PPTX + PDF); valid JSON, `enum` equal to the offered
+    formats (three), `required`, only the allowed keywords, a description on every property; with one
+    format `format` is optional with a `default`; without `OfferCheck` there is no `mode` anywhere;
+  - guide: golden `tool-guide.expected.md` (PPTX + PDF); exactly one `#` heading (parsed with Markdig),
+    the `##` headings expected for all three formats, every format's guide contained with its headings one
+    level down; `HeadingsDown` leaves fenced (backtick, tilde, nested) and indented code alone;
+  - `Run`: a deck, a PDF and a Word document generated through the tool equal `Generate` with the same
+    options (decks and Word documents part by part with relationship ids masked, PDFs without `/ID`), the
+    deck passes the Open XML validator, the PDF carries its PDF/A identification; check mode writes nothing
+    and returns the same `CheckResult` as `Check`; golden replies `tool-reply-deck`, `-deck-check`,
+    `-report`, `-report-check`; a check with a front-matter error stays `checked` with `error`; a missing
+    image gives `status: error` with the generator's `Reason` and `Succeeded = false`; thirteen argument
+    errors give their error replies; `mode` is refused without `OfferCheck`; CRLF, `null`s, `"PDF"` and
+    `"mode": "generate"` are accepted; invalid check options (host error) throw;
+  - dependencies: the shared assembly references no `wwosik.DocLibs.DocumentGeneration.*` and no
+    `DocumentFormat.OpenXml*`, nor does the PDF generator.
+- **Native AOT:** `.tmp/aot-tool`, a console app referencing only the PDF generator, building the tool,
+  reading schema and guide and running generate, check and an argument error, publishes with
+  `PublishAot` for linux-x64 without warnings and runs, giving the expected replies.
+- **Generator output unchanged:** the generators only gained `ForOptions` and the private `Bound` class;
+  no generation code changed, and all existing golden and round-trip tests pass unchanged.
+
+### To verify by hand
+
+1. Give `tool.Guide`, `tool.Description` and `tool.ParametersSchema` to a real model (any vendor) and let
+   it write a deck and a PDF: does it check first, read the replies and fix its notes?
+2. Read the generated description and the two intro sections of the guide: clear and short enough?
+3. Judge whether `error` before `pages` in the check reply, and `pages: 0` for Word documents, read well.
+
+### Loose ends
+
+- The combined guide for all three formats is long (about 9,000 words); merging the shared sections was
+  declined (question 2), and hosts can offer fewer formats.
+- A converter tool (`read_document`) is out of scope (question 6).
+- Other agents changing a format guide now also change `tool-guide.expected.md` in the shared tests
+  (recorded in `ai/memory.md`).
+- The HTML deck (E07-S02, `HtmlDeck.Write`) turns a `.pptx` into HTML, not Markdown into a document, so it
+  is not an `IMarkdownGenerator`; offering it through the tool would be a story of its own.

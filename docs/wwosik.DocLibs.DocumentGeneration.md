@@ -4,8 +4,9 @@ What the generators [wwosik.DocLibs.DocumentGeneration.Pptx](wwosik.DocLibs.Docu
 [wwosik.DocLibs.DocumentGeneration.Docx](wwosik.DocLibs.DocumentGeneration.Docx.md)
 and [wwosik.DocLibs.DocumentGeneration.Pdf](wwosik.DocLibs.DocumentGeneration.Pdf.md) share: the
 public **brand** API (`Brand`, `BrandPack`), the **drawing** model and the code-block renderer
-interface, [QR codes and icons](#qr-codes-and-icons) (`IIconSet`, `TablerIcons`), and internally
-front matter and image headers. It comes along as a dependency of either generator. Depends on
+interface, [QR codes and icons](#qr-codes-and-icons) (`IIconSet`, `TablerIcons`),
+[checks](#checking-a-document), [a tool for AI agents](#a-tool-for-ai-agents) (`DocumentTool`,
+`IMarkdownGenerator`), and internally front matter and image headers. It comes along as a dependency of either generator. Depends on
 [wwosik.DocLibs.DocumentConversions](wwosik.DocLibs.DocumentConversions.md), Markdig and QRCoder;
 AOT-compatible. Third-party licences (QRCoder, Tabler Icons) are in the package's
 `THIRD-PARTY-NOTICES.txt`.
@@ -388,6 +389,142 @@ drawn containers such as `::: timeline`), and for decks:
   own words without the title, at `WordsPerMinute`, and at least `MinTimePerSlide`; the parts of a
   split slide share their notes, which count on the first part; cover, section and closing slides
   10 seconds each.
+
+## A tool for AI agents
+
+A host that lets an AI agent write documents gets a ready tool from `DocumentTool`: a name, a
+description, the JSON Schema of the parameters, a combined authoring guide for the formats it
+offers, and `Run`, which takes the agent's arguments and returns a reply in a fixed JSON shape. The
+library supplies the parts, not a vendor's envelope, so it ties the host to no model API. Everything
+is written with System.Text.Json's `Utf8JsonWriter` and read with `JsonDocument`, without
+reflection, so the tool is trimming- and AOT-safe.
+
+```csharp
+using wwosik.DocLibs.DocumentGeneration;
+using wwosik.DocLibs.DocumentGeneration.Pdf;
+using wwosik.DocLibs.DocumentGeneration.Pptx;
+
+var tool = new DocumentTool([PptxGenerator.ForOptions(pptxOptions), PdfGenerator.ForOptions(pdfOptions)]);
+
+// The guide goes where the model reads instructions, e.g. the system prompt, under what only you know.
+string system = tool.Guide + "\n\n## Images\n\nReference the images listed below by their path.\n";
+
+// One vendor's tool shape, e.g. an entry of a Messages API's "tools" array:
+var definition = new JsonObject
+{
+    ["name"] = tool.Name,
+    ["description"] = tool.Description,
+    ["input_schema"] = JsonNode.Parse(tool.ParametersSchema),
+};
+
+// When the model calls the tool with its arguments (the JSON object it sent):
+using var buffer = new MemoryStream();
+DocumentToolRun run = tool.Run(arguments, images, buffer);
+if (run.Succeeded)
+{
+    Save(buffer.ToArray(), "document" + run.Generator!.FileExtension, run.Generator.ContentType);
+}
+
+return run.Reply;   // the tool result, as it is
+```
+
+- **The generators.** `PptxGenerator.ForOptions(options)`, `PdfGenerator.ForOptions(options)` and
+  `DocxGenerator.ForOptions(options)` return an `IMarkdownGenerator`: the generator bound to its
+  options, with `Format` (`pptx`, `pdf`, `docx`), `Title` (`PowerPoint deck`, `PDF document`,
+  `Word document`), `FileExtension`, `ContentType`, `AuthoringGuide()`, `Generate(document,
+  output)` and `Check(document)`. The options are checked when one of the methods runs. The static
+  methods stay as they were.
+- **No generator in the shared package.** `DocumentTool` knows only `IMarkdownGenerator`, so a host
+  pays for the formats it offers: one that offers only PDFs references no Open XML SDK.
+- **`new DocumentTool(generators, options)`** offers the generators in their order. It throws
+  `ArgumentException` for no generator, a `null` one, two with the same `Format`, a name that does
+  not match `^[a-zA-Z0-9_-]{1,64}$`, or a blank description. `DocumentToolOptions`: `Name` (default
+  `create_document`), `Description` (replaces the generated one), `OfferCheck` (default `true`: the
+  `mode` parameter).
+- **`Description`** is one paragraph naming the formats, how to call the tool, what it returns,
+  and the guide by its title.
+- **`Guide`** is Markdown under one `#` heading, *Writing documents with create_document* (with
+  the tool's name): how to call the tool and what comes back, then every offered generator's full
+  `AuthoringGuide()` under `## <Title> (format: "<format>")`, its headings moved one level down
+  (headings inside code blocks are left as they are). It is built on first use.
+
+### Parameters
+
+`ParametersSchema` is indented JSON, an object with `"additionalProperties": false`, using only
+`type`, `properties`, `enum`, `description`, `required` and `default`, which the major tool APIs
+all accept:
+
+| Parameter | Type | Meaning |
+| --------- | ---- | ------- |
+| `format` | string, `enum` of the offered formats | The file to create. Required when more than one format is offered; with one it may be left out and defaults to it. |
+| `markdown` | string, required | The whole document, front matter included. |
+| `mode` | `"generate"` (default) or `"check"` | Only with `OfferCheck`. `check` calls `Check` and writes nothing. |
+
+### Replies
+
+`Run(arguments, resources, output)` returns a `DocumentToolRun`: `Reply` (the JSON for the agent),
+`Succeeded` (a file was written to `output`), `Generator` (the format picked, for the file's name and
+type; `null` when the arguments were not a valid call), `Result` (the `GenerationResult`) and
+`Check` (the `CheckResult` in check mode). The reply is indented JSON in a fixed property order,
+camelCase:
+
+```json
+{
+  "status": "ok",
+  "format": "pptx",
+  "pages": 9,
+  "notes": [
+    { "code": "slide-split", "line": 12, "message": "…" }
+  ]
+}
+```
+
+```json
+{
+  "status": "checked",
+  "format": "pptx",
+  "pages": 9,
+  "notes": [ { "code": "too-many-bullets", "line": 7, "message": "…" } ],
+  "statistics": {
+    "words": 85, "images": 3, "tables": 1, "diagrams": 0,
+    "slidesByKind": { "cover": 1, "section": 1, "text": 3, "visual": 4 },
+    "talkTimeMinutes": 4
+  }
+}
+```
+
+```json
+{
+  "status": "error",
+  "error": "The image 'chart.png' is not among the document's resources."
+}
+```
+
+- **`ok`**: `pages` is `GenerationResult.Pages` (0 for Word documents), `notes` its notes, each with
+  `code`, `line` (0 when unknown) and `message`.
+- **`checked`**: `pages` and `notes` of the `CheckResult`, and `statistics`; `slidesByKind` (in the
+  order of `CheckStatistics.SlideKinds`) and `talkTimeMinutes` only for decks whose check got as far
+  as the slides. A document error adds `"error"` after `format`; the status stays `checked`.
+- **`error`**: only `status` and `error`.
+- **Stable.** The statuses and keys are a public contract; a change to the shape is a breaking change
+  in the changelog. Non-ASCII letters are written as they are, not as `\u` escapes.
+
+### Errors
+
+- **The agent's mistakes are replies, not exceptions,** so it can fix its call: arguments that are
+  not JSON or not an object, an unknown property, a property that is not a string, the same property
+  twice, a missing or unknown `format`, an unknown `mode`, a missing or blank `markdown` each give an
+  `error` reply naming the problem and the valid values. A `null` value counts as not given. `format`
+  and `mode` are matched ignoring case.
+- **A document error** (`DocumentConversionException`) becomes an `error` reply with its `Reason`,
+  and `Succeeded` is `false`. `output` may hold partial bytes then: generate into a buffer, as above,
+  and keep it only on success.
+- **Host errors throw:** an `ArgumentException` (invalid options, brand or checks) and anything else
+  that is not a document error, and `ArgumentNullException` for `null` arguments.
+- **The document** is built from `markdown` (line endings made `\n`), the `resources` you pass (the
+  images you gave the agent) and no metadata: title and author come from the front matter.
+- **Keep the reply as the tool result.** It is written for the agent: the notes and errors say what
+  to change, and the guide explains each code.
 
 ## Drawings and code-block renderers
 

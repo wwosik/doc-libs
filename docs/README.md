@@ -25,7 +25,8 @@ tests generate every example and compare the guides with `authoring-guide-*.expe
   `.doc`, `.rtf`, `.xls` and `.xlsx` through Office automation.
 - [wwosik.DocLibs.DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md): what the generators
   share — brands (`Brand`, `BrandPack`), drawings and code-block renderers, front matter, image
-  headers.
+  headers, checks, and `DocumentTool`, a ready tool description for AI agents that write documents
+  through any of the generators.
 - [wwosik.DocLibs.DocumentGeneration.Charts](wwosik.DocLibs.DocumentGeneration.Charts.md): bar,
   line and area charts from CSV in `chart` blocks — native charts in decks, vectors in PDFs — and
   financial charts from typed data or JSON, also as SVG with hover tooltips.

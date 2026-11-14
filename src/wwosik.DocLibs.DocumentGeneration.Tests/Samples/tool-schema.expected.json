@@ -1,0 +1,31 @@
+{
+  "type": "object",
+  "properties": {
+    "format": {
+      "type": "string",
+      "enum": [
+        "pptx",
+        "pdf"
+      ],
+      "description": "The file to create: \"pptx\" for a PowerPoint deck or \"pdf\" for a PDF document. The guide has a section on the Markdown of each."
+    },
+    "markdown": {
+      "type": "string",
+      "description": "The whole document as Markdown, front matter included, written as the guide describes for the format."
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "generate",
+        "check"
+      ],
+      "default": "generate",
+      "description": "\"generate\" (the default) writes the file; \"check\" writes nothing and returns every problem in the Markdown at once, with statistics."
+    }
+  },
+  "required": [
+    "format",
+    "markdown"
+  ],
+  "additionalProperties": false
+}

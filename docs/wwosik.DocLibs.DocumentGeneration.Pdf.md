@@ -73,6 +73,10 @@ string guide = PdfGenerator.AuthoringGuide(options);   // starts at "##"
   and the pages, and adds the rules of `PdfOptions.Checks` (words per paragraph, heading length,
   alt text), every missing or web image at once, and a document error as `Error` instead of an
   exception. See [Checking a document](wwosik.DocLibs.DocumentGeneration.md#checking-a-document).
+- **As a tool for an AI agent:** `PdfGenerator.ForOptions(options)` binds the generator to its
+  options as an `IMarkdownGenerator` (format `pdf`), which `DocumentTool` offers with its name,
+  parameter schema, combined guide and JSON replies. A host offering only PDFs references no Open
+  XML SDK. See [A tool for AI agents](wwosik.DocLibs.DocumentGeneration.md#a-tool-for-ai-agents).
 - It is generated on each call, so it follows the package version, and it stays under about
   2,500 words.
 

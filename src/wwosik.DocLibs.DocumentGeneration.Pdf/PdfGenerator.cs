@@ -109,6 +109,13 @@ public static class PdfGenerator
     }
 
     /// <summary>
+    /// This generator bound to <paramref name="options"/>, as an <see cref="IMarkdownGenerator"/> (format <c>pdf</c>) for
+    /// <see cref="DocumentTool"/>: its <c>Generate</c>, <c>Check</c> and <c>AuthoringGuide</c> are this class's methods with
+    /// these options. The options are not checked until one of them is called.
+    /// </summary>
+    public static IMarkdownGenerator ForOptions(PdfOptions? options = null) => new Bound(options ?? PdfOptions.Default);
+
+    /// <summary>
     /// The authoring guide for whoever writes the Markdown (often an AI agent): how headings become the cover, pages
     /// and sections, the diagrams the options' renderers draw, the front matter keys of the options' design and brands,
     /// and the characters the brand's fonts lack. Markdown starting at <c>##</c>, in English, so a host can put it under
@@ -211,4 +218,23 @@ public static class PdfGenerator
 
     // A document laid out, with what rendering it needs besides.
     private sealed record LaidOut(Layout Layout, FontSet Fonts, string? Author, string LanguageTag);
+
+    private sealed class Bound(PdfOptions options) : IMarkdownGenerator
+    {
+        public string Format => "pdf";
+
+        public string Title => "PDF document";
+
+        public string FileExtension => ".pdf";
+
+        public string ContentType => "application/pdf";
+
+        public string AuthoringGuide() => PdfGenerator.AuthoringGuide(options);
+
+        public GenerationResult Generate(MarkdownDocument document, Stream output) => PdfGenerator.Generate(document, output, options);
+
+        public CheckResult Check(MarkdownDocument document) => PdfGenerator.Check(document, options);
+
+        public override string ToString() => $"{this.Title} ({this.Format})";
+    }
 }
