@@ -56,11 +56,11 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
             start = 1;
             while (start < blocks.Count && blocks[start] is Markdig.Syntax.ParagraphBlock paragraph && !HasImage(paragraph))
             {
-                subtitle.Add(parser.Runs(paragraph.Inline));
+                subtitle.Add(parser.NotDrawn(parser.Runs(paragraph.Inline), "the cover"));
                 start++;
             }
 
-            cover = new Cover(WithoutAttributes(parser.Runs(first.Inline)), subtitle, Anchor(first));
+            cover = new Cover(parser.NotDrawn(WithoutAttributes(parser.Runs(first.Inline)), "the cover"), subtitle, Anchor(first));
         }
 
         var result = new List<Block>();
@@ -107,7 +107,7 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         switch (block)
         {
             case Markdig.Syntax.HeadingBlock heading:
-                var runs = this.Runs(heading.Inline);
+                var runs = this.NotDrawn(this.Runs(heading.Inline), "a heading");
                 target.Add(new HeadingBlock(heading.Level, heading.Level <= 2 ? WithoutAttributes(runs) : runs, Anchor(heading)));
                 break;
             case CustomContainer { Info: LayoutSyntax.Notes }:
@@ -137,12 +137,15 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
                 break;
             case Markdig.Syntax.ListBlock list:
                 var tasks = list.OfType<ListItemBlock>().Select(Task).ToList();
+                var items = list.OfType<ListItemBlock>().Select(item => this.Children(item)).ToList();
+                var icons = items.Select((children, i) => tasks[i] is null ? LeadingIcon(children) : null).ToList();
                 target.Add(new ListBlock(
                     list.IsOrdered,
                     list.IsOrdered && int.TryParse(list.OrderedStart, NumberStyles.None, CultureInfo.InvariantCulture, out var n) ? n : 1,
-                    list.OfType<ListItemBlock>().Select(item => (IReadOnlyList<Block>)this.Children(item)).ToList())
+                    [.. items])
                 {
                     Tasks = tasks.Any(t => t is not null) ? tasks : null,
+                    Icons = icons.Any(i => i is not null) ? icons : null,
                 });
                 break;
             case DefinitionList definitions:
@@ -158,7 +161,7 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
                 target.Add(rendered switch
                 {
                     DrawingGraphic drawing => new DrawingBlock(drawing.Drawing),
-                    ImageGraphic image => this.Image(image.Image, 1.0),
+                    ImageGraphic image => this.ImageOf(image.Image, 1.0),
                     ChartGraphic chart => new DrawingBlock(chart.Drawing),
                     _ => throw new UnreachableException(),
                 });
@@ -187,6 +190,22 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
                 }
 
                 break;
+        }
+    }
+
+    // An item whose text starts with an icon: the icon, taken off the text, goes in place of the marker.
+    private static Drawing? LeadingIcon(List<Block> children)
+    {
+        switch (children)
+        {
+            case [ParagraphBlock { Runs: [{ Icon: { } icon }, ..] } paragraph, ..]:
+                children[0] = new ParagraphBlock(Trim([.. paragraph.Runs.Skip(1)]));
+                return icon.Drawing;
+            case [IconBlock alone, ..]:
+                children[0] = new ParagraphBlock([]);
+                return alone.Icon;
+            default:
+                return null;
         }
     }
 
@@ -249,6 +268,7 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         var collector = new RunCollector(this);
         collector.Add(inline, RunStyle.None, null);
         if (collector.Pieces.OfType<ImageBlock>().ToList() is { Count: >= 2 } images
+            && !collector.Pieces.OfType<DrawingBlock>().Any()
             && collector.Pieces.OfType<List<TextRun>>().All(runs => Trim(runs).Count == 0))
         {
             foreach (var image in images.Where(i => i.Attributes is { Fit: ImageFit.Cover, Scale: not null }))
@@ -271,9 +291,14 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
 
                 target.Add(image);
             }
-            else if (piece is List<TextRun> runs && Trim(Colour(runs)) is { Count: > 0 } trimmed)
+            else if (piece is DrawingBlock qr)
             {
-                target.Add(new ParagraphBlock(trimmed));
+                target.Add(qr);
+            }
+            else if (piece is List<TextRun> runs && Trim(this.Icons(Colour(runs), this.LineOf(inline))) is { Count: > 0 } trimmed)
+            {
+                // A paragraph of one icon is the icon on its own, as a card's figure is on a slide.
+                target.Add(trimmed is [{ Icon: { } icon }] ? new IconBlock(icon.Drawing) : new ParagraphBlock(trimmed));
             }
         }
     }
@@ -307,8 +332,41 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
     {
         var collector = new RunCollector(this, imagesAsText: true);
         collector.Add(inline, RunStyle.None, null);
-        return Trim(Colour(collector.Pieces.OfType<List<TextRun>>().SelectMany(r => r).ToList()));
+        return Trim(this.Icons(Colour(collector.Pieces.OfType<List<TextRun>>().SelectMany(r => r).ToList()), this.LineOf(inline)));
     }
+
+    // `:icon-name:`: an icon run of its own, unless icons are switched off.
+    private List<TextRun> Icons(List<TextRun> runs, int line) => IconSyntax.Apply(
+        runs,
+        r => r.Text,
+        r => r.Style.HasFlag(RunStyle.Code),
+        (r, text) => r with { Text = text },
+        (r, icon) => r with { Style = r.Style | RunStyle.Icon, Icon = icon },
+        options.Icons,
+        line,
+        DocumentFormat.Pdf);
+
+    // Icons where PDFs do not draw them (headings, table cells, the cover): left out, with a note.
+    private List<TextRun> NotDrawn(List<TextRun> runs, string place)
+    {
+        if (!runs.Any(r => r.Icon is not null))
+        {
+            return runs;
+        }
+
+        foreach (var icon in runs.Select(r => r.Icon).OfType<InlineIcon>())
+        {
+            notes.Add(
+                NoteCodes.IconNotDrawn,
+                icon.Line,
+                $"The icon ':icon-{icon.Name}:' in {place} is left out: a PDF draws icons in text, alone in a paragraph and at the start of a list item, not in headings, table cells or on the cover.");
+        }
+
+        return Trim([.. runs.Where(r => r.Icon is null)]);
+    }
+
+    // The line of a paragraph's text, from its first inline; 0 if unknown.
+    private int LineOf(ContainerInline? inline) => inline?.FirstChild is { } first ? this.LineOf(first) : 0;
 
     // `[words]{.success}`: the words bold, in that status colour.
     private static List<TextRun> Colour(List<TextRun> runs) => ColouredWords.Apply(
@@ -319,10 +377,12 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         (r, category) => r with { Style = r.Style | RunStyle.Bold, Colour = category },
         DocumentFormat.Pdf);
 
+    // An icon run has no text, but is not blank.
     private static List<TextRun> Trim(List<TextRun> runs)
     {
-        var result = runs.SkipWhile(r => r.IsBreak || r.Text.Trim().Length == 0).ToList();
-        while (result.Count > 0 && (result[^1].IsBreak || result[^1].Text.Trim().Length == 0))
+        static bool Blank(TextRun r) => r.IsBreak || (r.Icon is null && r.Text.Trim().Length == 0);
+        var result = runs.SkipWhile(Blank).ToList();
+        while (result.Count > 0 && Blank(result[^1]))
         {
             result.RemoveAt(result.Count - 1);
         }
@@ -372,12 +432,19 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
             runs.AddRange(this.Runs(leaf.Inline));
         }
 
-        return runs;
+        return this.NotDrawn(runs, "a table cell");
     }
 
-    private ImageBlock Image(LinkInline link)
+    // An image, or for `qr:…` the QR code as a drawing.
+    private Block Image(LinkInline link)
     {
         var url = link.GetDynamicUrl?.Invoke() ?? link.Url ?? string.Empty;
+        if (QrDrawing.IsQr(url))
+        {
+            var qrAttributes = ImageAttributes.Take(link, this.LineOf(link), DocumentFormat.Pdf);
+            return new DrawingBlock(QrDrawing.ForImage(url, AltText(link), link.Title, qrAttributes, ResolvedBrand.Resolve(brand), this.LineOf(link), DocumentFormat.Pdf).Drawing);
+        }
+
         var resource = document.FindResource(url)
             ?? throw new DocumentConversionException(DocumentFormat.Pdf, $"The image '{url}' is not among the document's resources.");
         var attributes = ImageAttributes.Take(link, this.LineOf(link), DocumentFormat.Pdf);
@@ -403,7 +470,7 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
             this.Ignored(line, attributes, "focus", "the image is not cropped; add .round, or fit=cover in a row of images");
         }
 
-        var image = this.Image(resource, titleScale ?? attributes.Scale ?? 1.0) with { Attributes = attributes, Line = line };
+        var image = this.ImageOf(resource, titleScale ?? attributes.Scale ?? 1.0) with { Attributes = attributes, Line = line };
         return attributes.Grey ? this.Grey(image) : image;
     }
 
@@ -434,7 +501,7 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
 
     // An image in another format, such as SVG, goes through the image converters: drawn at twice the size it is placed
     // at, and placed at its natural size, as the image itself would be.
-    private ImageBlock Image(DocumentResource resource, double scale)
+    private ImageBlock ImageOf(DocumentResource resource, double scale)
     {
         if (ImageInfo.Read(resource.Content.Span) is { Format: ImageFormat.Png or ImageFormat.Jpeg } info)
         {

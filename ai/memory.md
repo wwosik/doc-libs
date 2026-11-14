@@ -250,6 +250,19 @@ same change that made it untrue — a stale fact here is worse than a missing on
   constructor argument. A chart with a source is 18 px taller in PDFs; in decks the frame gives up
   one line for a text box under it. A layout's chart-source placeholder (E01-S06) would go in
   `DeckWriter.Chart`.
+- **QR codes and icons (E04-S06):** `qr:` image URLs become `QrDrawing.ForImage` drawings (QRCoder's
+  module matrix only, byte mode, ECC M) in both parsers, before the resource lookup. Icons come from
+  `IIconSet` (`PptxOptions.Icons` / `PdfOptions.Icons`, default `TablerIcons.Outline`, `null` = off);
+  `IconSyntax.Apply` runs after `ColouredWords` and makes an icon a run of its own with empty `Text`
+  and `TextRun.Icon` set, so both parsers' `Trim` treat icon runs as not blank. Decks draw icons only
+  as `Card.FigureIcon` and in `IconListBlock` (which makes a section a flow slide, like other layouts);
+  every other icon run is skipped by `DeckWriter` and reported once per slide in `DeckParser.Section`.
+  PDFs draw them inline (`RunStyle.Icon`, `Piece.Icon`), as list markers (`ListBlock.Icons`) and as
+  `IconBlock`; headings, cells and the cover drop them (`MarkdownParser.NotDrawn`). The Tabler data is
+  `Icons/tabler-outline.txt.gz` from `tools/icon-import`, committed; a test holds it to 1 MB and its
+  count to the number on the DocumentGeneration docs page. The guides' `{{icons}}` comes from
+  `AuthoringGuides.Icons` and is empty with `Icons = null`. The shared package's licences are in its
+  own `THIRD-PARTY-NOTICES.txt`.
 
 - **PDF structure (E08-S01):** `PdfConverter` runs a structured pass per page (`PageGraphics.Read` sorts
   `page.Paths` into rules, boxes, dots, fills; tables first, their words leave the flow; then lines with

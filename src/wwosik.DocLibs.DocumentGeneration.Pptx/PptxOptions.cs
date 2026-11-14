@@ -87,6 +87,13 @@ public sealed record PptxOptions
     /// </summary>
     public IReadOnlyDictionary<string, GeneratedTexts> Texts { get; init; } = new Dictionary<string, GeneratedTexts>();
 
+    /// <summary>
+    /// The icons <c>:icon-name:</c> draws (as a card's figure, as list bullets in an icon list, never inside a slide's text). Default
+    /// <see cref="TablerIcons.Outline"/>, the whole Tabler outline set; a set of your own replaces it, and an unknown
+    /// name is an error. <see langword="null"/> switches icons off: <c>:icon-name:</c> then stays text and is not checked.
+    /// </summary>
+    public IIconSet? Icons { get; init; } = TablerIcons.Outline;
+
     /// <summary>The clock for the date of generation in the footer. Default <see cref="TimeProvider.System"/>.</summary>
     public TimeProvider TimeProvider { get; init; } = TimeProvider.System;
 }

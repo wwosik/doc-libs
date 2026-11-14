@@ -37,6 +37,8 @@ a title that states the point, then a few short lines.
   `right` or `center` (the default) says which part stays. `.round` crops it to a circle, `.grey`
   shows it in grey, `.caption` is the same as `"caption"`, and `scale=1` as `"scale=1"`. An unknown
   attribute is an error.
+- **QR codes:** `![Survey](qr:https://example.com)` draws a QR code of the text after `qr:`;
+  `"caption"` puts the alt text under it.
 - `==text==` marks text like a highlighter pen.
 - `[words]{.success}` sets a few words bold in a status colour: `.success`, `.info`, `.warning`,
   `.danger` or `.neutral` — for a verdict inside a sentence, such as `[on schedule]{.success}`.
@@ -165,6 +167,12 @@ The end date does not move.
   own marker.
 - Other braces alone in a paragraph, such as `{.note}`, are a mistake; `\{` keeps them as text.
 
+## Icons
+
+`:icon-name:` draws the icon of that name of [Tabler Icons](https://tabler.io/icons) (3.52.0, outline), such as `:icon-circle-check:`. Slides show it only alone after a card's `###` (as its figure) and at the start of every item of a list (as bullets); elsewhere it is left out. An unknown name is an error.
+
+Common: `check`, `x`, `star`, `heart`, `bolt`, `rocket`, `target`, `flag`, `bulb`, `lock`, `users`, `calendar`, `clock`, `mail`, `chart-bar`, `trending-up`, `cloud`, `search`, `settings`, `world`.
+
 ## Diagrams
 
 A ` ```mermaid ` code block becomes a diagram in the document's colours. Use one where a picture
@@ -279,6 +287,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `notes-dropped`: a `::: notes` stands before the first heading, so it belongs to no slide and was left out. Move it under the heading of the slide it is for.
 - `notes-simplified`: speaker notes hold only paragraphs and lists; a table, code block, image or quote in `::: notes` was written as plain text. Keep speaker notes to text and lists.
 - `attribute-ignored`: an image attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `focus` on an image that is not cropped. Remove it, or use it where it works.
+- `icon-not-drawn`: an icon was left out where it cannot be drawn. Move it as the *Icons* section says.
 
 ## Example
 

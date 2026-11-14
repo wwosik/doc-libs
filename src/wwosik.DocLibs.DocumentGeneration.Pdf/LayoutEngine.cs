@@ -36,6 +36,11 @@ internal sealed class LayoutEngine
     private const string White = "FFFFFF";
 
     // A footnote reference: this share of the text size, raised by this share of it.
+    // Icons: a figure (a paragraph of one icon) as large as a card's figure on a slide; an icon in text one em wide,
+    // with a thin space each side, centred on the height of a capital letter.
+    private const double FigureSize = 32;
+    private const double ThinSpace = 1.0 / 6;
+    private const double CapHeight = 0.7;
     private const double SuperscriptScale = 0.65;
     private const double SuperscriptRise = 0.33;
 
@@ -175,6 +180,12 @@ internal sealed class LayoutEngine
             case DrawingBlock drawing:
                 this.Drawing(drawing.Drawing, frame);
                 break;
+            case IconBlock icon:
+                this.Ensure(FigureSize);
+                this.Icon(icon.Icon, frame.Left, this.y, FigureSize, this.design.Brand.Primary);
+                this.Advance(FigureSize, frame);
+                this.Gap(ParagraphGap, frame);
+                break;
             case DefinitionListBlock definitions:
                 this.Definitions(definitions, frame, listLevel);
                 break;
@@ -286,6 +297,8 @@ internal sealed class LayoutEngine
                 return Math.Min(this.RowSizes(row, frame).Max(s => s.Height), this.geometry.Bottom - this.geometry.Top - above);
             case DrawingBlock drawing:
                 return Math.Min(DrawingScale(drawing.Drawing, frame, this.geometry) * drawing.Drawing.Height, this.geometry.Bottom - this.geometry.Top - above);
+            case IconBlock:
+                return FigureSize;
             case DefinitionListBlock { Items.Count: > 0 }:
                 return 2 * BodySize * LineFactor;
             case RuleBlock:
@@ -314,7 +327,7 @@ internal sealed class LayoutEngine
 
     // A marker (bullet or number) goes right-aligned before the first line. A page break inside the paragraph leaves
     // at least two lines on either side: no orphan at the bottom, no widow at the top.
-    private void Paragraph(IReadOnlyList<TextRun> runs, Frame frame, string? marker, double gapAfter)
+    private void Paragraph(IReadOnlyList<TextRun> runs, Frame frame, string? marker, double gapAfter, Drawing? icon = null)
     {
         var lines = this.ParagraphLines(runs, frame.Width);
         if (lines.Count == 0 && marker is not null)
@@ -348,7 +361,7 @@ internal sealed class LayoutEngine
             {
                 if (i == 0 && marker is not null)
                 {
-                    this.Marker(marker, frame);
+                    this.Marker(marker, frame, icon);
                 }
 
                 this.Line(lines[i], frame, frame.Left, BodySize, frame.Color);
@@ -377,8 +390,16 @@ internal sealed class LayoutEngine
         return lines;
     }
 
-    private void Marker(string marker, Frame frame)
+    // An icon in place of the marker is drawn at the text size, in the accent colour, as task boxes are drawn.
+    private void Marker(string marker, Frame frame, Drawing? icon = null)
     {
+        if (icon is not null)
+        {
+            var top = this.Baseline(BodySize) - (BodySize * (0.5 + (CapHeight / 2)));
+            this.Icon(icon, frame.Left - MarkerGap - BodySize, top, BodySize, this.design.Brand.Primary);
+            return;
+        }
+
         if (marker is EmptyBox or TickedBox)
         {
             this.Box(marker == TickedBox, frame);
@@ -441,9 +462,10 @@ internal sealed class LayoutEngine
             var marker = list.Tasks?[i] is { } ticked ? ticked ? TickedBox : EmptyBox
                 : list.Ordered ? (list.Start + i).ToString(CultureInfo.InvariantCulture) + "." : level % 2 == 0 ? "•" : "–";
             var item = list.Items[i];
+            var icon = list.Icons?[i];
             if (item.Count == 0)
             {
-                this.Paragraph([], inner, marker, ListItemGap);
+                this.Paragraph([], inner, marker, ListItemGap, icon);
                 continue;
             }
 
@@ -451,14 +473,14 @@ internal sealed class LayoutEngine
             {
                 if (b == 0 && item[b] is ParagraphBlock paragraph)
                 {
-                    this.Paragraph(paragraph.Runs, inner, marker, ListItemGap);
+                    this.Paragraph(paragraph.Runs, inner, marker, ListItemGap, icon);
                 }
                 else
                 {
                     if (b == 0)
                     {
                         this.Ensure(BodySize * LineFactor);
-                        this.Marker(marker, inner);
+                        this.Marker(marker, inner, icon);
                     }
 
                     this.Block(item[b], inner, item[b] is ListBlock ? level + 1 : level, item, b + 1);
@@ -641,6 +663,31 @@ internal sealed class LayoutEngine
 
         this.Advance(height, frame);
         this.Gap(ParagraphGap, frame);
+    }
+
+    // An icon as shapes in a square of `side` points at (left, top), every stroke and fill in `colour`.
+    private void Icon(Drawing icon, double left, double top, double side, string colour)
+    {
+        icon.Validate();
+        var scale = side / Math.Max(Math.Max(icon.Width, icon.Height), 1e-9);
+        (double X, double Y) Place(double x, double y) => (left + (x * scale), top + (y * scale));
+        foreach (var shape in icon.Items.OfType<DrawingShape>())
+        {
+            var path = shape.Path.Segments.Select(segment => segment switch
+            {
+                MoveTo m => (PathSegment)new MoveTo(Place(m.X, m.Y).X, Place(m.X, m.Y).Y),
+                LineTo l => new LineTo(Place(l.X, l.Y).X, Place(l.X, l.Y).Y),
+                CubicTo c => new CubicTo(Place(c.X1, c.Y1).X, Place(c.X1, c.Y1).Y, Place(c.X2, c.Y2).X, Place(c.X2, c.Y2).Y, Place(c.X, c.Y).X, Place(c.X, c.Y).Y),
+                _ => segment,
+            }).ToList();
+            this.page.Items.Add(new ShapeItem(
+                path,
+                shape.Fill is null ? null : colour,
+                shape.Stroke is null ? null : colour,
+                shape.StrokeWidth * scale,
+                shape.Dash?.Select(d => d * scale).ToList(),
+                shape.RoundJoins) { FillRule = shape.FillRule });
+        }
     }
 
     // A drawing's text in the diagram faces (the table faces), shrunk to its room down to 70 %, then anchored.
@@ -1013,7 +1060,15 @@ internal sealed class LayoutEngine
         {
             var pieceColor = piece.Colour is { } category ? this.LabelColour(category) : piece.Link is not null ? this.design.Brand.Link : color;
             var raised = piece.Style.HasFlag(RunStyle.Superscript) ? baseline - (size * SuperscriptRise) : baseline;
-            this.page.Items.Add(new TextItem(x, raised, piece.Text, piece.Face, piece.Size, pieceColor));
+            if (piece.Icon is { } icon)
+            {
+                this.Icon(icon, x + (piece.Size * ThinSpace), baseline - (piece.Size * (0.5 + (CapHeight / 2))), piece.Size, pieceColor);
+            }
+            else
+            {
+                this.page.Items.Add(new TextItem(x, raised, piece.Text, piece.Face, piece.Size, pieceColor));
+            }
+
             if (piece.Link is { } link && !piece.IsSpace)
             {
                 this.page.Items.Add(new LineItem(x, baseline + 1.2, x + piece.Width, baseline + 1.2, 0.5, pieceColor));
@@ -1041,7 +1096,7 @@ internal sealed class LayoutEngine
         Piece? current = null;
         foreach (var piece in pieces)
         {
-            if (current is not null && current.Face == piece.Face && current.Size == piece.Size && current.Link == piece.Link
+            if (current is not null && current.Icon is null && piece.Icon is null && current.Face == piece.Face && current.Size == piece.Size && current.Link == piece.Link
                 && current.Colour == piece.Colour && current.Style.HasFlag(RunStyle.Strike) == piece.Style.HasFlag(RunStyle.Strike)
                 && current.Style.HasFlag(RunStyle.Superscript) == piece.Style.HasFlag(RunStyle.Superscript))
             {
@@ -1137,6 +1192,11 @@ internal sealed class LayoutEngine
                 FlushWord();
                 FinishLine();
             }
+            else if (piece.IsSpace && word.Count > 0 && word[^1].Icon is not null)
+            {
+                // An icon is never broken from the word after it.
+                word.Add(piece with { IsSpace = false });
+            }
             else if (piece.IsSpace)
             {
                 FlushWord();
@@ -1172,6 +1232,12 @@ internal sealed class LayoutEngine
             var style = run.Style | baseStyle;
             var face = Face(style);
             var pieceSize = (style.HasFlag(RunStyle.Code) ? size * 0.9 : size) * (style.HasFlag(RunStyle.Superscript) ? SuperscriptScale : 1);
+            if (run.Icon is { } icon)
+            {
+                pieces.Add(new Piece(string.Empty, style, run.Link, face, pieceSize, pieceSize * (1 + (2 * ThinSpace)), IsSpace: false, IsBreak: false) { Colour = run.Colour, Icon = icon.Drawing });
+                continue;
+            }
+
             var text = Visible(run.Text);
             var start = 0;
             for (var i = 0; i <= text.Length; i++)
@@ -1323,6 +1389,9 @@ internal sealed record Piece(string Text, RunStyle Style, string? Link, FontFace
 {
     /// <summary>The status colour of <c>[words]{.success}</c>.</summary>
     public LabelCategory? Colour { get; init; }
+
+    /// <summary>An icon, one em and a thin space each side wide, in place of text.</summary>
+    public Drawing? Icon { get; init; }
 }
 
 internal sealed record TextLine(List<Piece> Pieces, double Width);

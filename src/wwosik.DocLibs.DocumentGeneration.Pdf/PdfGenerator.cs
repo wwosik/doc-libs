@@ -93,6 +93,10 @@ public static class PdfGenerator
                     options.Language,
                     [.. options.Template.Keys.Concat([PageSizeKey, OrientationKey]).Select(k => (k, meanings[k])), transition, build, labels]),
                 ["characters"] = Characters(FontSet.For(ResolvedBrand.Resolve(options.Template.BrandValue)), options.ReplaceUnsupported is not null),
+                ["icons"] = AuthoringGuides.Icons(
+                    options.Icons,
+                    "A PDF draws it inside text, one letter wide in the text's colour; at the start of a list item, in place "
+                    + "of its bullet; and alone in a paragraph, large. In headings, table cells and on the cover it is left out."),
                 ["notes"] = options.ReplaceUnsupported is null
                     ? AuthoringGuides.Notes(DocumentFormat.Pdf, NoteCodes.CharacterReplaced)
                     : AuthoringGuides.Notes(DocumentFormat.Pdf),

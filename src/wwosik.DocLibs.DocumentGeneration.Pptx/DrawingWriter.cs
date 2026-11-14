@@ -20,8 +20,13 @@ internal static class DrawingWriter
     /// <paramref name="font"/> is the family of the text (the brand's table family), <see langword="null"/> for the
     /// theme's body font; <paramref name="monoFont"/> the family of mono text.
     /// </remarks>
+    /// <remarks>
+    /// <paramref name="colour"/>, if given, replaces the colour of every stroke and fill (an icon, drawn in the colour
+    /// of its place, which may be a theme colour); <paramref name="name"/> starts the group's name.
+    /// </remarks>
     /// <exception cref="ArgumentException">The drawing is invalid, see <see cref="Drawing.Validate"/>.</exception>
-    public static P.GroupShape Group(Drawing drawing, long x, long y, double emuPerPixel, Func<uint> nextId, string? font, string monoFont)
+    public static P.GroupShape Group(
+        Drawing drawing, long x, long y, double emuPerPixel, Func<uint> nextId, string? font, string monoFont, SlideColor? colour = null, string name = "Diagram ")
     {
         drawing.Validate();
         long X(double px) => x + (long)Math.Round(px * emuPerPixel);
@@ -32,7 +37,7 @@ internal static class DrawingWriter
         var id = nextId();
         var group = new P.GroupShape(
             new P.NonVisualGroupShapeProperties(
-                new P.NonVisualDrawingProperties { Id = id, Name = "Diagram " + id },
+                new P.NonVisualDrawingProperties { Id = id, Name = name + id },
                 new P.NonVisualGroupShapeDrawingProperties(),
                 new P.ApplicationNonVisualDrawingProperties()),
             new P.GroupShapeProperties(new A.TransformGroup(
@@ -46,7 +51,7 @@ internal static class DrawingWriter
         {
             group.Append(item switch
             {
-                DrawingShape shape => Shape(shape, nextId(), X, Y, emuPerPixel),
+                DrawingShape shape => Shape(shape, nextId(), X, Y, emuPerPixel, colour),
                 DrawingText text => Text(text, nextId(), X, Y, emuPerPixel, font, monoFont),
                 _ => throw new InvalidOperationException("Unknown drawing item."),
             });
@@ -55,7 +60,7 @@ internal static class DrawingWriter
         return group;
     }
 
-    private static P.Shape Shape(DrawingShape shape, uint id, Func<double, long> toX, Func<double, long> toY, double emuPerPixel)
+    private static P.Shape Shape(DrawingShape shape, uint id, Func<double, long> toX, Func<double, long> toY, double emuPerPixel, SlideColor? colour)
     {
         var (bx, by, bw, bh) = shape.Path.Bounds;
         var left = toX(bx);
@@ -78,8 +83,8 @@ internal static class DrawingWriter
         var properties = new P.ShapeProperties(
             new A.Transform2D(new A.Offset { X = left, Y = top }, new A.Extents { Cx = width, Cy = height }),
             geometry,
-            shape.Fill is { } fill ? new A.SolidFill(Rgb(fill)) : new A.NoFill(),
-            Outline(shape, emuPerPixel));
+            shape.Fill is { } fill ? colour?.Fill() ?? new A.SolidFill(Rgb(fill)) : new A.NoFill(),
+            Outline(shape, emuPerPixel, colour));
         return new P.Shape(
             new P.NonVisualShapeProperties(
                 new P.NonVisualDrawingProperties { Id = id, Name = shape.Kind + " " + id },
@@ -118,14 +123,14 @@ internal static class DrawingWriter
             new A.PathList(path));
     }
 
-    private static A.Outline Outline(DrawingShape shape, double emuPerPixel)
+    private static A.Outline Outline(DrawingShape shape, double emuPerPixel, SlideColor? colour)
     {
         if (shape.Stroke is not { } stroke || shape.StrokeWidth <= 0)
         {
             return new A.Outline(new A.NoFill());
         }
 
-        var outline = new A.Outline(new A.SolidFill(Rgb(stroke))) { Width = (int)Math.Max(1, Math.Round(shape.StrokeWidth * emuPerPixel)) };
+        var outline = new A.Outline(colour?.Fill() ?? new A.SolidFill(Rgb(stroke))) { Width = (int)Math.Max(1, Math.Round(shape.StrokeWidth * emuPerPixel)) };
         if (shape.Dash is { Count: > 0 } dash)
         {
             // Custom dashes are in percent of the line width.

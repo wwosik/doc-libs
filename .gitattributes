@@ -13,3 +13,4 @@
 *.jpg binary
 *.gif binary
 *.ttf binary
+*.gz binary

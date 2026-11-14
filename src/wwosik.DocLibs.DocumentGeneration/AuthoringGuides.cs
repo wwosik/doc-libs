@@ -119,6 +119,38 @@ internal static partial class AuthoringGuides
     public static string Renderers(IEnumerable<ICodeBlockRenderer> renderers) =>
         string.Join("\n\n", renderers.Select(r => r.AuthoringGuide?.Trim('\n')).Where(g => !string.IsNullOrEmpty(g)));
 
+    /// <summary>Common Tabler names, for the guides; the full catalogue is on Tabler's site.</summary>
+    internal static readonly IReadOnlyList<string> CommonIcons =
+    [
+        "check", "x", "star", "heart", "bolt", "rocket", "target", "flag", "bulb", "lock",
+        "users", "calendar", "clock", "mail", "chart-bar", "trending-up", "cloud", "search", "settings", "world",
+    ];
+
+    /// <summary>
+    /// The guide's section on <c>:icon-name:</c>: <paramref name="places"/> says where the format draws icons. Empty when
+    /// icons are switched off; for a set other than Tabler's, its own names (the first 20).
+    /// </summary>
+    public static string Icons(IIconSet? set, string places)
+    {
+        if (set is null)
+        {
+            return string.Empty;
+        }
+
+        var tabler = ReferenceEquals(set, TablerIcons.Outline);
+        var names = tabler ? CommonIcons : [.. set.Names.Order(StringComparer.Ordinal).Take(20)];
+        var source = tabler
+            ? $"of [Tabler Icons](https://tabler.io/icons) ({TablerIcons.Version}, outline)"
+            : "of the icons set up for you";
+        var list = tabler
+            ? "Common: " + string.Join(", ", names.Select(n => $"`{n}`")) + "."
+            : (set.Names.Count > names.Count ? "Among them: " : "They are: ") + string.Join(", ", names.Select(n => $"`{n}`")) + ".";
+        return "## Icons\n\n"
+            + $"`:icon-name:` draws the icon of that name {source}, such as `:icon-circle-check:`. {places} "
+            + "An unknown name is an error.\n\n"
+            + list + "\n";
+    }
+
     /// <summary>
     /// The notes a generator of <paramref name="format"/> may give back, each with what to change in the Markdown, as a
     /// list under an introduction; leaving out <paramref name="without"/>, codes that cannot occur with the options.

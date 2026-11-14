@@ -3,9 +3,11 @@
 What the generators [wwosik.DocLibs.DocumentGeneration.Pptx](wwosik.DocLibs.DocumentGeneration.Pptx.md)
 and [wwosik.DocLibs.DocumentGeneration.Pdf](wwosik.DocLibs.DocumentGeneration.Pdf.md) share: the
 public **brand** API (`Brand`, `BrandPack`), the **drawing** model and the code-block renderer
-interface, and internally front matter and image headers. It
-comes along as a dependency of either generator. Depends only on
-[wwosik.DocLibs.DocumentConversions](wwosik.DocLibs.DocumentConversions.md); AOT-compatible.
+interface, [QR codes and icons](#qr-codes-and-icons) (`IIconSet`, `TablerIcons`), and internally
+front matter and image headers. It comes along as a dependency of either generator. Depends on
+[wwosik.DocLibs.DocumentConversions](wwosik.DocLibs.DocumentConversions.md), Markdig and QRCoder;
+AOT-compatible. Third-party licences (QRCoder, Tabler Icons) are in the package's
+`THIRD-PARTY-NOTICES.txt`.
 
 ## Brands
 
@@ -258,6 +260,7 @@ if (result.HasNotes)
 | `notes-dropped` | PPTX | A `::: notes` stands before the first heading, so it belongs to no slide and was left out |
 | `notes-simplified` | PPTX | Speaker notes held a table, code block, image, quote, alert, heading or other container, written as plain text; one note per block |
 | `attribute-ignored` | PPTX, PDF | An image attribute has no effect where it is: `fit=cover` on an image of its own in a PDF, `focus` on an image that is not cropped, `scale` with `fit=cover`, `.caption` in a PDF, or any attribute on an image shown as its alt text (in a heading or a table cell) |
+| `icon-not-drawn` | PPTX, PDF | An icon (`:icon-name:`) stands where the format cannot draw it and was left out of the text: in decks anywhere but a card's figure or an icon list (inside text, a heading, a table cell, speaker notes, a list where not every item starts with an icon); in PDFs in a heading, a table cell or on the cover |
 
 ## Drawings and code-block renderers
 
@@ -437,6 +440,74 @@ one shows them is in its own documentation.
 - `- [ ] item` and `- [x] item` are task list items: a box instead of the bullet, empty or ticked.
 - A paragraph of one line followed by `:   description` lines is a definition list: the line is the
   term, each `:` line a description. Several terms in a row share the descriptions after them.
+
+## QR codes and icons
+
+Two kinds of small vector graphics written in the Markdown; both are `Drawing`s, so decks get
+editable shapes and PDFs vectors, as for diagrams.
+
+**QR codes.** An image whose URL starts with `qr:` is a QR code for the rest of the URL, taken
+literally: `![Survey](qr:https://example.com/survey?id=3)`, `qr:mailto:…`, `qr:WIFI:…`.
+
+- Encoded by [QRCoder](https://github.com/Shane32/QRCoder) (MIT) from the UTF-8 bytes, in byte mode
+  with error correction M and the smallest version that holds them; only its module matrix is used.
+  More than 1 000 bytes, or none, throws `DocumentConversionException`.
+- Drawn (internally `QrDrawing`) as a white square with a quiet zone of four modules and one path of
+  every dark module (a rectangle per horizontal run, non-zero fill): two shapes in a deck, two paths in
+  a PDF. 4 px a module; `scale=` (title or attributes) multiplies it.
+- The modules take the brand's primary colour when it has at least 4.5:1 contrast to white, else the
+  diagram text colour, else black; dark on its white square on dark slides too.
+- The alt text is the description; `caption` in the title or `.caption` puts it under the code. Any
+  other image attribute is an error.
+
+**Icons.** `:icon-<name>:` in running text (never in code) draws the icon of that name, in Tabler's
+kebab-case: `:icon-check:`, `:icon-circle-check:`. Icons are on by default, from the embedded set:
+
+```csharp
+public interface IIconSet
+{
+    IReadOnlyCollection<string> Names { get; }
+    Drawing? Find(string name);      // null: not in the set
+}
+
+TablerIcons.Outline   // the whole Tabler Icons outline set, version TablerIcons.Version
+```
+
+- `PptxOptions.Icons` and `PdfOptions.Icons` (default `TablerIcons.Outline`) take any `IIconSet`, such
+  as a caller's own icons, which then replaces Tabler's. `Icons = null` switches icons off:
+  `:icon-name:` stays text and is not checked.
+- An icon is drawn in one colour, the colour of its place (accent as a figure or bullet, the text
+  colour inline): every stroke and fill of its `Drawing` takes it.
+- A name the set lacks throws `DocumentConversionException` with up to three close names, by edit
+  distance and then common prefix: "Unknown icon 'chek' at line 3. Did you mean check, checks, chess?".
+- Where each format draws icons is on the [PPTX](wwosik.DocLibs.DocumentGeneration.Pptx.md#qr-codes-and-icons)
+  and [PDF](wwosik.DocLibs.DocumentGeneration.Pdf.md#qr-codes-and-icons) pages; elsewhere the note
+  `icon-not-drawn` says it was left out.
+
+**The embedded set.** [Tabler Icons](https://tabler.io/icons) 3.52.0 (MIT), outline style, from the npm
+package `@tabler/icons` 3.52.0. Each icon is a 24 × 24 drawing of one path, stroked 2 px with round
+ends and joins, unfilled, as Tabler draws them. The set holds 5491 icons. The data is one embedded,
+gzip-compressed resource (`Icons/tabler-outline.txt.gz`, logical name `Icons.tabler-outline.txt.gz`):
+one line per icon, `name<TAB>path data`, absolute `M`/`L`/`C`/`Z` only, two decimals. It is read and
+decompressed on the first lookup only; each icon's `Drawing` is built when first asked for and kept.
+A document without icons pays nothing at run time beyond the larger assembly.
+
+| Measured (3.52.0) | Size |
+| ----------------- | ---- |
+| Icon data, raw | 1 369 064 bytes |
+| Icon data, compressed (the embedded resource) | 313 474 bytes |
+| Budget for the compressed resource | 1 000 000 bytes, guarded by a test |
+| Packed `.nupkg` before the icons | 153 871 bytes |
+| Packed `.nupkg` with the icons and QRCoder | 482 484 bytes |
+
+**Updating the set.** `./run.sh icon-import` (or `run.ps1 icon-import`) downloads the version pinned in
+`tools/icon-import/icon-import.cs` from the npm registry (or reads `--source <.tgz>`), converts every
+outline SVG (circles, ellipses, lines, polylines, polygons, rectangles, arcs and quadratic curves become
+cubic and straight segments there, so the library needs no SVG parser), prints the count and the raw
+and compressed sizes, and fails above the budget. It writes the resource, which is committed, so a build
+needs neither the tool nor the network. After an update: change `TablerIcons.Version`, the version in
+`THIRD-PARTY-NOTICES.txt`, and the count and sizes above (a test checks the count against this page).
+If an update breaks the budget, the set is cut to a curated list, which goes back to the human first.
 
 ## Image headers
 

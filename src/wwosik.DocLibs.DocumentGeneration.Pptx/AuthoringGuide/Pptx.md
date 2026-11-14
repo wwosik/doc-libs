@@ -37,6 +37,8 @@ a title that states the point, then a few short lines.
   `right` or `center` (the default) says which part stays. `.round` crops it to a circle, `.grey`
   shows it in grey, `.caption` is the same as `"caption"`, and `scale=1` as `"scale=1"`. An unknown
   attribute is an error.
+- **QR codes:** `![Survey](qr:https://example.com)` draws a QR code of the text after `qr:`;
+  `"caption"` puts the alt text under it.
 - `==text==` marks text like a highlighter pen.
 - `[words]{.success}` sets a few words bold in a status colour: `.success`, `.info`, `.warning`,
   `.danger` or `.neutral` — for a verdict inside a sentence, such as `[on schedule]{.success}`.
@@ -166,6 +168,8 @@ The end date does not move.
 - Other braces alone in a paragraph, such as `{.note}`, are a mistake; `\{` keeps them as text.
 
 {{templateLayouts}}
+
+{{icons}}
 
 {{diagrams}}
 

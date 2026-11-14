@@ -22,7 +22,6 @@ internal sealed partial class DeckWriter
     private const long MinRowHeight = 370840;
     private const long CellInsets = 91440 * 2;
     private const int MinTableSize = 1000;
-    private const double MaxDrawingUpscale = 1.5;
 
     // Above this, an enlarged image is reported as possibly blurred.
     private const double MaxSharpUpscale = 2.0;
@@ -314,7 +313,7 @@ internal sealed partial class DeckWriter
             var box = new Rect(area.X, y, area.W, Math.Max(room, area.H / 4));
             return slide.Images is { } images ? box with { H = this.Images(canvas, images, box, slide.VisualBuild) }
                 : slide.Chart is { } chart ? this.Chart(canvas, chart, box)
-                : this.Drawing(canvas, slide.Drawing!, box);
+                : this.Drawing(canvas, slide.Drawing!, box, slide.Placement);
         });
 
         if (slide.Below.Count > 0)
@@ -530,7 +529,7 @@ internal sealed partial class DeckWriter
         ImageRowBlock row => this.Images(canvas, row.Images, this.VisualBox(box), row.Build),
         ColumnsBlock columns => this.Columns(canvas, columns, box, style),
         ChartBlock chart => this.Chart(canvas, chart.Chart, this.VisualBox(box)).H,
-        DrawingBlock drawing => this.Drawing(canvas, drawing.Drawing, this.VisualBox(box)).H,
+        DrawingBlock drawing => this.Drawing(canvas, drawing.Drawing, this.VisualBox(box), drawing.Placement).H,
         CardsBlock cards => this.Cards(canvas, cards, box, style),
         RowsBlock rows => this.Rows(canvas, rows, box, style),
         PanelBlock panel => this.Panel(canvas, panel, box, style),
@@ -539,6 +538,7 @@ internal sealed partial class DeckWriter
         TagsBlock tags => this.Tags(canvas, tags, box, style),
         CodeLinesBlock code => this.Code(canvas, code, box, style),
         LabelledTagsBlock labelled => this.LabelledTags(canvas, labelled, box, style),
+        IconListBlock icons => this.IconList(canvas, icons, box, style),
         _ => throw new InvalidOperationException("Unknown kind of block."),
     };
 
@@ -648,6 +648,13 @@ internal sealed partial class DeckWriter
         if (card.Figure is { } figure)
         {
             y += this.FlowText(canvas, [new TextParagraph(Bold(figure))], inner with { Y = y }, style.Scaled(FigureSize), style.Dark && !this.palette.DarkSlides ? SlideColor.White : this.palette.Accent);
+        }
+        else if (card.FigureIcon is { } icon)
+        {
+            // As tall as a line of figure text, so a card with an icon lines up with one with a figure.
+            var side = LineHeight(style.Scaled(FigureSize));
+            this.Icon(canvas, icon, inner.X, y + (TextInsets / 2), side, this.IconColour(style));
+            y += side + TextInsets;
         }
 
         if (card.Blocks.Count > 0)
@@ -797,6 +804,43 @@ internal sealed partial class DeckWriter
         return y - box.Y;
     }
 
+    // Each item a row: its icon in the accent colour, as tall as the first line, the item's text beside it.
+    private long IconList(Canvas? canvas, IconListBlock block, Rect box, FlowStyle style)
+    {
+        var side = LineHeight(style.Size);
+        var text = new Rect(box.X + side + Gap, 0, box.W - side - Gap, 0);
+        var y = box.Y;
+        for (var i = 0; i < block.Items.Count; i++)
+        {
+            if (i > 0)
+            {
+                y += ChipGap;
+            }
+
+            var item = block.Items[i];
+            canvas?.Item(block.Build, i);
+            var paragraph = new TextParagraph(item.Text);
+            var height = Math.Max(side + TextInsets, FlowHeight([paragraph], style.Size, text.W));
+            if (canvas is not null)
+            {
+                // The text box's first line starts below its top inset.
+                this.Icon(canvas, item.Icon, box.X, y + (TextInsets / 2), side, this.IconColour(style));
+                this.FlowText(canvas, [paragraph], text with { Y = y }, style.Size, style.Text);
+            }
+
+            y += height;
+        }
+
+        return y - box.Y;
+    }
+
+    // An icon as a group of editable shapes, `side` EMU square, every stroke and fill in one colour.
+    private void Icon(Canvas? canvas, Drawing icon, long x, long y, long side, SlideColor colour) =>
+        canvas?.Add(DrawingWriter.Group(icon, x, y, side / Math.Max(icon.Width, icon.Height), canvas.NextId, this.tableFont, this.codeFont, colour, "Icon "));
+
+    // Icons take the accent colour, white on a dark block of a light deck, like a card's figure.
+    private SlideColor IconColour(FlowStyle style) => style.Dark && !this.palette.DarkSlides ? SlideColor.White : this.palette.Accent;
+
     // Outlined on the page colour, so that chips stand out on cards and panels too.
     private P.Shape Chip(Canvas canvas, Rect box, TextRun text, FlowStyle style)
     {
@@ -883,7 +927,7 @@ internal sealed partial class DeckWriter
     {
         var layout = canvas.Part.SlideLayoutPart!;
         var paragraph = new A.Paragraph();
-        foreach (var run in title)
+        foreach (var run in title.Where(r => r.Icon is null))
         {
             paragraph.Append(run.IsBreak ? new A.Break() : this.Run(canvas, run, null, color: color));
         }
@@ -1016,7 +1060,8 @@ internal sealed partial class DeckWriter
         }
 
         var result = new A.Paragraph(properties);
-        foreach (var run in paragraph.Runs)
+        // An icon inside text cannot be drawn on a slide: left out (and reported by the parser).
+        foreach (var run in paragraph.Runs.Where(r => r.Icon is null))
         {
             result.Append(run.IsBreak ? new A.Break() : this.Run(canvas, run, size, font, color));
         }
@@ -1242,10 +1287,11 @@ internal sealed partial class DeckWriter
     }
 
     // Fitted into the box like a picture: centred, enlarged at most by half, so that its text keeps a sensible size.
-    private Rect Drawing(Canvas? canvas, Drawing drawing, Rect box)
+    // A QR code keeps to a third of the width, or with a scale to its own size.
+    private Rect Drawing(Canvas? canvas, Drawing drawing, Rect box, DrawingPlacement placement)
     {
         drawing.Validate();
-        var fit = Math.Min(MaxDrawingUpscale, Math.Min(box.W / (drawing.Width * EmuPerPixel), box.H / (drawing.Height * EmuPerPixel)));
+        var fit = Math.Min(placement.MaxUpscale, Math.Min(box.W * placement.MaxWidthShare / (drawing.Width * EmuPerPixel), box.H / (drawing.Height * EmuPerPixel)));
         var width = (long)(drawing.Width * EmuPerPixel * fit);
         var placed = new Rect(box.X + ((box.W - width) / 2), box.Y, width, (long)(drawing.Height * EmuPerPixel * fit));
         canvas?.Add(DrawingWriter.Group(drawing, placed.X, placed.Y, EmuPerPixel * fit, canvas.NextId, this.tableFont, this.codeFont));

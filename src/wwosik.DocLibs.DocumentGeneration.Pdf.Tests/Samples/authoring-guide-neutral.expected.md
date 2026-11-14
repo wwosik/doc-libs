@@ -34,6 +34,10 @@ headings that say what a section is about, lists where items really are parallel
   `scale=0.5` is the same as `"scale=0.5"`. In a row of images, `fit=cover` fills the row's height
   and crops what sticks out, and `focus=top`, `bottom`, `left`, `right` or `center` (the default)
   says which part stays; an image of its own is never cropped. An unknown attribute is an error.
+- **QR codes:** `![Survey](qr:https://example.com/survey)` draws a QR code for the text after
+  `qr:`, taken literally (a web address, `mailto:…`), dark on white. `"caption"` in the title or
+  `{.caption}` puts the alt text under it, `scale=2` doubles it; no other attributes. Keep it under
+  1 000 characters: shorter addresses scan better.
 - **Footnotes:** `[^1]` in the text and `[^1]: The note.` on a line of its own anywhere below.
   The reference becomes a small raised number; the notes are listed at the end of the document,
   numbered in the order they are referenced. A reference without its definition stays as written.
@@ -57,6 +61,12 @@ PDF alone, write plain Markdown; alerts are fine for notes and warnings. Unknown
 attributes, alerts, transitions and build markers (a paragraph such as `{.note}`) are errors, as in
 decks, and so are a `::: notes` inside another block and a build marker that builds nothing. Write
 `\{` to show braces as text.
+
+## Icons
+
+`:icon-name:` draws the icon of that name of [Tabler Icons](https://tabler.io/icons) (3.52.0, outline), such as `:icon-circle-check:`. A PDF draws it inside text, one letter wide in the text's colour; at the start of a list item, in place of its bullet; and alone in a paragraph, large. In headings, table cells and on the cover it is left out. An unknown name is an error.
+
+Common: `check`, `x`, `star`, `heart`, `bolt`, `rocket`, `target`, `flag`, `bulb`, `lock`, `users`, `calendar`, `clock`, `mail`, `chart-bar`, `trending-up`, `cloud`, `search`, `settings`, `world`.
 
 ## Diagrams
 
@@ -144,6 +154,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `footnote-missing`: a footnote reference such as `[^1]` has no definition `[^1]: text`, so it is shown as written. Add the definition, or remove the reference.
 - `language-unknown`: the language in `lang` has no texts of its own, so alert titles and similar texts are in English. Use `en` or `de`.
 - `attribute-ignored`: an image attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `focus` on an image that is not cropped. Remove it, or use it where it works.
+- `icon-not-drawn`: an icon was left out where it cannot be drawn. Move it as the *Icons* section says.
 
 ## Example
 

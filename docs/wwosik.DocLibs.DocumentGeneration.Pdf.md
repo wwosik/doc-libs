@@ -82,6 +82,7 @@ string guide = PdfGenerator.AuthoringGuide(options);   // starts at "##"
 | `CodeBlockRenderers` | none | see [Diagrams](#diagrams) |
 | `ImageConverters` | none | images in other formats, such as SVG, see [Image converters](wwosik.DocLibs.DocumentGeneration.md#image-converters) |
 | `ReplaceUnsupported` | none (throws) | see [Characters the fonts lack](#characters-the-fonts-lack) |
+| `Icons` | `TablerIcons.Outline` | the icons of `:icon-name:`; `null` switches them off, see [QR codes and icons](#qr-codes-and-icons) |
 | `Language` | `en` | the document language, unless front matter sets `lang` |
 | `Texts` | none | `GeneratedTexts` for further languages, by tag |
 | `TimeProvider` | `TimeProvider.System` | the date of generation in the footer |
@@ -154,6 +155,28 @@ Windows and macOS it comes with SkiaSharp. On Linux the application adds
 `SkiaSharp.NativeAssets.Linux.NoDependencies` (minimal containers), at the version of SkiaSharp this
 package references. Without it, a `.grey` image fails the generation with a
 `DocumentConversionException` that names the package.
+
+## QR codes and icons
+
+How codes and icons are made is in [DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md#qr-codes-and-icons).
+In PDFs:
+
+- **`![Survey](qr:…)`** is a drawing block: two filled paths (the white square with its quiet zone,
+  one path of all modules), centred like a diagram, at 4 px (3 pt) a module times `scale=`, scaled
+  down only to fit the page. `caption` / `.caption` draws the alt text under it, in the diagram font.
+- **A paragraph that is only `:icon-name:`** is drawn on its own, left-aligned, 32 pt square, in the
+  brand's primary colour (`IconBlock`); this is how a card's figure icon looks in a PDF, where cards
+  are shown plainly.
+- **A list item whose text starts with an icon** gets the icon in place of its bullet or number, at
+  the text size (10.5 pt), in the primary colour, as task boxes are drawn; the icon is taken off the
+  text. Other items of the list keep their markers. A task item keeps its box.
+- **Inline**, an icon is a run of its own (`RunStyle.Icon`), measured as one em plus a thin space
+  (1/6 em) each side, drawn as stroked paths one em square, centred on the height of a capital letter
+  (0.7 em) above the baseline, in the colour of its text (link and status colours included). It is
+  never broken from the word after it.
+- **In headings, table cells and on the cover** an icon is left out, with the note `icon-not-drawn`.
+- `PdfOptions.Icons` replaces the set; `null` switches icons off, and `:icon-name:` stays text. The
+  PDF stays PDF/A-2b: icons and codes are plain vector paths.
 
 ## Page breaks
 

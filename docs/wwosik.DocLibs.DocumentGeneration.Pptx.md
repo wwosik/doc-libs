@@ -137,6 +137,30 @@ stays a picture PowerPoint can edit: every crop is `a:srcRect`, every shape a pr
 | `.caption` | The same as `"caption"` in the title. |
 | `scale=N.N` | The same as `"scale=N.N"` in the title: an upper bound on the enlargement. |
 
+### QR codes and icons
+
+How codes and icons are made is in [DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md#qr-codes-and-icons).
+On slides:
+
+- **`![Survey](qr:…)`** is a visual like a diagram: a group of two editable shapes (the white square
+  with its quiet zone, a custom-geometry path of all modules) plus a text box for the caption. It
+  is fitted like a diagram, at most 1.5 times its size and at most a third of the content width;
+  with `scale=` it is drawn at its scaled size, never larger. On dark slides it stays dark on white.
+- **Card figure:** in `::: cards`, a paragraph that is only `:icon-name:` right after the `###` is
+  the card's figure: the icon as a group of shapes as tall as a line of 32 pt figure text, in the
+  accent colour (white on a dark block of a light deck).
+- **Icon list:** a list whose every item is one paragraph starting with `:icon-name:` becomes an
+  icon list, a flow block (`IconListBlock`): per item a row with the icon on the left, as tall as the
+  first line, in the accent colour, and the item's text in a text box beside it. Like other layouts
+  it makes its section a flow slide; on splitting, its items are units, as rows are; with a build
+  marker (or `build: lists`) it builds item by item, icon and text together. A list where not every
+  item starts with an icon (or an item holds more than one paragraph) stays a list with its bullets.
+- **Anywhere else** — inside text, in a title, a table cell, speaker notes, footnotes, or a list that
+  is not an icon list — DrawingML cannot hold a shape inside a run: the icon is left out of the text,
+  and the note `icon-not-drawn` gives its line.
+- `PptxOptions.Icons` (default `TablerIcons.Outline`) replaces the set; `null` switches icons off,
+  and `:icon-name:` stays text.
+
 ## Presenting
 
 - **Speaker notes:** `::: notes` … `:::` at the top level of a `#` or `##` section is taken out of
@@ -223,7 +247,8 @@ as plain Markdown.
 | -------- | ------------ |
 | `## Title {kicker="Label"}` | A small bold uppercase label above the title, in the brand's link colour; the title moves down. |
 | `## Title {.dark}` | The slide on a dark background with white text (both together: `{.dark kicker="Label"}`). |
-| `::: cards` … `:::`, one `###` per card | Rounded boxes side by side, outlined in the table line colour, without fill, at most four to a row, each row as tall as its tallest card. The `###` is the card's title; a paragraph that is only `**bold**` right after it is a big figure. |
+| `::: cards` … `:::`, one `###` per card | Rounded boxes side by side, outlined in the table line colour, without fill, at most four to a row, each row as tall as its tallest card. The `###` is the card's title; a paragraph that is only `**bold**` right after it is a big figure, a paragraph that is only `:icon-name:` a big icon (see [QR codes and icons](#qr-codes-and-icons)). |
+| A list whose every item starts with `:icon-name:` | An icon list: each item's icon on the left in the accent colour, its text beside it, instead of bullets. |
 | `::: cards` around one list of `- **Title** – text` | The same, one card per item. |
 | `::: rows` around one list of `- **Term** – text` | The term in bold in the left third, the text beside it, a rule above each row and below the last. |
 | `::: panel` or `::: panel dark` | A box behind its blocks, in the band colour or, dark, in the primary colour with white text. |

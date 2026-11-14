@@ -19,7 +19,7 @@ Writers, often AI agents, describe a graphic in text; the generators draw it, so
 | [E04-S03](../60-verify/E04-S03-financial-charts.md) | Financial charts | in verification |
 | [E04-S04](../60-verify/E04-S04-svg-to-png.md) | SVG to PNG | in verification |
 | [E04-S05](../60-verify/E04-S05-chart-source-and-image-attributes.md) | Chart source, semicolon CSV and image attributes | in verification |
-| [E04-S06](../55-in-progress/doc-3/E04-S06-qr-codes-and-icons.md) | QR codes and icons | in progress (doc-3) |
+| [E04-S06](../60-verify/E04-S06-qr-codes-and-icons.md) | QR codes and icons | in verification |
 | [E04-S07](../55-in-progress/doc-3/E04-S07-timeline-and-gantt.md) | Timeline and Gantt | in progress (doc-3) |
 | [E04-S08](../55-in-progress/doc-3/E04-S08-steps-harvey-balls-and-risk-matrix.md) | Steps, Harvey balls and risk matrix | in progress (doc-3) |
 

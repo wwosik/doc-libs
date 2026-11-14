@@ -16,6 +16,9 @@ internal enum RunStyle
 
     /// <summary>A footnote reference: smaller, and raised above the baseline.</summary>
     Superscript = 32,
+
+    /// <summary>From <c>:icon-name:</c>: an icon of one em, drawn on the line in the text colour (<see cref="TextRun.Icon"/>).</summary>
+    Icon = 64,
 }
 
 /// <summary>Text in one style; the text <c>"\n"</c> alone is a line break. <see cref="Link"/> is a URL or <c>#anchor</c>.</summary>
@@ -23,6 +26,9 @@ internal sealed record TextRun(string Text, RunStyle Style, string? Link = null)
 {
     /// <summary>From <c>[words]{.success}</c>: the words in that status colour.</summary>
     public LabelCategory? Colour { get; init; }
+
+    /// <summary>The icon of a <see cref="RunStyle.Icon"/> run, whose <see cref="Text"/> is empty.</summary>
+    public InlineIcon? Icon { get; init; }
 
     public static TextRun Break { get; } = new("\n", RunStyle.None);
 
@@ -52,6 +58,12 @@ internal sealed record ListBlock(bool Ordered, int Start, IReadOnlyList<IReadOnl
     /// list is <see langword="null"/> when no item has one.
     /// </summary>
     public IReadOnlyList<bool?>? Tasks { get; init; }
+
+    /// <summary>
+    /// Per item, the icon its text started with, drawn in place of its marker; <see langword="null"/> for an item
+    /// without one. The whole list is <see langword="null"/> when no item has one.
+    /// </summary>
+    public IReadOnlyList<Drawing?>? Icons { get; init; }
 }
 
 /// <summary>A definition list: per item its terms, in bold, and its description, indented under them.</summary>
@@ -80,8 +92,11 @@ internal sealed record ImageRowBlock(IReadOnlyList<ImageBlock> Images) : Block;
 
 internal sealed record RuleBlock : Block;
 
-/// <summary>A vector drawing from a code-block renderer.</summary>
+/// <summary>A vector drawing from a code-block renderer, or a QR code.</summary>
 internal sealed record DrawingBlock(Drawing Drawing) : Block;
+
+/// <summary>A paragraph that is one <c>:icon-name:</c>: the icon on its own, left-aligned, at the figure size, in the accent colour.</summary>
+internal sealed record IconBlock(Drawing Icon) : Block;
 
 /// <summary>The cover: the first <c>#</c> heading and the paragraphs up to the next heading.</summary>
 internal sealed record Cover(IReadOnlyList<TextRun> Title, IReadOnlyList<IReadOnlyList<TextRun>> Subtitle, string? Anchor);

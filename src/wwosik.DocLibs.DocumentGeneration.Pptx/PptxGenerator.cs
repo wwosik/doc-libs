@@ -132,6 +132,10 @@ public static class PptxGenerator
                 ["frontMatter"] = AuthoringGuides.FrontMatter(registry.Expected, options.Language, [.. template.Keys.Select(k => (k, KeyMeanings[k])), Labels]),
                 ["characters"] = Characters(brand?.Fonts, codeFont),
                 ["templateLayouts"] = TemplateLayouts(brand?.Pptx),
+                ["icons"] = AuthoringGuides.Icons(
+                    options.Icons,
+                    "Slides show it only alone after a card's `###` (as its figure) and at the start of every item of a list "
+                    + "(as bullets); elsewhere it is left out."),
                 ["notes"] = AuthoringGuides.Notes(Format.Pptx),
             });
     }

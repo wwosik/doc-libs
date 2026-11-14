@@ -232,7 +232,7 @@ internal sealed partial class DeckWriter
     }
 
     // The blocks of a flow slide in the units a split may fall between: paragraph groups, table rows (each with the
-    // header), the items of rows and labelled tags; every other block whole. `Origin` ties the pieces of one block.
+    // header), the items of rows, labelled tags and icon lists; every other block whole. `Origin` ties the pieces of one block.
     private static IEnumerable<List<Piece>> FlowUnits(IReadOnlyList<FlowBlock> blocks)
     {
         for (var origin = 0; origin < blocks.Count; origin++)
@@ -258,6 +258,13 @@ internal sealed partial class DeckWriter
                     foreach (var item in tags.Items)
                     {
                         yield return [new Piece(tags with { Items = [item] }, o)];
+                    }
+
+                    break;
+                case IconListBlock icons:
+                    foreach (var item in icons.Items)
+                    {
+                        yield return [new Piece(icons with { Items = [item] }, o)];
                     }
 
                     break;
@@ -289,6 +296,7 @@ internal sealed partial class DeckWriter
                     (TextBlock a, TextBlock b) => a with { Paragraphs = [.. a.Paragraphs, .. b.Paragraphs] },
                     (RowsBlock a, RowsBlock b) => a with { Rows = [.. a.Rows, .. b.Rows] },
                     (LabelledTagsBlock a, LabelledTagsBlock b) => a with { Items = [.. a.Items, .. b.Items] },
+                    (IconListBlock a, IconListBlock b) => a with { Items = [.. a.Items, .. b.Items] },
                     (TableBlock a, TableBlock b) => a with
                     {
                         Table = a.Table with

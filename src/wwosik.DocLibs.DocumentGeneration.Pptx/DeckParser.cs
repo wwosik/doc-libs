@@ -131,6 +131,20 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
                 Transition = transition ?? options.Transition,
             };
         }
+
+        // Icons only a card's figure or an icon list draws; anywhere else on a slide they are left out.
+        for (var i = first; i < this.slides.Count; i++)
+        {
+            var slide = this.slides[i];
+            foreach (var icon in slide.AllRuns().Concat(slide.SpeakerNotes.SelectMany(p => p.Runs)).Concat(slide.Footnotes.SelectMany(f => f.Text))
+                .Select(r => r.Icon).OfType<InlineIcon>())
+            {
+                notes.Add(
+                    NoteCodes.IconNotDrawn,
+                    icon.Line,
+                    $"The icon ':icon-{icon.Name}:' is left out: a slide cannot draw an icon inside text, a heading or a table cell. Put it alone in a card's first paragraph, or at the start of every item of a list.");
+            }
+        }
     }
 
     // Paragraphs and lists keep their form; every other block is written as plain text, and reported.
@@ -340,7 +354,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         }
 
         // `layout="…"` alone keeps a plain slide plain, on the layout asked for.
-        if (attributes is not ({ Dark: true } or { Kicker: not null }) && (isTitle || !blocks.Any(UsesLayouts)))
+        if (attributes is not ({ Dark: true } or { Kicker: not null }) && (isTitle || !blocks.Any(this.UsesLayouts)))
         {
             var closing = attributes?.Closing ?? false;
             var section = new SectionBuilder(this, this.slides, title, isTitle, isTitle && this.hasCover && !closing, attributes?.Layout, closing);
@@ -381,9 +395,10 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
     }
 
     // Anything only a flow slide can show: containers and alerts anywhere, a tag list as a block of its own.
-    // A definition list is shown as rows, which only a flow slide has.
-    private static bool UsesLayouts(Block block) =>
+    // A definition list is shown as rows, and a list of icon items as an icon list, which only a flow slide has.
+    private bool UsesLayouts(Block block) =>
         block is CustomContainer or AlertBlock or DefinitionList || (block is ParagraphBlock paragraph && Tags(paragraph) is not null)
+        || (block is ListBlock list && this.IsIconList(list))
         || (block is ContainerBlock container && (container.Descendants<CustomContainer>().Any() || container.Descendants<AlertBlock>().Any()
             || container.Descendants<DefinitionList>().Any()));
 
@@ -413,6 +428,9 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
                 break;
             case ParagraphBlock paragraph when target is FlowCollector flow && Tags(paragraph) is { } tags:
                 flow.Add(new TagsBlock(tags));
+                break;
+            case ListBlock list when target is FlowCollector flow && this.IconList(list) is { } icons:
+                flow.Add(new IconListBlock(icons));
                 break;
             case ListBlock list when target is FlowCollector { InContainer: true } flow && this.LabelledTags(list) is { } items:
                 flow.Add(new LabelledTagsBlock(items));
@@ -573,7 +591,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         var collector = new RunCollector(this, imagesAsText: false);
         collector.Add(inline, style, null);
         var images = collector.Pieces.OfType<SlideImage>().ToList();
-        if (images.Count >= 2 && collector.Pieces.OfType<List<TextRun>>().All(runs => Trim(runs).Count == 0))
+        if (images.Count >= 2 && !collector.Pieces.OfType<QrCode>().Any() && collector.Pieces.OfType<List<TextRun>>().All(runs => Trim(runs).Count == 0))
         {
             target.Visual(null, images);
             return;
@@ -586,7 +604,11 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             {
                 target.Visual(null, [image]);
             }
-            else if (piece is List<TextRun> runs && Trim(Colour(runs)) is { Count: > 0 } trimmed)
+            else if (piece is QrCode qr)
+            {
+                target.Visual(null, null, qr.Drawing, placement: qr.Placement);
+            }
+            else if (piece is List<TextRun> runs && Trim(this.Icons(Colour(runs), this.LineOf(inline))) is { Count: > 0 } trimmed)
             {
                 target.Text(new TextParagraph(trimmed, first ? kind : ParagraphKind.Plain, level, start));
                 first = false;
@@ -594,10 +616,12 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         }
     }
 
+    // An icon run has no text, but is not blank.
     private static List<TextRun> Trim(List<TextRun> runs)
     {
-        var result = runs.SkipWhile(r => r.IsBreak || r.Text.Trim().Length == 0).ToList();
-        while (result.Count > 0 && (result[^1].IsBreak || result[^1].Text.Trim().Length == 0))
+        static bool Blank(TextRun r) => r.IsBreak || (r.Icon is null && r.Text.Trim().Length == 0);
+        var result = runs.SkipWhile(Blank).ToList();
+        while (result.Count > 0 && Blank(result[^1]))
         {
             result.RemoveAt(result.Count - 1);
         }
@@ -615,7 +639,48 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
     {
         var collector = new RunCollector(this, imagesAsText);
         collector.Add(inline, style, null);
-        return Trim(Colour(collector.Pieces.OfType<List<TextRun>>().SelectMany(r => r).ToList()));
+        return Trim(this.Icons(Colour(collector.Pieces.OfType<List<TextRun>>().SelectMany(r => r).ToList()), this.LineOf(inline)));
+    }
+
+    // `:icon-name:`: an icon run of its own, unless icons are switched off.
+    private List<TextRun> Icons(List<TextRun> runs, int line) => IconSyntax.Apply(
+        runs,
+        r => r.Text,
+        r => r.Style.HasFlag(RunStyle.Code) || r.Style.HasFlag(RunStyle.Label),
+        (r, text) => r with { Text = text },
+        (r, icon) => r with { Icon = icon },
+        options.Icons,
+        line,
+        Format.Pptx);
+
+    // The line of a paragraph's text, from its first inline; 0 if unknown.
+    private int LineOf(ContainerInline? inline) => inline?.FirstChild is { } first ? this.LineOf(first) : 0;
+
+    // Every item is one paragraph that starts with an icon: the section is then a flow slide, and the list an icon list.
+    private bool IsIconList(ListBlock list) =>
+        options.Icons is not null && list.Count > 0
+        && list.OfType<ListItemBlock>().All(item => item is [ParagraphBlock paragraph] && IconSyntax.StartsWithIcon(paragraph));
+
+    private List<IconItem>? IconList(ListBlock list)
+    {
+        if (!this.IsIconList(list))
+        {
+            return null;
+        }
+
+        var items = new List<IconItem>();
+        foreach (var item in list.OfType<ListItemBlock>())
+        {
+            var runs = this.Runs(((ParagraphBlock)item[0]).Inline, imagesAsText: true);
+            if (runs is not [{ Icon: { } icon }, ..])
+            {
+                return null;
+            }
+
+            items.Add(new IconItem(icon.Drawing, Trim(runs[1..])));
+        }
+
+        return items;
     }
 
     // `[words]{.success}`: the words bold, in that status colour.
@@ -726,7 +791,11 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             if (heading is not null)
             {
                 var figure = blocks.FirstOrDefault() is ParagraphBlock first && Figure(first) is { } strong ? this.Runs(strong, imagesAsText: true) : null;
-                cards.Add(new Card(this.Runs(heading.Inline, imagesAsText: true), figure, this.Flow(figure is null ? blocks : blocks.Skip(1))));
+                var icon = figure is null && options.Icons is not null && blocks.FirstOrDefault() is ParagraphBlock lead && IconSyntax.StartsWithIcon(lead)
+                    && this.Runs(lead.Inline, imagesAsText: true) is [{ Icon: { } only }]
+                    ? only.Drawing
+                    : null;
+                cards.Add(new Card(this.Runs(heading.Inline, imagesAsText: true), figure, this.Flow(figure is null && icon is null ? blocks : blocks.Skip(1))) { FigureIcon = icon });
             }
         }
 
@@ -943,10 +1012,17 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         return runs;
     }
 
-    private SlideImage Image(LinkInline link)
+    // A SlideImage, or for `qr:…` a QrCode.
+    private object Image(LinkInline link)
     {
         var url = link.GetDynamicUrl?.Invoke() ?? link.Url ?? string.Empty;
         var attributes = ImageAttributes.Take(link, this.LineOf(link), Format.Pptx);
+        if (QrDrawing.IsQr(url))
+        {
+            var (drawing, scaled) = QrDrawing.ForImage(url, AltText(link), link.Title, attributes, ResolvedBrand.Resolve(brand), this.LineOf(link), Format.Pptx);
+            return new QrCode(drawing, scaled ? new DrawingPlacement(1, 1) : DrawingPlacement.Default with { MaxWidthShare = 1.0 / 3 });
+        }
+
         var resource = document.FindResource(url)
             ?? throw new DocumentConversionException(Format.Pptx, $"The image '{url}' is not among the document's resources.");
         double? scale = link.Title is { } title && ScalePattern().Match(title) is { Success: true } match
@@ -1025,8 +1101,11 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
     {
         void Text(TextParagraph paragraph);
 
-        void Visual(SlideTable? table, IReadOnlyList<SlideImage>? images, Drawing? drawing = null, ChartSpec? chart = null);
+        void Visual(SlideTable? table, IReadOnlyList<SlideImage>? images, Drawing? drawing = null, ChartSpec? chart = null, DrawingPlacement? placement = null);
     }
+
+    /// <summary>A <c>qr:…</c> image: its drawing, and how it is sized on the slide.</summary>
+    private sealed record QrCode(Drawing Drawing, DrawingPlacement Placement);
 
     /// <summary>Collects runs, cut into pieces at images unless images count as their alt text.</summary>
     private sealed class RunCollector(DeckParser parser, bool imagesAsText)
@@ -1140,6 +1219,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         private Drawing? drawing;
         private ChartSpec? chart;
         private BuildMark? visualBuild;
+        private DrawingPlacement placement = DrawingPlacement.Default;
         private bool titlePending = isTitle;
 
         private bool HasVisual => this.table is not null || this.images is not null || this.drawing is not null || this.chart is not null;
@@ -1147,7 +1227,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         public void Text(TextParagraph paragraph) =>
             (this.HasVisual ? this.below : this.above).Add(parser.build is { } mark ? paragraph with { Build = mark } : paragraph);
 
-        public void Visual(SlideTable? newTable, IReadOnlyList<SlideImage>? newImages, Drawing? newDrawing = null, ChartSpec? newChart = null)
+        public void Visual(SlideTable? newTable, IReadOnlyList<SlideImage>? newImages, Drawing? newDrawing = null, ChartSpec? newChart = null, DrawingPlacement? newPlacement = null)
         {
             if (this.titlePending)
             {
@@ -1165,6 +1245,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             this.drawing = newDrawing;
             this.chart = newChart;
             this.visualBuild = parser.build;
+            this.placement = newPlacement ?? DrawingPlacement.Default;
         }
 
         public void Finish()
@@ -1189,6 +1270,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             {
                 Drawing = this.drawing,
                 Chart = this.chart,
+                Placement = this.placement,
                 Layout = layout,
                 VisualBuild = this.visualBuild,
             });
@@ -1225,12 +1307,12 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             this.text.Add(parser.build is { } mark ? paragraph with { Build = mark } : paragraph);
         }
 
-        public void Visual(SlideTable? table, IReadOnlyList<SlideImage>? images, Drawing? drawing = null, ChartSpec? chart = null) =>
+        public void Visual(SlideTable? table, IReadOnlyList<SlideImage>? images, Drawing? drawing = null, ChartSpec? chart = null, DrawingPlacement? placement = null) =>
             this.Add(table is not null ? new TableBlock(table)
                 : images is [var image] ? new ImageBlock(image)
                 : images is not null ? new ImageRowBlock(images)
                 : chart is not null ? new ChartBlock(chart)
-                : new DrawingBlock(drawing!));
+                : new DrawingBlock(drawing!) { Placement = placement ?? DrawingPlacement.Default });
 
         public void Add(FlowBlock block)
         {

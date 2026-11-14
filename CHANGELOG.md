@@ -17,6 +17,18 @@ updating, breaking changes first.
   definitions at the end of the page's section, and images between the paragraphs they stand
   between instead of after the page's text. Raised numbers stay on their line, and rotated text
   (watermarks) is left out. A consumer that parses the output should check it against the new shapes.
+- **`:icon-<name>:` in text is an icon now,** in both generators and without any option: text such
+  as `:icon-check:` that used to stay as typed is drawn as the Tabler icon of that name (or, where
+  the format cannot draw it, left out with the note `icon-not-drawn`), and a name Tabler does not
+  have (`:icon-chek:`) throws `DocumentConversionException` suggesting close names. Code spans are
+  never read. To keep such text as typed, set `PptxOptions.Icons = null` / `PdfOptions.Icons = null`.
+- **`![…](qr:…)` is a QR code now:** an image URL starting with `qr:` used to fail as a missing
+  resource and is now drawn as a code; image attributes on it other than `scale` and `.caption` are
+  an error.
+- **`wwosik.DocLibs.DocumentGeneration` depends on QRCoder** (1.8.1, MIT), whose package brings
+  `System.Drawing.Common` along as a dependency (not loaded: only QRCoder's module matrix is used),
+  and is larger by the embedded icon data: 313 KB compressed in the assembly, the `.nupkg` from about
+  154 KB to about 480 KB. Licences in the package's new `THIRD-PARTY-NOTICES.txt`.
 - **`PptxGenerator.Generate` and `PdfGenerator.Generate` return a `GenerationResult`** instead of
   `void`. Source that calls them as a statement compiles unchanged, but the change is
   binary-breaking: rebuild everything compiled against an earlier version, and a method group
@@ -111,6 +123,17 @@ updating, breaking changes first.
   and image rows one by one. Front matter `build: lists` and `PptxOptions.Build` (`DeckBuild`) build
   every top-level list item by item. Decks without markers are unchanged; PDFs leave the markers
   out and accept `build`.
+- **QR codes:** `![Survey](qr:https://example.com/survey "caption")` draws a QR code for the text
+  after `qr:` (byte mode, error correction M, at most 1 000 bytes) as vectors: two editable shapes in
+  decks, two paths in PDFs, in the brand's primary colour (or a darker fallback) on white, with the
+  alt text under it for `caption`; `scale=` multiplies its size.
+- **Icons:** `:icon-name:` draws an icon of the Tabler Icons outline set (3.52.0, 5 491 icons, MIT),
+  embedded in `wwosik.DocLibs.DocumentGeneration` (`TablerIcons.Outline`). Decks draw it as a card's
+  figure and in icon lists (a list whose every item starts with an icon); PDFs draw it inline in text,
+  in place of a list item's bullet and alone in a paragraph. `IIconSet` and the options
+  `PptxOptions.Icons` / `PdfOptions.Icons` replace the set with your own, or switch icons off (`null`).
+- **New note:** `icon-not-drawn`, for an icon where the format cannot draw it.
+- **`tools/icon-import`** (`run.sh icon-import`) re-imports the Tabler set and checks its size budget.
 
 ## 2610.28.22
 

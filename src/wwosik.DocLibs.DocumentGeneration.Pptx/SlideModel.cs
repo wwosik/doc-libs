@@ -27,6 +27,10 @@ internal sealed record TextRun(string Text, RunStyle Style, string? Link = null)
     /// <summary>From <c>[words]{.success}</c>: the words in that status colour.</summary>
     public LabelCategory? Colour { get; init; }
 
+    /// <summary>From <c>:icon-name:</c>: an icon in place of text (<see cref="Text"/> is empty). Slides draw it only as a
+    /// card's figure or in an icon list; anywhere else it is left out, with a note.</summary>
+    public InlineIcon? Icon { get; init; }
+
     public static TextRun Break { get; } = new("\n", RunStyle.None);
 
     public bool IsBreak => this.Text == "\n";
@@ -137,6 +141,7 @@ internal abstract record Slide(IReadOnlyList<TextRun> Title)
         CalloutBlock callout => callout.Blocks.SelectMany(Runs),
         StatementBlock statement => statement.Text,
         LabelledTagsBlock tags => tags.Items.SelectMany(i => i.Text),
+        IconListBlock icons => icons.Items.SelectMany(i => i.Text),
         _ => [],
     };
 }
@@ -173,6 +178,18 @@ internal sealed record VisualSlide(
 
     /// <summary>The build marker of the table, image, drawing or chart, if any.</summary>
     public BuildMark? VisualBuild { get; init; }
+
+    /// <summary>How <see cref="Drawing"/> is sized: a QR code is held to a third of the width.</summary>
+    public DrawingPlacement Placement { get; init; } = DrawingPlacement.Default;
+}
+
+/// <summary>
+/// How far a drawing is enlarged at most to fill its box, and the share of the box's width it may take: diagrams
+/// <see cref="Default"/>, a QR code at most a third of the width, or with <c>scale</c> its own size at most.
+/// </summary>
+internal sealed record DrawingPlacement(double MaxUpscale, double MaxWidthShare)
+{
+    public static DrawingPlacement Default { get; } = new(1.5, 1);
 }
 
 /// <summary>
@@ -200,7 +217,11 @@ internal sealed record TableBlock(SlideTable Table) : FlowBlock;
 
 internal sealed record ImageBlock(SlideImage Image) : FlowBlock;
 
-internal sealed record DrawingBlock(Drawing Drawing) : FlowBlock;
+internal sealed record DrawingBlock(Drawing Drawing) : FlowBlock
+{
+    /// <inheritdoc cref="VisualSlide.Placement"/>
+    public DrawingPlacement Placement { get; init; } = DrawingPlacement.Default;
+}
 
 /// <summary>A chart, written as a native PowerPoint chart.</summary>
 internal sealed record ChartBlock(ChartSpec Chart) : FlowBlock;
@@ -215,7 +236,11 @@ internal sealed record ColumnsBlock(IReadOnlyList<int> Widths, IReadOnlyList<IRe
 internal sealed record CardsBlock(IReadOnlyList<Card> Cards) : FlowBlock;
 
 /// <summary>A card: its <c>###</c> or bold title, an optional big figure, and its blocks.</summary>
-internal sealed record Card(IReadOnlyList<TextRun> Title, IReadOnlyList<TextRun>? Figure, IReadOnlyList<FlowBlock> Blocks);
+internal sealed record Card(IReadOnlyList<TextRun> Title, IReadOnlyList<TextRun>? Figure, IReadOnlyList<FlowBlock> Blocks)
+{
+    /// <summary>A first paragraph that is one <c>:icon-name:</c>: the icon as the figure, at the figure size in the accent colour.</summary>
+    public Drawing? FigureIcon { get; init; }
+}
 
 /// <summary><c>::: rows</c>: the term on the left, its description beside it, a rule above each row.</summary>
 internal sealed record RowsBlock(IReadOnlyList<Row> Rows) : FlowBlock;
@@ -238,3 +263,8 @@ internal sealed record TagsBlock(IReadOnlyList<string> Tags) : FlowBlock;
 internal sealed record LabelledTagsBlock(IReadOnlyList<LabelledTag> Items) : FlowBlock;
 
 internal sealed record LabelledTag(string Label, IReadOnlyList<TextRun> Text);
+
+/// <summary>A list whose every item starts with <c>:icon-name:</c>: per item a row, the icon on the left, its text beside it.</summary>
+internal sealed record IconListBlock(IReadOnlyList<IconItem> Items) : FlowBlock;
+
+internal sealed record IconItem(Drawing Icon, IReadOnlyList<TextRun> Text);

@@ -90,6 +90,9 @@ public static class NoteCodes
     /// <summary>An image attribute (<c>{fit=cover}</c>, <c>{.caption}</c> …) has no effect in this format or in this place.</summary>
     public const string AttributeIgnored = "attribute-ignored";
 
+    /// <summary>An icon (<c>:icon-name:</c>) stands where the format cannot draw it, such as inside a slide's text, and was left out.</summary>
+    public const string IconNotDrawn = "icon-not-drawn";
+
     /// <summary>Every code, with the formats it occurs in and what a writer changes about it, for the authoring guides.</summary>
     internal static readonly IReadOnlyList<(string Code, DocumentFormat[] Formats, string Advice)> All =
     [
@@ -105,6 +108,7 @@ public static class NoteCodes
         (NotesDropped, [DocumentFormat.Pptx], "a `::: notes` stands before the first heading, so it belongs to no slide and was left out. Move it under the heading of the slide it is for."),
         (NotesSimplified, [DocumentFormat.Pptx], "speaker notes hold only paragraphs and lists; a table, code block, image or quote in `::: notes` was written as plain text. Keep speaker notes to text and lists."),
         (AttributeIgnored, [DocumentFormat.Pptx, DocumentFormat.Pdf], "an image attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `focus` on an image that is not cropped. Remove it, or use it where it works."),
+        (IconNotDrawn, [DocumentFormat.Pptx, DocumentFormat.Pdf], "an icon was left out where it cannot be drawn. Move it as the *Icons* section says."),
     ];
 }
 

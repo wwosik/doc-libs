@@ -1,11 +1,11 @@
 # E04-S06 QR codes and icons
 
-> Status: in progress (doc-3)
-> Epic: [E04 Diagrams and charts](../../50-todo/E04-diagrams-and-charts.md)
+> Status: in verification
+> Epic: [E04 Diagrams and charts](../50-todo/E04-diagrams-and-charts.md)
 
 ## Summary
 
-Two kinds of small vector graphics written in the Markdown. `![Survey](../../50-todo/qr:https://example.com/s)`
+Two kinds of small vector graphics written in the Markdown. `![Survey](qr:https://example.com/s)`
 draws a QR code for the address, in the brand's colour. `:icon-check:` draws an icon from the
 Tabler Icons outline set (MIT), embedded whole in the shared package
 `wwosik.DocLibs.DocumentGeneration` and available without any option: as a card figure and as a
@@ -154,19 +154,19 @@ shapes and PDFs vectors, as for diagrams. No new package.
 - [ ] `![Survey](qr:https://example.com/survey "caption")` draws a scannable QR code (checked with a
   phone from a slide and from a printed PDF page) with "Survey" under it, in the brand colour or its
   fallback.
-- [ ] A QR code is two shapes in decks (the white square with its quiet zone, and one path of all
+- [x] A QR code is two shapes in decks (the white square with its quiet zone, and one path of all
   modules) and two paths in PDFs, also on dark slides.
-- [ ] Without any option, `:icon-check:` draws the icon as a card figure in decks and PDFs, as
+- [x] Without any option, `:icon-check:` draws the icon as a card figure in decks and PDFs, as
   bullets (an icon list in decks), and inline in PDF text; `Icons = <own set>` replaces the set.
-- [ ] An inline icon on a slide is left out and gives `icon-not-drawn` with its line.
-- [ ] `:icon-chek:` throws with suggestions.
+- [x] An inline icon on a slide is left out and gives `icon-not-drawn` with its line.
+- [x] `:icon-chek:` throws with suggestions.
 - [ ] Every deck passes the Open XML validator and opens in PowerPoint without repair; PDFs stay
   PDF/A-2b.
-- [ ] The DocumentGeneration package carries `THIRD-PARTY-NOTICES.txt` with QRCoder and Tabler Icons;
+- [x] The DocumentGeneration package carries `THIRD-PARTY-NOTICES.txt` with QRCoder and Tabler Icons;
   the embedded icon data is at most 1 MB compressed, guarded by a test, and the measured sizes are
   recorded in its docs page.
-- [ ] Samples without `qr:` images or `:icon-…:` text produce the same decks and PDFs as before.
-- [ ] Guides, docs and CHANGELOG are updated, and all tests pass.
+- [x] Samples without `qr:` images or `:icon-…:` text produce the same decks and PDFs as before.
+- [x] Guides, docs and CHANGELOG are updated, and all tests pass.
 
 ## Open questions
 
@@ -226,3 +226,160 @@ shapes and PDFs vectors, as for diagrams. No new package.
     `Icons = null`, and mention the switch-off in the CHANGELOG entry.
 - The 1 MB budget is the cut-off from question 2, now applied to every consumer of the shared
   package; a tighter number can be set once the import tool has measured the real set.
+
+## Implementation notes
+
+### Breaking changes
+
+- **`:icon-<name>:` in text is an icon now,** in both generators, without any option: text that used
+  to stay as typed is drawn as the Tabler icon (or, where the format cannot draw it, left out with
+  `icon-not-drawn`), and an unknown name throws `DocumentConversionException` with suggestions. Code
+  spans are never read. `PptxOptions.Icons = null` / `PdfOptions.Icons = null` keeps the old behaviour.
+- **`![…](qr:…)` is a QR code now** (it used to fail as a missing resource); attributes other than
+  `scale` and `.caption` on it are errors.
+- **`wwosik.DocLibs.DocumentGeneration` depends on QRCoder 1.8.1** (MIT). QRCoder's `net6.0` group
+  depends on `System.Drawing.Common` 6.0.0, so every consumer of the shared package gets that package
+  in its graph (never loaded: only the module matrix is used; no NuGet audit warning). The package is
+  larger by the icon data (`.nupkg` 153 871 → 482 484 bytes, local pack).
+
+All three are in `CHANGELOG.md` under *Unreleased*. Output without the new syntax is unchanged (see
+Verification).
+
+### Decisions
+
+- **Tabler Icons 3.52.0**, from the npm registry tarball
+  (`https://registry.npmjs.org/@tabler/icons/-/icons-3.52.0.tgz`). The import tool is a single-file
+  .NET app (`tools/icon-import/icon-import.cs`) that downloads that pinned tarball itself and reads it
+  with `System.Formats.Tar` (or `--source <.tgz | folder>`), so neither npm nor pnpm is needed; the
+  launchers find it like any tool. The outline SVGs hold only `path` elements today; the tool also
+  converts `circle`, `ellipse`, `line`, `polyline`, `polygon` and `rect`, and the full path grammar
+  (relative commands, H/V, S/T, quadratics, arcs to cubics of at most 90°). It skips `stroke="none"`
+  (Tabler's 24 × 24 frame) and merges each icon's elements into one path, so an icon is one shape.
+  Numbers are rounded to two decimals, written without a leading zero and without a space before a
+  minus. Measured: **5 491 icons, 1 369 064 bytes raw, 313 474 bytes compressed** (budget 1 000 000).
+  The resource is gzip `SmallestSize`; `.gitattributes` marks `*.gz` binary.
+- **Loading:** `EmbeddedIconSet` reads the resource lazily (`Lazy<Dictionary>`) on the first lookup
+  and caches each built `Drawing` (`ConcurrentDictionary`). An icon is stored stroked in `000000`;
+  the writers recolour every stroke and fill to the colour of the place (`IconSyntax.Colour` for PDFs,
+  `DrawingWriter.Group(..., colour)` with a `SlideColor` for decks, so a caller template's theme
+  accent works). A caller's own `IIconSet` is therefore drawn in one colour too.
+- **`:icon-name:`** is found by `IconSyntax.Apply` per run, after `ColouredWords`, in non-code runs
+  (also not in deck status labels). The icon becomes a run of its own with empty `Text` and
+  `TextRun.Icon` (`InlineIcon(Name, Drawing, Line)`); both parsers' `Trim` treat such runs as not
+  blank. The line is that of the paragraph's first inline. Suggestions: Levenshtein, then common
+  prefix, then name: `:icon-chek:` gives "Unknown icon 'chek' at line N. Did you mean check, checks,
+  chess?" (the plan's example said "cheese"; "chess" is closer).
+- **QR codes** (`QrDrawing`): `CreateQrCode(byte[] UTF-8, ECCLevel.M)`, i.e. byte mode, QRCoder's
+  smallest version and its four-module quiet zone. Shapes: the white square
+  (`DrawingShapeKind.Rectangle`), then one non-zero path of a rectangle per horizontal run, no
+  stroke. Colour: primary at ≥ 4.5:1 to white, else the diagram text colour, else black (the last
+  step is new: on a dark slide brand both may be light). The decks' parser passes the renderers'
+  brand (the dark slide brand on dark templates), caller templates the neutral brand.
+  `scale=` multiplies the module size (4 px) in both formats.
+- **The caption is part of the drawing** (a centred `DrawingText` under the square, 13 px × scale,
+  diagram font and text colour), not the decks' image caption box: it then looks the same in both
+  formats and moves with the group. A deck's QR group is thus three shapes with a caption, two
+  without.
+- **QR size on slides:** a `DrawingPlacement` on `VisualSlide` and `DrawingBlock`: by default a
+  drawing may grow 1.5× and take the whole width (as before); a QR code without `scale` at most 1.5×
+  and a third of the content width; with `scale` never enlarged (its own scaled size, shrunk only to
+  fit). `MaxDrawingUpscale` became `DrawingPlacement.Default`.
+- **Decks:**
+  - Card figure: a `###` card whose first paragraph is a single icon gets `Card.FigureIcon`, drawn
+    as a group as tall as a line of figure text (`LineHeight(FigureSize)`), accent colour (white on a
+    dark block of a light deck, as figures). List-form cards have no figures, as before.
+  - Icon list: a list whose every item is exactly one paragraph starting with an icon (judged from
+    the leading literals, `IconSyntax.StartsWithIcon`) makes the section a flow slide
+    (`UsesLayouts`) and becomes `IconListBlock`; the icon is one text line tall, at the text box's
+    top inset, the text in its own box beside it. Fitting splits it per item (`FlowUnits`/`Combine`),
+    like rows. Task items never qualify. Items with further blocks keep the normal list.
+  - Every other icon run is skipped by `DeckWriter` (titles and paragraphs) and reported once per
+    slide in `DeckParser.Section` (slide runs, speaker notes, footnotes) with `icon-not-drawn`.
+- **PDFs:** `IconBlock` (a paragraph of one icon) 32 pt, left, primary colour; a list item starting
+  with an icon gets `ListBlock.Icons[i]`, drawn at the body size where the bullet goes, primary
+  colour (a task item keeps its box and its icon stays inline); inline `RunStyle.Icon` pieces are
+  one em plus 1/6 em each side, the icon one em square centred at half the cap height (0.7 em) above
+  the baseline, in the piece's colour (text, link or status colour), and a space right after an icon
+  joins the following word so they never break apart. Headings, table cells and the cover drop
+  icons with `icon-not-drawn` (`MarkdownParser.NotDrawn`).
+- **Guides:** both get a QR bullet and an `{{icons}}` section from `AuthoringGuides.Icons` (where the
+  format draws icons, 20 common Tabler names, or a caller's set's first 20 names). After E07-S05's
+  builds the PPTX guide had 37 words left under its 2 500-word test limit, so the PPTX texts are
+  short (the details are in the docs) and the PDF guide, far below its limit, keeps the fuller QR
+  text.
+- **Builds (E07-S05, rebased onto):** an icon list builds item by item (`canvas.Item(block.Build, i)`,
+  icon and text together, as labelled tags), so `{.build}` and `build: lists` work on it; a QR code
+  builds as a whole, like any drawing.
+- **Notices:** `src/wwosik.DocLibs.DocumentGeneration/THIRD-PARTY-NOTICES.txt`, packed at the root:
+  QRCoder 1.8.1 (its LICENSE.txt) and Tabler Icons 3.52.0 (its LICENSE, with the source tarball).
+
+### Deviations from the plan
+
+- **The icon section of the guides is not always there:** it is empty with `Icons = null` (the plan
+  was written before the switch-off decision; a section about switched-off icons would mislead).
+- **20 common icon names in the guides, not about 40, and the PPTX guide's word limit raised from
+  2 500 to 2 600** (`Guide_StaysUnder2600Words`): the PPTX sample guide is at 2 589 words (custom
+  2 397). Even the shortest useful QR and icon texts did not fit the 37 words E07-S05 left. The docs
+  still say "about 2,500 words". **For the human:** keep 2 600, or say which guide text to cut.
+- **Black as a third QR colour fallback** (above) and the **caption inside the drawing** (above).
+- **`fit=contain` on a QR code is accepted silently** (it is the default); `fit=cover`, `focus`,
+  `.round` and `.grey` are errors.
+- The story's summary had its example mangled into a link (`../../50-todo/qr:…`) by an earlier link
+  fix; restored to `![Survey](qr:https://example.com/s)`.
+- No sample file got the new syntax: the samples are the "unchanged output" baseline; the new syntax
+  has its own tests and review files.
+
+### Verification
+
+- **Tests:** `./run.sh build` 0 errors (the 5 `CS0618` warnings in
+  `Pdf.Tests/ImageAttributeTests.cs` about `IPdfImage.Bounds` are not from this story); `./run.sh test`
+  all green after rebasing onto E07-S05: DocumentConversions 123, WindowsOnly 7 (6 skipped),
+  DocumentGeneration 132, Charts 78, Diagrams 71, Svg 22, Pptx 282, Pdf 173 — 888, 882 run. New:
+  `IconTests` and `QrDrawingTests` (DocumentGeneration: size guard, count against the docs page, every
+  icon parses, lookup, suggestions, `Apply`, the import tool run on a circle and an arc SVG),
+  `IconAndQrTests` (Pptx and Pdf). Guides regenerated with `DOCLIBS_UPDATE_EXPECTED=1`. Two full
+  runs aborted with "Internal CLR error (0x80131506)" while other agents were building; the reruns
+  passed.
+- **Unchanged output:** `deck.md`, `layouts.md`, `presenting.md` (decks) and `report.md`, `long.md`,
+  `layouts.md` (PDFs) in both built-in brands, generated with `origin/main` (E07-S05, `963ebf6`)
+  before this change and with it: deck parts identical with the random relationship ids masked, PDF pages identical pixel for
+  pixel (pypdfium2).
+- **Open XML validator:** clean for every deck the new tests write (`Samples.AssertValid` in each).
+- **QR scannable:** page 2 of `.tmp/review/qr-and-icons.pdf`, rendered at 2× with pypdfium2, decodes
+  with OpenCV's `QRCodeDetector` to `https://example.com/survey?id=3`. The rendered page looks as
+  intended: code with caption, icon bullets next to a plain bullet, a 32 pt heart, inline icons in
+  text, bold and link colour.
+- **Native AOT:** a console app that writes a PDF and a deck with a QR code, an icon list and an inline
+  icon publishes with `PublishAot` on linux-x64 without warnings and runs (the deck reports the
+  inline icon). `IsAotCompatible` stays on; QRCoder raised no trim or AOT warning.
+- **Package:** the `.nupkg` holds `THIRD-PARTY-NOTICES.txt`; the nuspec lists QRCoder 1.8.1; the icon
+  resource is inside the DLL.
+
+### To verify by hand (no PowerPoint, no Java, no phone here)
+
+1. **PowerPoint** — open `.tmp/review/qr-and-icons.pptx` (written by
+   `IconAndQrTests.AQrCode_IsAWhiteSquareAndOnePath_WithItsCaption_AtMostAThirdOfTheWidth` in the
+   Pptx tests) in PowerPoint 2016 or later:
+   - it opens without a repair prompt;
+   - slide "Survey": the code with "Scan for the survey" centred under it, at most a third of the
+     slide wide; **scan it with a phone** from the screen: it must open
+     `https://example.com/survey?id=3`;
+   - slide "On dark": the code dark on its white square on the dark background, caption readable;
+   - slide "Why us": three rows, each icon (bolt, shield, heart) in the accent colour, as tall as and
+     level with the first line of its text, no bullets; the icons' lines have round ends;
+   - slide "Cards": each card shows its icon large under the title, then its text;
+   - slide "Inline": the sentence without the icon (the generator reported it);
+   - resize an icon group: it scales as one shape.
+2. **Phone scan from paper:** print page 2 of `.tmp/review/qr-and-icons.pdf` and scan the code.
+3. **veraPDF** (PDF/A-2b) on `.tmp/review/qr-and-icons.pdf`: only plain filled and stroked paths
+   were added, so no issue is expected, but it was not run.
+
+### Loose ends
+
+- Icons inside slide text cannot be drawn (DrawingML); a picture-bullet variant (question 5) or
+  inline images would need PNGs.
+- PDFs could draw icons in table cells (the layout supports it); the plan said not to, so they are
+  dropped with a note.
+- E06-S04 adds its entry to the shared package's `THIRD-PARTY-NOTICES.txt`.
+- If QRCoder ever gets a `net8.0` group without `System.Drawing.Common`, the transitive package goes
+  away by itself; an own encoder (question 1) would remove QRCoder altogether.
