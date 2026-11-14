@@ -18,6 +18,7 @@ PDF/A reports are the second output of the generators; they are read on paper an
 | [E03-S02](E03-S02-contents-heading-numbers-and-captions.md) | Contents, heading numbers and captions | todo |
 | [E03-S03](E03-S03-footnotes-justification-and-page-breaks.md) | Footnotes at the page foot, justified text, page breaks | todo |
 | [E03-S04](E03-S04-classification-marking.md) | Classification marking | todo |
+| [E03-S05](E03-S05-columns-and-plain-documents.md) | Columns and plain documents (invoices) | todo |
 
 Stories marked *to plan* come from the
 [Python fork analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed
