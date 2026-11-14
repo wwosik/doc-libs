@@ -457,6 +457,16 @@ same change that made it untrue — a stale fact here is worse than a missing on
   `DeckReader.Read(pptx, fonts, slides)` and `SceneSvg.Write(…, SvgTarget.Painting)` plus `DeckScene.Faces`.
   Every item keeps its `cNvPr id` (`data-id`), every paragraph its index (`data-p`) for E07-S06.
   `RenderNotes` gives one note per kind with the slide numbers, `Line` 0.
+- **Presenting the HTML deck (E07-S06):** `DeckReader.Presenting.cs` fills `SlideScene.Notes` (notes page body),
+  `Steps` (main click sequence of `p:timing`, effects on items the slide does not draw dropped) and `Transition`
+  (init properties, so `new SlideScene(…)` stays as it was), plus `Decorations` (how many leading items are master
+  and layout ones). In `SvgTarget.Html` only, `SceneSvg` wraps the slide's own items in `<g class="own">`, because
+  decorations can carry the same `cNvPr id`s; the script finds a target there, outermost first (a picture with an
+  outline is a group and a shape with the same id). Sections carry `data-steps` (JSON), `data-transition`,
+  `data-direction`, `data-duration`; notes are an `<aside class="notes">` per section. `deck.js` plays effects
+  with the Web Animations API on the individual `translate`/`scale` properties (never `transform`: a picture's
+  `<g>` has a `transform` attribute) and keeps every non-current slide in its final state; print uses the
+  `build-gone` class, not `beforeprint`. The painting SVG (previews) is unchanged.
 - **Deck previews (E07-S03):** `DeckSvg.Write` (Pptx, public) = `DeckReader.Read` → `SceneSvg.Write(…,
   SvgTarget.Painting)` per slide, plus `Fonts` (`DeckScene.Faces` and the Liberation Sans faces of runs measured
   by estimate) and `LabelFont`; `DeckPreview.Render`/`ContactSheet` (Svg) paint them through `SvgConverter`. The

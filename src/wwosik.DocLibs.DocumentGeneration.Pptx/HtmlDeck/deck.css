@@ -38,8 +38,168 @@ body.scripted {
   display: none;
 }
 
-.scripted .slide.current {
+.scripted .slide.current, .scripted .slide.leaving {
   display: flex;
+}
+
+/* During a transition the slide that leaves stays shown, under the new one or, for uncover, split in and zoom out, on top. */
+.scripted .slide.current {
+  z-index: 1;
+}
+
+.scripted .slide.leaving {
+  z-index: 0;
+}
+
+.scripted .slide.leaving.on-top {
+  z-index: 2;
+}
+
+/* Builds: what enters later or has left. The script sets it; without the script everything shows. */
+.build-hidden {
+  visibility: hidden;
+}
+
+/* Speaker notes show only in the notes view (N), in the presenter window and on paper with the notes view on. */
+.notes {
+  display: none;
+}
+
+.notes-view.scripted:not(.overview) .slide.current,
+.notes-view.scripted:not(.overview) .slide.leaving {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  align-items: center;
+}
+
+.notes-view.scripted:not(.overview) .slide > svg {
+  height: auto;
+  max-height: 100vh;
+}
+
+.notes-view.scripted:not(.overview) .slide .notes,
+.presenter-notes {
+  display: block;
+  box-sizing: border-box;
+  align-self: stretch;
+  overflow: auto;
+  padding: 1.5rem 2rem;
+  background: #161616;
+  color: #eee;
+  font-size: 1.15rem;
+  line-height: 1.45;
+}
+
+.notes p, .presenter-notes p {
+  margin: 0 0 0.75em;
+}
+
+.notes ul, .notes ol, .presenter-notes ul, .presenter-notes ol {
+  margin: 0 0 0.75em;
+  padding-left: 1.5em;
+}
+
+.notes ul ul, .notes ol ol, .notes ul ol, .notes ol ul,
+.presenter-notes ul ul, .presenter-notes ol ol, .presenter-notes ul ol, .presenter-notes ol ul {
+  margin-bottom: 0;
+}
+
+.notes a, .presenter-notes a {
+  color: #8ab4f8;
+}
+
+.notes.empty, .presenter-notes .empty-note {
+  color: #999;
+  font-style: italic;
+}
+
+/* The presenter window (P): the current slide top left, the notes under it, the next step and the clock on the right. */
+.presenter .deck {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 62vw;
+  height: 60vh;
+}
+
+.presenter.scripted .slide {
+  width: 100%;
+  height: 100%;
+}
+
+#presenter {
+  font-size: 1rem;
+}
+
+.presenter-notes {
+  position: fixed;
+  left: 0;
+  top: 60vh;
+  width: 62vw;
+  bottom: 0;
+  border-top: 1px solid #333;
+}
+
+.presenter-side {
+  position: fixed;
+  left: 63vw;
+  top: 0;
+  right: 1vw;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+}
+
+.presenter-side h2 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #aaa;
+}
+
+.presenter-next {
+  aspect-ratio: var(--slide-ratio);
+  outline: 1px solid #444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.presenter-next > svg {
+  width: 100%;
+  height: 100%;
+}
+
+.presenter-status {
+  font-size: 1.5rem;
+}
+
+.presenter-clock {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 0.5rem;
+  font-size: 2.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.presenter-clock button {
+  font: inherit;
+  font-size: 1rem;
+  color: inherit;
+  background: none;
+  border: 1px solid #777;
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+}
+
+.presenter.scripted .bar {
+  display: none;
 }
 
 /* Overview: every slide in a grid; arrows and Enter or a click pick one. */
@@ -172,9 +332,63 @@ body.scripted {
     break-after: page;
     page-break-after: always;
     break-inside: avoid;
+    display: block !important;
+    transform: none !important;
+    opacity: 1 !important;
+    clip-path: none !important;
   }
 
-  .bar, #help {
+  .slide > svg {
+    display: block;
+    width: var(--slide-width);
+    height: var(--slide-height);
+  }
+
+  /* Each slide in its final build state: what enters later shows, what has left stays hidden. */
+  .build-hidden {
+    visibility: inherit;
+  }
+
+  .build-gone {
+    visibility: hidden;
+  }
+
+  .presenter .deck {
+    position: static;
+    width: auto;
+    height: auto;
+  }
+
+  .bar, #help, #presenter {
     display: none !important;
+  }
+
+  .slide .notes {
+    display: none !important;
+  }
+
+  /* With the notes view on, each sheet has the slide on top and its notes below. */
+  .notes-view .slide, .notes-view.scripted .slide, .notes-view.overview.scripted .slide {
+    page: withnotes;
+    height: auto;
+    background: #fff;
+  }
+
+  .notes-view.scripted .slide .notes {
+    display: block !important;
+    padding: 24pt 36pt !important;
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 14pt !important;
+    line-height: 1.4;
+    overflow: visible !important;
+  }
+
+  .notes-view.scripted .slide .notes a {
+    color: #000 !important;
+  }
+
+  .notes-view.scripted .slide .notes.empty {
+    color: #666 !important;
   }
 }

@@ -232,8 +232,16 @@ internal sealed partial class DeckReader
             items.AddRange(this.Tree(Tree(layout), layout, context, Matrix.Identity, null, decorations: true));
         }
 
-        items.AddRange(this.Tree(Tree(slide), slide, context, Matrix.Identity, null, decorations: false));
-        return new SlideScene(number, Title(slide.Root) ?? $"Slide {number}", background, items);
+        var decorations = items.Count;
+        var own = this.Tree(Tree(slide), slide, context, Matrix.Identity, null, decorations: false);
+        items.AddRange(own);
+        return new SlideScene(number, Title(slide.Root) ?? $"Slide {number}", background, items)
+        {
+            Decorations = decorations,
+            Notes = this.SpeakerNotes(slidePart),
+            Steps = this.Steps(slide.Root, own),
+            Transition = this.Transition(slide.Root),
+        };
     }
 
     private static XElement? Tree(PartXml part) => part.Root.Element(Ns.P + "cSld")?.Element(Ns.P + "spTree");

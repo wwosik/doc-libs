@@ -189,6 +189,15 @@ updating, breaking changes first.
   to HTML is `PptxGenerator.Generate` into a stream, then `HtmlDeck.Write`. Two new note codes:
   `drawing-unsupported` (something on a slide was left out, such as a shadow or an EMF picture) and
   `font-missing` (a font measured with a stand-in of other widths, or by estimate).
+- **Presenting the HTML deck:** the keys step through each slide's builds (appear, fade, fly, wipe,
+  their exits, and a pulse for emphasis) before moving on, and slides change with their transitions
+  (fade, push, wipe, cover, uncover, split, zoom, cut; Morph as a fade for now), all instant with
+  `prefers-reduced-motion`. The URL names the step (`#7.2`). `N` shows the speaker notes beside the
+  slide; `P` opens a presenter window (current slide, next step, notes, position, a clock with reset)
+  that stays in step with the deck, from disk and from a web server. The overview and print show each
+  slide in its final build state; printing with the notes view on puts the notes under each slide.
+  `HtmlDeckOptions.Notes = false` leaves the speaker notes out of the file. Unknown effects and
+  transitions play as appear, disappear, pulse or fade and are reported as `drawing-unsupported`.
 - **Deck previews:** each slide of a deck as a PNG (default 1280 px wide) and a contact sheet of all
   slides as one PNG, painted with SkiaSharp — no browser, no Office. Two calls in two packages that
   do not reference each other: `DeckSvg.Write(pptx, options)` (`wwosik.DocLibs.DocumentGeneration.Pptx`)

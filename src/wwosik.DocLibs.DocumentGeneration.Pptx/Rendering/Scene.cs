@@ -9,10 +9,84 @@ namespace wwosik.DocLibs.DocumentGeneration.Pptx.Rendering;
 internal sealed record DeckScene(long Width, long Height, IReadOnlyList<SlideScene> Slides, string? Title, string? Language, IReadOnlyList<SceneFace> Faces);
 
 /// <summary>
-/// One visible slide. <paramref name="Number"/> is its position in the deck, hidden slides counted. E07-S06 adds the
-/// speaker notes, build steps and transition here.
+/// One visible slide. <paramref name="Number"/> is its position in the deck, hidden slides counted. The first
+/// <see cref="Decorations"/> items come from the master and the layout, the rest from the slide's own shape tree.
 /// </summary>
-internal sealed record SlideScene(int Number, string Title, SceneFill? Background, IReadOnlyList<SceneItem> Items);
+internal sealed record SlideScene(int Number, string Title, SceneFill? Background, IReadOnlyList<SceneItem> Items)
+{
+    /// <summary>How many of <see cref="Items"/>, from the start, are master and layout decorations.</summary>
+    public int Decorations { get; init; }
+
+    /// <summary>The speaker notes (the notes page's body placeholder); empty without notes.</summary>
+    public IReadOnlyList<NoteParagraph> Notes { get; init; } = [];
+
+    /// <summary>The build steps of the main click sequence, in order; empty without builds.</summary>
+    public IReadOnlyList<SceneStep> Steps { get; init; } = [];
+
+    /// <summary>The transition into this slide; <see langword="null"/> for none.</summary>
+    public SceneTransition? Transition { get; init; }
+}
+
+/// <summary>Whether a paragraph of the speaker notes is a list item with a bullet or a number.</summary>
+internal enum NoteList
+{
+    None,
+    Bullet,
+    Number,
+}
+
+/// <summary>A paragraph of the speaker notes: its level (from 0), list kind and first number, and its runs.</summary>
+internal sealed record NoteParagraph(int Level, NoteList List, int Start, IReadOnlyList<NoteRun> Runs)
+{
+    public bool Equals(NoteParagraph? other) =>
+        other is not null && this.Level == other.Level && this.List == other.List && this.Start == other.Start && this.Runs.SequenceEqual(other.Runs);
+
+    public override int GetHashCode() => HashCode.Combine(this.Level, this.List, this.Start, this.Runs.Count);
+}
+
+/// <summary>A piece of speaker-note text; a text of <c>"\n"</c> is a line break. <paramref name="Link"/> is a web or mail address.</summary>
+internal sealed record NoteRun(string Text, bool Bold, bool Italic, string? Link);
+
+/// <summary>What a build effect does to its target: brings it in, takes it out, or draws attention to it.</summary>
+internal enum EffectClass
+{
+    Entrance,
+    Exit,
+    Emphasis,
+}
+
+/// <summary>How a build effect plays; an exit plays its entrance in reverse, and <see cref="Appear"/> is instant.</summary>
+internal enum EffectKind
+{
+    Appear,
+    Fade,
+    Fly,
+    Wipe,
+    Pulse,
+}
+
+/// <summary>
+/// One effect of a build step: on the item with that <c>cNvPr id</c>, or on a range of its paragraphs (indices, both
+/// included); the side it comes from or goes to (<c>l</c>, <c>r</c>, <c>t</c>, <c>b</c>, or two of them) and its
+/// duration in milliseconds.
+/// </summary>
+internal sealed record SceneEffect(int Id, (int Start, int End)? Paragraphs, EffectClass Class, EffectKind Kind, string? Direction, int Duration);
+
+/// <summary>One click of the main sequence: the effects that start with it.</summary>
+internal sealed record SceneStep(IReadOnlyList<SceneEffect> Effects)
+{
+    public bool Equals(SceneStep? other) => other is not null && this.Effects.SequenceEqual(other.Effects);
+
+    public override int GetHashCode() => this.Effects.Count;
+}
+
+/// <summary>
+/// The transition into a slide: <c>fade</c>, <c>push</c>, <c>wipe</c>, <c>cover</c>, <c>uncover</c>, <c>split</c>,
+/// <c>zoom</c>, <c>cut</c> or <c>morph</c>; its direction as PowerPoint writes it (<c>l</c>, <c>u</c>, <c>r</c>,
+/// <c>d</c> and their pairs; <c>horz-out</c>, <c>vert-in</c> … for split; <c>in</c> or <c>out</c> for zoom) and its
+/// duration in milliseconds.
+/// </summary>
+internal sealed record SceneTransition(string Kind, string? Direction, int Duration);
 
 /// <summary>A colour with its opacity (0–1).</summary>
 internal readonly record struct Rgba(byte R, byte G, byte B, double A = 1)

@@ -724,6 +724,7 @@ var drawn = HtmlDeck.Write(pptx, html, new HtmlDeckOptions { Title = "Quarterly 
 | `Fonts` | none | TrueType files for families the deck names but does not embed, found by family name (name ID 1): text is measured in them and, with `EmbedFonts`, they go into the page. |
 | `EmbedFonts` | `true` | The faces the slides use, from the deck's embedded fonts and `Fonts`, as `@font-face` (whole faces, each once). |
 | `Language` | the first run's `lang`, else `en` | The page's `lang`. |
+| `Notes` | `true` | The speaker notes, for the notes view, the presenter window and printing with notes. `false` leaves them out of the file, for a deck handed to the audience. |
 
 A file that is not a presentation throws `DocumentConversionException` with `Format = Pptx`.
 
@@ -735,19 +736,64 @@ are `HtmlDeck/deck.js` and `HtmlDeck/deck.css` in the package, not minified.
 
 | Keys | |
 | ---- | - |
-| → ↓ Space Page Down Enter, a click, a swipe left | next slide |
-| ← ↑ Page Up Backspace, a swipe right | previous slide |
+| → ↓ Space Page Down Enter, a click, a swipe left | next build step, after the last one the next slide |
+| ← ↑ Page Up Backspace, a swipe right | previous build step, before the first one the previous slide in its final state |
 | Home / End | first / last slide |
 | a number, then Enter | that slide |
 | `F` | full screen |
 | `O` | overview: all slides in a grid; arrows and Enter, or a click, open one |
 | `B` or `.` | black screen |
+| `N` | notes view: the slide on the left two thirds, its speaker notes beside it |
+| `P` | presenter window |
 | `?` | the list of keys (also the `?` button bottom right) |
 | Esc | leave full screen, overview, black screen or the key list |
 
-The address follows the slide (`deck.html#7`, the slide's position in the page), so a reload or a
-link lands on it. **Printing** gives one slide per sheet at the slide's size (`@page`), without the
-counter. Builds, transitions, speaker notes and a presenter window are not part of the page yet.
+The address follows the step (`deck.html#7` for slide 7 before its first build step, `#7.2` after
+its second; the slide's position in the page), so a reload or a link lands on the same step.
+
+**Builds.** The main click sequence of each slide's animations (`p:timing`) becomes steps: each click
+a step, effects that start by themselves (*with* or *after* the previous one) joining the step before.
+Each step shows, hides or emphasizes whole items or ranges of their paragraphs. The effects play as
+CSS animations on the drawing:
+
+| Effect (PowerPoint preset) | In the page |
+| -------------------------- | ----------- |
+| Appear (1) | instant |
+| Fade (10) | opacity |
+| Fly In (2) | from outside the slide on its side (`presetSubtype`: top, right, bottom, left and the corners), 0.5 s by default |
+| Wipe (22) | a `clip-path` opening from its side |
+| Their exits (Disappear, Fade Out, Fly Out, Wipe) | the entrance in reverse, then hidden |
+| Pulse (emphasis 26) | a short scale to 105 % and back |
+| another entrance, exit or emphasis | appear, disappear or a pulse, reported (`drawing-unsupported`) |
+| motion paths, animations started by clicking a shape | not played, reported |
+
+Durations are the effects' own. Going back undoes a step at once, without animation.
+
+**Transitions** play when a slide is reached by moving forward (going back is instant), with the
+direction and speed of `p:transition` (`spd` fast 0.5 s, medium 0.75 s, slow 1 s, or `p14:dur`):
+fade, push, wipe, cover, uncover (`p:pull`), split and zoom as CSS animations of the slide; cut and
+none at once. **Morph** plays as a fade: moving the shapes the two slides share is not done yet. In
+`mc:AlternateContent` the first `Choice` with a transition the reader knows is taken, else the
+`Fallback`; a transition it does not know plays as a fade and is reported. With the browser's
+**`prefers-reduced-motion`** on, every effect and transition is instant.
+
+**Notes view** (`N`): the slide shrinks to the left two thirds, and its speaker notes — the notes
+page's body placeholder — show beside it as HTML: paragraphs, bulleted and numbered lists by level,
+bold, italic, line breaks and `http`, `https` and `mailto` links. A slide without notes says so, and
+so does a page written with `Notes = false`.
+
+**Presenter window** (`P`): the same file opens again with `#presenter` and shows the current slide,
+the next step (the same slide one step on, else the next slide), the notes, *Slide n of m, step k of
+j*, and the time since it opened with a reset button. The two windows stay in step: keys work in
+both, and the deck window plays the effects and transitions while the presenter window changes at
+once. They talk over `postMessage` (works from disk too) and a `BroadcastChannel` (from a web
+server, so a presenter tab opened by hand with `#presenter` also finds the deck). A browser that
+blocks pop-ups needs to allow this one.
+
+**The overview** shows each slide in its final build state. **Printing** gives one slide per sheet
+at the slide's size (`@page`), each in its final build state (what leaves in a build stays hidden),
+without the counter. With the notes view on, each sheet (the slide's width, √2 as tall) has the slide
+on top and its notes below.
 
 **Security.** A Content Security Policy in the page allows only inline styles, the one inline
 script (by its hash), `data:` images and `data:` fonts, so a slide cannot load or run anything.
@@ -798,8 +844,8 @@ generator writes is drawn.
 glow, reflection, soft edges, also from an `effectRef`), 3-D, text warps, vertical text (drawn
 horizontally), text columns (drawn as one), right-to-left text, picture effects other than greyscale,
 tiled pictures (drawn stretched), EMF, WMF and TIFF pictures, SmartArt, ink, video and audio (their
-poster picture is drawn), other graphic frames, unknown elements. Speaker notes, transitions
-(`p:transition`, Morph) and builds (`p:timing`) are read by nothing yet and give no note.
+poster picture is drawn), other graphic frames, unknown elements. Builds and transitions are
+reported as described above.
 
 **Text layout rules.** Lines break between words at spaces and after hyphens; a word wider than the
 line breaks between characters; `wrap="none"` never breaks. A line's pitch is 1.2 × the largest size
@@ -814,7 +860,7 @@ ligatures, shaping or hyphenation; East Asian and complex scripts are measured b
 which `DeckPreview` in
 [wwosik.DocLibs.DocumentConversions.Svg](wwosik.DocLibs.DocumentConversions.Svg.md#deck-previews)
 turns into PNGs and a contact sheet. It is the HTML deck's drawing — the same reader, the same lines
-— written to stand alone: every build step shown, pictures as their PNG, JPEG or GIF (never the
+— written to stand alone: every build step shown (also what a build takes away), pictures as their PNG, JPEG or GIF (never the
 `svgBlip` alternative, so there is no SVG inside the SVG), and each run's `font-family` the face its
 line was measured with (Liberation Sans for an estimate). This package draws no pixels and has no
 SkiaSharp.

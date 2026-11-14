@@ -54,9 +54,20 @@ internal sealed class SceneSvg
         var writer = new SceneSvg(target, symbol, prefix ?? $"s{slide.Number}-");
         var (width, height) = (deck.Width / EmuPerPoint, deck.Height / EmuPerPoint);
         writer.Background(slide.Background, width, height);
-        foreach (var item in slide.Items)
+        for (var i = 0; i < slide.Items.Count; i++)
         {
-            writer.Item(item);
+            // In the page the slide's own items are grouped, so builds find them by id apart from the decorations'.
+            if (i == slide.Decorations && target == SvgTarget.Html)
+            {
+                writer.svg.Append("<g class=\"own\">");
+            }
+
+            writer.Item(slide.Items[i]);
+        }
+
+        if (target == SvgTarget.Html && slide.Decorations < slide.Items.Count)
+        {
+            writer.svg.Append("</g>");
         }
 
         var head = new StringBuilder();
