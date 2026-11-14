@@ -90,8 +90,15 @@ public static class DocxGenerator
         BuildMarker.Check(content.Source, Format.Docx, LineOf);
         var now = options.TimeProvider.GetUtcNow();
         var date = template.ShowsDate ? options.TimeProvider.GetLocalNow().ToString("dd.MM.yyyy", CultureInfo.InvariantCulture) : null;
-        var title = frontMatter.Title ?? document.Metadata.GetValueOrDefault(MetadataKeys.Title) ?? content.Cover?.Title;
-        var author = frontMatter.Author ?? document.Metadata.GetValueOrDefault(MetadataKeys.Author);
+        var typography = Typography.For(
+            Typography.IsOn(frontMatter, options.Typography),
+            language.Tag,
+            options.TypographyRules,
+            brand?.Fonts is { } faces ? c => faces.HasEveryTextFace(c) : _ => true,
+            notes);
+        var title = Typeset(typography, frontMatter.Title, frontMatter.LineOf(FrontMatter.TitleKey)) ?? document.Metadata.GetValueOrDefault(MetadataKeys.Title)
+            ?? Typeset(typography, content.Cover?.Title, content.Cover is null ? 0 : LineOf(content.Source.OfType<Markdig.Syntax.HeadingBlock>().First()));
+        var author = Typeset(typography, frontMatter.Author, frontMatter.LineOf(FrontMatter.AuthorKey)) ?? document.Metadata.GetValueOrDefault(MetadataKeys.Author);
         var codeFont = options.CodeFont ?? brand?.CodeFontFamily ?? DocxOptions.DefaultCodeFont;
 
         using var buffer = new MemoryStream();
@@ -126,6 +133,7 @@ public static class DocxGenerator
                     PageBreaks = content.PageBreaks,
                     Design = design,
                     Marking = marking,
+                    Typography = typography,
                 };
                 DocxWriter.Write(content, context, DocxBody.Instance, author, date, options.TableOfContents, options.TableOfContentsDepth);
                 DocxMarking.Apply(context, template.IsBuiltIn ? LogoIndent(brand) : null, (brand ?? ResolvedBrand.Neutral).FontFamily);
@@ -214,7 +222,8 @@ public static class DocxGenerator
                 ["frontMatter"] = AuthoringGuides.FrontMatter(
                     registry.Expected,
                     options.Language,
-                    [.. template.Keys.Concat([TocKey, TocDepthKey, HeadingNumbersKey]).Select(k => (k, meanings[k])), classification, draft, deckKeys, labels]),
+                    [.. template.Keys.Concat([TocKey, TocDepthKey, HeadingNumbersKey]).Select(k => (k, meanings[k])), classification, draft, deckKeys, labels],
+                    options.Typography),
                 ["characters"] = Characters(brand?.Fonts, codeFont),
                 ["imageFormats"] = options.ImageConverters.Count > 0
                     ? "Images are PNG, JPEG or GIF, or SVG: an `.svg` image keeps its SVG, which Word draws sharp\n  at any size."
@@ -348,6 +357,10 @@ public static class DocxGenerator
     }
 
     // The characters the brand's fonts lack, which Word shows in a substitute font.
+    // A front-matter title or author, or the cover's title, typeset when typography is on.
+    private static string? Typeset(Typography? typography, string? text, int line) =>
+        text is null || typography is null ? text : typography.Apply(text, line);
+
     private static string Characters(ResolvedFonts? fonts, string codeFont)
     {
         if (fonts is null)

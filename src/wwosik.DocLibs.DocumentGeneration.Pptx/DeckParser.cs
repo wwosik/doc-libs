@@ -28,7 +28,8 @@ internal sealed partial class DeckParser(
     GenerationNotes notes,
     GeneratedTexts texts,
     bool numberChapters,
-    Func<string, IReadOnlyList<SlotKind>?>? layoutSlots)
+    Func<string, IReadOnlyList<SlotKind>?>? layoutSlots,
+    Typography? typography)
 {
     private static readonly MarkdownPipeline Pipeline = BuildPipeline();
 
@@ -70,10 +71,11 @@ internal sealed partial class DeckParser(
         GenerationNotes? notes = null,
         GeneratedTexts? texts = null,
         bool numberChapters = false,
-        Func<string, IReadOnlyList<SlotKind>?>? layoutSlots = null)
+        Func<string, IReadOnlyList<SlotKind>?>? layoutSlots = null,
+        Typography? typography = null)
     {
         var parser = new DeckParser(
-            document, options, brand ?? Brand.Neutral, lineOffset, notes ?? new GenerationNotes(), texts ?? GeneratedTexts.English, numberChapters, layoutSlots);
+            document, options, brand ?? Brand.Neutral, lineOffset, notes ?? new GenerationNotes(), texts ?? GeneratedTexts.English, numberChapters, layoutSlots, typography);
         HeadingBlock? heading = null;
         var blocks = new List<Block>();
         var markdown = Markdown.Parse(document.Markdown, Pipeline);
@@ -1003,16 +1005,26 @@ internal sealed partial class DeckParser(
         return Trim(this.Icons(Colour(collector.Pieces.OfType<List<TextRun>>().SelectMany(r => r).ToList()), this.LineOf(inline)));
     }
 
-    // `:icon-name:`: an icon run of its own, unless icons are switched off.
-    private List<TextRun> Icons(List<TextRun> runs, int line) => IconSyntax.Apply(
+    // `:icon-name:`: an icon run of its own, unless icons are switched off; then typography, when it is on.
+    private List<TextRun> Icons(List<TextRun> runs, int line) => this.Typeset(
+        IconSyntax.Apply(
+            runs,
+            r => r.Text,
+            r => r.Style.HasFlag(RunStyle.Code) || r.Style.HasFlag(RunStyle.Label),
+            (r, text) => r with { Text = text },
+            (r, icon) => r with { Icon = icon },
+            options.Icons,
+            line,
+            Format.Pptx),
+        line);
+
+    // Typography, when it is on: code, status labels, footnote references and Harvey balls are left alone.
+    private List<TextRun> Typeset(List<TextRun> runs, int line) => typography is null ? runs : typography.Apply(
         runs,
         r => r.Text,
-        r => r.Style.HasFlag(RunStyle.Code) || r.Style.HasFlag(RunStyle.Label),
+        r => r.Style.HasFlag(RunStyle.Code) || r.Style.HasFlag(RunStyle.Label) || r.Style.HasFlag(RunStyle.Superscript) || r.Symbol,
         (r, text) => r with { Text = text },
-        (r, icon) => r with { Icon = icon },
-        options.Icons,
-        line,
-        Format.Pptx);
+        line);
 
     // The line of a paragraph's text, from its first inline; 0 if unknown.
     private int LineOf(ContainerInline? inline) => inline?.FirstChild is { } first ? this.LineOf(first) : 0;

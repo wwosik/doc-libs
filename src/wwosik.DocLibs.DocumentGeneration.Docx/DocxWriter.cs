@@ -15,6 +15,9 @@ internal sealed record DocxContext(
     string CodeFont,
     DocxOptions Options)
 {
+    /// <summary>The typography pass, or <see langword="null"/> when typography is off.</summary>
+    public Typography? Typography { get; init; }
+
     /// <summary>The page of the template's last section.</summary>
     public DocxPage Page { get; init; } = DocxPage.For(DocxPageSize.A4, DocxOrientation.Portrait);
 
@@ -162,7 +165,11 @@ internal static class DocxWriter
     {
         var styles = context.Styles;
         var elements = new List<OpenXmlElement>();
-        var title = Paragraph(styles.Id(DocxRoles.Title), [new TextPiece(cover.Title)]);
+        var typography = context.Typography;
+        IReadOnlyList<TextPiece> Typeset(IReadOnlyList<TextPiece> pieces) => typography is null
+            ? pieces
+            : typography.Apply(pieces, p => p.Text, _ => false, (_, text) => new TextPiece(text), 0);
+        var title = Paragraph(styles.Id(DocxRoles.Title), Typeset([new TextPiece(cover.Title)]));
         if (DocxMarking.Paragraph(context, DocxRoles.ClassificationCover) is { } marking)
         {
             elements.Add(marking);
@@ -170,7 +177,7 @@ internal static class DocxWriter
         }
 
         elements.Add(title);
-        elements.AddRange(cover.Subtitle.Select(s => Paragraph(styles.Id(DocxRoles.Subtitle), s)));
+        elements.AddRange(cover.Subtitle.Select(s => Paragraph(styles.Id(DocxRoles.Subtitle), Typeset(s))));
         var details = new[] { author, date }.Where(d => !string.IsNullOrWhiteSpace(d)).Select(d => new TextPiece(d!)).ToList();
         if (details.Count > 0)
         {

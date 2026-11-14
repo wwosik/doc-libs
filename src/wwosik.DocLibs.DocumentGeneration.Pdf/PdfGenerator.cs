@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Text;
 using wwosik.DocLibs.DocumentConversions;
 
 namespace wwosik.DocLibs.DocumentGeneration.Pdf;
@@ -87,7 +88,13 @@ public static class PdfGenerator
         var brand = ResolvedBrand.Resolve(options.Template.BrandValue);
         var fonts = FontSet.For(brand);
         var language = DocumentLanguage.Resolve(frontMatter.Language, options.Language, options.Texts, notes, DocumentFormat.Pdf);
-        var model = MarkdownParser.Parse(document with { Markdown = frontMatter.Body }, options, options.Template.BrandValue, frontMatter.BodyLine, notes, language.Texts);
+        var typography = Typography.For(
+            Typography.IsOn(frontMatter, options.Typography),
+            language.Tag,
+            options.TypographyRules,
+            c => TextFaces.All(face => fonts.HasGlyph(new Rune(c), face)),
+            notes);
+        var model = MarkdownParser.Parse(document with { Markdown = frontMatter.Body }, options, options.Template.BrandValue, frontMatter.BodyLine, notes, language.Texts, typography);
         if (options.TableOfContents && model.Contents is null)
         {
             notes.Add(
@@ -96,9 +103,9 @@ public static class PdfGenerator
                 $"The table of contents lists the headings of {options.TableOfContentsDepth} level{(options.TableOfContentsDepth == 1 ? string.Empty : "s")} from the highest one after the cover, and the document has none, so it has no table of contents. Add headings, or leave 'toc' out.");
         }
 
-        var title = frontMatter.Title ?? document.Metadata.GetValueOrDefault(MetadataKeys.Title)
+        var title = Typeset(typography, frontMatter.Title, frontMatter.LineOf(FrontMatter.TitleKey)) ?? document.Metadata.GetValueOrDefault(MetadataKeys.Title)
             ?? (model.Cover is { } cover ? string.Concat(cover.Title.Select(r => r.IsBreak ? " " : r.Text)) : null);
-        var author = frontMatter.Author ?? document.Metadata.GetValueOrDefault(MetadataKeys.Author);
+        var author = Typeset(typography, frontMatter.Author, frontMatter.LineOf(FrontMatter.AuthorKey)) ?? document.Metadata.GetValueOrDefault(MetadataKeys.Author);
         var date = options.Template.ShowsDate
             ? options.TimeProvider.GetLocalNow().ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)
             : null;
@@ -157,7 +164,8 @@ public static class PdfGenerator
                 ["frontMatter"] = AuthoringGuides.FrontMatter(
                     registry.Expected,
                     options.Language,
-                    [.. options.Template.Keys.Concat([PageSizeKey, OrientationKey, TocKey, TocDepthKey, HeadingNumbersKey]).Select(k => (k, meanings[k])), transition, build, numberChapters, labels]),
+                    [.. options.Template.Keys.Concat([PageSizeKey, OrientationKey, TocKey, TocDepthKey, HeadingNumbersKey]).Select(k => (k, meanings[k])), transition, build, numberChapters, labels],
+                    options.Typography),
                 ["characters"] = Characters(FontSet.For(ResolvedBrand.Resolve(options.Template.BrandValue)), options.ReplaceUnsupported is not null),
                 ["icons"] = AuthoringGuides.Icons(
                     options.Icons,
@@ -183,6 +191,17 @@ public static class PdfGenerator
             "The fonts are embedded in the PDF and have no emoji and no Asian scripts; never use emoji. Any character "
                 + $"the fonts lack {effect}. Write these symbols as shown:");
     }
+
+    // The faces text can be set in: typography introduces a character only when all of them have it.
+    private static readonly FontFace[] TextFaces =
+    [
+        FontFace.Regular, FontFace.Bold, FontFace.Italic, FontFace.BoldItalic,
+        FontFace.TableRegular, FontFace.TableBold, FontFace.TableItalic, FontFace.TableBoldItalic,
+    ];
+
+    // A front-matter title or author, typeset when typography is on.
+    private static string? Typeset(Typography? typography, string? text, int line) =>
+        text is null || typography is null ? text : typography.Apply(text, line);
 
     /// <summary>The caller's options with the front matter applied on top.</summary>
     internal static PdfOptions Apply(FrontMatter frontMatter, PdfOptions options)

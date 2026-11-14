@@ -1,7 +1,7 @@
 # E06-S03 Typography
 
-> Status: in progress (doc-3)
-> Epic: [E06 Markdown syntax](../../50-todo/E06-markdown-syntax.md)
+> Status: in verification
+> Epic: [E06 Markdown syntax](../50-todo/E06-markdown-syntax.md)
 
 ## Summary
 
@@ -171,3 +171,69 @@ so code highlighting is E06-S04 (question 1).
 ## Notes
 
 <!-- Free space for remarks that are not answers to the questions above. -->
+
+## Implementation notes
+
+### Breaking changes
+
+None. Typography is off by default (question 2): without `typography: true` or the option, every deck,
+PDF and Word document is as before (the existing round-trip samples are unchanged). Added:
+`TypographyRules` (public record), `PptxOptions`/`PdfOptions`/`DocxOptions.Typography` and
+`.TypographyRules`, the shared front-matter key `typography`, `NoteCodes.TypographySkipped`. The authoring
+guides change (a `typography` row in *Front matter*, the new note in the notes list), and with them
+`tool-guide.expected.md`.
+
+### Decisions and deviations
+
+- **DOCX too,** as asked after the plan was written: `DocxOptions.Typography`, `DocxOptions.TypographyRules`,
+  the same key and the same pass in `DocxRuns`, plus the cover's title and subtitle in `DocxWriter.Cover`.
+- **Where the pass runs:** inside each parser's `Icons(...)` wrapper, so after `ColouredWords` *and*
+  `IconSyntax` (the plan said right after `ColouredWords`). Every run list goes through that wrapper, and
+  icon runs then have empty text and are naturally skipped.
+- **The pass is an instance** (`Typography`, built once per document by `Typography.For`, `null` when off)
+  rather than a static method, because it carries the rules, the font check and the per-document set of
+  reported characters. `Typography.Apply<T>` is generic over the run type like `ColouredWords.Apply`; it
+  keeps the number and order of runs.
+- **`MonthNames`** instead of the plan's `DatePatterns`: a list of month names (long names, plus the short
+  ones of `GeneratedTexts.MonthNames`); a day of one or two digits with an optional `.` before one of them
+  keeps its space as a no-break space. Only day-before-month ("13 November"); "November 13" is not handled.
+- **`Dash`** is the character a spaced hyphen becomes; its spaces stay (a profile cannot remove them).
+  Quotes are strings, so a host's French profile can bring no-break spaces inside « » (as tested).
+- **Abbreviations:** besides the plan's list, German has `o. Ä.`, `u. U.`, `v. a.`. A space between any
+  abbreviation and a following number becomes a no-break space (the plan named `§`, `Nr.`, `S.`; it is the
+  same rule for all). Units gained `°F`, `°`, `CHF`, `£`, `m²`, `m³`, `km²`, `ms`.
+- **Never changed, beyond the plan:** dashes in arrows (`-->`, `<--`) and runs of four or more hyphens; a
+  spaced hyphen between digits (`5 - 3`, a minus); `--`/`---` between digits; a straight quote with spaces on
+  both sides; e-mail addresses and `www.` addresses (masked by pattern, like `scheme://` URLs and HTML tags).
+- **Single quotes:** a `'` after a letter while no single quote is open is the apostrophe (`Chris' book`).
+  German closing ‘ and the apostrophe ’ differ, so `hab'` at a word end is the apostrophe.
+- **A multi-character replacement** (`--`, `---`, `...`) must lie within one run; split across runs (e.g.
+  `-**-**`) it stays as typed.
+- **Notes:** one `typography-skipped` per character per document, at the line of the first paragraph
+  where it was needed.
+- **Fonts:** PDFs check the eight text and table faces (`FontSet.HasGlyph`); decks and Word documents check
+  a brand's font files (`ResolvedFonts.HasEveryTextFace`), and set every character without them. No
+  built-in or sample font lacks any of the characters, so the "font lacks it" path is tested with a made-up
+  check at the parser (PDF, deck) and in the shared tests, not with a subset brand font.
+- **Title and author:** front-matter `title` and `author` are typeset wherever they are used, including the
+  file's properties; a title taken from the cover heading is typeset anyway (it comes from its runs). The
+  DOCX cover is plain text pieces, so a code span in the cover heading is typeset there.
+- **Drawn containers** (`timeline`, `gantt`, `steps`, `riskmatrix`) are not typeset either, like Mermaid and
+  charts (question 8): their text comes from `DrawingTexts`, not the run lists.
+
+### Verification
+
+- Tests: `TypographyTests` in the shared tests (rules per language, quotes across runs, code runs, the
+  font check, the key), and in the PPTX, PDF and DOCX tests (decks through the Open XML validator for both
+  brands, Word documents for all three templates, PDFs with `pdfaid`, link targets, code, dates, German
+  via `de-CH`, a host profile, the title in the properties, Mermaid code unchanged). New golden
+  `typography.roundtrip.expected.md` in the PDF tests.
+- For the human: look at a deck, PDF and Word document with `typography: true` (quotes, dashes, no line
+  break inside "10 km" and "z. B."); veraPDF was not run.
+- `./run.sh build`-equivalent (`dotnet build -m:1` after an Internal CLR error in the parallel run): 0
+  warnings. Tests per project, after rebasing onto E07-S03: 34 + 123 + 1 + 78 + 71 + 153 + 244 + 454 + 385 = 1,543 passed, 6 Windows-only
+  skipped. Running every test with `DOCLIBS_UPDATE_EXPECTED=1` changed only the seven authoring guides and
+  `tool-guide.expected.md`: every round-trip sample of decks, PDFs and Word documents stayed the same with
+  typography off. With it off the pass is not built (`Typography.For` returns `null`) and every call site
+  returns its input; generated files were not byte-compared beyond the round-trip goldens.
+- Three front-matter tests that spell out the valid keys now list `typography` after `draft`.

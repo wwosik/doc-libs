@@ -97,6 +97,8 @@ string guide = PdfGenerator.AuthoringGuide(options);   // starts at "##"
 | `Icons` | `TablerIcons.Outline` | the icons of `:icon-name:`; `null` switches them off, see [QR codes and icons](#qr-codes-and-icons) |
 | `Language` | `en` | the document language, unless front matter sets `lang` |
 | `Texts` | none | `GeneratedTexts` for further languages, by tag |
+| `Typography` | `false` | typographic quotes, dashes, `…` and no-break spaces in the document language, unless front matter sets `typography`; see [Typography](wwosik.DocLibs.DocumentGeneration.md#typography) |
+| `TypographyRules` | none | `TypographyRules` for further languages, by tag |
 | `TimeProvider` | `TimeProvider.System` | the date of generation in the footer, and today for timelines and Gantt charts |
 
 Margins, font sizes, header and footer are fixed by the design.
@@ -117,6 +119,7 @@ The shared syntax and rules are in
 | `headingNumbers` | `true`, `false` | all |
 | `title`, `author` | text | all |
 | `lang` | a language tag such as `en`, `de`, `de-CH` | all |
+| `typography` | `true`, `false` | all — see [Typography](wwosik.DocLibs.DocumentGeneration.md#typography) |
 | `transition` | `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut`, `morph` | all — a deck's key: checked, then ignored |
 | `build` | `none`, `lists` | all — a deck's key: checked, then ignored |
 | `numberChapters` | `true`, `false` | all — a deck's key: checked, then ignored; heading numbers in PDFs come from `headingNumbers` |

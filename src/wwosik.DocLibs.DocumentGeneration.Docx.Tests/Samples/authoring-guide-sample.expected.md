@@ -282,6 +282,7 @@ author: Planning team
 | `title` | The document title in the file's properties. Default: the first `#` heading. |
 | `author` | The author in the file's properties. |
 | `lang` | The document language, such as `en`, `de` or `de-CH`: of the texts the generator writes itself, and of spell checking. Default `en`. |
+| `typography` | `true` sets typographic quotes, dashes, `…` and no-break spaces (`10 km`) for the language; type straight quotes. Default `false`. |
 | `template` | The design: `neutral` or `sample`. |
 | `showDate` | `true` or `false`: today's date on the cover and in the footer. Default `true`. |
 | `showTagline` | `true` or `false`: the design's tagline on the cover, if it has one. Default `true`. |
@@ -347,6 +348,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `caption-ignored`: a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text.
 - `list-too-deep`: a list is nested deeper than three levels; the deeper items are set at the third level. Flatten the list to three levels.
 - `classification-kept`: the front matter asks for a lower `classification` than the host set, and the host's applies. Leave the key out, or raise it.
+- `typography-skipped`: with `typography: true`, a character the fonts lack was kept as typed. Nothing to fix.
 
 A check before generating writes nothing and returns these notes too, and also:
 

@@ -664,6 +664,7 @@ author: Team Docs
 | `layouts.twoContent`, `layouts.textAndPicture`, `layouts.picture`, `layouts.agenda`, `layouts.quote`, `layouts.statement`, `layouts.contact`, `layouts.chart`, `layouts.twoCharts`, `layouts.dark` | layout name | custom — see [Template roles](#template-roles) |
 | `title`, `author` | text | all — the core properties |
 | `lang` | a language tag such as `en`, `de`, `de-CH`; default `PptxOptions.Language` (`en`), with `PptxOptions.Texts` for further languages | all — see [Document language](wwosik.DocLibs.DocumentGeneration.md#document-language) |
+| `typography` | `true`, `false`; default `PptxOptions.Typography` (`false`), with `PptxOptions.TypographyRules` for further languages | all — typographic quotes, dashes, `…` and no-break spaces in the document language, see [Typography](wwosik.DocLibs.DocumentGeneration.md#typography) |
 
 - `template` naming the template the caller chose keeps the caller's values; naming another one
   starts from that template's defaults. The other keys then apply, whatever their order.

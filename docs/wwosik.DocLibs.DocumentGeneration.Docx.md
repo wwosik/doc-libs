@@ -92,6 +92,8 @@ combined guide and JSON replies. See [A tool for AI agents](wwosik.DocLibs.Docum
 | `Icons` | `TablerIcons.Outline` | the icons `:icon-name:` draws inline, one line high (with an image converter); `null` leaves `:icon-x:` as text |
 | `Language` | `en` | the document language, unless front matter sets `lang` |
 | `Texts` | none | `GeneratedTexts` for further languages, by tag |
+| `Typography` | `false` | typographic quotes, dashes, `…` and no-break spaces in the document language, unless front matter sets `typography`; see [Typography](wwosik.DocLibs.DocumentGeneration.md#typography) |
+| `TypographyRules` | none | `TypographyRules` for further languages, by tag |
 | `TimeProvider` | `TimeProvider.System` | the date on the cover and in the footer, and the created and modified dates |
 | `Classification` | `Classification.Public` | `Internal` or `Confidential` marks the document, see [Classification](#classification); front matter can raise it, not lower it |
 | `Draft` | `false` | marks the document a draft, with Word's watermark; front matter's `draft: true` also does |
@@ -106,6 +108,7 @@ The shared syntax and rules are in
 | `template` | `neutral`, the brand of `Template`, or a brand in `DocxOptions.Brands` | all |
 | `title`, `author` | text | all |
 | `lang` | a language tag such as `en`, `de`, `de-CH` | all |
+| `typography` | `true`, `false` | all — see [Typography](wwosik.DocLibs.DocumentGeneration.md#typography) |
 | `classification` | `public`, `internal`, `confidential` | all; see [Classification](#classification) |
 | `draft` | `true`, `false` | all |
 | `toc` | `true`, `false` | all |

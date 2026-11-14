@@ -223,16 +223,27 @@ internal sealed class DocxRuns(DocxBody body)
         (r, category) => r with { Category = category },
         Format.Docx);
 
-    // `:icon-name:`: a run of its own that stands for the icon, outside code; an unknown name throws.
-    private List<DocxRun> Icons(List<DocxRun> runs, int line) => IconSyntax.Apply(
+    // `:icon-name:`: a run of its own that stands for the icon, outside code; an unknown name throws. Then typography,
+    // when it is on.
+    private List<DocxRun> Icons(List<DocxRun> runs, int line) => this.Typeset(
+        IconSyntax.Apply(
+            runs,
+            r => r.Footnote is null ? r.Text : string.Empty,
+            r => r.Flags.HasFlag(RunFlags.Code) || r.IsBreak,
+            (r, text) => r with { Text = text },
+            (r, icon) => r with { Icon = icon },
+            body.Context.Options.Icons,
+            line,
+            Format.Docx),
+        line);
+
+    // Typography, when it is on: code, tags, status labels and footnote references are left alone.
+    private List<DocxRun> Typeset(List<DocxRun> runs, int line) => body.Context.Typography is not { } typography ? runs : typography.Apply(
         runs,
         r => r.Footnote is null ? r.Text : string.Empty,
-        r => r.Flags.HasFlag(RunFlags.Code) || r.IsBreak,
+        r => r.Flags.HasFlag(RunFlags.Code) || r.Flags.HasFlag(RunFlags.Tag) || r.IsLabel || r.Footnote is not null,
         (r, text) => r with { Text = text },
-        (r, icon) => r with { Icon = icon },
-        body.Context.Options.Icons,
-        line,
-        Format.Docx);
+        line);
 
     /// <summary>Collects runs, cut into pieces at images unless images count as their alt text.</summary>
     private sealed class Collector(DocxBody body, bool imagesAsText)

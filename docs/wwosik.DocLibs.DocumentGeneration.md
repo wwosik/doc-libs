@@ -293,6 +293,7 @@ if (result.HasNotes)
 | `character-replaced` | PDF | `PdfOptions.ReplaceUnsupported` replaced a character the fonts lack; once per character, without a line |
 | `footnote-missing` | PPTX, DOCX, PDF | A footnote reference such as `[^1]` has no definition, so it is shown as written |
 | `language-unknown` | PPTX, DOCX, PDF | The document language has no `GeneratedTexts` of its own, built in or from the options; the texts are English, the tag is kept; without a line |
+| `typography-skipped` | PPTX, DOCX, PDF | With [typography](#typography) on, a typographic character (a quote, dash, `…` or the no-break space) was not used because a face the text can be set in lacks it; the character stays as typed. Once per character, with the line of its first paragraph |
 | `notes-dropped` | PPTX | A `::: notes` stands before the first heading, so it belongs to no slide and was left out |
 | `notes-simplified` | PPTX | Speaker notes held a table, code block, image, quote, alert, heading or other container, written as plain text; one note per block |
 | `attribute-ignored` | PPTX, DOCX, PDF | An image attribute has no effect where it is: `fit=cover` on an image of its own in a PDF, `focus` on an image that is not cropped, `scale` with `fit=cover`, `fit`, `focus`, `.round` and `.grey` in a Word document, or any attribute on an image shown as its alt text (in a heading or a table cell) |
@@ -725,7 +726,8 @@ title: Network expansion 2027
   looks like YAML but is only this flat subset — no nesting, no lists.
 - An opening `---` followed by a blank line is a thematic break, not front matter.
 - **Shared keys:** `template` (applied first, whatever its position), `title`, `author`, `lang` (see
-  [Document language](#document-language)), `classification` and `draft` (see
+  [Document language](#document-language)), `typography` (see [Typography](#typography)),
+  `classification` and `draft` (see
   [Classification](#classification)), and `labels.<category>` (see
   [Slide layouts in Markdown](#slide-layouts-in-markdown)). The rest are the generator's.
 - **Document keys** (`FrontMatter.DocumentKeys`): `toc` (`true`/`false`), `tocDepth` (`1`–`3`) and
@@ -769,6 +771,58 @@ is a BCP 47 tag such as `en`, `de`, `de-CH` or `en-GB`. Anything else is an erro
   `dc:language` in the core properties, as `w:lang` in the document defaults and as
   `w:themeFontLang` in the settings, so Word spell-checks in it.
 - The cover date stays `dd.MM.yyyy` in every language.
+
+## Typography
+
+Off by default. `typography: true` in the front matter, or `PptxOptions.Typography` /
+`PdfOptions.Typography` / `DocxOptions.Typography`, sets text the way a typesetter would, in the
+rules of the [document language](#document-language); `typography: false` switches it off whatever
+the option says. Writers type straight quotes and hyphens; the generator does the rest.
+
+| Typed | English | German |
+| ----- | ------- | ------ |
+| `"Hello"`, `'word'` | “Hello”, ‘word’ | „Hallo“, ‚Wort‘ |
+| `it's`, `'90s`, `5'` | it’s, ’90s, 5’ | the same |
+| `a - b`, `a -- b`, `a --- b` | a – b, a – b, a — b | the same |
+| `...` | … | … |
+| `10 km`, `5 %`, `z. B.`, `S. 12`, `13. November` | a no-break space (U+00A0) in place of the space | the same |
+
+- **The pass** (internal `Typography`) runs after the coloured words and icons on every run list: a
+  paragraph, heading, list item, table cell, footnote, definition term, the cover's title and
+  subtitle, and the front-matter `title` and `author` (also in the file's properties). It works on the
+  paragraph's text as one string, so a quote that opens before `**bold**` and closes after it pairs.
+- **Only characters are replaced:** a space is never added or removed. `10%` stays without a space,
+  `10 %` gets a no-break space.
+- **Quotes:** a `"` or `'` after the start, a space, an opening bracket, a dash or an opening quote
+  opens; otherwise it closes. A `'` between letters, after a digit, before a digit at the start of a
+  word, or after a letter while no single quote is open is the apostrophe. A `"` after a digit (inches)
+  stays straight.
+- **Dashes:** `---` is an em dash, `--` an en dash, a hyphen with a space on either side the rules'
+  `Dash` (spaces kept). Never between digits (`2020-2026`, `2026-11-14`, `2020--2026`, `5 - 3`), in
+  arrows (`-->`, `<--`) or in four or more hyphens.
+- **Ellipsis:** exactly three dots.
+- **No-break spaces** (U+00A0): inside the rules' `Abbreviations` and between one and a number after
+  it, between a number and a following unit of `Units`, and between a day (`13`, `13.`) and a month of
+  `MonthNames`.
+- **Never touched:** code spans and blocks, status labels, footnote references, web and e-mail
+  addresses (`https://…`, `www.…`, `a@b.c`), HTML shown as text, link targets (link text is set),
+  front-matter values other than `title` and `author`, and the text of drawings: Mermaid diagrams,
+  charts and the drawn containers (`timeline`, `gantt`, `steps`, `riskmatrix`) keep what was typed.
+- **Fonts.** A character is only used when every face the text can be set in has it: in PDFs the
+  text and table faces, regular to bold italic; in decks and Word documents a brand's fonts the same
+  way, while a caller's template or a brand without font files gets every character, since Office
+  substitutes fonts. Otherwise the typed character stays, with the note `typography-skipped`, so a
+  PDF never fails on a character the pass would have brought in.
+- **`TypographyRules`** (public record): `DoubleQuotes` and `SingleQuotes` (`Opening`, `Closing`),
+  `Apostrophe`, `Dash`, `Abbreviations`, `Units`, `MonthNames`. `TypographyRules.English` (“ ” ‘ ’,
+  no abbreviations) and `TypographyRules.German` („ “ ‚ ‘, `z. B.`, `d. h.`, `u. a.`, `i. d. R.`,
+  `o. Ä.`, `u. U.`, `v. a.`, `S.`, `Nr.`, `Abs.`, `§`) are built in; both have the units (`%`, `‰`, `°C`,
+  `€`, `EUR`, `USD`, `$`, `km`, `m`, `cm`, `kg`, `h`, `min`, `MB`, `px`, `pt` and more) and their long
+  month names plus `GeneratedTexts.MonthNames`. A host adds or replaces languages with the options'
+  `TypographyRules`, by tag, matched like `Texts` (in full, then by language): `de-CH` gets the German
+  rules unless the host gives its own, and any other language the English ones, without a note
+  beyond `language-unknown`. A French profile with « » and no-break spaces inside the quotes:
+  `TypographyRules.English with { DoubleQuotes = ("«\u00A0", "\u00A0»") }`.
 
 ## Footnotes, task lists and definition lists
 

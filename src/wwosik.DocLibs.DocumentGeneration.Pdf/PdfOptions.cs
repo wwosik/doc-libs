@@ -60,6 +60,22 @@ public sealed record PdfOptions
     public IReadOnlyDictionary<string, GeneratedTexts> Texts { get; init; } = new Dictionary<string, GeneratedTexts>();
 
     /// <summary>
+    /// Typography in the document language, unless the front matter sets <c>typography</c>: straight quotes become
+    /// typographic ones, <c>--</c> and a spaced hyphen dashes, <c>...</c> an ellipsis, and a no-break space keeps
+    /// <c>10 km</c>, <c>z. B.</c> and <c>13. November</c> together (<see cref="DocumentGeneration.TypographyRules"/>).
+    /// Code, addresses and the text of diagrams and charts are never changed. Default <see langword="false"/>.
+    /// </summary>
+    public bool Typography { get; init; }
+
+    /// <summary>
+    /// Typography rules for languages besides English and German, or in place of them, by language tag (<c>fr</c>,
+    /// <c>de-CH</c>): a tag is matched in full, then by its language alone; any other language is set by
+    /// <see cref="DocumentGeneration.TypographyRules.English"/>. Start each from <see cref="DocumentGeneration.TypographyRules.English"/>
+    /// with <c>with { … }</c>. Default: none.
+    /// </summary>
+    public IReadOnlyDictionary<string, TypographyRules> TypographyRules { get; init; } = new Dictionary<string, TypographyRules>();
+
+    /// <summary>
     /// The icons <c>:icon-name:</c> draws (as list bullets, alone in a paragraph, and inline in text). Default
     /// <see cref="TablerIcons.Outline"/>, the whole Tabler outline set; a set of your own replaces it, and an unknown
     /// name is an error. <see langword="null"/> switches icons off: <c>:icon-name:</c> then stays text and is not checked.

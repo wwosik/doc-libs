@@ -138,6 +138,16 @@ updating, breaking changes first.
 
 ### New
 
+- **Typography,** off by default: `typography: true` in the front matter, or the new
+  `PptxOptions.Typography`, `PdfOptions.Typography` and `DocxOptions.Typography`, sets typographic
+  quotes, apostrophes, dashes, the ellipsis and no-break spaces (`10 km`, `z. B.`, `13. November`) in
+  the rules of the document language, in decks, PDFs and Word documents alike. Only characters are
+  replaced, never spaces added or removed; code, addresses, HTML shown as text and the text of
+  diagrams, charts and drawn containers are never changed. English and German rules are built in
+  (`TypographyRules.English`, `TypographyRules.German`; `de-CH` takes the German ones); a host adds
+  languages with the options' `TypographyRules`, by tag. A character a brand's fonts lack is kept as
+  typed, with the new note `typography-skipped`. The authoring guides list the `typography` key and
+  the note. With typography off, every deck, PDF and Word document is as before.
 - **A tool for AI agents:** `DocumentTool` in wwosik.DocLibs.DocumentGeneration gives a host a tool
   description for the formats it offers: `Name` (default `create_document`, set with
   `DocumentToolOptions.Name`), `Description`, `ParametersSchema` (JSON Schema with `format`,

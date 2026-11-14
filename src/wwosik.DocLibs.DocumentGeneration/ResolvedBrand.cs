@@ -433,4 +433,9 @@ internal sealed record ResolvedFonts(
 
     /// <summary>Whether the brand has table fonts of its own.</summary>
     public bool HasTableFonts => !ReferenceEquals(this.TableRegular, this.Regular);
+
+    /// <summary>Whether every face of text and tables, regular to bold italic, has the character: what typography checks.</summary>
+    public bool HasEveryTextFace(int character) =>
+        new[] { this.Regular, this.Bold, this.Italic, this.BoldItalic, this.TableRegular, this.TableBold, this.TableItalic, this.TableBoldItalic }
+            .All(face => TrueTypeInfo.HasCharacter(face, character));
 }

@@ -301,6 +301,7 @@ author: Planning team
 | `title` | The document title in the file's properties. Default: the first `#` heading. |
 | `author` | The author in the file's properties. |
 | `lang` | The document language, such as `en`, `de` or `de-CH`: of the texts the generator writes itself, and of spell checking. Default `en`. |
+| `typography` | `true` sets typographic quotes, dashes, `…` and no-break spaces (`10 km`) for the language; type straight quotes. Default `false`. |
 | `template` | The design: `neutral`. |
 | `layouts.title` | The name of the template's layout for the cover. |
 | `layouts.content` | The name of the template's layout for text slides. |
@@ -363,6 +364,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `layout-fallback`: the design has no layout for that kind of slide (`{.quote}` and the others), so it is drawn as a layout slide with the same content. Nothing to fix, unless the design's own look matters.
 - `agenda-empty`: an empty `{.agenda}` found no `#` chapters to list. Add the chapters, or write the agenda as a list.
 - `caption-ignored`: a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text.
+- `typography-skipped`: with `typography: true`, a character the fonts lack was kept as typed. Nothing to fix.
 
 A check before generating writes nothing and returns these notes too, and also:
 

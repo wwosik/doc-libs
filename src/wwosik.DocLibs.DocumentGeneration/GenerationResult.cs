@@ -122,6 +122,9 @@ public static class NoteCodes
     /// </summary>
     public const string ClassificationKept = "classification-kept";
 
+    /// <summary>Typography left a straight quote, hyphen, dots or space as typed because the document's fonts lack its typographic character.</summary>
+    public const string TypographySkipped = "typography-skipped";
+
     /// <summary>Check only: a slide has more list items, at every level, than <see cref="CheckOptions.MaxBulletsPerSlide"/>.</summary>
     public const string TooManyBullets = "too-many-bullets";
 
@@ -178,6 +181,7 @@ public static class NoteCodes
         (TocEmpty, [DocumentFormat.Pdf], "`toc: true` asked for a table of contents, but the document has no headings at the depth it lists, so there is none. Add headings, raise `tocDepth`, or leave `toc` out."),
         (ListTooDeep, [DocumentFormat.Docx], "a list is nested deeper than three levels; the deeper items are set at the third level. Flatten the list to three levels."),
         (ClassificationKept, [DocumentFormat.Docx], "the front matter asks for a lower `classification` than the host set, and the host's applies. Leave the key out, or raise it."),
+        (TypographySkipped, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "with `typography: true`, a character the fonts lack was kept as typed. Nothing to fix."),
         (TooManyBullets, [DocumentFormat.Pptx], "a slide has more list items, counting every level, than *Limits* allows. Cut them, or split the slide into slides of your own."),
         (TooManyWords, [DocumentFormat.Pptx], "a slide has more words than *Limits* allows, its title and speaker notes not counted. Shorten it, or move detail into `::: notes`."),
         (LongParagraph, [DocumentFormat.Pdf, DocumentFormat.Docx], "a paragraph has more words than *Limits* allows. Split it, or make a list of it."),

@@ -16,7 +16,7 @@ One syntax for every format means a writer learns it once and the same source go
 | ----- | ----- | ----- |
 | [E06-S01](../60-verify/E06-S01-coloured-words.md) | Coloured words | in verification |
 | [E06-S02](../60-verify/E06-S02-markdown-foundations.md) | Markdown foundations: footnotes, task lists, definition lists, document language (`lang`) with English and German generated-text tables, `Drawing` even-odd fill and validation | in verification |
-| [E06-S03](../55-in-progress/doc-3/E06-S03-typography.md) | Typography | in progress (doc-3) |
+| [E06-S03](../60-verify/E06-S03-typography.md) | Typography | in verification |
 | [E06-S04](../55-in-progress/doc-3/E06-S04-code-highlighting.md) | Code highlighting | in progress (doc-3) |
 
 Stories marked *to plan* come from the

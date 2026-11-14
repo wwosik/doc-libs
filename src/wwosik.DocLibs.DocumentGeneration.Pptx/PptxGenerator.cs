@@ -148,7 +148,14 @@ public static class PptxGenerator
             var resolved = brand is null ? null : ResolvedBrand.ForSlides(brand);
             var palette = resolved is null ? SlidePalette.Scheme : dark ? SlidePalette.ForDark(resolved) : SlidePalette.From(resolved);
             var codeFont = options.CodeFont ?? resolved?.CodeFontFamily ?? PptxOptions.DefaultCodeFont;
-            var author = frontMatter.Author ?? document.Metadata.GetValueOrDefault(MetadataKeys.Author);
+            var typography = Typography.For(
+                Typography.IsOn(frontMatter, options.Typography),
+                language.Tag,
+                options.TypographyRules,
+                resolved?.Fonts is { } faces ? c => faces.HasEveryTextFace(c) : _ => true,
+                notes);
+            var author = Typeset(typography, frontMatter.Author, frontMatter.LineOf(FrontMatter.AuthorKey))
+                ?? document.Metadata.GetValueOrDefault(MetadataKeys.Author);
 
             // The writer opens the template first: the parser asks it which placeholders a layout has.
             var writer = new DeckWriter(
@@ -181,8 +188,9 @@ public static class PptxGenerator
                 notes,
                 language.Texts,
                 template.NumberChaptersOverride ?? writer.NumbersChapters,
-                writer.Slots);
-            var title = frontMatter.Title ?? Title(document, slides);
+                writer.Slots,
+                typography);
+            var title = Typeset(typography, frontMatter.Title, frontMatter.LineOf(FrontMatter.TitleKey)) ?? Title(document, slides);
             count = writer.Write(slides, title);
             if (template.EmbedsFonts && resolved?.Fonts is { } fonts)
             {
@@ -228,7 +236,7 @@ public static class PptxGenerator
             new Dictionary<string, string>
             {
                 ["diagrams"] = AuthoringGuides.Renderers(options.CodeBlockRenderers),
-                ["frontMatter"] = AuthoringGuides.FrontMatter(registry.Expected, options.Language, [.. template.Keys.Select(k => (k, KeyMeanings[k])), Labels]),
+                ["frontMatter"] = AuthoringGuides.FrontMatter(registry.Expected, options.Language, [.. template.Keys.Select(k => (k, KeyMeanings[k])), Labels], options.Typography),
                 ["characters"] = Characters(brand?.Fonts, codeFont),
                 ["templateLayouts"] = TemplateLayouts(brand?.Pptx, (template as CustomTemplateOptions)?.Roles),
                 ["icons"] = AuthoringGuides.Icons(
@@ -395,6 +403,10 @@ public static class PptxGenerator
                 + "these fonts lack is shown in a substitute font and looks out of place. Leave out emoji"
                 + ", and write these symbols as shown:");
     }
+
+    // A front-matter title or author, typeset when typography is on.
+    private static string? Typeset(Typography? typography, string? text, int line) =>
+        text is null || typography is null ? text : typography.Apply(text, line);
 
     private static string? Title(MarkdownDocument document, IReadOnlyList<Slide> slides)
     {

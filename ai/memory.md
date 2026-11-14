@@ -260,6 +260,15 @@ same change that made it untrue — a stale fact here is worse than a missing on
   every `a:rPr`/`a:endParaRPr` in `DeckWriter.Tag` after each slide; PDFs splice `/Lang` into the
   catalog and grow the XMP through `PdfRenderer.Splice`, which shifts the xref offsets.
   `Drawing.Validate()` runs in every drawing writer.
+- **Typography (E06-S03):** `Typography` (shared, internal) is built per document by `Typography.For` (null = off;
+  `Typography.IsOn`: front matter `typography` over the options) and handed to `DeckParser`, `MarkdownParser` and
+  `DocxContext`; each parser runs it inside its `Icons(...)` wrapper, i.e. after `ColouredWords` and `IconSyntax`, on
+  every run list, plus the front-matter `title`/`author` and the DOCX cover. It never changes the number or order
+  of runs; masked runs (code, labels, superscripts, Harvey balls, DOCX tags and footnotes) are `\u0001` in its
+  working string, and addresses and HTML tags are masked by regex. A multi-character replacement (`--`, `...`)
+  must lie within one run. The font check is a `Func<int, bool>`: PDFs `FontSet.HasGlyph` over the eight text and
+  table faces, decks and DOCX `ResolvedFonts.HasEveryTextFace`, everything without brand fonts. Drawings
+  (renderers, `VisualContainers`) are never typeset.
 - **Speaker notes and transitions (E07-S01):** `DeckParser.Section` takes top-level `::: notes` out
   of a section before the slide kind is decided and sets `Slide.SpeakerNotes` and `Slide.Transition`
   on every slide of the section; `Fit` copies both to every part. A new per-slide property must be

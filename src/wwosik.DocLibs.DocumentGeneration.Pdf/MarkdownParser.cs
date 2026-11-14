@@ -24,7 +24,8 @@ namespace wwosik.DocLibs.DocumentGeneration.Pdf;
 /// (<see cref="HeadingNumbering"/>), visuals their numbered captions (<see cref="Captions"/>), and the table of contents
 /// its entries.
 /// </summary>
-internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptions options, Brand brand, int lineOffset, GenerationNotes notes, GeneratedTexts texts)
+internal sealed partial class MarkdownParser(
+    MarkdownDocument document, PdfOptions options, Brand brand, int lineOffset, GenerationNotes notes, GeneratedTexts texts, Typography? typography)
 {
     private static readonly MarkdownPipeline Pipeline = BuildPipeline();
 
@@ -55,11 +56,17 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
     /// document language, for alert titles and the heading of the footnotes.
     /// </remarks>
     public static DocumentModel Parse(
-        MarkdownDocument document, PdfOptions options, Brand? brand = null, int lineOffset = 0, GenerationNotes? notes = null, GeneratedTexts? texts = null)
+        MarkdownDocument document,
+        PdfOptions options,
+        Brand? brand = null,
+        int lineOffset = 0,
+        GenerationNotes? notes = null,
+        GeneratedTexts? texts = null,
+        Typography? typography = null)
     {
         notes ??= new GenerationNotes();
         texts ??= GeneratedTexts.English;
-        var parser = new MarkdownParser(document, options, brand ?? Brand.Neutral, lineOffset, notes, texts);
+        var parser = new MarkdownParser(document, options, brand ?? Brand.Neutral, lineOffset, notes, texts, typography);
         var markdown = Markdown.Parse(document.Markdown, Pipeline);
 
         // Page breaks are for documents: their content stays, the break itself is ignored here for now (E03-S03).
@@ -535,16 +542,26 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         return Trim(this.Icons(Colour(collector.Pieces.OfType<List<TextRun>>().SelectMany(r => r).ToList()), this.LineOf(inline)));
     }
 
-    // `:icon-name:`: an icon run of its own, unless icons are switched off.
-    private List<TextRun> Icons(List<TextRun> runs, int line) => IconSyntax.Apply(
+    // `:icon-name:`: an icon run of its own, unless icons are switched off; then typography, when it is on.
+    private List<TextRun> Icons(List<TextRun> runs, int line) => this.Typeset(
+        IconSyntax.Apply(
+            runs,
+            r => r.Text,
+            r => r.Style.HasFlag(RunStyle.Code),
+            (r, text) => r with { Text = text },
+            (r, icon) => r with { Style = r.Style | RunStyle.Icon, Icon = icon },
+            options.Icons,
+            line,
+            DocumentFormat.Pdf),
+        line);
+
+    // Typography, when it is on: code and footnote references are left alone.
+    private List<TextRun> Typeset(List<TextRun> runs, int line) => typography is null ? runs : typography.Apply(
         runs,
         r => r.Text,
-        r => r.Style.HasFlag(RunStyle.Code),
+        r => r.Style.HasFlag(RunStyle.Code) || r.Style.HasFlag(RunStyle.Superscript),
         (r, text) => r with { Text = text },
-        (r, icon) => r with { Style = r.Style | RunStyle.Icon, Icon = icon },
-        options.Icons,
-        line,
-        DocumentFormat.Pdf);
+        line);
 
     // Icons where PDFs do not draw them (headings, table cells, the cover): left out, with a note.
     private List<TextRun> NotDrawn(List<TextRun> runs, string place)
