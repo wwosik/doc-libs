@@ -306,6 +306,8 @@ if (result.HasNotes)
 | `title-too-long` | PPTX, PDF, DOCX | Check only: a slide title (`#`, `##`) or any heading of a PDF or Word document has more text elements than `CheckOptions.MaxTitleLength`, the settings in braces at its end not counted |
 | `alt-text-missing` | PPTX, PDF, DOCX | Check only: an image has empty alt text (`![](a.png)`) and `CheckOptions.RequireAltText` is on; `qr:` codes too |
 | `image-source` | PPTX, PDF, DOCX | Check only: an image is not among the document's resources, or is an `http:`, `https:` or `data:` URL, which the generators never load. `Generate` throws for the first one instead |
+| `drawing-unsupported` | HTML deck | `HtmlDeck.Write` left something of a slide out: an effect, a preset shape it does not know (drawn as a rectangle), a chart kind, an EMF picture and the like; one note per kind with the slide numbers, without a line |
+| `font-missing` | HTML deck | `HtmlDeck.Write` measured a font with a stand-in of other widths (Consolas with Liberation Mono), by estimate (a family with neither a face nor a stand-in), or a missing bold or italic face with the regular one; one note per family, without a line |
 
 ## Checking a document
 

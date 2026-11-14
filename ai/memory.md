@@ -21,18 +21,20 @@ same change that made it untrue — a stale fact here is worse than a missing on
   - `wwosik.DocLibs.DocumentGeneration` — shared by the generators: the public brand API
     (`Brand`, `BrandColors`, `BrandImage`, `BrandFonts`, `BrandFont`, `PptxBrandTemplate`,
     `BrandPack`), the drawing model (`Drawing` …) and `ICodeBlockRenderer`; internally
-    `ResolvedBrand`, `BrandRegistry`, `TrueTypeInfo`, `FrontMatter`, `ImageInfo`, and what both
+    `ResolvedBrand`, `BrandRegistry`, `TrueTypeInfo`, `TrueTypeMetrics`, `FrontMatter`, `ImageInfo`,
+    the bundled Liberation fonts (`StandInFonts`, `Fonts/*.ttf`, since E07-S02), and what both
     generators share about slide-layout syntax (`HeadingAttributes`, `LayoutSyntax`) and the
     authoring guides (`AuthoringGuides`).
   - `wwosik.DocLibs.DocumentGeneration.Diagrams` — `MermaidRenderer`: Mermaider (MIT) writes SVG,
     `SvgDrawing` turns it into a `Drawing`. Depends only on the shared package.
   - `wwosik.DocLibs.DocumentGeneration.Charts` — `ChartRenderer`: `chart` blocks (settings, `---`,
     CSV) → `ChartGraphic(ChartSpec, Drawing)`. Depends only on the shared package.
-  - `wwosik.DocLibs.DocumentGeneration.Pptx` — Markdown → `.pptx`; Markdig and the Open XML SDK.
+  - `wwosik.DocLibs.DocumentGeneration.Pptx` — Markdown → `.pptx`; Markdig and the Open XML SDK;
+    and any `.pptx` → one HTML page (`HtmlDeck`, E07-S02).
   - `wwosik.DocLibs.DocumentGeneration.Docx` — Markdown → `.docx` (E09); Markdig and the Open XML
     SDK, like Pptx, sharing Open XML code with it as linked source (`src/Shared/OpenXml/`).
   - `wwosik.DocLibs.DocumentGeneration.Pdf` — Markdown → PDF/A-2b; Markdig and PdfPig, own
-    layout engine, bundled Liberation fonts; SkiaSharp only for `.grey` images (E04-S05).
+    layout engine, the Liberation fonts from the shared package; SkiaSharp only for `.grey` images (E04-S05).
 - Public on GitHub as `wwosik/doc-libs`, MIT, published to nuget.org by tag (see
   `standards.md`, *Build and deployment*).
 
@@ -161,8 +163,8 @@ same change that made it untrue — a stale fact here is worse than a missing on
   ambiguity. `BrandImage`, `BrandFont`, `PptxBrandTemplate` and `BrandColors` override equality to
   compare content, so options holding a brand stay comparable.
 - The PDF fonts are one `FontSet`: Liberation (OFL) by default, or a brand's (`FontSet.For`), with
-  Liberation Mono for mono faces the brand lacks. To change the default family: replace
-  `Fonts/*.ttf` and the names in `FontSet.Liberation`. Table cells use the `Table*` faces
+  Liberation Mono for mono faces the brand lacks. The files live in DocumentGeneration's `Fonts/`
+  (`StandInFonts`, one cached `byte[]` per file) since E07-S02, which also measures HTML decks with them. Table cells use the `Table*` faces
   (`RunStyle.Table`, set only by the layout); without brand table fonts they are the **same
   `byte[]`** as the text faces, and `PdfRenderer` keys its font copies by file (reference), so
   nothing is embedded twice. `ResolvedFonts.HasTableFonts` is that reference check. A character the font lacks throws;
@@ -421,8 +423,30 @@ same change that made it untrue — a stale fact here is worse than a missing on
   `NoteCodes.FormatAdvice` adds per-format advice to the guides' notes list. The Docx tests reference
   Charts, Diagrams, Svg and `SkiaSharp.NativeAssets.Linux`.
 
+- **HTML deck (E07-S02):** `HtmlDeck.Write` = `DeckReader.Read` (namespace `…Pptx.Rendering`, internal) →
+  `DeckScene` (slides of `SceneGroup`/`SceneShape`/`ScenePicture`, text already broken into lines, all in
+  EMU) → `SceneSvg.Write` per slide → `HtmlDeckWriter.Page` (CSP with the script's hash, `HtmlDeck/deck.js` and
+  `deck.css` as embedded resources). Parts are read as XLinq (`PartXml`) from the SDK's part streams and
+  matched by namespace (`Ns`). Inheritance, colours (`Palette`), geometry (`Geometry`, `PresetShapes` as
+  ECMA definitions), text (`TextLayout` with `FontLibrary`: embedded EOT → TTF, passed fonts, Liberation
+  stand-ins, else `TextMetrics`), tables (built-in *Medium Style 2 – Accent 1* in `DeckReader.Tables.cs`)
+  and charts (`DeckReader.Charts.cs`, `ChartWriter`'s subset). `SvgTarget.Painting` writes standalone SVGs
+  for Svg.Skia (raster pictures, measured face names) — E07-S03's `DeckSvg` is a thin wrapper over
+  `DeckReader.Read(pptx, fonts, slides)` and `SceneSvg.Write(…, SvgTarget.Painting)` plus `DeckScene.Faces`.
+  Every item keeps its `cNvPr id` (`data-id`), every paragraph its index (`data-p`) for E07-S06.
+  `RenderNotes` gives one note per kind with the slide numbers, `Line` 0.
+- **The DrawingML subset is a contract:** `HtmlDeckTests.EverySampleDeck_IsDrawn_WithNothingLeftOut` generates
+  every sample deck plus a features deck on the neutral, sample and dark templates and fails on any
+  `drawing-unsupported`. A story that makes the generator write new DrawingML (a preset, an effect, a fill,
+  a graphic frame, an element in the shape tree) extends the reader in the same change and adds a sample.
+  The scene's path segments are `PathMove`/`PathLine`/`PathCubic`/`PathClose`, not the shared `Drawing`'s
+  `MoveTo`/`LineTo`, which tests see first.
+
 ## Traps
 
+- **The role layouts give two placeholders the same `idx`** (e.g. a picture placeholder and the date both
+  `idx="2"` on the contact layout), so the HTML deck matches a slide placeholder by `idx` only among
+  compatible types. Whether PowerPoint does the same is an open check (E07-S02).
 - **The built-in master's relationship ids are fixed:** layouts 1–4 are `rId1`–`rId4`, the theme
   `rId5`, the master logo `rId6`; layout 5 (*Title Only Dark*) is `rId7`, the role layouts 6–13
   (E01-S06) `rId8`–`rId15` (`TemplateBuilder.LayoutRelationship`). *Title Only Dark* and

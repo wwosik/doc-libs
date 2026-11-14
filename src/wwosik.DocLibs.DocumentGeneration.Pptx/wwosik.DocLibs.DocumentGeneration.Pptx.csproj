@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Generates PowerPoint presentations (.pptx) from Markdown, on the built-in master in a brand's design or on a caller's template, with the brand's fonts embedded.</Description>
+    <Description>Generates PowerPoint presentations (.pptx) from Markdown, on the built-in master in a brand's design or on a caller's template, with the brand's fonts embedded; and any deck as a self-contained HTML page.</Description>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="AuthoringGuide\*.md" LogicalName="AuthoringGuide.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="HtmlDeck\deck.js;HtmlDeck\deck.css" LogicalName="HtmlDeck.%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

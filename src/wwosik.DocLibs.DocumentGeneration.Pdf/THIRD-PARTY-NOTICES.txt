@@ -1,6 +1,6 @@
 wwosik.DocLibs.DocumentGeneration.Pdf uses the third-party software below. Each is used under the
-licence named with it. The bundled Liberation fonts are under the SIL Open Font License, in
-Fonts/OFL.txt.
+licence named with it. The Liberation fonts it embeds come with wwosik.DocLibs.DocumentGeneration,
+under the SIL Open Font License in that package's Fonts/OFL.txt.
 
 ================================================================================
 SkiaSharp

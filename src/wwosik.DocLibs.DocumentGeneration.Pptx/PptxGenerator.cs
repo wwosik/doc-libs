@@ -229,7 +229,7 @@ public static class PptxGenerator
                     "Slides show it only alone after a card's `###` (as its figure) and at the start of every item of a list "
                     + "(as bullets); elsewhere it is left out."),
                 ["limits"] = AuthoringGuides.Limits(options.Checks ?? CheckOptions.Default, Format.Pptx),
-                ["notes"] = AuthoringGuides.Notes(Format.Pptx),
+                ["notes"] = AuthoringGuides.Notes(Format.Pptx, NoteCodes.DrawingUnsupported, NoteCodes.FontMissing),
             });
     }
 

@@ -33,8 +33,8 @@ tests generate every example and compare the guides with `authoring-guide-*.expe
   Mermaid diagrams as vector graphics in PDFs and editable shapes in decks, through Mermaider.
 - [wwosik.DocLibs.DocumentGeneration.Pptx](wwosik.DocLibs.DocumentGeneration.Pptx.md): Markdown to
   `.pptx`, on the built-in master in a brand's design or on a caller's template, with layouts —
-  cards, rows, panels, callouts, tags, dark slides — from Markdown, and the brand's fonts embedded.
-  Cross-platform.
+  cards, rows, panels, callouts, tags, dark slides — from Markdown, and the brand's fonts embedded;
+  and any deck as one self-contained HTML page with keys, an overview and print. Cross-platform.
 - [wwosik.DocLibs.DocumentGeneration.Docx](wwosik.DocLibs.DocumentGeneration.Docx.md): Markdown to
   `.docx`, on the built-in template in a brand's design or on a caller's `.dotx` / `.docx` whose
   styles are found by name, with a cover, header and footer, numbered headings, lists, tables,

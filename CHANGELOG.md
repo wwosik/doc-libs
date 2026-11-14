@@ -158,6 +158,20 @@ updating, breaking changes first.
   numbered bookmarks; `{.unnumbered}` leaves a heading out. Figures and tables get numbered captions
   in the document language. New note `toc-empty` (`NoteCodes.TocEmpty`) when the contents would list
   nothing; `caption-ignored` now also in PDFs and decks. The authoring guides describe them.
+- **HTML deck** (`wwosik.DocLibs.DocumentGeneration.Pptx`): `HtmlDeck.Write(pptx, html, options)`
+  turns a `.pptx` — one the generator wrote or any other, best effort — into one self-contained HTML
+  page: each visible slide drawn as SVG from the deck's own DrawingML (layout and master inheritance,
+  theme colours and fonts, geometry, text broken into lines with real font metrics, tables, charts,
+  pictures), keys to move through the slides, an overview, a black screen, one slide per printed
+  sheet, a Content Security Policy that lets nothing load, and the deck's embedded faces as
+  `@font-face`. `HtmlDeckOptions` sets the title, extra fonts, font embedding and the language. Markdown
+  to HTML is `PptxGenerator.Generate` into a stream, then `HtmlDeck.Write`. Two new note codes:
+  `drawing-unsupported` (something on a slide was left out, such as a shadow or an EMF picture) and
+  `font-missing` (a font measured with a stand-in of other widths, or by estimate).
+- **The bundled Liberation fonts moved** from `wwosik.DocLibs.DocumentGeneration.Pdf` to
+  `wwosik.DocLibs.DocumentGeneration` (with `Fonts/OFL.txt`), so the HTML deck measures Arial and
+  Courier New text in them. PDFs embed the same bytes as before and do not change; the shared package
+  is about 2.2 MB larger, the PDF package as much smaller.
 - **The PDF converter reads a page's drawn shapes** with PdfPig: table rules (full grids, merged
   cells, tables ruled only horizontally), drawn bullets and task boxes, code backgrounds. A page whose
   analysis fails falls back to plain paragraphs. The documentation lists what it reads and its limits.

@@ -1,7 +1,7 @@
 # E07-S02 HTML deck
 
-> Status: in progress (doc-3)
-> Epic: [E07 Presenting](../../50-todo/E07-presenting.md)
+> Status: in verification
+> Epic: [E07 Presenting](../50-todo/E07-presenting.md)
 
 ## Summary
 
@@ -260,24 +260,24 @@ the same thing. Builds, transitions, the notes view and the presenter window are
 
 ## Acceptance criteria
 
-- [ ] `HtmlDeck.Write` turns every sample deck, on the neutral, sample and dark templates, into one
+- [x] `HtmlDeck.Write` turns every sample deck, on the neutral, sample and dark templates, into one
   HTML file that loads nothing from the network and gives no `drawing-unsupported` note.
-- [ ] Placeholders take their position and text style from layout and master; master and layout
+- [x] Placeholders take their position and text style from layout and master; master and layout
   decorations are drawn unless `showMasterSp="0"`; backgrounds inherit slide → layout → master.
 - [ ] Line breaks of text in an embedded font or a stand-in match PowerPoint's on the sample decks,
   apart from the cases listed in the docs.
-- [ ] Tables (including the built-in *Medium Style 2 – Accent 1*), charts from `ChartWriter`,
+- [x] Tables (including the built-in *Medium Style 2 – Accent 1*), charts from `ChartWriter`,
   pictures with SVG alternatives, Mermaid diagrams and financial charts are drawn.
-- [ ] Unknown elements, presets, image formats and effects are left out and reported once per
+- [x] Unknown elements, presets, image formats and effects are left out and reported once per
   kind with the slide numbers; missing fonts give `font-missing`.
 - [ ] Keys, overview, black screen and print work in Chrome, Firefox, Edge and Safari, from disk
   and from a server.
-- [ ] Slide text in the HTML is escaped, links are only `http`, `https` and `mailto`, and the CSP
+- [x] Slide text in the HTML is escaped, links are only `http`, `https` and `mailto`, and the CSP
   blocks anything not inline.
 - [ ] The sample decks were compared with PowerPoint's exports and the remaining differences are
   documented.
-- [ ] The coverage test fails when a sample deck contains DrawingML the reader does not know.
-- [ ] Docs, the notes table and CHANGELOG are updated, and all tests pass.
+- [x] The coverage test fails when a sample deck contains DrawingML the reader does not know.
+- [x] Docs, the notes table and CHANGELOG are updated, and all tests pass.
 
 ## Open questions
 
@@ -338,3 +338,132 @@ the same thing. Builds, transitions, the notes view and the presenter window are
   slide SVGs and the faces they use, because the previews live in
   `wwosik.DocLibs.DocumentConversions.Svg`, which does not reference this package (see E07-S03's
   notes). The reader and `SceneSvg` stay internal here.
+
+## Implementation notes
+
+Implemented by doc-3 on 2026-11-14.
+
+**What was built**
+
+- `HtmlDeck.Write(Stream pptx, Stream html, HtmlDeckOptions?)` and `HtmlDeckOptions` (`Title`, `Fonts`,
+  `EmbedFonts`, `Language`) in `wwosik.DocLibs.DocumentGeneration.Pptx` (`HtmlDeck.cs`), as planned. A package
+  that is not a presentation (not a zip, or a zip whose main part is not `p:presentation`, such as a `.docx`)
+  throws `DocumentConversionException` with `Format = Pptx`.
+- The reader in `Rendering/` (internal): `DeckReader` (+ `.Tables.cs`, `.Charts.cs`), `Scene.cs` (the model:
+  `DeckScene`, `SlideScene`, `SceneGroup`, `SceneShape`, `ScenePicture`, text as paragraphs → lines → runs),
+  `Palette` (theme, colour map, colours with modifiers, fills, lines), `Geometry` and `PresetShapes`,
+  `TextLayout`, `FontLibrary`, `RenderNotes`, `SceneSvg`. The page is `HtmlDeckWriter` with
+  `HtmlDeck/deck.js` and `HtmlDeck/deck.css` as embedded resources.
+- `TrueTypeMetrics` (shared package): units per em, `hmtx` advances, the `cmap` glyph map, Windows ascent and
+  descent, `macStyle`. `StandInFonts` (shared package) holds the Liberation files, moved with `git mv` from the
+  PDF package; `FontSet.Liberation` now takes the same bytes from there, so PDFs embed exactly what they did
+  (the PDF tests are unchanged and pass).
+- New note codes `drawing-unsupported` and `font-missing`, in `NoteCodes.All` (formats `Pptx`, since there
+  is no HTML format) and in the docs table; the PPTX authoring guide leaves them out (`AuthoringGuides.Notes`
+  `without`), because they are not about the Markdown.
+- Docs: a section *HTML deck* in the Pptx page with the API, keys, page, security, size, fonts, the
+  supported DrawingML as a table, what is left out, the text layout rules, and a known limit; the two codes in
+  the shared page; README, `docs/README.md`, the package descriptions and both `THIRD-PARTY-NOTICES.txt`.
+  `ai/memory.md` has the architecture and the contract rule.
+
+**Decisions and deviations**
+
+- **Parts are read as XLinq** from the Open XML SDK's part streams (`PartXml`), matched by namespace, not with
+  the SDK's typed classes: DrawingML inheritance is attribute-by-attribute over many element kinds, which is
+  far shorter generically. The SDK still opens the package and resolves relationships.
+- **The model's transforms:** each shape carries a matrix to the slide with flips (`Transform`) and one for
+  its text with rotation only (`TextTransform`, plus 180° for `flipV`), as PowerPoint does not mirror text.
+- **Presets are ECMA-376 definitions** (`presetShapeDefinitions.xml` form) evaluated by the same guide engine
+  as custom geometry: `rect`, `roundRect`, `ellipse`, `line`, `straightConnector1`, `wedgeRoundRectCallout`
+  (what the generator writes, the callout from E02-S05) plus `triangle`, `rtTriangle`, `diamond`,
+  `parallelogram`, `homePlate`, `chevron` for templates. Steps, chevrons, risk matrices and Harvey balls of
+  E04-S05/S07/S08 are custom geometry and glyphs, not presets.
+- **`font-missing` is not given for metric-compatible stand-ins** (Arial, Helvetica, Arimo → Liberation Sans;
+  Courier New, Courier, Cousine → Liberation Mono): step 9 lists "a stand-in" too, but then every neutral deck
+  would carry a note whose advice (pass the font) changes nothing. Consolas → Liberation Mono is noted (other
+  widths), and so are estimates and missing bold or italic faces.
+- **Text boxes and table cells take `defaultTextStyle`,** placeholders the master's title, body or other
+  style (dt, ftr, sldNum, hdr → other). The plan did not say which applies to text boxes; LibreOffice uses
+  `otherStyle` there. To be confirmed in PowerPoint.
+- **A `p:style` `fontRef` colour** sits after the shape's own `lstStyle` and before the inherited styles.
+- **Placeholder matching by `idx` only among compatible types:** the built-in role layouts (E01-S06) give
+  a picture placeholder and the date the same `idx="2"` (and the slide number `idx="4"`), so matching by `idx`
+  alone put the contact slide's date and number into picture slots. The generator's template is unchanged;
+  whether PowerPoint matches the same way is an open check (recorded in `ai/memory.md`, *Traps*).
+- **Wingdings task boxes** (``, ``) and a few common Wingdings bullets are drawn as their Unicode
+  equivalents (☐ ☑ ✓ ▪ …) in the text font, since no viewer has Wingdings off Windows.
+- **`spcBef` is not applied to the first paragraph,** superscript (`baseline`) is drawn at two thirds of the
+  size, underline and strike-through are drawn as rectangles (the same in the browser and in Svg.Skia).
+- **Charts** are laid out by the reader (padding, axis steps of 1, 2 or 5, labels, legend at the bottom); the
+  value axis starts at `c:min` when the chart has one, as `ChartWriter` writes for bars and areas.
+- **Pictures in the page are `<symbol>`s,** every one of them (not only those used twice), stretched over a
+  unit square and placed with `<use>`; a crop draws the picture larger inside a clip path; `.grey` is an SVG
+  `feColorMatrix` filter (an SVG filter, not a CSS one).
+- **The section's `#n` is the position in the page** (hidden slides skipped); `data-number` keeps the slide's
+  number in the deck, which is also what `slidenum` fields show.
+- **For E07-S03:** `SvgTarget.Painting` already exists: standalone SVG, raster pictures only, `font-family`
+  the measured face (Liberation Sans for an estimate). `DeckReader.Read(pptx, fonts, slides)` takes the slide
+  numbers to read, and `DeckScene.Faces` lists each face used once. E07-S03's public `DeckSvg` (and
+  `SlideSvg` in the base package) was **not** added here, since its plan puts it in E07-S03; it is a thin
+  wrapper over these. For E07-S06, items keep `data-id` and paragraphs `data-p`; the reader ignores
+  `p:transition`, `p:timing` and notes pages without notes, ready for E07-S06 to read them.
+- The test project references `wwosik.DocLibs.DocumentConversions.Svg` and `SkiaSharp.NativeAssets.Linux`
+  (as planned) and paints every slide of `deck.md` on the three templates through `SvgConverter`; with no
+  E07-S03 goldens yet, the check is size and "not blank", not pixels.
+
+**Tests** (`HtmlDeckTests`, `DeckReaderTests`)
+
+- The contract: `deck.md`, `layouts.md`, `presenting.md` (builds, transitions, notes), `schedules.md`,
+  `steps-and-risks.md` (steps, risk matrix, Harvey balls), `diagrams.md` (Mermaid) and a features deck (slide
+  kinds, round/grey/cropped pictures, an SVG image, a QR code, icon cards, stacked columns, a line with a
+  negative value, stacked areas, a financial chart and table, a comment callout, task boxes) on the neutral,
+  sample and dark templates: no `drawing-unsupported`, one section per slide. Review files go to
+  `.tmp/review/html-*.html` and `.pptx`.
+- The page: CSP with the script's hash, one script, no external `src`/`href` (only the deck's own `https`
+  links), no `link`/`iframe`/`object`/`embed`/`foreignObject`, escaping of slide text and the title
+  (`</script><img onerror>` stays text), only web and mail links, each face once and none for neutral
+  decks, pictures once as symbols, hidden slides, errors for a non-presentation.
+- The model: placeholder box and style from layout and master, a shape's `lstStyle` over the master's,
+  colours with `lumMod`/`alpha` and a slide `clrMapOvr`, every guide formula, `roundRect` with `adj`, custom
+  geometry with its own path space, `arcTo`, `quadBezTo`, `fill="none"`/`stroke="0"`, groups with
+  `chOff`/`chExt`, rotation and flips, numbering per level and Wingdings boxes, autofit and line breaks (each
+  line fits, the next word would not), a missing family and a passed font, a table with `gridSpan`/`hMerge`, a
+  grown row and the built-in style, master decorations with `p:style` and guides hidden by
+  `showMasterSp="0"`, a picture background, and an unknown preset, a shadow and an EMF picture reported once
+  each (the plan's test template, built at test time from the generated deck).
+- Checked by hand in headless Chromium (Playwright, not a dependency): every sample loads from disk with no
+  console errors and no requests; every key of the plan's list, the overview, black screen, key list, click
+  to advance, reload on `#n`; print to PDF gives one 960 × 540 pt sheet per slide.
+
+**Open verification items**
+
+- **No PowerPoint comparison yet** (no Office here): export `deck.md` and `layouts.md` on the neutral, sample
+  and dark templates with PowerPoint (`.tmp/scripts/export.ps1`, `SaveAs` 18), compare with the HTML (the
+  review files) and record remaining differences in the docs' known limits — especially line pitch and first
+  baseline (the 1.2 × size rule), bullet positions, autofit, the *Medium Style 2 – Accent 1* colours, chart
+  layout, text-box styles (`defaultTextStyle` vs `otherStyle`) and the duplicate-`idx` placeholder matching.
+  The acceptance criterion "line breaks match PowerPoint's" is therefore only checked against the reader's
+  own rule, not against PowerPoint, and its box stays unticked.
+- **Browsers:** only Chromium was available. Firefox, Safari/WebKit and Edge, from disk and from a web
+  server, full screen (`F`), touch swipes and print in each are open; that box stays unticked too.
+- The **dark test template**'s title layout keeps a dark title colour (`1F2937` in its `lstStyle`), so its
+  cover title is dark on dark in the HTML; that is the fixture's XML, which PowerPoint should show the same way.
+- **Harvey balls** (Segoe UI Symbol, not bundled) are measured by estimate (`font-missing`) and drawn in
+  whatever face the browser finds; in Chromium on Linux they come out small.
+- Footer text and date of the sample brand sit right next to each other (`Sample Corporation14.11.2026`), as
+  the template places the boxes; compare with PowerPoint.
+
+**Loose ends**
+
+- `TemplateTone.Detect` keeps its own colour lookup; step 3 wanted it moved into the resolver. Left alone so
+  this change does not touch the generator's tone detection; `Palette` can replace it later.
+- Pixel tests against E07-S03's goldens and PowerPoint exports (step 11) wait for E07-S03 and an export; the
+  current paint test checks size and that slides are not blank.
+- Not drawn, all reported: right-to-left and vertical text, text columns, effects, SmartArt (its `dsp`
+  drawing part could be read like a shape tree), tiled picture fills, `pattFill` as a pattern.
+
+**Breaking changes**
+
+None. Decks, PDFs and Word documents are unchanged; the Liberation fonts moved to
+`wwosik.DocLibs.DocumentGeneration` with the same bytes (the shared package is about 2.2 MB larger, the PDF
+package as much smaller; noted under *New* in the changelog, as the plan decided).

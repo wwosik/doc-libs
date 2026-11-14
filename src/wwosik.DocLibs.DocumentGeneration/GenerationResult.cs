@@ -143,6 +143,18 @@ public static class NoteCodes
     /// </summary>
     public const string ImageSource = "image-source";
 
+    /// <summary>
+    /// The HTML deck left out something of a slide it cannot draw: an element, preset shape, chart kind, image format or
+    /// effect, named in the note with the slides it is on.
+    /// </summary>
+    public const string DrawingUnsupported = "drawing-unsupported";
+
+    /// <summary>
+    /// The HTML deck measured a family or face with a stand-in that is not metric-compatible, or by estimate, so its
+    /// lines may break differently from PowerPoint's.
+    /// </summary>
+    public const string FontMissing = "font-missing";
+
     /// <summary>Every code, with the formats it occurs in and what a writer changes about it, for the authoring guides.</summary>
     internal static readonly IReadOnlyList<(string Code, DocumentFormat[] Formats, string Advice)> All =
     [
@@ -172,6 +184,8 @@ public static class NoteCodes
         (TitleTooLong, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "a title or heading is longer than *Limits* allows. Shorten it; the detail goes in the text."),
         (AltTextMissing, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "an image has no alt text. Say what it shows: `![Sales by region](sales.png)`."),
         (ImageSource, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "an image is not among the files given to you, or is a web address or `data:` URL, which is never loaded. Use only the paths you were given."),
+        (DrawingUnsupported, [DocumentFormat.Pptx], "the HTML deck could not draw something on a slide, such as a shadow or an EMF picture, and left it out. Nothing to fix in the Markdown: it comes from the template, or from a deck made elsewhere."),
+        (FontMissing, [DocumentFormat.Pptx], "the HTML deck measured a font it does not have with a stand-in or an estimate, so its lines may break differently from PowerPoint's. Pass the font in `HtmlDeckOptions.Fonts`."),
     ];
 
     /// <summary>The codes only a check returns, never <c>Generate</c>: the guides list them apart.</summary>

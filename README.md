@@ -8,7 +8,7 @@ stream out, no Office or browser needed (except for the legacy Office formats).
 | `wwosik.DocLibs.DocumentConversions` | `.pdf`, `.docx` and `.pptx` to Markdown with their images; Markdown ↔ JIRA wiki markup. AOT-compatible. |
 | `wwosik.DocLibs.DocumentConversions.Svg` | SVG to PNG with SkiaSharp, and `.svg` images in decks and PDFs. Never loads anything outside the SVG. AOT-compatible. |
 | `wwosik.DocLibs.DocumentConversions.WindowsOnly` | `.doc`, `.rtf`, `.xls` and `.xlsx` to Markdown through Office automation. Windows with Word and Excel only. |
-| `wwosik.DocLibs.DocumentGeneration.Pptx` | Markdown to PowerPoint (`.pptx`), in your brand's design with its fonts embedded, or on your own `.pptx` / `.potx` template — also templates with dark slides. Cards, columns, panels, callouts, tags and images side by side from plain Markdown syntax; what does not fit is shrunk or continued. |
+| `wwosik.DocLibs.DocumentGeneration.Pptx` | Markdown to PowerPoint (`.pptx`), in your brand's design with its fonts embedded, or on your own `.pptx` / `.potx` template — also templates with dark slides. Cards, columns, panels, callouts, tags and images side by side from plain Markdown syntax; what does not fit is shrunk or continued. Any deck also as one self-contained HTML page to present in a browser. |
 | `wwosik.DocLibs.DocumentGeneration.Docx` | Markdown to Word (`.docx`), on a built-in template in your brand's design with its fonts embedded, or on your own `.dotx` / `.docx` with its styles found by name. Cover, header and footer, numbered headings, lists, tables, numbered captions, images, real footnotes, a table of contents Word fills in, the layout syntax of decks in Word styles, page breaks and a classification marking with a draft watermark; native Word charts, and diagrams, QR codes and icons as pictures with their SVG. |
 | `wwosik.DocLibs.DocumentGeneration.Pdf` | Markdown to PDF/A-2b in your brand's design, with embedded fonts, bookmarks, links and tables. AOT-compatible. |
 | `wwosik.DocLibs.DocumentGeneration.Diagrams` | Mermaid diagrams for the PPTX and PDF generators: vector graphics in PDFs, editable shapes in decks, in your brand's colours and font. AOT-compatible; built on [Mermaider](https://github.com/nullean/mermaider) (MIT). |
@@ -85,9 +85,9 @@ changes first.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). The Diagrams package depends on Mermaider, also MIT. The PDF
-generator embeds the Liberation fonts, licensed under the SIL Open Font License 1.1 (shipped in
-the package as `Fonts/OFL.txt`).
+MIT — see [LICENSE](LICENSE). The Diagrams package depends on Mermaider, also MIT. The shared
+generation package bundles the Liberation fonts, licensed under the SIL Open Font License 1.1
+(shipped in the package as `Fonts/OFL.txt`): PDFs embed them, the HTML deck measures text with them.
 
 ## For AI assistants and contributors
 

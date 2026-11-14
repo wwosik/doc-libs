@@ -31,7 +31,7 @@ internal interface IFontMetrics
 
 /// <summary>
 /// The TrueType files for each <see cref="FontFace"/>, embedded in every PDF: a brand's own (<see cref="For"/>), or
-/// <see cref="Liberation"/>. To change the default family, replace the files under <c>Fonts/</c> and the names in
+/// <see cref="Liberation"/>. To change the default family, replace the files under DocumentGeneration's <c>Fonts/</c> (<see cref="StandInFonts"/>) and the names in
 /// <see cref="Liberation"/>.
 /// </summary>
 internal sealed class FontSet : IFontMetrics
@@ -56,12 +56,12 @@ internal sealed class FontSet : IFontMetrics
     /// </summary>
     public static FontSet Liberation { get; } = Create(
         "Liberation",
-        Resource("LiberationSans-Regular.ttf"),
-        Resource("LiberationSans-Bold.ttf"),
-        Resource("LiberationSans-Italic.ttf"),
-        Resource("LiberationSans-BoldItalic.ttf"),
-        Resource("LiberationMono-Regular.ttf"),
-        Resource("LiberationMono-Bold.ttf"));
+        StandInFonts.SansRegular,
+        StandInFonts.SansBold,
+        StandInFonts.SansItalic,
+        StandInFonts.SansBoldItalic,
+        StandInFonts.MonoRegular,
+        StandInFonts.MonoBold);
 
     private static readonly ConditionalWeakTable<ResolvedFonts, FontSet> BrandSets = new();
 
@@ -135,13 +135,4 @@ internal sealed class FontSet : IFontMetrics
             var font = this.fonts[key.Face];
             return font.TryGetAdvanceWidth(key.Character, out var width) ? width / font.GetUnitsPerEm() : null;
         });
-
-    private static byte[] Resource(string name)
-    {
-        using var stream = typeof(FontSet).Assembly.GetManifestResourceStream("Fonts." + name)
-            ?? throw new InvalidOperationException($"The embedded font '{name}' is missing.");
-        using var buffer = new MemoryStream();
-        stream.CopyTo(buffer);
-        return buffer.ToArray();
-    }
 }

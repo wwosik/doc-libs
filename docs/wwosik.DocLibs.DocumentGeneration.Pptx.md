@@ -697,6 +697,113 @@ and the text after it as a caption. A renderer can return:
 
 Drawings are enlarged at most by half, so that their text keeps a sensible size.
 
+## HTML deck
+
+`HtmlDeck.Write(pptx, html, options)` writes a deck as **one self-contained HTML page** that a host
+can show without Office: every visible slide is drawn from the `.pptx` itself, so splitting,
+fitting and mistakes are the deck's own. It takes any `.pptx` — one this generator wrote or any
+other — and draws what it knows; what it does not is left out and reported. Markdown to HTML is two
+calls; merge both results' notes for the writer:
+
+```csharp
+using var pptx = new MemoryStream();
+var generated = PptxGenerator.Generate(markdown, pptx, options);
+pptx.Position = 0;
+using var html = File.Create("deck.html");
+var drawn = HtmlDeck.Write(pptx, html, new HtmlDeckOptions { Title = "Quarterly review" });
+// drawn.Pages: slides written; drawn.Notes: drawing-unsupported, font-missing
+```
+
+| `HtmlDeckOptions` | Default | |
+| ----------------- | ------- | - |
+| `Title` | the deck's title (core properties), else `Presentation` | The page title. |
+| `Fonts` | none | TrueType files for families the deck names but does not embed, found by family name (name ID 1): text is measured in them and, with `EmbedFonts`, they go into the page. |
+| `EmbedFonts` | `true` | The faces the slides use, from the deck's embedded fonts and `Fonts`, as `@font-face` (whole faces, each once). |
+| `Language` | the first run's `lang`, else `en` | The page's `lang`. |
+
+A file that is not a presentation throws `DocumentConversionException` with `Format = Pptx`.
+
+**The page.** Each slide is an SVG in a `<section>` with the slide's title as `aria-label`, scaled
+to the window and letterboxed on black; text stays text and can be selected. Hidden slides are
+left out. Pictures are written once, as symbols every slide refers to (the master's logo is in the
+file once); a picture with an SVG alternative (`asvg:svgBlip`) shows the SVG. The script and styles
+are `HtmlDeck/deck.js` and `HtmlDeck/deck.css` in the package, not minified.
+
+| Keys | |
+| ---- | - |
+| → ↓ Space Page Down Enter, a click, a swipe left | next slide |
+| ← ↑ Page Up Backspace, a swipe right | previous slide |
+| Home / End | first / last slide |
+| a number, then Enter | that slide |
+| `F` | full screen |
+| `O` | overview: all slides in a grid; arrows and Enter, or a click, open one |
+| `B` or `.` | black screen |
+| `?` | the list of keys (also the `?` button bottom right) |
+| Esc | leave full screen, overview, black screen or the key list |
+
+The address follows the slide (`deck.html#7`, the slide's position in the page), so a reload or a
+link lands on it. **Printing** gives one slide per sheet at the slide's size (`@page`), without the
+counter. Builds, transitions, speaker notes and a presenter window are not part of the page yet.
+
+**Security.** A Content Security Policy in the page allows only inline styles, the one inline
+script (by its hash), `data:` images and `data:` fonts, so a slide cannot load or run anything.
+Slide text, titles and names are escaped. Links are kept only when they are `http`, `https` or
+`mailto`, and open in a new tab without a referrer; anything else (`javascript:`, jumps to other
+slides, files) is drawn as plain text.
+
+**Size.** Pictures and embedded faces are inside the file as base64, so the page is about a third
+larger than the pictures and fonts of the deck; a brand deck with four faces adds about 2 MB.
+
+**Fonts.** Text is broken into lines by the reader, with the advance widths of real TrueType faces,
+found in order: the deck's embedded fonts (the TrueType file inside each EOT), `HtmlDeckOptions.Fonts`,
+then the stand-ins bundled in `wwosik.DocLibs.DocumentGeneration`: **Liberation Sans** for Arial,
+Helvetica and Arimo, **Liberation Mono** for Courier New, Courier, Cousine and Consolas. In the page,
+a stand-in's family is named after the original (`Arial, 'Liberation Sans', sans-serif`) and is not
+embedded, so a viewer with Arial sees Arial with the same widths. Notes `font-missing`:
+
+- a family with no face and no stand-in, such as Calibri or Segoe UI Symbol (the Harvey balls), is
+  measured by the generator's estimate and drawn in whatever the browser finds;
+- Consolas is measured with Liberation Mono, which is wider (0.6 em against 0.55 em), so its lines
+  may break earlier than PowerPoint's;
+- a bold or italic face a family lacks is measured with its regular face, never a synthesized one.
+
+Arial and Courier New text measured with Liberation gives no note: the widths are the same.
+
+**What the reader draws** is a documented subset of DrawingML; a test generates every sample deck
+on the neutral, sample and dark templates and fails on any `drawing-unsupported`, so whatever the
+generator writes is drawn.
+
+| Area | Drawn |
+| ---- | ----- |
+| Slides | `sldSz`, slides in `sldIdLst` order, `show="0"` skipped |
+| Inheritance | master and layout shapes behind the slide's, unless the layout or the slide says `showMasterSp="0"`; placeholders on layouts and masters are prompts and never drawn; a slide placeholder takes its box, geometry, fill, line and `bodyPr` from the layout's placeholder (by `idx` among compatible types, else by type) and then the master's (by type, content types as the body) |
+| Text styles | run `rPr` → paragraph `pPr` → the shape's `lstStyle` → its `p:style` `fontRef` colour → the layout's and master's placeholder `lstStyle` → the master's `titleStyle`, `bodyStyle` or `otherStyle` → `defaultTextStyle`; text boxes and table cells use `defaultTextStyle`; theme fonts `+mj-lt`, `+mn-lt` |
+| Colours | `srgbClr`, `schemeClr` through the master's `clrMap` and the layout's and slide's `clrMapOvr`, `sysClr` (`lastClr`), `prstClr`, `scrgbClr`, `hslClr`; `alpha`, `alphaMod`, `alphaOff`, `lumMod`, `lumOff`, `satMod`, `satOff`, `hueMod`, `hueOff`, `tint`, `shade`, `comp`, `inv`, `gray` in order; `phClr` from the style reference |
+| Fills | `solidFill`, `gradFill` (`lin` with its angle; `path` as radial), `blipFill` stretched, `noFill`, `grpFill`; `p:style` `fillRef` and `lnRef` through the theme's `fmtScheme`; `pattFill` drawn in its foreground colour and reported |
+| Backgrounds | the slide's `bg`, else the layout's, else the master's: `bgPr` fills, `bgRef` through `bgFillStyleLst` |
+| Geometry | `xfrm` `off`, `ext`, `rot`, `flipH`, `flipV`; groups map `chOff`/`chExt`; `custGeom` with `avLst`, `gdLst` and every guide formula (`*/ +- +/ ?: abs at2 cat2 cos max min mod pin sat2 sin sqrt tan val`, built-ins `w h l t r b hc vc ss ls wd2…wd32 hd2…hd32 ssd2…ssd32 cd2 cd4 cd8 3cd4 3cd8 5cd8 7cd8`), paths with their own `w`/`h`, `moveTo`, `lnTo`, `cubicBezTo`, `quadBezTo`, `arcTo`, `close`, `fill="none"`, `stroke="0"` |
+| Presets | `rect`, `roundRect`, `ellipse`, `line`, `straightConnector1`, `wedgeRoundRectCallout`, `triangle`, `rtTriangle`, `diamond`, `parallelogram`, `homePlate`, `chevron`, with their adjust values; any other as its bounding rectangle, reported |
+| Lines | width, solid or gradient colour, `prstDash`, `custDash`, `round`/`bevel`/`miter`, caps, `headEnd`/`tailEnd` (triangle and open arrow) |
+| Text | insets, `anchor` `t`/`ctr`/`b`, `wrap="none"`, `normAutofit` `fontScale` and `lnSpcReduction`, overflow drawn unclipped; `marL`, `indent`, `algn` (`just` and `dist` as left), `lnSpc` in percent or points, `spcBef`/`spcAft`; `buChar` with `buFont`, `buClr`, `buSzPct`/`buSzPts`, `buAutoNum` (arabic, alpha, roman with period, `)` or both parentheses) counted per level, `buNone`; Wingdings task boxes drawn as ☐ ☑; runs with `sz`, `b`, `i`, `u`, `strike`, `baseline` (at two thirds the size), colour, `highlight`, `latin`, `hlinkClick`; `a:br`; fields, `slidenum` renumbered |
+| Tables | `tblGrid`, rows grown to fit their text, `gridSpan`, `rowSpan`, `hMerge`, `vMerge`, cell margins, `anchor`, fills, the four borders; the `tblPr` flags with the deck's `tableStyles.xml` (or its default style) or the built-in *Medium Style 2 – Accent 1*; another built-in style as a plain grid, reported |
+| Charts | what `ChartWriter` writes, from the part's caches: columns clustered and stacked, lines with markers, areas standard and stacked, title, value-axis unit, gridlines, category and value labels, legend, series colours, the text colour; other chart kinds left out and reported |
+| Pictures | PNG, JPEG, GIF, SVG; `srcRect` crop; the geometry as a clip (an `ellipse` picture is round); `grayscl`; an outline; an OLE object's fallback picture |
+| `mc:AlternateContent` | the `Fallback`, else the first `Choice` |
+
+**Left out and reported** once per kind with the slides (`drawing-unsupported`): effects (shadows,
+glow, reflection, soft edges, also from an `effectRef`), 3-D, text warps, vertical text (drawn
+horizontally), text columns (drawn as one), right-to-left text, picture effects other than greyscale,
+tiled pictures (drawn stretched), EMF, WMF and TIFF pictures, SmartArt, ink, video and audio (their
+poster picture is drawn), other graphic frames, unknown elements. Speaker notes, transitions
+(`p:transition`, Morph) and builds (`p:timing`) are read by nothing yet and give no note.
+
+**Text layout rules.** Lines break between words at spaces and after hyphens; a word wider than the
+line breaks between characters; `wrap="none"` never breaks. A line's pitch is 1.2 × the largest size
+on it × the `lnSpc` percent (less `lnSpcReduction`), or the `lnSpc` points; the baseline sits the
+font's Windows ascent below the top of a 100 % line, closer for tighter spacing. `spcBef` is not
+applied to the first paragraph. An empty paragraph has the height of its `endParaRPr`. No kerning,
+ligatures, shaping or hyphenation; East Asian and complex scripts are measured but not shaped.
+
 ## Known limits
 
 - Text heights are estimated from character widths, not measured with the font, so fitting is
@@ -717,3 +824,8 @@ Drawings are enlarged at most by half, so that their text keeps a sensible size.
   libeot, Google Slides — substitute a font of their own, as for a deck without embedded fonts.
   PowerPoint Online honours them only partly.
 - Relative links (`[x](other.md)`, `#anchor`) stay plain text.
+- The HTML deck has not been compared with PowerPoint's own exports yet: line pitch, the first
+  baseline, bullet positions, the built-in table style and chart layout follow the rules above and
+  may differ from PowerPoint by a few points. Charts are laid out by the reader (axis steps of 1, 2
+  or 5, the legend at the bottom), not by PowerPoint's chart engine. Shadows and other effects are
+  not drawn.

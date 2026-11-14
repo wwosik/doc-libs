@@ -1,5 +1,6 @@
 wwosik.DocLibs.DocumentGeneration uses the third-party software below. Each is used under the
-licence named with it.
+licence named with it. The bundled Liberation fonts (Sans and Mono 2.1.5) are under the SIL Open
+Font License, in Fonts/OFL.txt.
 
 ================================================================================
 QRCoder 1.8.1
