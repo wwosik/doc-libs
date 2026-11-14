@@ -53,7 +53,7 @@ public class ImageAttributeTests
 
         // The whole image is drawn, twice as wide as tall, around the square it shows through.
         var image = Assert.Single(page.GetImages());
-        Assert.Equal(2, image.Bounds.Width / image.Bounds.Height, 2);
+        Assert.Equal(2, image.BoundingBox.Width / image.BoundingBox.Height, 2);
     }
 
     [Fact]
@@ -65,8 +65,8 @@ public class ImageAttributeTests
         using var document = PdfDocument.Open(pdf);
         var page = document.GetPage(1);
         Assert.Equal(1, Count<ModifyClippingByNonZeroWindingIntersect>(page));
-        var images = page.GetImages().OrderBy(i => i.Bounds.Left).ToList();
-        var (landscape, portrait) = (images[0].Bounds, images[1].Bounds);
+        var images = page.GetImages().OrderBy(i => i.BoundingBox.Left).ToList();
+        var (landscape, portrait) = (images[0].BoundingBox, images[1].BoundingBox);
 
         // The portrait is drawn wider than its cell's height allows, its top at the row's top.
         Assert.Equal(landscape.Top, portrait.Top, 1);
