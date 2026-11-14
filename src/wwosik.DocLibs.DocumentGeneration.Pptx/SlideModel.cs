@@ -78,7 +78,14 @@ internal sealed record TextParagraph(IReadOnlyList<TextRun> Runs, ParagraphKind 
 /// block in the document, which orders the clicks of a slide; and <see cref="Item"/>, the number of the top-level list
 /// item (or card, row, column, image) the content belongs to, for builds that go item by item.
 /// </summary>
-internal sealed record BuildMark(IReadOnlyList<Build> Builds, int Block, int Item = 0);
+internal sealed record BuildMark(IReadOnlyList<Build> Builds, int Block, int Item = 0)
+{
+    /// <summary>
+    /// Whether every mark with this <see cref="Block"/> plays on one click, each with its own single build: a scene's
+    /// step, whose shapes come in and go together.
+    /// </summary>
+    public bool Joined { get; init; }
+}
 
 /// <summary>A table; <see cref="Highlighted"/> holds, per row, whether its first cell is all <c>==marked==</c>.</summary>
 internal sealed record SlideTable(
@@ -362,6 +369,12 @@ internal sealed record FlowSlide(IReadOnlyList<TextRun> Title, string? Kicker, b
     /// <summary>Whether the title is left off the slide: a statement drawn as a flow slide, whose first block is its heading.</summary>
     public bool NoTitle { get; init; }
 }
+
+/// <summary>
+/// A <c>::: scene</c>: its title on the title-only layout (or <c>layout="…"</c>) and its shapes at their places on a
+/// 160 × 90 grid over the whole slide. Never shrunk or split.
+/// </summary>
+internal sealed record SceneSlide(IReadOnlyList<TextRun> Title, Scene Scene) : Slide(Title);
 
 /// <summary>One block of a <see cref="FlowSlide"/>, or of a card, panel or callout on one.</summary>
 internal abstract record FlowBlock

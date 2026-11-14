@@ -46,22 +46,30 @@ internal static class TimingWriter
 
     /// <summary>
     /// The steps of the targets: the marked blocks in the order of the Markdown, each marker's builds in their written
-    /// order, and a build that goes item by item one step per item.
+    /// order, and a build that goes item by item one step per item. Marks that are <see cref="BuildMark.Joined"/> (a
+    /// scene's) make one click of all targets with their number, each with its own build: those after the first start
+    /// with the previous ones.
     /// </summary>
-    internal static List<(Build Build, List<BuildTarget> Targets)> Steps(IReadOnlyList<BuildTarget> targets)
+    internal static List<(Build Build, List<BuildTarget> Targets, bool WithPrevious)> Steps(IReadOnlyList<BuildTarget> targets)
     {
-        var steps = new List<(Build, List<BuildTarget>)>();
+        var steps = new List<(Build, List<BuildTarget>, bool)>();
         foreach (var block in targets.GroupBy(t => t.Mark.Block).OrderBy(g => g.Key))
         {
+            if (block.First().Mark.Joined)
+            {
+                steps.AddRange(block.GroupBy(t => t.Mark.Builds[0]).Select((effect, index) => (effect.Key, effect.ToList(), index > 0)));
+                continue;
+            }
+
             foreach (var build in block.First().Mark.Builds)
             {
                 if (build.ByItem)
                 {
-                    steps.AddRange(block.GroupBy(t => t.Item).OrderBy(g => g.Key).Select(item => (build, item.ToList())));
+                    steps.AddRange(block.GroupBy(t => t.Item).OrderBy(g => g.Key).Select(item => (build, item.ToList(), false)));
                 }
                 else
                 {
-                    steps.Add((build, block.ToList()));
+                    steps.Add((build, block.ToList(), false));
                 }
             }
         }
@@ -82,19 +90,33 @@ internal static class TimingWriter
         var xml = new StringBuilder();
         xml.Append($"<p:timing xmlns:p=\"{PresentationML}\"><p:tnLst><p:par><p:cTn id=\"{Next()}\" dur=\"indefinite\" restart=\"never\" nodeType=\"tmRoot\"><p:childTnLst>");
         xml.Append($"<p:seq concurrent=\"1\" nextAc=\"seek\"><p:cTn id=\"{Next()}\" dur=\"indefinite\" nodeType=\"mainSeq\"><p:childTnLst>");
-        foreach (var (build, stepTargets) in Steps(targets))
+        const string CloseClick = "</p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par>";
+        var (open, first) = (false, true);
+        foreach (var (build, stepTargets, withPrevious) in Steps(targets))
         {
-            xml.Append($"<p:par><p:cTn id=\"{Next()}\" fill=\"hold\"><p:stCondLst><p:cond delay=\"indefinite\"/></p:stCondLst><p:childTnLst>");
-            xml.Append($"<p:par><p:cTn id=\"{Next()}\" fill=\"hold\"><p:stCondLst><p:cond delay=\"0\"/></p:stCondLst><p:childTnLst>");
-            var first = true;
+            if (!withPrevious || !open)
+            {
+                if (open)
+                {
+                    xml.Append(CloseClick);
+                }
+
+                xml.Append($"<p:par><p:cTn id=\"{Next()}\" fill=\"hold\"><p:stCondLst><p:cond delay=\"indefinite\"/></p:stCondLst><p:childTnLst>");
+                xml.Append($"<p:par><p:cTn id=\"{Next()}\" fill=\"hold\"><p:stCondLst><p:cond delay=\"0\"/></p:stCondLst><p:childTnLst>");
+                (open, first) = (true, true);
+            }
+
             foreach (var (shape, paragraphs) in Effects(stepTargets))
             {
                 var target = Target(shape, paragraphs);
                 Effect(xml, build, target, Group(shape, paragraphs is null), first ? "clickEffect" : "withEffect", Next);
                 first = false;
             }
+        }
 
-            xml.Append("</p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par>");
+        if (open)
+        {
+            xml.Append(CloseClick);
         }
 
         xml.Append("</p:childTnLst></p:cTn>");

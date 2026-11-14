@@ -98,6 +98,7 @@ takes a style of its own; the content of a container follows in sequence.
 | `[words]{.success}` (`.info`, `.warning`, `.danger`, `.neutral`) | The words bold in that colour. |
 | A table cell that is only `` `Done` ``, with `labels.success: Done` in the front matter | A coloured label. Code in cells no `labels.` key names stays code. |
 | `::: conclusion`, `::: comment` | Their content in sequence. |
+| `::: scene` | A picture of what it shows after its last step, like the drawn containers below. |
 | `## Title {kicker="…" layout="…"}`, `{.dark}`, transitions, `::: notes`, build markers | Checked as in decks, then left out. |
 
 Unknown containers, alerts and heading attributes are errors.

@@ -308,10 +308,89 @@
         }
 
         return;
+      case 'morph':
+        morph(outgoing, incoming, duration, leave);
+        return;
       default:
-        // Fade, Morph (its movement of matched shapes is not played) and anything else.
+        // Fade and anything else.
         animate(incoming, [{ opacity: 0 }, { opacity: 1 }], duration, leave);
     }
+  }
+
+  // The shown top-level items of a slide's own group, each with its Morph name (!!name) if it has one.
+  function morphItems(slide) {
+    var own = slide.querySelector('g.own');
+    if (!own) {
+      return [];
+    }
+
+    return Array.prototype.slice.call(own.children).filter(function (child) {
+      return !child.classList.contains('build-hidden') && !child.querySelector(':scope > .build-hidden');
+    }).map(function (child) {
+      var name = child.getAttribute('data-name');
+      if (!name && child.firstElementChild) {
+        name = child.firstElementChild.getAttribute('data-name');
+      }
+
+      return { element: child, name: name || null };
+    });
+  }
+
+  // The individual transform that lays box <from> over box <to>, in slide points. Along an axis where either box is
+  // thin (a line across or up, with its arrow head) or the size changes more than fivefold, it only moves, centre to centre.
+  function lay(from, to) {
+    function axis(fromStart, fromEnd, toStart, toEnd) {
+      var s = (toEnd - toStart) / (fromEnd - fromStart);
+      if (fromEnd - fromStart >= 10 && toEnd - toStart >= 10 && s >= 0.2 && s <= 5) {
+        return { scale: s, move: toStart - (s * fromStart) };
+      }
+
+      return { scale: 1, move: ((toStart + toEnd) / 2) - ((fromStart + fromEnd) / 2) };
+    }
+
+    var x = axis(from.left, from.right, to.left, to.right);
+    var y = axis(from.top, from.bottom, to.top, to.bottom);
+    return { translate: x.move + 'px ' + y.move + 'px', scale: x.scale + ' ' + y.scale };
+  }
+
+  // Morph: items of the same name on both slides move and resize from where they were to where they are, the old one
+  // fading out over the new one; the others fade out or in. The leaving slide stays on top with its own items only.
+  function morph(outgoing, incoming, duration, leave) {
+    var before = morphItems(outgoing);
+    var after = morphItems(incoming);
+    var byName = new Map();
+    before.forEach(function (entry) {
+      if (entry.name && !byName.has(entry.name)) {
+        byName.set(entry.name, entry);
+      }
+    });
+    var moved = new Set();
+    var still = { translate: '0px 0px', scale: '1 1' };
+    outgoing.classList.add('on-top', 'morphing');
+    after.forEach(function (entry) {
+      var match = entry.name ? byName.get(entry.name) : null;
+      var from = match && !moved.has(match) ? box(match.element) : null;
+      var to = from ? box(entry.element) : null;
+      if (from && to) {
+        moved.add(match);
+        animate(entry.element, [lay(to, from), still], duration);
+        var away = lay(from, to);
+        animate(match.element, [{ translate: still.translate, scale: still.scale, opacity: 1 }, { translate: away.translate, scale: away.scale, opacity: 0 }], duration);
+      } else {
+        animate(entry.element, [{ opacity: 0 }, { opacity: 1 }], duration);
+      }
+    });
+    before.forEach(function (entry) {
+      if (!moved.has(entry)) {
+        animate(entry.element, [{ opacity: 1 }, { opacity: 0 }], duration);
+      }
+    });
+
+    // The slide itself carries the end of the transition.
+    animate(outgoing, [{ opacity: 1 }, { opacity: 1 }], duration, function () {
+      outgoing.classList.remove('morphing');
+      leave();
+    });
   }
 
   // The clip a wipe in the direction of <direction> starts from: "l" moves leftwards, so it starts at the right.

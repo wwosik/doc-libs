@@ -438,6 +438,11 @@ Markdown written for the PPTX generator's
   `PdfOptions.TimeProvider`'s date unless `today=` pins it.
 - **Steps and risk matrices** (`::: steps`, `::: riskmatrix`) are drawn the same way; see
   [Steps, Harvey balls and risk matrices](wwosik.DocLibs.DocumentGeneration.md#steps-harvey-balls-and-risk-matrices).
+- **Scenes** (`::: scene`) are one still vector drawing of the final state — what is shown after the
+  last step, connectors of shapes that left included — 960 × 540 px (6 px a grid unit), in the
+  brand's colours, drawn and scaled like a diagram; see
+  [Scenes](wwosik.DocLibs.DocumentGeneration.md#scenes). `step=`, `exit=` and `effect=` are checked and
+  have no other effect. A scene's mistakes and misplacements throw as in decks.
 - **Containers** (`::: cards`, `rows`, `panel`, `statement`, `columns`) show their content as normal
   blocks: a card's `###` is a heading, a short-form list a list, the columns of `::: columns` one
   after the other without the `---` between them.

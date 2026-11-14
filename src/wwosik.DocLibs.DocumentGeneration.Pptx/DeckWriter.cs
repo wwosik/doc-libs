@@ -252,6 +252,7 @@ internal sealed partial class DeckWriter
                 FlowSlide flow => this.WriteFlowSlide(flow, step),
                 PlaceholderSlide placeholders => this.WritePlaceholderSlide(placeholders),
                 KindSlide kind => this.WriteKindSlide(kind),
+                SceneSlide scene => this.WriteSceneSlide(scene),
                 _ => throw new InvalidOperationException("Unknown kind of slide."),
             };
 
@@ -2087,6 +2088,9 @@ internal sealed partial class DeckWriter
                 }
             }
         }
+
+        /// <summary>Adds a build target of its own, such as a scene shape's step.</summary>
+        public void Target(BuildTarget target) => this.targets.Add(target);
 
         /// <summary>Writes a block with <paramref name="mark"/>, if any: the shapes it adds are built with it.</summary>
         public T Building<T>(BuildMark? mark, Func<T> write)

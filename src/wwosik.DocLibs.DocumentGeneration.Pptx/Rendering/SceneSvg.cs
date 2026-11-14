@@ -108,6 +108,11 @@ internal sealed class SceneSvg
 
     public static string DataUri(SceneImage image) => $"data:{image.ContentType};base64,{Convert.ToBase64String(image.Data)}";
 
+    // In the page, an item named for Morph (`!!name`) carries its name, so that the next slide's item of that name moves
+    // from where it was.
+    private string Named(SceneItem item) =>
+        this.target == SvgTarget.Html && item.Name.StartsWith("!!", StringComparison.Ordinal) ? $" data-name=\"{Escape(item.Name)}\"" : string.Empty;
+
     private string Id(string kind) => $"{this.prefix}{kind}{++this.next}";
 
     private void Background(SceneFill? fill, double width, double height)
@@ -121,7 +126,7 @@ internal sealed class SceneSvg
         switch (item)
         {
             case SceneGroup group:
-                this.svg.Append(CultureInfo.InvariantCulture, $"<g data-id=\"{group.Id}\">");
+                this.svg.Append(CultureInfo.InvariantCulture, $"<g data-id=\"{group.Id}\"{this.Named(group)}>");
                 foreach (var child in group.Items)
                 {
                     this.Item(child);
@@ -145,7 +150,7 @@ internal sealed class SceneSvg
             this.svg.Append(CultureInfo.InvariantCulture, $"<a href=\"{Escape(link)}\" target=\"_blank\" rel=\"noopener noreferrer\">");
         }
 
-        this.svg.Append(CultureInfo.InvariantCulture, $"<g data-id=\"{shape.Id}\">");
+        this.svg.Append(CultureInfo.InvariantCulture, $"<g data-id=\"{shape.Id}\"{this.Named(shape)}>");
         if (shape.Paths.Count > 0)
         {
             this.svg.Append(CultureInfo.InvariantCulture, $"<g{Transform(shape.Transform)}>");
@@ -268,7 +273,7 @@ internal sealed class SceneSvg
             this.svg.Append(CultureInfo.InvariantCulture, $"<a href=\"{Escape(link)}\" target=\"_blank\" rel=\"noopener noreferrer\">");
         }
 
-        this.svg.Append(CultureInfo.InvariantCulture, $"<g data-id=\"{picture.Id}\"{Transform(picture.Transform)}>");
+        this.svg.Append(CultureInfo.InvariantCulture, $"<g data-id=\"{picture.Id}\"{this.Named(picture)}{Transform(picture.Transform)}>");
         var cropped = picture.Crop != (0, 0, 0, 0);
         string? clip = null;
         if (picture.Clip is not null || cropped)

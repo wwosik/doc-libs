@@ -173,6 +173,25 @@ internal sealed partial class DocxBody
         return false;
     }
 
+    // `::: scene` as a picture of its final state; without an image converter it is left out, with a note: its lines are
+    // no text to show.
+    private void SceneContainer(CustomContainer container, Frame frame, List<OpenXmlElement> target)
+    {
+        var scene = SceneSyntax.Parse(container, this.Context.Markdown, this.LineOf, Format.Docx);
+        var drawing = SceneDrawing.Final(scene, ResolvedBrand.Resolve(this.Context.Brand));
+        var alt = string.Join(", ", scene.Shapes.Where(s => s.Style.VisibleAtEnd && s.Label is not null).Select(s => s.Label!.Replace('\n', ' ')));
+        if (this.DrawingPicture(drawing, alt.Length > 0 ? alt : SceneSyntax.Name, this.Context.Page.TextWidth * DocxPage.EmuPerTwip, frame.Part) is { } picture)
+        {
+            target.Add(this.PictureParagraph(frame, picture, keepNext: false));
+            return;
+        }
+
+        this.Context.Notes.Add(
+            NoteCodes.CodeNotDrawn,
+            this.LineOf(container),
+            $"The '::: scene' is left out: a drawing needs an image converter in a Word document. {ConverterAdvice}");
+    }
+
     // A `qr:` image as the picture of its code; its alt text, with a note, when no image converter draws it.
     private void Qr(LinkInline link, string url, Frame frame, List<OpenXmlElement> target)
     {

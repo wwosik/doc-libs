@@ -110,7 +110,7 @@ public sealed record CheckResult(IReadOnlyList<GenerationNote> Notes, CheckStati
 public sealed record CheckStatistics
 {
     /// <summary>The kinds of slide in <see cref="SlidesByKind"/>, in the order they are listed.</summary>
-    public static IReadOnlyList<string> SlideKinds { get; } = ["cover", "section", "text", "visual", "layout", "agenda", "quote", "statement", "contact", "chart", "closing"];
+    public static IReadOnlyList<string> SlideKinds { get; } = ["cover", "section", "text", "visual", "layout", "agenda", "quote", "statement", "contact", "chart", "scene", "closing"];
 
     /// <summary>The slides a deck would have, or the pages of a PDF; 0 for a Word document, and when the check found an error.</summary>
     public int Pages { get; init; }

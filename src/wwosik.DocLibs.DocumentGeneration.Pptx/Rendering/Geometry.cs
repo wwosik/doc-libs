@@ -118,10 +118,11 @@ internal static class Geometry
 
     private static GeometryPath Path(XElement path, Dictionary<string, double> guides, double width, double height)
     {
-        // A path with its own w and h has its coordinates in that space, stretched to the shape.
+        // A path with its own w and h has its coordinates in that space, stretched to the shape. A shape without extent
+        // one way (a straight connector across or up) keeps its coordinates that way.
         var pathWidth = Attribute(path, "w") is { } pw && pw > 0 ? pw : width;
         var pathHeight = Attribute(path, "h") is { } ph && ph > 0 ? ph : height;
-        var (sx, sy) = (width / pathWidth, height / pathHeight);
+        var (sx, sy) = (pathWidth > 0 ? width / pathWidth : 1, pathHeight > 0 ? height / pathHeight : 1);
         var segments = new List<PathSegment>();
         var (x, y) = (0.0, 0.0);
         (double X, double Y) Point(XElement pt) => (Value(pt.Attribute("x")!.Value, guides) * sx, Value(pt.Attribute("y")!.Value, guides) * sy);

@@ -80,6 +80,7 @@ public static class PptxGenerator
         StatementSlide => "statement",
         ContactSlide => "contact",
         ChartSlide => "chart",
+        SceneSlide => "scene",
         _ => "layout",
     };
 
@@ -250,6 +251,9 @@ public static class PptxGenerator
                     options.Icons,
                     "Slides show it only alone after a card's `###` (as its figure) and at the start of every item of a list "
                     + "(as bullets); elsewhere it is left out."),
+                ["sceneTitleArea"] = DeckWriter.SceneTitleRows(template) is { } rows
+                    ? string.Create(CultureInfo.InvariantCulture, $"Shapes start at {rows + 3}.")
+                    : "Leave the title room.",
                 ["limits"] = AuthoringGuides.Limits(options.Checks ?? CheckOptions.Default, Format.Pptx),
                 // classification-kept is left to the front matter table, which says when lower values have no effect.
                 ["notes"] = AuthoringGuides.Notes(Format.Pptx, NoteCodes.DrawingUnsupported, NoteCodes.FontMissing, NoteCodes.ClassificationKept),

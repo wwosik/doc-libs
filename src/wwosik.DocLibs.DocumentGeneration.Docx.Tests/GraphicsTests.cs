@@ -294,6 +294,29 @@ public class GraphicsTests
         Assert.Equal((NoteCodes.CodeNotDrawn, 3), (Assert.Single(none.Result.Notes).Code, none.Result.Notes[0].Line));
     }
 
+    [Fact]
+    public void AScene_IsAPictureOfItsFinalState_OrLeftOutWithANote()
+    {
+        const string Markdown = "## Flow\n\n::: scene\nbox web 8 34 30 22 \"Browser\"\nbox api 65 34 30 22 \"API\" step=1\nbox old 110 34 30 22 \"Old\" exit=1\narrow web api\n:::\n";
+        var drawn = GenerateWithResult(Markdown, Drawn);
+        Samples.AssertValid(drawn.Docx);
+        Assert.Empty(drawn.Result.Notes);
+        using (var package = Samples.Open(drawn.Docx))
+        {
+            var drawing = XElement.Parse(Body(package).Descendants<WordDrawing>().Single().OuterXml);
+            Assert.Equal("Browser, API", drawing.Descendants(Wp + "docPr").Single().Attribute("descr")!.Value);
+        }
+
+        var none = GenerateWithResult(Markdown);
+        using (var package = Samples.Open(none.Docx))
+        {
+            Assert.Empty(Body(package).Descendants<WordDrawing>());
+            Assert.DoesNotContain(Body(package).Descendants<Paragraph>(), p => Texts(p).Contains("box", StringComparison.Ordinal));
+        }
+
+        Assert.Equal((NoteCodes.CodeNotDrawn, 3), (Assert.Single(none.Result.Notes).Code, none.Result.Notes[0].Line));
+    }
+
     [Theory]
     [InlineData("neutral")]
     [InlineData("sample")]

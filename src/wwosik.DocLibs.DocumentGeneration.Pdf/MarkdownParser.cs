@@ -78,6 +78,7 @@ internal sealed partial class MarkdownParser(
 
         // Build markers are for decks: checked like there, then left out wherever they are.
         BuildMarker.Check(markdown, DocumentFormat.Pdf, parser.LineOf);
+        SceneSyntax.Check(markdown, DocumentFormat.Pdf, parser.LineOf);
         var footnotes = markdown.OfType<FootnoteGroup>().SelectMany(g => g.OfType<Footnote>()).OrderBy(f => f.Order).ToList();
         parser.anchors.UnionWith(markdown.Descendants<Markdig.Syntax.HeadingBlock>().Select(Anchor).OfType<string>());
         var blocks = markdown.Where(b => b is not FootnoteGroup && !(b is Markdig.Syntax.ParagraphBlock paragraph && BuildMarker.IsMarker(paragraph))).ToList();
@@ -306,6 +307,11 @@ internal sealed partial class MarkdownParser(
                 break;
             case CustomContainer { Info: LayoutSyntax.Notes }:
                 throw LayoutSyntax.NestedNotes(DocumentFormat.Pdf);
+            case CustomContainer { Info: SceneSyntax.Name } scene:
+                // The final state of the scene as one still drawing; its steps play only in decks.
+                LayoutSyntax.CheckContainer(SceneSyntax.Name, scene.Arguments?.Trim() ?? string.Empty, DocumentFormat.Pdf);
+                target.Add(new DrawingBlock(SceneDrawing.Final(SceneSyntax.Parse(scene, document.Markdown, this.LineOf, DocumentFormat.Pdf), ResolvedBrand.Resolve(brand))));
+                break;
             case CustomContainer container:
                 LayoutSyntax.CheckContainer(container.Info ?? string.Empty, container.Arguments?.Trim() ?? string.Empty, DocumentFormat.Pdf);
                 if (VisualContainers.IsVisual(container.Info ?? string.Empty))

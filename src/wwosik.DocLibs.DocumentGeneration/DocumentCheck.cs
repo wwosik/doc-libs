@@ -238,7 +238,7 @@ internal static partial class DocumentCheck
                 case CustomContainer { Info: LayoutSyntax.Notes }:
                     // Speaker notes are not on the slide, and not in PDFs and Word documents.
                     return;
-                case CustomContainer container when VisualContainers.IsVisual(container.Info ?? string.Empty):
+                case CustomContainer container when VisualContainers.IsVisual(container.Info ?? string.Empty) || SceneSyntax.IsScene(container):
                     this.drawn++;
                     return;
                 case Table table:

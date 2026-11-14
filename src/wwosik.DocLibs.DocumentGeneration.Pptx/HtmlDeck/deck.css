@@ -55,6 +55,16 @@ body.scripted {
   z-index: 2;
 }
 
+/* Morph: the slide that leaves stays on top with only its own items, which move or fade over the new slide. */
+.scripted .slide.leaving.morphing {
+  background: transparent;
+}
+
+.scripted .slide.leaving.morphing > svg > :not(.own),
+.scripted .slide.leaving.morphing > .notes {
+  visibility: hidden;
+}
+
 /* Builds: what enters later or has left. The script sets it; without the script everything shows. */
 .build-hidden {
   visibility: hidden;

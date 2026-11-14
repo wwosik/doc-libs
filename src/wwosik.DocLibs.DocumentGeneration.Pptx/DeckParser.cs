@@ -84,6 +84,7 @@ internal sealed partial class DeckParser(
         PageBreaks.Flatten(markdown, Format.Pptx);
         MarkdownSyntax.ReportMissingFootnotes(markdown, parser.LineOf, parser.Notes);
         BuildMarker.Check(markdown, Format.Pptx, parser.LineOf);
+        SceneSyntax.Check(markdown, Format.Pptx, parser.LineOf);
         foreach (var block in markdown)
         {
             if (block is FootnoteGroup)
@@ -419,6 +420,19 @@ internal sealed partial class DeckParser(
         if (!isTitle && attributes is { Closing: true })
         {
             throw Error("{.closing} goes on a '#' heading: the closing slide.");
+        }
+
+        // A scene is a slide of its own (SceneSyntax.Check has made sure it is alone with its notes under a `##`).
+        if (blocks.OfType<CustomContainer>().FirstOrDefault(SceneSyntax.IsScene) is { } scene)
+        {
+            if (attributes is { Dark: true } or { Kicker: not null } or { Kind: not null })
+            {
+                throw Error($"The scene slide '{PlainText(title)}' at line {this.LineOf(heading)} takes the heading attributes layout=\"…\" and transition=\"…\"; not .dark, kicker=\"…\" or a kind of slide.");
+            }
+
+            LayoutSyntax.CheckContainer(SceneSyntax.Name, scene.Arguments?.Trim() ?? string.Empty, Format.Pptx);
+            this.slides.Add(new SceneSlide(title, SceneSyntax.Parse(scene, document.Markdown, this.LineOf, Format.Pptx)) { Layout = attributes?.Layout });
+            return Transition(attributes);
         }
 
         if (attributes?.Kind is { } kind)

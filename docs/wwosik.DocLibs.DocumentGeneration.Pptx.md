@@ -286,6 +286,67 @@ or `PptxOptions.Classification` and `Draft`, mark the deck (higher of the two wi
     (pictures and groups have none). A slide without builds gets no `p:timing`, so decks without
     markers stay as before. `PptxConverter` does not read builds back.
 
+### Scenes
+
+`::: scene` draws a slide from named shapes on a grid of **160 × 90 units over the whole slide**
+(on 16:9 a unit is 76,200 EMU, 6 pt, both ways; on other sizes the grid stretches per axis, so
+units are not square). One item per line, read from the Markdown source itself, so `*`, `_` and
+`[` in a label stay as written; blank lines are allowed and a line starting with `%` is a comment.
+
+```markdown
+## How a request travels {transition="morph"}
+
+::: scene
+box client 8 34 30 22 "Browser"
+box api 65 34 30 22 "API" .accent step=1
+ellipse db 122 34 30 22 "Database" .muted step=2
+arrow client api "HTTPS" step=1
+arrow api db step=2
+text caption 8 66 144 8 "Every request passes the API." .small step=2
+:::
+```
+
+- **Shapes:** `box`, `round`, `ellipse`, `text` — `kind name x y w h ["label"] [attributes]`, in grid
+  units (decimals allowed, `x + w ≤ 160`, `y + h ≤ 90`). Each is a top-level `p:sp` named `!!name`
+  with PowerPoint's preset (`rect`, `roundRect`, `ellipse`; a `text` is a `rect` text box without fill
+  and line) and its label centred in its own text body. A label is one line; `\n` breaks it, `\"`
+  is a quote. It starts at its size and is shrunk to fit the shape (by the `TextMetrics` estimate)
+  down to 70 %; one that still does not fit gives `slide-overfull` with the shape's name and line.
+- **Connectors:** `arrow` and `line` — `kind from to ["label"] [attributes]`, named `from-to` unless
+  `name=` says otherwise. A `p:cxnSp` (`straightConnector1`, a triangle `tailEnd` for `arrow`) between
+  the facing sides of the two shapes — left and right where they are further apart across than up
+  and down, else top and bottom — glued with `stCxn`/`endCxn` to those sides' connection sites
+  (rectangles 0 top, 1 left, 2 bottom, 3 right; ellipses 0, 2, 4, 6), so it follows a shape moved by
+  hand or by Morph. A label is a text shape `!!name-label` above the middle of a connector across,
+  right of one up or down.
+- **Attributes:** a colour — the roles `.primary`, `.accent`, `.highlight`, `.muted`, `.dark`,
+  `.outline` (the line alone) or the label categories `.success`, `.info`, `.warning`, `.danger`,
+  `.neutral`; `.bold`, `.small` (12 pt), `.large` (24 pt), else 16 pt; `step=N`, `exit=N` (1–99) and
+  `effect=appear|fly|wipe`; `name=` on connectors. By default a shape has the surface fill, a thin
+  primary line and the text colour; a colour fills it, its text white or dark by contrast; a `text`
+  takes the colour as its text colour; a connector as its line colour. Colours are the flow slides'
+  palette: brand colours on the built-in master, theme colours on caller templates, light on dark
+  templates.
+- **Steps** are E07-S05's builds: an entrance on click N with `effect` (Appear by default), an exit
+  (Disappear) on click N. Clicks are ordered by N, gaps closed up, and everything with the same N
+  starts together (one click group, `withEffect` after the first). A connector without `step=` comes
+  in with the later of its two shapes, without `exit=` it leaves with the earlier one that leaves.
+- **Order:** shapes in the order of their lines (later ones cover earlier ones), then the connectors,
+  each followed by its label.
+- **The slide:** the title-only layout (or `layout="…"`), with the title, footer, speaker notes and
+  transition as on any slide; never shrunk or split. A scene slide holds only its `##` heading, one
+  scene and `::: notes`; anything else in the section, a second scene, a build marker before it, a
+  scene under a `#` heading or before the first heading, inside another block, or with `.dark`,
+  `kicker` or a kind of slide throws. So do an unknown kind or attribute, a duplicate or unknown
+  name, a shape outside the grid, a malformed number, an unclosed quote, `exit` not after `step`, and
+  `effect` without `step` — each naming the scene line and its line in the Markdown, in every
+  generator. On the built-in master the title takes the top 19 units: start shapes at 22.
+- **Morph:** `transition="morph"` on the next scene slide's heading makes PowerPoint move the shapes
+  with equal names — position, size, colour and label; shapes on one side only fade. Morph needs an
+  explicit `transition="morph"`, as every transition does. Each scene lists all its shapes.
+- PDFs and Word documents draw a scene as one still picture of its final state. `PptxConverter`
+  reads a scene slide back as its labels, in shape order.
+
 ## Layouts
 
 A `##` section can ask for more than bullets or one visual. It then becomes a **flow slide**: its
@@ -793,7 +854,11 @@ Durations are the effects' own. Going back undoes a step at once, without animat
 **Transitions** play when a slide is reached by moving forward (going back is instant), with the
 direction and speed of `p:transition` (`spd` fast 0.5 s, medium 0.75 s, slow 1 s, or `p14:dur`):
 fade, push, wipe, cover, uncover (`p:pull`), split and zoom as CSS animations of the slide; cut and
-none at once. **Morph** plays as a fade: moving the shapes the two slides share is not done yet. In
+none at once. **Morph** moves and resizes the items the two slides share by name (`!!name`, as
+[scenes](#scenes) write them; the page marks them `data-name`) from where they were to where they
+are, the old one fading out over the new one; along an axis where either is thinner than 10 pt (a
+line with its arrow head) or the size changes more than fivefold, it only moves. Every other item of
+the old slide fades out over the new slide and every other item of the new one fades in. In
 `mc:AlternateContent` the first `Choice` with a transition the reader knows is taken, else the
 `Fallback`; a transition it does not know plays as a fade and is reported. With the browser's
 **`prefers-reduced-motion`** on, every effect and transition is instant.
@@ -922,6 +987,9 @@ var previews = DeckPreview.Render(svgs.Slides, new() { Fonts = svgs.Fonts });  /
   libeot, Google Slides — substitute a font of their own, as for a deck without embedded fonts.
   PowerPoint Online honours them only partly.
 - Relative links (`[x](other.md)`, `#anchor`) stay plain text.
+- Scenes: shapes are not fitted to each other (overlaps are as written), labels break only at `\n`,
+  and `PptxConverter` reads a scene back as its labels only, not as `::: scene`. The HTML deck's Morph
+  stretches text with its shape while it moves, where PowerPoint keeps the text size.
 - The HTML deck has not been compared with PowerPoint's own exports yet: line pitch, the first
   baseline, bullet positions, the built-in table style and chart layout follow the rules above and
   may differ from PowerPoint by a few points. Charts are laid out by the reader (axis steps of 1, 2

@@ -10,10 +10,10 @@ namespace wwosik.DocLibs.DocumentGeneration;
 internal static class LayoutSyntax
 {
     /// <summary>
-    /// The containers, for error messages: the layouts, <c>pagebreak</c>, <c>notes</c>, then the drawn ones
-    /// (<see cref="VisualContainers"/>).
+    /// The containers, for error messages: the layouts, <c>pagebreak</c>, <c>notes</c>, the drawn ones
+    /// (<see cref="VisualContainers"/>), then <c>scene</c> (<see cref="SceneSyntax"/>).
     /// </summary>
-    public static readonly string Containers = string.Join(", ", ["cards", "rows", "panel", "statement", "columns", PageBreak, SlideKinds.Conclusion, SlideKinds.Comment, Notes, .. VisualContainers.Names]);
+    public static readonly string Containers = string.Join(", ", ["cards", "rows", "panel", "statement", "columns", PageBreak, SlideKinds.Conclusion, SlideKinds.Comment, Notes, .. VisualContainers.Names, SceneSyntax.Name]);
 
     /// <summary>The alerts, for error messages.</summary>
     public const string Alerts = "NOTE, TIP, IMPORTANT, WARNING, CAUTION";
@@ -44,7 +44,7 @@ internal static class LayoutSyntax
             return;
         }
 
-        if (name is not ("cards" or "rows" or "panel" or "statement" or "columns" or PageBreak or SlideKinds.Conclusion or SlideKinds.Comment or Notes))
+        if (name is not ("cards" or "rows" or "panel" or "statement" or "columns" or PageBreak or SlideKinds.Conclusion or SlideKinds.Comment or Notes or SceneSyntax.Name))
         {
             throw new DocumentConversionException(format, $"Unknown container '::: {name}'. Valid containers: {Containers}.");
         }

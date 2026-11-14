@@ -17,7 +17,7 @@ A generated deck should be ready to present without opening PowerPoint to add no
 | [E07-S01](../60-verify/E07-S01-speaker-notes-and-transitions.md) | Speaker notes and transitions | in verification |
 | [E07-S02](../60-verify/E07-S02-html-deck.md) | HTML deck | in verification |
 | [E07-S03](../60-verify/E07-S03-preview-images.md) | Preview images | in verification |
-| [E07-S04](../55-in-progress/doc-3/E07-S04-scenes.md) | Scenes | in progress (doc-3) |
+| [E07-S04](../60-verify/E07-S04-scenes.md) | Scenes | in verification |
 | [E07-S05](../60-verify/E07-S05-builds.md) | Builds | in verification |
 | [E07-S06](../60-verify/E07-S06-presenting-the-html-deck.md) | Presenting the HTML deck | in verification |
 

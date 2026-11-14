@@ -518,6 +518,9 @@ internal sealed partial class DocxBody
                 }
 
                 break;
+            case SceneSyntax.Name:
+                this.SceneContainer(container, frame, target);
+                break;
             default:
                 this.Blocks([.. container], inner, target);
                 break;

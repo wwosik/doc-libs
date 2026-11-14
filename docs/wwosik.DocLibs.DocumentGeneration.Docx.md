@@ -381,10 +381,11 @@ else, a block left as code included, stays text with `caption-ignored`.
 | `![alt](qr:…)` | the QR code's drawing as a picture, its alt text in `descr` |
 | `:icon-name:` | the icon as an inline picture, 10.5 pt square, in the diagram text colour |
 | `::: timeline`, `gantt`, `steps`, `riskmatrix` | the container's drawing as a picture; its alt text the first line of its content |
+| `::: scene` | its [still drawing](wwosik.DocLibs.DocumentGeneration.md#scenes), the final state, as a picture; its alt text the labels of the shapes shown at the end |
 | `![alt](a.svg)` | the converter's PNG with the SVG, written as it came, beside it |
 
 **Without an image converter** nothing half-drawn is placed: a drawing's block stays code, a QR code
-is its alt text, a drawn container shows its content in sequence (each with `code-not-drawn`, whose
+is its alt text, a drawn container shows its content in sequence, a scene is left out (each with `code-not-drawn`, whose
 message says to register `SvgImageConverter` from `wwosik.DocLibs.DocumentConversions.Svg`), and an
 icon is left out with `icon-not-drawn`. Charts and renderers' images need no converter. The
 Docx package itself references no SkiaSharp.

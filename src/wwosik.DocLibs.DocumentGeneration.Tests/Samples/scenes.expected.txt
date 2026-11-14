@@ -1,0 +1,60 @@
+drawing 960 x 540
+rect fill=F3F4F6 stroke=1F2937 w=1 at 48 204 size 180 132
+text 138 275.6 middle size=16 color=000000 max=172 : "Browser"
+rect fill=1D4ED8 stroke=none at 390 204 size 180 132
+text 480 275.6 middle size=16 color=FFFFFF max=172 : "API"
+ellipse fill=E9EBED stroke=none at 732 204 size 180 132
+text 822 275.6 middle size=16 color=000000 max=172 : "Database"
+text 480 448.2 middle size=12 color=000000 max=856 : "Every request passes the API."
+path fill=none stroke=1F2937 w=1.5 : M 228 270 L 381 270
+path fill=1F2937 stroke=none : M 390 270 L 381 273.5 L 381 266.5 Z
+text 309 262 middle size=16 color=000000 : "HTTPS"
+path fill=none stroke=1F2937 w=1.5 : M 570 270 L 723 270
+path fill=1F2937 stroke=none : M 732 270 L 723 273.5 L 723 266.5 Z
+
+drawing 960 x 540
+rect fill=F3F4F6 stroke=1F2937 w=1 at 48 204 size 180 132
+text 138 275.6 middle size=16 color=000000 max=172 : "Browser"
+roundrect fill=1F2937 stroke=none at 300 240 size 132 60 r=10
+text 366 275.6 middle size=16 color=FFFFFF max=124 : **"Gateway"**
+rect fill=1D4ED8 stroke=none at 390 144 size 180 84
+text 480 191.6 middle size=16 color=FFFFFF max=172 : "API 1"
+rect fill=1D4ED8 stroke=none at 390 336 size 180 84
+text 480 383.6 middle size=16 color=FFFFFF max=172 : "API 2"
+ellipse fill=1F2937 stroke=none at 732 240 size 180 132
+text 822 311.6 middle size=16 color=FFFFFF max=172 : "Database"
+text 756 460.2 middle size=12 color=000000 max=304 : "Two copies of the API."
+path fill=none stroke=1F2937 w=1.5 : M 228 270 L 300 270
+path fill=none stroke=1F2937 w=1.5 : M 366 240 L 471.05 228.94
+path fill=1F2937 stroke=none : M 480 228 L 471.42 232.42 L 470.68 225.46 Z
+path fill=none stroke=1F2937 w=1.5 : M 366 300 L 471.42 333.29
+path fill=1F2937 stroke=none : M 480 336 L 470.36 336.63 L 472.47 329.95 Z
+path fill=none stroke=1F2937 w=1.5 : M 570 186 L 724.77 300.64
+path fill=1F2937 stroke=none : M 732 306 L 722.68 303.46 L 726.85 297.83 Z
+path fill=none stroke=1F2937 w=1.5 : M 570 378 L 723.78 309.66
+path fill=1F2937 stroke=none : M 732 306 L 725.2 312.85 L 722.35 306.46 Z
+
+drawing 960 x 540
+roundrect fill=16A34A stroke=none at 48 156 size 180 84 r=14
+text 138 194 middle size=16 color=000000 max=172 : "Browser"
+text 138 213.2 middle size=16 color=000000 max=172 : "ready"
+roundrect fill=1D4ED8 stroke=none at 300 156 size 180 84 r=14
+text 390 194 middle size=16 color=FFFFFF max=172 : "Gateway"
+text 390 213.2 middle size=16 color=FFFFFF max=172 : "in test"
+roundrect fill=D97706 stroke=none at 552 156 size 180 84 r=14
+text 642 194 middle size=16 color=000000 max=172 : "API"
+text 642 213.2 middle size=16 color=000000 max=172 : "late"
+roundrect fill=DC2626 stroke=none at 48 300 size 180 84 r=14
+text 138 338 middle size=16 color=FFFFFF max=172 : "Database"
+text 138 357.2 middle size=16 color=FFFFFF max=172 : "blocked"
+roundrect fill=9CA3AF stroke=none at 300 300 size 180 84 r=14
+text 390 338 middle size=16 color=000000 max=172 : "Cache"
+text 390 357.2 middle size=16 color=000000 max=172 : "not started"
+rect fill=none stroke=1F2937 w=1 at 552 300 size 180 84
+text 642 350.4 middle size=24 color=000000 max=172 : "Legend"
+text 390 449.6 middle size=16 color=1F2937 max=676 : **"Each colour is a status."**
+path fill=none stroke=1F2937 w=1.5 : M 228 198 L 291 198
+path fill=1F2937 stroke=none : M 300 198 L 291 201.5 L 291 194.5 Z
+path fill=none stroke=1F2937 w=1.5 : M 480 198 L 543 198
+path fill=1F2937 stroke=none : M 552 198 L 543 201.5 L 543 194.5 Z
+path fill=none stroke=1F2937 w=1.5 : M 228 342 L 300 342

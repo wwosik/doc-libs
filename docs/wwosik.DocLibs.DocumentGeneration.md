@@ -386,7 +386,7 @@ drawn containers such as `::: timeline`), and for decks:
   slide), `visual` (a table, image or diagram on a slide of its own), `layout` (a flow slide, or a
   `layout="…"` slide that fills placeholders), `agenda`, `quote`, `statement`, `contact`, `chart`
   (the slide kinds; one drawn as a flow slide because the template lacks its layout counts as
-  `layout`), and `closing`. The names are stable, like note codes.
+  `layout`), `scene` (a `::: scene`), and `closing`. The names are stable, like note codes.
 - **`TalkTime`**, rounded to whole minutes: each content slide its speaker notes' words, or else its
   own words without the title, at `WordsPerMinute`, and at least `MinTimePerSlide`; the parts of a
   split slide share their notes, which count on the first part; cover, section and closing slides
@@ -1046,6 +1046,32 @@ full colour with its number (in the order written) in white; risks sharing a cel
 in rows of three (four when more than nine share it). A numbered legend beside the grid names them
 (at most two lines each). 960 px wide; 446 px tall, or the legend's height when that is more — the
 drawing is always wider than tall, so the legend never needs to go below the grid.
+
+## Scenes
+
+`::: scene` is a slide drawn from named shapes on a 160 × 90 grid over the whole slide (internal
+`SceneSyntax`, `Scene`, `SceneDrawing`). Every generator reads it here, so all reject the same
+mistakes:
+
+- `SceneSyntax.Check` (after `BuildMarker.Check`) puts each scene alone under its `##` heading, with
+  only `::: notes` beside it, one a section, never inside another block and without a build marker.
+- `SceneSyntax.Parse` reads the container's lines from the Markdown text Markdig parsed (its
+  `Span`), not from Markdig's inlines: `box|round|ellipse|text name x y w h ["label"] [attributes]`
+  and `arrow|line from to ["label"] [attributes]`, as the
+  [PPTX page](wwosik.DocLibs.DocumentGeneration.Pptx.md#scenes) describes. Errors are
+  `DocumentConversionException`s naming the scene line and its line in the original.
+- A connector without `step=` takes the later step of its shapes, without `exit=` the earlier exit.
+  `Scene.Sides` chooses the facing sides a connector runs between, `Scene.Clicks` the click numbers.
+- `SceneDrawing.Final` is the still documents show: 960 × 540 px (6 px a unit, so a pixel is a
+  point of a 16:9 slide), the shapes and connectors still shown after the last click, labels as
+  `DrawingText`s centred in their shape with `MaxWidth` of its width less 4 px a side, connectors
+  as lines with a filled arrow head, their labels above or beside the middle. Colours from the
+  brand: the default box `TableBand` with a `Primary` line, roles `Primary`, `Link` (accent),
+  `Highlight`, the label colours; text white or dark (`Diagram.Text`) by contrast.
+
+In Word documents a scene is a picture of that drawing (through an image converter, like the drawn
+containers); without one it is left out with `code-not-drawn`. A scene counts as a diagram in
+`CheckStatistics.Diagrams`.
 
 ## QR codes and icons
 

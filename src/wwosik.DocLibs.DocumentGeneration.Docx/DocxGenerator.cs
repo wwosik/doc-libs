@@ -89,6 +89,7 @@ public static class DocxGenerator
 
         // Build markers are for decks: checked like there, then left out wherever they are.
         BuildMarker.Check(content.Source, Format.Docx, LineOf);
+        SceneSyntax.Check(content.Source, Format.Docx, LineOf);
         var now = options.TimeProvider.GetUtcNow();
         var date = template.ShowsDate ? options.TimeProvider.GetLocalNow().ToString("dd.MM.yyyy", CultureInfo.InvariantCulture) : null;
         var typography = Typography.For(
@@ -128,6 +129,7 @@ public static class DocxGenerator
                     Page = page,
                     Document = document,
                     LineOffset = frontMatter.BodyLine,
+                    Markdown = frontMatter.Body,
                     Brand = template.BrandValue ?? Brand.Neutral,
                     HeadingNumbers = template.IsBuiltIn && options.HeadingNumbers,
                     Labels = labels,

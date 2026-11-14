@@ -170,6 +170,19 @@ updating, breaking changes first.
   confidential, the footer colour otherwise. Texts come from `GeneratedTexts.Internal`,
   `Confidential` and `Draft`. Documents and decks without a marking are unchanged. The advice of
   `classification-kept` in the Word guide is shorter.
+- **Scenes:** `::: scene` under a `##` heading draws a slide from named shapes on a 160 × 90 grid
+  over the whole slide, one per line: `box`, `round`, `ellipse` and `text` (`box api 65 34 30 22
+  "API" .accent`), and `arrow` and `line` between two of them (`arrow client api "HTTPS"`), with the
+  flow slides' colour roles and label categories, `.bold`, `.small`, `.large`, and `step=N`,
+  `exit=N`, `effect=appear|fly|wipe` as clicks (the builds of `{.build}`). In decks every shape is a
+  PowerPoint shape named `!!name` and every connector is glued to its shapes, so
+  `transition="morph"` on the next scene slide moves shapes of the same name; the slide is on the
+  title-only layout and holds only the title, the scene and `::: notes`. PDFs and Word documents (with
+  an image converter) show the final state as one vector drawing. Mistakes throw
+  `DocumentConversionException` naming the line, in every generator. The guides describe it; checks
+  count a scene as a diagram and decks' `SlidesByKind` as the new kind `scene`.
+- **The HTML deck plays Morph:** items named for Morph (`!!name`) move and resize from the previous
+  slide to their new place while the others fade, instead of the whole slide fading.
 - **Typography,** off by default: `typography: true` in the front matter, or the new
   `PptxOptions.Typography`, `PdfOptions.Typography` and `DocxOptions.Typography`, sets typographic
   quotes, apostrophes, dashes, the ellipsis and no-break spaces (`10 km`, `z. B.`, `13. November`) in

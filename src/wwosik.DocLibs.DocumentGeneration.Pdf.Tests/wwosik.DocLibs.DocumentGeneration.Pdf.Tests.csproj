@@ -22,6 +22,7 @@
     <None Include="..\wwosik.DocLibs.DocumentGeneration.Pptx.Tests\Samples\layouts.md" Link="Samples\layouts.md" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\wwosik.DocLibs.DocumentGeneration.Pptx.Tests\Samples\schedules.md" Link="Samples\schedules.md" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\wwosik.DocLibs.DocumentGeneration.Pptx.Tests\Samples\steps-and-risks.md" Link="Samples\steps-and-risks.md" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\wwosik.DocLibs.DocumentGeneration.Pptx.Tests\Samples\scenes.md" Link="Samples\scenes.md" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\wwosik.DocLibs.DocumentGeneration.Tests\Samples\brand-sample\**" Link="Samples\brand-sample\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

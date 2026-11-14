@@ -27,6 +27,9 @@ internal sealed record DocxContext(
     /// <summary>The lines of front matter cut off the Markdown, so notes give lines of the original.</summary>
     public int LineOffset { get; init; }
 
+    /// <summary>The Markdown Markdig parsed, front matter cut off: scenes are read from their lines.</summary>
+    public string Markdown { get; init; } = string.Empty;
+
     /// <summary>The brand code-block renderers would draw in.</summary>
     public Brand Brand { get; init; } = Brand.Neutral;
 

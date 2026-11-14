@@ -305,6 +305,17 @@ same change that made it untrue — a stale fact here is worse than a missing on
   `Fit`'s pieces (`with`, not `new`). The writer records targets in `Canvas` (`Building` scopes for
   shapes, `AddText` for paragraphs, `Item` for cards/rows/columns/images) and `TimingWriter` appends
   `p:timing` **after** `p:transition` (schema order: `transition`, then `timing`).
+- **Scenes (E07-S04):** `SceneSyntax` (shared) reads `::: scene` from the Markdown **text** of the container's
+  `Span` (the string Markdig parsed: `document.Markdown` in decks and PDFs, `DocxContext.Markdown` in Word), never
+  from inlines, and `SceneSyntax.Check` (right after `BuildMarker.Check`, in all three generators) keeps each scene
+  alone under its `##` with `::: notes`. Shared model types are `Scene`, `SceneNode`, `SceneConnector`, `SceneStyle`
+  — not `SceneShape`/`SceneItem`, which are the HTML deck reader's (`…Pptx.Rendering`). Decks: `SceneSlide`, written
+  by `DeckWriter.Scenes.cs` (passed through `Fit` unchanged); shapes `p:sp` and connectors `p:cxnSp` named
+  `!!name`, glued by `stCxn`/`endCxn` (rect sites 0–3 top/left/bottom/right, ellipse ×2). Steps are `BuildTarget`s
+  added with `Canvas.Target`, marks with `Joined = true` and `Block` = the step number: `TimingWriter.Steps` makes
+  one click of all joined marks with the same number, each build a `withEffect` group after the first.
+  PDFs/Word: `SceneDrawing.Final` (960 × 540 px, final state). The HTML deck writes `data-name` (Html target only,
+  so previews are unchanged) and `deck.js` `morph()` moves matched top-level items of `g.own`.
 - **The SDK's relationship ids are random** (`R` + 16 hex digits), so two runs never give the same
   `.pptx` bytes; compare decks part by part with those ids masked (`PresentingTests.Parts`). PDFs have
   a random `/ID` in the trailer.
@@ -515,6 +526,11 @@ same change that made it untrue — a stale fact here is worse than a missing on
   `MoveTo`/`LineTo`, which tests see first.
 
 ## Traps
+
+- **A shape with no extent one way** (a straight connector across or up, `cy="0"`) used to give `NaN` paths in
+  the HTML deck reader (`Geometry.Path` divided by the zero height); it now keeps that axis' coordinates. The PPTX
+  guide is at about 3,497 of its 3,500 words and the PDF guide at about 2,498 of 2,500 (E07-S04): any addition needs
+  a trim or the human raising the limit.
 
 - **The role layouts give two placeholders the same `idx`** (e.g. a picture placeholder and the date both
   `idx="2"` on the contact layout), so the HTML deck matches a slide placeholder by `idx` only among

@@ -1,7 +1,7 @@
 # E07-S04 Scenes
 
-> Status: in progress (doc-3)
-> Epic: [E07 Presenting](../../50-todo/E07-presenting.md)
+> Status: in verification
+> Epic: [E07 Presenting](../50-todo/E07-presenting.md)
 
 ## Summary
 
@@ -275,3 +275,133 @@ names. PDFs show each scene as one still drawing.
 ## Notes
 
 <!-- Free space for remarks that are not answers to the questions above. -->
+
+## Implementation notes
+
+Implemented by doc-3 on 2026-11-14.
+
+### Breaking changes
+
+None. `::: scene` was an unknown container (an error) in every generator before. Decks, PDFs and Word
+documents without a scene are unchanged: `TimingWriter` writes the same XML for every build that is not a
+scene's, and the 48 golden PNGs of E07-S03 pass as they were (the painting SVG gains nothing). Additive
+changes a consumer may notice: `CheckStatistics.SlideKinds` lists the new kind `scene` (before `closing`),
+and the error "Unknown container" lists `scene`. The HTML deck's Morph now moves shapes; the HTML deck is
+itself unreleased, so that is under *New* in `CHANGELOG.md`.
+
+### What was built
+
+- **Shared** (`wwosik.DocLibs.DocumentGeneration`, internal): `SceneSyntax` (`Check`, `Parse`), the model
+  `Scene`, `SceneNode`, `SceneConnector`, `SceneStyle`, `SceneKind`, `SceneRole`, `SceneSide`, and
+  `SceneDrawing.Final`. `LayoutSyntax` knows `scene` (no arguments); `DocumentCheck` counts a scene as a
+  diagram. `SceneSyntax.Check` runs right after `BuildMarker.Check` in all three generators.
+- **Decks:** `SceneSlide` (`DeckParser.Slides`), written by `DeckWriter.Scenes.cs`; `Fit` passes it through.
+  Shapes are `p:sp` named `!!name` (`rect`, `roundRect`, `ellipse`; `text` a text box without fill and line),
+  label in their own centred text body (`wrap="none"`, `anchor="ctr"`, no autofit), shrunk by 5 % steps to
+  70 % by `TextMetrics`, else `slide-overfull` naming the shape and its line. Connectors are `p:cxnSp`
+  (`straightConnector1`, `tailEnd` triangle for arrows, flips for leftwards/upwards) glued with
+  `stCxn`/`endCxn`; a connector label is a text shape `!!name-label` above the middle (or right of an
+  up/down connector). Steps: `Canvas.Target` adds `BuildTarget`s whose `BuildMark` is `Joined` with the step
+  number as `Block`; `TimingWriter.Steps` turns all joined marks of one number into one click, a group per
+  build (`clickEffect`, then `withEffect`). `PptxGenerator.Check`'s kinds gain `scene`.
+- **PDF:** `MarkdownParser` adds a `DrawingBlock(SceneDrawing.Final(…))` in the brand's colours.
+- **Word** (not in the plan, see below): a scene is a picture of the same drawing through the image
+  converter (alt text: the labels shown at the end), else left out with `code-not-drawn`.
+- **HTML deck:** `SceneSvg` writes `data-name` on items named `!!…` (Html target only); `deck.js` plays
+  `morph` (new `morph()`, `morphItems()`, `lay()`): the leaving slide stays on top (`.morphing`: its
+  background, decorations and notes hidden), each of the new slide's shown top-level own items with a
+  matching name moves and resizes from the old item's box (individual `translate`/`scale`, as the builds),
+  while the old item moves to the new box and fades out; other old items fade out, other new ones fade in.
+  Along an axis where either box is thinner than 10 pt or the size changes more than fivefold the item only
+  moves (a line with its arrow head otherwise blew up into a band). No inline styles, the CSP is unchanged.
+- **Reader fix:** `Geometry.Path` divided by a zero height for a connector straight across (`cy="0"`), which
+  gave `NaN` in the page's paths (Chromium logged errors); it now keeps that axis. This is the DrawingML
+  coverage this story needed; `scenes.md` joined `EverySampleDeck_IsDrawn_WithNothingLeftOut`.
+- **Guides:** a short PPTX *Scenes* paragraph (see the guide-length decision below) with the new
+  `{{sceneTitleArea}}` ("Shapes start at 22." on the built-in master, from the title-only layout's title; a
+  caller's non-seekable template stream gives "Leave the title room."); PDF one sentence; Word one table row. All expected
+  guides and `tool-guide.expected.md` regenerated.
+- **Docs:** Pptx *Presenting → Scenes*, HTML deck Morph, *Known limits*; Pdf *Slide layouts*; DocumentGeneration
+  *Scenes* and `SlidesByKind`; Docx graphics table; `docs/README.md`; `CHANGELOG.md`; `ai/memory.md`.
+
+### Decisions and deviations
+
+- **Question 4 (image shapes):** answered "as proposed", so only `box`, `round`, `ellipse`, `text`, `arrow`
+  and `line`; no `image`.
+- **Type names:** the shared model is `SceneNode`/`SceneConnector`/`SceneElement`, not the plan's
+  `SceneShape`/`SceneItem`, which the HTML deck reader already uses in `…Pptx.Rendering`. The writer is a
+  `DeckWriter` partial (`DeckWriter.Scenes.cs`), not a separate `SceneWriter`, because it needs the deck's
+  palette, runs, notes and canvas.
+- **Connectors inherit steps:** a connector without `step=` comes in with the later of its shapes, without
+  `exit=` it leaves with the earlier one that leaves (else it would show before its shapes). An explicit step
+  after an inherited exit throws.
+- **Exit is always Disappear;** `effect=` is the entrance and needs `step=`; `exit` must come after `step`.
+- **`.dark`, `kicker` and slide kinds on a scene heading throw**; `layout="…"` and `transition="…"` work. The
+  plan did not say; dark scene slides would need their own palette handling.
+- **Colours:** default box = surface fill + thin primary line + text colour; a role fills (`.muted` a light
+  neutral tint with normal text, `.dark` the palette's dark colour, categories their full label colour) with
+  white or dark text by WCAG contrast (theme colours on caller templates take white); `.outline` is the line
+  alone; on a `text` the role colours the text; on a connector its line. `.outline` is accepted on connectors
+  and means the default line.
+- **Word documents** draw scenes too (E09 came after the plan): otherwise a scene would have passed
+  `LayoutSyntax` and been written as its raw lines.
+- **The PDF still is 960 × 540 as planned,** so the title band (top ~19 units) is empty space above the shapes.
+  Cropping it to the shapes would save room on the page; left for the human to decide.
+- **Guide length — a decision for the human:** the plan's *Scenes* section with an example does not fit
+  the PPTX guide's 3,500-word limit, and the limit was not raised. Before rebasing, a section of ~75 words
+  with an example fitted after shortening the Morph sentence under *Transitions* and cutting two details of
+  other stories (the risk matrix's tint bands, "Use them for sources." under footnotes); after rebasing onto
+  E03-S03/E03-S04, whose front matter keys and prose took the rest of the room, only a three-line paragraph
+  without an example fits: the guides are at 3,480 (sample) / 3,497 (custom) words, the PDF guide at 2,498 of
+  2,500 (its scene sentence is "`::: scene`: one still picture.", and "as normal text" became "as text").
+  Proposed, if the human raises the limits (e.g. PPTX 3,600, PDF 2,550), the fuller PPTX paragraph:
+
+  ```markdown
+  **Scenes:** `::: scene` draws shapes on a 160 × 90 grid, one per line: `box`, `round`, `ellipse`
+  or `text` with `name x y w h "label"`; `arrow` or `line` with `from to`.
+  {{sceneTitleArea}} Attributes: a colour (`.primary`, `.accent`, `.highlight`, `.muted`, `.dark`,
+  `.outline`, a label category), `.bold`, `.small`, `.large`; `step=N`, `exit=N` (`effect=fly`) for
+  clicks. Only `::: notes` may join it; `transition="morph"` moves shapes of the same name.
+  ```
+
+  with the example `## Flow {transition="morph"}` / `::: scene` / `box web 8 34 30 22 "Browser"` /
+  `box api 65 34 30 22 "API" .accent step=1` / `arrow web api` / `:::`, and the cut sentences restored.
+
+### Verification
+
+- **Tests:** `./run.sh build` 0 warnings (also `--no-incremental`); `./run.sh test` after rebasing onto
+  E03-S03 and E03-S04: 1,665 passed, 6 Windows-only skipped (Pptx.Tests 513, Pdf.Tests 290, shared 399,
+  Docx.Tests 155, Svg.Tests 35 with the golden PNGs unchanged). New: Pptx `SceneTests` (sample valid without notes and round-tripping on neutral and
+  sample; grid positions and `!!` names on the title-only layout; a 4:3 caller template; glue sites and flips
+  of four connectors; click sequence with gaps, equal numbers together, effects; connector step inheritance;
+  label shrinking and `slide-overfull`; labels keep `*`, `[`, `\"` and break at `\n`; role colours; Morph
+  names across slides; every parse error with its line (17); every misplacement (8); notes/footer/transition
+  kept, 40 shapes never split; check counts; HTML `data-name` only in the page), Pdf `SceneTests` (PDF/A
+  marker and round trip on both templates, the drawing is the final state, errors in the PDF's format, notes
+  left out), shared `SceneTests` (parsing, sides, the golden still `scenes.expected.txt`, final state, colours),
+  Docx (picture or note).
+- **Open XML validator** clean on every generated deck (tests).
+- **Chromium** (Playwright, headless, throwaway `.tmp/check-morph.js`) on `scenes.md` on the neutral, sample
+  and dark templates, from disk: steps on slide 2, the Morph into slides 3 and 4 frozen at 25/50/75 %
+  (`.tmp/review/e07s04/*-morph-*.png`): matched boxes, ellipse and connectors move and resize, the old ones fade
+  over them, unmatched items fade; afterwards no leaving slide, no `.morphing`, no running animations; back is
+  instant; `prefers-reduced-motion` gives no animation; no console errors, no requests.
+- PDFs looked at as PNGs (pypdfium2): `.tmp/review/scenes-*.pdf`. veraPDF was not run (no Java here).
+
+### Open verification items (for the human)
+
+- **Real PowerPoint** with `.tmp/review/scenes-neutral.pptx` and `scenes-sample.pptx`: opens without a repair
+  prompt; shapes sit where the grid says; steps play in order (slide 2: API, then database with arrow and
+  caption; slide 3: API 2 flies in, then the caption leaves as the note appears); Morph from slide 2 to 3 and 3 to
+  4 moves boxes, labels and glued connectors smoothly; dragging a shape keeps its connectors glued (the
+  ellipse connection sites 0/2/4/6 are from the preset definitions, to be confirmed); a 4:3 caller template
+  looks as documented. The acceptance box for real PowerPoint stays unticked.
+- Whether PowerPoint wants separate `grpId`s for a shape's entrance and exit (written as E07-S05 writes
+  `{.frag .exit}`: both `grpId="0"`).
+- The HTML deck's Morph in other browsers, and compared with PowerPoint's (text is stretched with its shape
+  while moving in the page; PowerPoint keeps the text size).
+
+### Loose ends
+
+- `PptxConverter` reads a scene back as its labels only; rebuilding `::: scene` is out of scope.
+- Icons (E04-S06) as scene shapes, and `image` shapes, are not offered.

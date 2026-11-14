@@ -43,8 +43,8 @@ a title that states the point, then a few short lines.
 - `[words]{.success}` sets a few words bold in a status colour: `.success`, `.info`, `.warning`,
   `.danger` or `.neutral` — for a verdict inside a sentence, such as `[on schedule]{.success}`.
 - **Footnotes:** `[^1]` in the text and `[^1]: The source.` on a line of its own anywhere below.
-  The reference becomes a raised number, the note small text at the foot of its slide. Use them for
-  sources. A reference without its definition stays as written.
+  The reference becomes a raised number, the note small text at the foot of its slide. A reference
+  without its definition stays as written.
 - **Task lists:** `- [ ] open` and `- [x] done` get an empty or ticked box instead of a bullet.
 - **Definition lists:** a term on a line of its own, then `:   ` and its description on the next
   line. They are shown like `::: rows`: the term in bold on the left, its description beside it.
@@ -169,8 +169,7 @@ description` draws them as chevrons in a row; `{.current}` at the end of one ite
 steps before it done, later ones outlined. A table cell that is only `[0/4]` to `[4/4]`, or
 `[1/2]`, is a Harvey ball, a circle filled by quarters; `\[3/4]` keeps the text. `::: riskmatrix`
 around a table of 1–15 rows of risk, likelihood and impact (each 1–5) puts numbered dots on a
-5 × 5 grid, likelihood up, impact right, with a legend; cells are tinted by likelihood × impact:
-1–4 in the success, 5–9 in the warning, 10–25 in the danger colour.
+5 × 5 grid with a legend.
 
 ````markdown
 ## Programme
@@ -226,9 +225,8 @@ Start with the **good news**, then the delays:
 front matter sets it for every slide; `transition="…"` on a heading (`## Results {transition="push"}`,
 also with other attributes) for that slide alone, and `transition="none"` turns it off there. The
 transitions: `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut` and
-`morph`. `morph` moves the shapes that two
-slides share from one to the other; viewers without it fade. Use one transition for the whole
-deck, and a different one only where it means something.
+`morph` (scene shapes of the same name move; viewers without it fade). Use one transition for
+the whole deck, and a different one only where it means something.
 
 **Builds:** a paragraph that is only a build marker, before a block, makes that block come in click
 by click in the slide show. Leave a blank line after it.
@@ -259,6 +257,10 @@ The end date does not move.
 - `build: lists` in the front matter builds every top-level list like `{.build}`, unless it has its
   own marker.
 - Other braces alone in a paragraph, such as `{.note}`, are a mistake; `\{` keeps them as text.
+
+**Scenes:** `::: scene` draws shapes on a 160 × 90 grid, one per line:
+`box|round|ellipse|text name x y w h "label"`, `arrow|line from to`, with `.accent`, `step=N`,
+`exit=N`. {{sceneTitleArea}}
 
 Page breaks are for documents and have no effect on slides: a deck shows the content of
 `::: pagebreak` … `:::` as usual, without making its slide a flow slide, and ignores `{.newpage}`

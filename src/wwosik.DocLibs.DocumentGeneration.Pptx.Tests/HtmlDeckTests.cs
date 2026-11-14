@@ -146,7 +146,7 @@ public partial class HtmlDeckTests
     private static IEnumerable<(string Name, MarkdownDocument Markdown)> SampleDecks()
     {
         var images = new[] { Samples.Image("diagram.png"), Samples.Image("photo.png") };
-        foreach (var name in new[] { "deck.md", "layouts.md", "presenting.md", "presenting-lists.md", "schedules.md", "steps-and-risks.md", "diagrams.md" })
+        foreach (var name in new[] { "deck.md", "layouts.md", "presenting.md", "presenting-lists.md", "schedules.md", "steps-and-risks.md", "diagrams.md", "scenes.md" })
         {
             yield return (name, new MarkdownDocument(File.ReadAllText(Samples.Path(name)).ReplaceLineEndings("\n"), images, new Dictionary<string, string>()));
         }
