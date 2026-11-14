@@ -49,6 +49,12 @@ internal static class TrueTypeInfo
             ? BinaryPrimitives.ReadUInt16BigEndian(font[(offset + 8)..])
             : (ushort)0;
 
+    /// <summary>
+    /// Whether the font's licence restricts embedding it in documents: bit 1 of <c>fsType</c> alone; a less restrictive
+    /// bit set with it wins. Decks and Word documents leave such faces out.
+    /// </summary>
+    public static bool IsEmbeddingRestricted(ReadOnlySpan<byte> font) => (EmbeddingFlags(font) & 0x000E) == 0x0002;
+
     /// <summary>The name with <paramref name="nameId"/>, preferring Windows Unicode records; <see langword="null"/> if there is none.</summary>
     public static string? Name(ReadOnlySpan<byte> font, ushort nameId)
     {

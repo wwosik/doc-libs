@@ -12,11 +12,12 @@ same change that made it untrue — a stale fact here is worse than a missing on
 - Scaffolded on 2026-10-21 from the `projekt-init` catalog (`core`, `spec-workflow`,
   `dotnet-solution` adapted to a library layout, `tools-dotnet`; CI written for GitHub Actions).
   The code, samples and docs here are neutral, and must stay so.
-- `src/wwosik.DocLibs.slnx` holds seven packages, each with a `.Tests` sibling:
+- `src/wwosik.DocLibs.slnx` holds nine packages, each with a `.Tests` sibling:
   - `wwosik.DocLibs.DocumentConversions` — cross-platform: PDF, DOCX, PPTX to Markdown, JIRA
     wiki markup; PdfPig only.
   - `wwosik.DocLibs.DocumentConversions.WindowsOnly` — Office automation for `.doc`, `.rtf`,
     `.xls`, `.xlsx`.
+  - `wwosik.DocLibs.DocumentConversions.Svg` — SVG to PNG with SkiaSharp, and `SvgImageConverter`.
   - `wwosik.DocLibs.DocumentGeneration` — shared by the generators: the public brand API
     (`Brand`, `BrandColors`, `BrandImage`, `BrandFonts`, `BrandFont`, `PptxBrandTemplate`,
     `BrandPack`), the drawing model (`Drawing` …) and `ICodeBlockRenderer`; internally
@@ -28,6 +29,8 @@ same change that made it untrue — a stale fact here is worse than a missing on
   - `wwosik.DocLibs.DocumentGeneration.Charts` — `ChartRenderer`: `chart` blocks (settings, `---`,
     CSV) → `ChartGraphic(ChartSpec, Drawing)`. Depends only on the shared package.
   - `wwosik.DocLibs.DocumentGeneration.Pptx` — Markdown → `.pptx`; Markdig and the Open XML SDK.
+  - `wwosik.DocLibs.DocumentGeneration.Docx` — Markdown → `.docx` (E09); Markdig and the Open XML
+    SDK, like Pptx, sharing Open XML code with it as linked source (`src/Shared/OpenXml/`).
   - `wwosik.DocLibs.DocumentGeneration.Pdf` — Markdown → PDF/A-2b; Markdig and PdfPig, own
     layout engine, bundled Liberation fonts; SkiaSharp only for `.grey` images (E04-S05).
 - Public on GitHub as `wwosik/doc-libs`, MIT, published to nuget.org by tag (see
@@ -174,7 +177,9 @@ same change that made it untrue — a stale fact here is worse than a missing on
   GitHub at the release tag (`GITHUB_REF_NAME` when `GITHUB_REF_TYPE` is `tag`, else `main`) and
   adding a line pointing to the repo. `CHANGELOG.md` is packed next to it.
 
-- **Text is measured by `TextMetrics`** (E02-S02): ems per character class, ×1.08 bold, wrapped
+- **Text is measured by `TextMetrics`** (E02-S02; in the shared package since E09-S01, on
+  `(string Text, bool Bold)` pieces, `"\n"` a break, widths in EMU; decks call it through
+  `RunMetrics`, which knows what of a `TextRun` is bold): ems per character class, ×1.08 bold, wrapped
   between words. Table columns are at least their longest word; the table font steps down to 10 pt
   before words break. `EstimateLines` uses it too, so every height in decks is this estimate.
 - **Fitting (E02-S04):** `DeckWriter.Write` passes each slide through `Fit` (`DeckWriter.Fitting.cs`)
@@ -330,6 +335,21 @@ same change that made it untrue — a stale fact here is worse than a missing on
   the text block a comment follows); `::: conclusion` (`ConclusionBlock`) is placed by `Stack` at the
   foot. Text levels are not applied on kind slides.
 
+- **Open XML code both generators need is linked source,** not a package: `src/Shared/OpenXml/*.cs`
+  is compiled into Pptx and Docx (`<Compile Include="..\Shared\OpenXml\*.cs" Link=…>`) as internal
+  types in the namespace `wwosik.DocLibs.DocumentGeneration` (`CoreProperties` today; the SVG blip
+  extension and `ChartWriter` in E09-S03). The shared package must not take the Open XML SDK, because
+  Charts and Diagrams depend on it. `TrueTypeInfo.IsEmbeddingRestricted` is the one `fsType` check.
+- **DOCX styles are found by name, never by id (E09-S01):** `DocxRoles.All` lists every role (key,
+  default name as Word stores it, e.g. `heading 1`, built-in id, the `DocxStyleNames` property and the
+  built-in definition); `DocxStyles.Resolve` maps each to the template's style id by `w:name`
+  (case-insensitive; `Normal` also by `w:default`), adds a missing one from the definition based on the
+  template's `Normal` under a free id, and throws for a name the caller mapped that is missing. Content
+  roles (E09-S04) and deck-syntax roles (E09-S02) are added to `DocxRoles` and `DocxStyleNames` the same
+  way, with a `styles.<key>` front-matter key and a `brand.json` `docx.styles` property each. The body is
+  written behind `IBodyWriter` (`PlainBody` until E09-S04); `DocxWriter` puts the cover and the TOC
+  before it and keeps the template's final `w:sectPr`.
+
 ## Traps
 
 - **The built-in master's relationship ids are fixed:** layouts 1–4 are `rId1`–`rId4`, the theme
@@ -369,6 +389,9 @@ same change that made it untrue — a stale fact here is worse than a missing on
   `SaveAs(<folder>, 18)` for PNGs). Opening it that way also shows there is no repair prompt.
 - **File-based apps with `#:project` cache their build:** after changing the referenced library,
   `dotnet run file.cs` can silently run the old code. Use `dotnet run --no-cache file.cs`.
+- **The SDK's `ChangeDocumentType` renames the main part** (`word/document2.xml`), which Word accepts
+  but `DocxConverter` (it reads `word/document.xml` by path) does not. The DOCX generator turns a
+  `.dotx` into a document by the content type in `[Content_Types].xml` alone (`DocxPackage.ChangeMainType`).
 - **PdfPig's TrueType fonts hold at most 255 distinct characters** and throw on a glyph the font
   lacks; `PdfRenderer` adds the same font again when a copy is full, `LayoutEngine` checks glyphs
   first. PdfPig ignores the content of an `XmpMetadata` you pass it.

@@ -1,6 +1,5 @@
 ﻿using System.Globalization;
 using System.Xml;
-using System.Xml.Linq;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using wwosik.DocLibs.DocumentConversions;
@@ -16,9 +15,6 @@ namespace wwosik.DocLibs.DocumentGeneration.Pptx;
 /// </summary>
 public static class PptxGenerator
 {
-    private static readonly XNamespace CoreProperties = "http://schemas.openxmlformats.org/package/2006/metadata/core-properties";
-    private static readonly XNamespace DublinCore = "http://purl.org/dc/elements/1.1/";
-
     /// <summary>
     /// Writes <paramref name="document"/> as a <c>.pptx</c> to <paramref name="output"/>. Returns the number of slides
     /// and the notes for the writer: slides split, set at the smallest size or still overfull, images enlarged, diagrams
@@ -112,7 +108,7 @@ public static class PptxGenerator
                 FontEmbedding.Embed(package.PresentationPart!, fonts, codeFont);
             }
 
-            WriteCoreProperties(package, title, author, language.Tag);
+            CoreProperties.Write(package.CoreFilePropertiesPart ?? package.AddCoreFilePropertiesPart(), title, author, language.Tag);
         }
         catch (Exception ex) when (ex is OpenXmlPackageException or InvalidDataException or XmlException or FormatException)
         {
@@ -320,36 +316,5 @@ public static class PptxGenerator
 
         var slide = slides.OfType<TitleSlide>().FirstOrDefault() ?? slides.FirstOrDefault();
         return slide is null ? null : string.Concat(slide.Title.Select(r => r.IsBreak ? " " : r.Text));
-    }
-
-    // Written by hand rather than through PackageProperties so that the part keeps the name docProps/core.xml.
-    private static void WriteCoreProperties(PresentationDocument package, string? title, string? author, string language)
-    {
-        var part = package.CoreFilePropertiesPart ?? package.AddCoreFilePropertiesPart();
-        XDocument xml;
-        using (var stream = part.GetStream(FileMode.Open, FileAccess.Read))
-        {
-            xml = stream.Length > 0
-                ? XDocument.Load(stream)
-                : new XDocument(new XElement(
-                    CoreProperties + "coreProperties",
-                    new XAttribute(XNamespace.Xmlns + "cp", CoreProperties),
-                    new XAttribute(XNamespace.Xmlns + "dc", DublinCore)));
-        }
-
-        Replace(xml.Root!, DublinCore + "title", title);
-        Replace(xml.Root!, DublinCore + "creator", author);
-        Replace(xml.Root!, DublinCore + "language", language);
-        using var output = part.GetStream(FileMode.Create, FileAccess.Write);
-        xml.Save(output);
-    }
-
-    private static void Replace(XElement root, XName name, string? value)
-    {
-        root.Elements(name).Remove();
-        if (!string.IsNullOrWhiteSpace(value))
-        {
-            root.Add(new XElement(name, value));
-        }
     }
 }

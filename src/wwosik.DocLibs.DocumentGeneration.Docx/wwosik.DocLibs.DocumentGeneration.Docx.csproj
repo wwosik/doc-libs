@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Generates Word documents (.docx) from Markdown, on a built-in template in a brand's design or on a caller's template, with numbered headings, real footnotes and a table of contents.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DocumentFormat.OpenXml" />
+    <PackageReference Include="Markdig" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration\wwosik.DocLibs.DocumentGeneration.csproj" />
+  </ItemGroup>
+
+  <!-- Open XML code shared with the PPTX generator, compiled into each as internal source. -->
+  <ItemGroup>
+    <Compile Include="..\Shared\OpenXml\*.cs" Link="Shared\OpenXml\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="AuthoringGuide\*.md" LogicalName="AuthoringGuide.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Docx.Tests" />
+  </ItemGroup>
+
+</Project>

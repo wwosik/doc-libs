@@ -64,9 +64,9 @@ public class TableLayoutTests
         var size = 1600;
         var word = TextMetrics.Width("abcdef", size, bold: false);
 
-        Assert.Equal(1, TextMetrics.Lines([new TextRun("abcdef abcdef", RunStyle.None)], size, false, word * 3));
-        Assert.Equal(2, TextMetrics.Lines([new TextRun("abcdef abcdef", RunStyle.None)], size, false, word * 1.5));
-        Assert.Equal(2, TextMetrics.Lines([new TextRun("abcdef", RunStyle.None), TextRun.Break, new TextRun("x", RunStyle.None)], size, false, word * 3));
+        Assert.Equal(1, RunMetrics.Lines([new TextRun("abcdef abcdef", RunStyle.None)], size, false, word * 3));
+        Assert.Equal(2, RunMetrics.Lines([new TextRun("abcdef abcdef", RunStyle.None)], size, false, word * 1.5));
+        Assert.Equal(2, RunMetrics.Lines([new TextRun("abcdef", RunStyle.None), TextRun.Break, new TextRun("x", RunStyle.None)], size, false, word * 3));
         Assert.True(TextMetrics.Width("88", size, bold: true) > TextMetrics.Width("88", size, bold: false));
     }
 

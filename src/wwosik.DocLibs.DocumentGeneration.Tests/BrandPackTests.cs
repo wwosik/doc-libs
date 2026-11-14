@@ -132,6 +132,28 @@ public class BrandPackTests : IDisposable
     }
 
     [Fact]
+    public void DocxTemplate_IsLoadedWithItsStyles()
+    {
+        var brand = BrandPack.Load(Files(
+            """{ "name": "a", "colors": { "primary": "#111111" }, "docx": { "template": "t.dotx", "styles": { "heading1": "Chapter", "normal": "Body Text" } } }""",
+            ("t.dotx", [1, 2, 3])));
+
+        Assert.Equal([1, 2, 3], brand.Docx!.Content.ToArray());
+        Assert.Equal(new DocxStyleNames { Heading1 = "Chapter", Normal = "Body Text" }, brand.Docx.Styles);
+        Assert.Null(brand.Pptx);
+        Assert.Equal(brand.Docx, brand.Docx with { Styles = brand.Docx.Styles with { } });
+        Assert.NotEqual(brand.Docx, brand.Docx with { Styles = new DocxStyleNames() });
+    }
+
+    [Fact]
+    public void DocxTemplate_WithoutStyles_TakesTheDefaultNames()
+    {
+        var brand = BrandPack.Load(Files("""{ "name": "a", "colors": { "primary": "#111111" }, "docx": { "template": "t.dotx" } }""", ("t.dotx", [1])));
+
+        Assert.Equal(new DocxStyleNames(), brand.Docx!.Styles);
+    }
+
+    [Fact]
     public void PptxRoles_AreLoaded_WithBodiesInTheirNumberedOrder()
     {
         var brand = BrandPack.Load(Files(
@@ -219,6 +241,10 @@ public class BrandPackTests : IDisposable
     [InlineData("""{ "name": "a", "colors": { "primary": "#111111" }, "pptx": { "template": "r", "textLevels": { "heading": 1, "bullet": 3 } } }""", "'pptx.textLevels.paragraph' is missing")]
     [InlineData("""{ "name": "a", "colors": { "primary": "#111111" }, "pptx": { "template": "r", "contentArea": "grid" } }""", "'pptx.contentArea' is 'grid'")]
     [InlineData("""{ "name": "a", "colors": { "primary": "#111111" }, "pptx": { "template": "r", "layouts": { "agendas": "A" } } }""", "agendas")]
+    [InlineData("""{ "name": "a", "colors": { "primary": "#111111" }, "docx": { } }""", "'docx.template' is missing")]
+    [InlineData("""{ "name": "a", "colors": { "primary": "#111111" }, "docx": { "template": "x.dotx" } }""", "'docx.template' names 'x.dotx'")]
+    [InlineData("""{ "name": "a", "colors": { "primary": "#111111" }, "docx": { "template": "r", "styles": { "heading": "H" } } }""", "heading")]
+    [InlineData("""{ "name": "a", "colors": { "primary": "#111111" }, "docx": { "template": "r", "layouts": { } } }""", "layouts")]
     [InlineData("""{ "name": """, "brand.json")]
     public void Mistakes_ThrowNamingTheKey(string json, string expected)
     {

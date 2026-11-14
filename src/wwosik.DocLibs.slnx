@@ -9,6 +9,8 @@
   <Project Path="wwosik.DocLibs.DocumentGeneration.Charts/wwosik.DocLibs.DocumentGeneration.Charts.csproj" />
   <Project Path="wwosik.DocLibs.DocumentGeneration.Diagrams.Tests/wwosik.DocLibs.DocumentGeneration.Diagrams.Tests.csproj" />
   <Project Path="wwosik.DocLibs.DocumentGeneration.Diagrams/wwosik.DocLibs.DocumentGeneration.Diagrams.csproj" />
+  <Project Path="wwosik.DocLibs.DocumentGeneration.Docx.Tests/wwosik.DocLibs.DocumentGeneration.Docx.Tests.csproj" />
+  <Project Path="wwosik.DocLibs.DocumentGeneration.Docx/wwosik.DocLibs.DocumentGeneration.Docx.csproj" />
   <Project Path="wwosik.DocLibs.DocumentGeneration.Pdf.Tests/wwosik.DocLibs.DocumentGeneration.Pdf.Tests.csproj" />
   <Project Path="wwosik.DocLibs.DocumentGeneration.Pdf/wwosik.DocLibs.DocumentGeneration.Pdf.csproj" />
   <Project Path="wwosik.DocLibs.DocumentGeneration.Pptx.Tests/wwosik.DocLibs.DocumentGeneration.Pptx.Tests.csproj" />

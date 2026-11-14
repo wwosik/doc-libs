@@ -46,7 +46,7 @@ generator understands.
 - **Decided by the human** (analysis question 7): Word drawings are SVG + PNG images, as in the
   fork, not editable shape groups. SkiaSharp is accepted as a dependency of the generators
   (question 9), but no generator references it today.
-- **[E09-S01](E09-S01-docx-package-and-templates.md)** puts the shared Open XML sources in
+- **[E09-S01](../../60-verify/E09-S01-docx-package-and-templates.md)** puts the shared Open XML sources in
   `src/Shared/OpenXml/` (decided, its question 2) and starts `AuthoringGuide/Docx.md`.
 - **[E09-S04](E09-S04-docx-content.md)** places images and captions and fits images to the width
   and 80 % of the height. It is implemented before E09-S02 and this story despite its number.

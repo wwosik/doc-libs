@@ -14,9 +14,6 @@ namespace wwosik.DocLibs.DocumentGeneration.Pptx;
 /// </summary>
 internal static class FontEmbedding
 {
-    private const ushort Restricted = 0x0002;
-    private const ushort Permissions = 0x000E;
-
     public static void Embed(PresentationPart presentationPart, ResolvedFonts fonts, string codeFont)
     {
         var presentation = presentationPart.Presentation ?? throw new InvalidDataException("ppt/presentation.xml is empty.");
@@ -44,7 +41,7 @@ internal static class FontEmbedding
         string? Part(byte[]? face, params byte[]?[] earlier)
         {
             // A face that falls back to another of its family is not a face of its own.
-            if (face is null || earlier.Any(e => ReferenceEquals(e, face)) || IsRestricted(face))
+            if (face is null || earlier.Any(e => ReferenceEquals(e, face)) || TrueTypeInfo.IsEmbeddingRestricted(face))
             {
                 return null;
             }
@@ -107,9 +104,6 @@ internal static class FontEmbedding
             presentation.EmbedTrueTypeFonts = true;
         }
     }
-
-    // Restricted licence embedding: bit 1 alone; a less restrictive bit set with it wins.
-    private static bool IsRestricted(byte[] face) => (TrueTypeInfo.EmbeddingFlags(face) & Permissions) == Restricted;
 
     /// <summary>
     /// The font as an Embedded OpenType, version <c>0x00020001</c>, without subsetting, compression or XOR: a

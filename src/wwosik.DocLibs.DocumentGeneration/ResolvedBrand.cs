@@ -46,6 +46,9 @@ internal sealed partial record ResolvedBrand(
 
     public static ResolvedBrand Neutral => Resolve(Brand.Neutral);
 
+    /// <summary>The brand's own Word template, if it has one.</summary>
+    public DocxBrandTemplate? Docx { get; init; }
+
     /// <summary>The family name decks put in their theme: the brand's, else Arial.</summary>
     public string FontFamily => this.Fonts?.Family ?? "Arial";
 
@@ -178,7 +181,12 @@ internal sealed partial record ResolvedBrand(
             resolvedDiagram,
             highlight,
             resolvedLabels,
-            chart);
+            chart)
+        {
+            Docx = brand.Docx is { Content.IsEmpty: true } ? throw Invalid(brand, nameof(Brand.Docx), "is empty")
+                : brand.Docx is { Styles: null } ? throw Invalid(brand, "Docx.Styles", "is missing")
+                : brand.Docx,
+        };
     }
 
     // Chart colours: each set one checked, each other derived; for a dark background, darker fills and lighter lines.

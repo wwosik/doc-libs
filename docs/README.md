@@ -9,7 +9,8 @@ Each package carries its page as `README.md`: `src/Directory.Build.props` packs 
 the other pages pointing into the repo on GitHub at the release's tag.
 
 The generators also describe themselves to whoever writes the Markdown:
-`PptxGenerator.AuthoringGuide(options)` and `PdfGenerator.AuthoringGuide(options)`, built from
+`PptxGenerator.AuthoringGuide(options)`, `DocxGenerator.AuthoringGuide(options)` and
+`PdfGenerator.AuthoringGuide(options)`, built from
 `AuthoringGuide/*.md` in each generator package and the Diagrams and Charts packages. A change to the Markdown
 syntax, front matter, layouts, diagrams or fonts updates those guides in the same change; their
 tests generate every example and compare the guides with `authoring-guide-*.expected.md`.
@@ -34,6 +35,10 @@ tests generate every example and compare the guides with `authoring-guide-*.expe
   `.pptx`, on the built-in master in a brand's design or on a caller's template, with layouts —
   cards, rows, panels, callouts, tags, dark slides — from Markdown, and the brand's fonts embedded.
   Cross-platform.
+- [wwosik.DocLibs.DocumentGeneration.Docx](wwosik.DocLibs.DocumentGeneration.Docx.md): Markdown to
+  `.docx`, on the built-in template in a brand's design or on a caller's `.dotx` / `.docx` whose
+  styles are found by name, with a cover, header and footer, a table of contents and the brand's
+  fonts embedded. Cross-platform.
 - [wwosik.DocLibs.DocumentGeneration.Pdf](wwosik.DocLibs.DocumentGeneration.Pdf.md): Markdown to
   PDF/A-2b, in a brand's design, with embedded fonts (the brand's, else Liberation).
   Cross-platform.

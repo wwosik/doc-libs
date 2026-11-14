@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Brands for the wwosik.DocLibs document generators: colours, fonts, logo, footer and cover images, in code or as brand packs (brand.json plus files), the vector drawing model code-block renderers produce, QR codes and the Tabler outline icons. Shared by the PPTX and PDF generators.</Description>
+    <Description>Brands for the wwosik.DocLibs document generators: colours, fonts, logo, footer and cover images, in code or as brand packs (brand.json plus files), the vector drawing model code-block renderers produce, QR codes and the Tabler outline icons. Shared by the PPTX, DOCX and PDF generators.</Description>
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
@@ -20,6 +20,8 @@
     <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Tests" />
     <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Pptx" />
     <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Pptx.Tests" />
+    <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Docx" />
+    <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Docx.Tests" />
     <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Pdf" />
     <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Pdf.Tests" />
     <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Diagrams" />

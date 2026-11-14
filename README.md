@@ -9,10 +9,11 @@ stream out, no Office or browser needed (except for the legacy Office formats).
 | `wwosik.DocLibs.DocumentConversions.Svg` | SVG to PNG with SkiaSharp, and `.svg` images in decks and PDFs. Never loads anything outside the SVG. AOT-compatible. |
 | `wwosik.DocLibs.DocumentConversions.WindowsOnly` | `.doc`, `.rtf`, `.xls` and `.xlsx` to Markdown through Office automation. Windows with Word and Excel only. |
 | `wwosik.DocLibs.DocumentGeneration.Pptx` | Markdown to PowerPoint (`.pptx`), in your brand's design with its fonts embedded, or on your own `.pptx` / `.potx` template — also templates with dark slides. Cards, columns, panels, callouts, tags and images side by side from plain Markdown syntax; what does not fit is shrunk or continued. |
+| `wwosik.DocLibs.DocumentGeneration.Docx` | Markdown to Word (`.docx`), on a built-in template in your brand's design with its fonts embedded, or on your own `.dotx` / `.docx` with its styles found by name. Cover, header and footer, and a table of contents Word fills in. |
 | `wwosik.DocLibs.DocumentGeneration.Pdf` | Markdown to PDF/A-2b in your brand's design, with embedded fonts, bookmarks, links and tables. AOT-compatible. |
-| `wwosik.DocLibs.DocumentGeneration.Diagrams` | Mermaid diagrams for both generators: vector graphics in PDFs, editable shapes in decks, in your brand's colours and font. AOT-compatible; built on [Mermaider](https://github.com/nullean/mermaider) (MIT). |
+| `wwosik.DocLibs.DocumentGeneration.Diagrams` | Mermaid diagrams for the PPTX and PDF generators: vector graphics in PDFs, editable shapes in decks, in your brand's colours and font. AOT-compatible; built on [Mermaider](https://github.com/nullean/mermaider) (MIT). |
 | `wwosik.DocLibs.DocumentGeneration.Charts` | Bar, line and area charts from CSV in a `chart` block: native, editable charts in decks, vector charts in PDFs, in your brand's colours. Financial charts (development, growth by row, actual vs reference, growth trend, two years, summary table) from typed data or JSON, also as SVG with hover tooltips. AOT-compatible. |
-| `wwosik.DocLibs.DocumentGeneration` | Brands (colours, fonts, logo, footer, cover images), brand packs and the drawing model, shared by both generators. Comes along as their dependency. |
+| `wwosik.DocLibs.DocumentGeneration` | Brands (colours, fonts, logo, footer, cover images), brand packs and the drawing model, shared by the generators. Comes along as their dependency. |
 
 ## Quick start
 
@@ -40,9 +41,9 @@ limits — is in [docs/](https://github.com/wwosik/doc-libs/tree/main/docs).
 
 ## Your own design
 
-Both generators draw one built-in design in a **brand**: colours, fonts (optionally a condensed
-family for tables), footer text, logo, cover artwork and tagline — and, for decks, optionally your
-own PowerPoint template. Without one they use a neutral brand. Define a brand in code, or keep it as files in a **brand pack**
+The generators draw one built-in design in a **brand**: colours, fonts (optionally a condensed
+family for tables), footer text, logo, cover artwork and tagline — and, for decks and Word
+documents, optionally your own PowerPoint and Word templates. Without one they use a neutral brand. Define a brand in code, or keep it as files in a **brand pack**
 (`brand.json` plus images and fonts, from a folder, a zip or embedded resources):
 
 ```csharp
@@ -60,8 +61,8 @@ for every option and for how to ship a client's brand as its own package.
 ## When others write the Markdown
 
 If people or AI agents write the Markdown your service turns into documents, hand them the
-generator's authoring guide: `PptxGenerator.AuthoringGuide(options)` or
-`PdfGenerator.AuthoringGuide(options)` returns Markdown describing exactly what those options
+generator's authoring guide: `PptxGenerator.AuthoringGuide(options)`,
+`DocxGenerator.AuthoringGuide(options)` or `PdfGenerator.AuthoringGuide(options)` returns Markdown describing exactly what those options
 accept — headings, layouts, front matter, diagrams, and the characters the brand's fonts lack.
 
 ## Building

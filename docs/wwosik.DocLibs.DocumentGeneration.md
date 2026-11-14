@@ -1,6 +1,7 @@
 ﻿# wwosik.DocLibs.DocumentGeneration
 
-What the generators [wwosik.DocLibs.DocumentGeneration.Pptx](wwosik.DocLibs.DocumentGeneration.Pptx.md)
+What the generators [wwosik.DocLibs.DocumentGeneration.Pptx](wwosik.DocLibs.DocumentGeneration.Pptx.md),
+[wwosik.DocLibs.DocumentGeneration.Docx](wwosik.DocLibs.DocumentGeneration.Docx.md)
 and [wwosik.DocLibs.DocumentGeneration.Pdf](wwosik.DocLibs.DocumentGeneration.Pdf.md) share: the
 public **brand** API (`Brand`, `BrandPack`), the **drawing** model and the code-block renderer
 interface, [QR codes and icons](#qr-codes-and-icons) (`IIconSet`, `TablerIcons`), and internally
@@ -12,9 +13,9 @@ AOT-compatible. Third-party licences (QRCoder, Tabler Icons) are in the package'
 ## Brands
 
 A brand is a client's or project's design: colours, fonts, footer text, images, and optionally its
-own PowerPoint template. Both generators draw their one built-in design in it —
-`BrandTemplateOptions` for PPTX, `BrandPdfTemplateOptions` for PDF — so a single `Brand` styles
-decks and PDFs alike. Brands live in the client's code or package, never in this repo.
+own PowerPoint and Word templates. Every generator draws its one built-in design in it —
+`BrandTemplateOptions` for PPTX, `BrandDocxTemplateOptions` for DOCX, `BrandPdfTemplateOptions` for
+PDF — so a single `Brand` styles decks, Word documents and PDFs alike. Brands live in the client's code or package, never in this repo.
 
 ```csharp
 using wwosik.DocLibs.DocumentGeneration;
@@ -58,6 +59,7 @@ drawn.
 | `LogoOnDark` | PPTX section dividers (on the gradient) | none |
 | `CoverArtwork` | Cover bottom right: PDF — page width, ≤ 42 % of the height; PPTX — slide width, below the subtitle | none |
 | `Tagline` | Cover bottom right, over the artwork; `ShowTagline` turns it off | none |
+| `Docx` | A `.dotx` / `.docx` Word documents are built on instead of the built-in template (a `DocxBrandTemplate`, compared by content), with `Styles`, a `DocxStyleNames` naming the template's style for each role (see the [DOCX docs](wwosik.DocLibs.DocumentGeneration.Docx.md#templates)) | none |
 | `Pptx` | A `.pptx` / `.potx` decks are built on instead of the built-in master (see the PPTX docs); with `ClosingLayout` (the closing slide's layout by name) and `Tone` (`Auto`, `Light`, `Dark`: whether its slides are dark) | none |
 | `SlideColors` | Colours of decks where they differ from PDFs (see [Slide colours](#slide-colours)) | `Colors` |
 
@@ -136,7 +138,7 @@ condensed cut of the text family, so wide tables fit without smaller text.
 
 ### Selecting a brand in front matter
 
-`PptxOptions.Brands` and `PdfOptions.Brands` list the brands the Markdown may pick with
+`PptxOptions.Brands`, `DocxOptions.Brands` and `PdfOptions.Brands` list the brands the Markdown may pick with
 `template: <name>`. Always available besides them: `neutral` and the brand of the caller's
 template. Naming the caller's brand keeps the caller's `ShowDate` / `ShowTagline`; naming another
 starts from its defaults. An unknown name throws, listing the known ones; two different brands
@@ -184,6 +186,10 @@ paths relative to the pack.
     "footer": "{footer} | {chapter}",
     "contentArea": "guides",
     "numberChapters": true
+  },
+  "docx": {
+    "template": "template.dotx",
+    "styles": { "heading1": "Chapter", "normal": "Body Text" }
   }
 }
 ```
@@ -202,6 +208,11 @@ give several bodies their order, after any plain `body`; `textLevels` needs all 
 `paragraph` and `bullet` (1–9); `footer` is the footer pattern; `contentArea` is `placeholders`
 (the default) or `guides`; `numberChapters` (`true` or `false`, the default) numbers the section
 dividers.
+
+`docx` holds the brand's Word template (`Brand.Docx`): `template` is required, and `styles` names
+the template's style for each role, by the property names of `DocxStyleNames` in camel case —
+`title`, `subtitle`, `coverDetails`, `tocHeading`, `heading1` to `heading6` and `normal`. A role
+left out takes its default style name; a misspelt role is an unknown key.
 
 | Load from | Call |
 | --------- | ---- |
@@ -242,8 +253,8 @@ dividers.
 
 ## Generation results and notes
 
-`PptxGenerator.Generate` and `PdfGenerator.Generate` return a `GenerationResult`: the slides or
-pages written, and notes about what the generator did to the Markdown that its writer cannot see in
+`PptxGenerator.Generate`, `DocxGenerator.Generate` and `PdfGenerator.Generate` return a
+`GenerationResult`: the slides or pages written, and notes about what the generator did to the Markdown that its writer cannot see in
 the result. The document is written either way; a note is not an error.
 
 ```csharp
@@ -254,7 +265,8 @@ if (result.HasNotes)
 }
 ```
 
-- **`GenerationResult(Notes)`**: `Pages` (slides for decks, pages for PDFs), `HasNotes`, and
+- **`GenerationResult(Notes)`**: `Pages` (slides for decks, pages for PDFs, 0 for Word documents,
+  whose pages Word lays out itself), `HasNotes`, and
   `ToString()`, one `- line N: …` per note or `No notes.`.
 - **`GenerationNote(Code, Line, Message)`**: `Code` is one of `NoteCodes`, stable, for filtering;
   `Line` is the Markdown line it concerns, from 1, front matter included, 0 if unknown; `Message`
@@ -277,7 +289,7 @@ if (result.HasNotes)
 | `html-as-text` | PPTX, PDF | Raw HTML, a block or inline, was written as text; HTML comments are left out silently |
 | `character-replaced` | PDF | `PdfOptions.ReplaceUnsupported` replaced a character the fonts lack; once per character, without a line |
 | `footnote-missing` | PPTX, PDF | A footnote reference such as `[^1]` has no definition, so it is shown as written |
-| `language-unknown` | PPTX, PDF | The document language has no `GeneratedTexts` of its own, built in or from the options; the texts are English, the tag is kept; without a line |
+| `language-unknown` | PPTX, DOCX, PDF | The document language has no `GeneratedTexts` of its own, built in or from the options; the texts are English, the tag is kept; without a line |
 | `notes-dropped` | PPTX | A `::: notes` stands before the first heading, so it belongs to no slide and was left out |
 | `notes-simplified` | PPTX | Speaker notes held a table, code block, image, quote, alert, heading or other container, written as plain text; one note per block |
 | `attribute-ignored` | PPTX, PDF | An image attribute has no effect where it is: `fit=cover` on an image of its own in a PDF, `focus` on an image that is not cropped, `scale` with `fit=cover`, `.caption` in a PDF, or any attribute on an image shown as its alt text (in a heading or a table cell) |
@@ -409,7 +421,7 @@ is never read for it, and any other brackets and braces stay text. An unknown ca
 
 ## Front matter
 
-Both generators read options from a block at the very top of the Markdown; the keys each one
+Every generator reads options from a block at the very top of the Markdown; the keys each one
 understands are in its own documentation. Values there **override** what the caller passed.
 
 ```markdown
@@ -436,7 +448,8 @@ title: Network expansion 2027
 
 ## Document language
 
-`lang` in the front matter, else `PptxOptions.Language` / `PdfOptions.Language` (default `en`),
+`lang` in the front matter, else `PptxOptions.Language` / `DocxOptions.Language` /
+`PdfOptions.Language` (default `en`),
 is a BCP 47 tag such as `en`, `de`, `de-CH` or `en-GB`. Anything else is an error.
 
 - **Texts.** It picks the `GeneratedTexts`: the texts a generator writes itself, today the alert
@@ -445,7 +458,8 @@ is a BCP 47 tag such as `en`, `de`, `de-CH` or `en-GB`. Anything else is an erro
   [timelines and Gantt charts](#timelines-and-gantt-charts) (`MonthNames`, `DayFormat`,
   `MonthFormat`, `QuarterFormat`, `WeekFormat`) and the axis titles of
   [risk matrices](#steps-harvey-balls-and-risk-matrices) (`Likelihood`, `Impact`; German
-  `Eintrittswahrscheinlichkeit`, `Auswirkung`). Code-block
+  `Eintrittswahrscheinlichkeit`, `Auswirkung`) and the heading of a Word document's table of contents
+  (`Contents`; German `Inhalt`). Code-block
   renderers get them as `CodeBlockRequest.Texts`. `GeneratedTexts.English` and `GeneratedTexts.German` are built in; a host adds or
   replaces languages with the options' `Texts`, by tag. Every property defaults to English, so a
   new language starts from `GeneratedTexts.English with { Warning = "…" }` and stays complete when
@@ -455,7 +469,8 @@ is a BCP 47 tag such as `en`, `de`, `de-CH` or `en-GB`. Anything else is an erro
   the note `language-unknown`; the tag itself is still written.
 - **Tags.** Decks write it on every run and paragraph end (`lang`, PowerPoint's spell checking),
   drawings and tables included, and as `dc:language` in the core properties. PDFs write it as the
-  catalog's `/Lang` and as `dc:language` in the XMP metadata.
+  catalog's `/Lang` and as `dc:language` in the XMP metadata. Word documents write it as
+  `dc:language` in the core properties.
 - The cover date stays `dd.MM.yyyy` in every language.
 
 ## Footnotes, task lists and definition lists

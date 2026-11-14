@@ -13,6 +13,11 @@
     <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration\wwosik.DocLibs.DocumentGeneration.csproj" />
   </ItemGroup>
 
+  <!-- Open XML code shared with the DOCX generator, compiled into each as internal source. -->
+  <ItemGroup>
+    <Compile Include="..\Shared\OpenXml\*.cs" Link="Shared\OpenXml\%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <ItemGroup>
     <EmbeddedResource Include="AuthoringGuide\*.md" LogicalName="AuthoringGuide.%(Filename)%(Extension)" />
   </ItemGroup>

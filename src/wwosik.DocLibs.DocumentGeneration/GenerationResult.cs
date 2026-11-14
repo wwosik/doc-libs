@@ -11,7 +11,10 @@ namespace wwosik.DocLibs.DocumentGeneration;
 /// <param name="Notes">The notes, in the order of the Markdown; empty when there is nothing to report.</param>
 public sealed record GenerationResult(IReadOnlyList<GenerationNote> Notes)
 {
-    /// <summary>The slides written to a deck, or the pages written to a PDF.</summary>
+    /// <summary>
+    /// The slides written to a deck, or the pages written to a PDF; 0 for a Word document, whose pages Word lays out
+    /// itself.
+    /// </summary>
     public int Pages { get; init; }
 
     /// <summary>Whether there is anything to report.</summary>
@@ -114,7 +117,7 @@ public static class NoteCodes
         (HtmlAsText, [DocumentFormat.Pptx, DocumentFormat.Pdf], "HTML is not interpreted: it is shown as text. Write Markdown instead."),
         (CharacterReplaced, [DocumentFormat.Pdf], "a character the fonts lack was replaced. Write it as one of the replacements under *Characters*."),
         (FootnoteMissing, [DocumentFormat.Pptx, DocumentFormat.Pdf], "a footnote reference such as `[^1]` has no definition `[^1]: text`, so it is shown as written. Add the definition, or remove the reference."),
-        (LanguageUnknown, [DocumentFormat.Pptx, DocumentFormat.Pdf], "the language in `lang` has no texts of its own, so alert titles and similar texts are in English. Use `en` or `de`."),
+        (LanguageUnknown, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "the language in `lang` has no texts of its own, so alert titles and similar texts are in English. Use `en` or `de`."),
         (NotesDropped, [DocumentFormat.Pptx], "a `::: notes` stands before the first heading, so it belongs to no slide and was left out. Move it under the heading of the slide it is for."),
         (NotesSimplified, [DocumentFormat.Pptx], "speaker notes hold only paragraphs and lists; a table, code block, image or quote in `::: notes` was written as plain text. Keep speaker notes to text and lists."),
         (AttributeIgnored, [DocumentFormat.Pptx, DocumentFormat.Pdf], "an image attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `focus` on an image that is not cropped. Remove it, or use it where it works."),

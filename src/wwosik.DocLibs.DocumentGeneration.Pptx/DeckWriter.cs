@@ -1701,7 +1701,7 @@ internal sealed partial class DeckWriter
         {
             var atSize = size;
             minimums = Enumerable.Range(0, columns)
-                .Select(c => table.Rows.Select((row, r) => TextMetrics.LongestWord(row[c], atSize, Header(r))).Max() + CellInsets)
+                .Select(c => table.Rows.Select((row, r) => RunMetrics.LongestWord(row[c], atSize, Header(r))).Max() + CellInsets)
                 .ToArray();
             if (minimums.Sum() <= width || size <= MinTableSize)
             {
@@ -1728,7 +1728,7 @@ internal sealed partial class DeckWriter
         var heights = table.Rows
             .Select((row, r) => Math.Max(
                 MinRowHeight,
-                (long)(Enumerable.Range(0, columns).Max(c => TextMetrics.Lines(row[c], size, Header(r), widths[c] - CellInsets)) * lineHeight) + 91440))
+                (long)(Enumerable.Range(0, columns).Max(c => RunMetrics.Lines(row[c], size, Header(r), widths[c] - CellInsets)) * lineHeight) + 91440))
             .ToArray();
         return (size, widths, heights);
     }
@@ -1930,9 +1930,9 @@ internal sealed partial class DeckWriter
         paragraphs.Sum(p => EstimateLines(p.Runs, size, width - ((p.Level + (p.Kind == ParagraphKind.Plain ? 0 : 1)) * BulletIndent))
             + (long)(size / 100.0 * 0.3 * EmuPerPoint)) + CellInsets;
 
-    // Height of the lines a text needs at the given width, wrapping between words as measured by TextMetrics.
+    // Height of the lines a text needs at the given width, wrapping between words as measured by RunMetrics.
     private static long EstimateLines(IReadOnlyList<TextRun> runs, int size, long width) =>
-        (long)(TextMetrics.Lines(runs, size, false, width) * size / 100.0 * 1.2 * EmuPerPoint);
+        (long)(RunMetrics.Lines(runs, size, false, width) * size / 100.0 * 1.2 * EmuPerPoint);
 
     private static IEnumerable<int> Segments(IReadOnlyList<TextRun> runs)
     {

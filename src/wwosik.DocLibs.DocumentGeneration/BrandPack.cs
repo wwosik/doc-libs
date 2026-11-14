@@ -109,7 +109,8 @@ internal sealed record BrandManifest(
     BrandManifest.ColorsSection? SlideColors,
     BrandManifest.ImagesSection? Images,
     BrandManifest.FontsSection? Fonts,
-    BrandManifest.PptxSection? Pptx)
+    BrandManifest.PptxSection? Pptx,
+    BrandManifest.DocxSection? Docx = null)
 {
     public Brand ToBrand(Func<string, Stream?> openFile)
     {
@@ -162,8 +163,28 @@ internal sealed record BrandManifest(
                 },
                 Roles = ToRoles(pptx),
             },
+            Docx = this.Docx is not { } docx ? null : new DocxBrandTemplate(File(openFile, "docx.template", docx.Template ?? throw Missing("docx.template")))
+            {
+                Styles = ToStyles(docx.Styles),
+            },
         };
     }
+
+    private static DocxStyleNames ToStyles(DocxStylesSection? styles) =>
+        styles is null ? new() : new()
+        {
+            Title = styles.Title,
+            Subtitle = styles.Subtitle,
+            CoverDetails = styles.CoverDetails,
+            TocHeading = styles.TocHeading,
+            Heading1 = styles.Heading1,
+            Heading2 = styles.Heading2,
+            Heading3 = styles.Heading3,
+            Heading4 = styles.Heading4,
+            Heading5 = styles.Heading5,
+            Heading6 = styles.Heading6,
+            Normal = styles.Normal,
+        };
 
     private static PptxTemplateRoles ToRoles(PptxSection pptx) =>
         new()
@@ -378,6 +399,22 @@ internal sealed record BrandManifest(
         string? Dark = null);
 
     internal sealed record TextLevelsSection(int? Heading, int? Paragraph, int? Bullet);
+
+    internal sealed record DocxSection(string? Template, DocxStylesSection? Styles = null);
+
+    // One property per role, so that a misspelt role is an unknown key.
+    internal sealed record DocxStylesSection(
+        string? Title = null,
+        string? Subtitle = null,
+        string? CoverDetails = null,
+        string? TocHeading = null,
+        string? Heading1 = null,
+        string? Heading2 = null,
+        string? Heading3 = null,
+        string? Heading4 = null,
+        string? Heading5 = null,
+        string? Heading6 = null,
+        string? Normal = null);
 }
 
 [JsonSourceGenerationOptions(

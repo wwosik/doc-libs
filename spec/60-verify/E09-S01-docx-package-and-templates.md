@@ -1,7 +1,7 @@
 # E09-S01 DOCX package and templates
 
-> Status: in progress (doc-3)
-> Epic: [E09 DOCX generator](../../50-todo/E09-docx-generator.md)
+> Status: in verification
+> Epic: [E09 DOCX generator](../50-todo/E09-docx-generator.md)
 
 ## Summary
 
@@ -15,16 +15,16 @@ like the PPTX generator:
 This story builds the package and its frame: the three kinds of template, the cover, header and
 footer, core properties, the table of contents field and embedded fonts, and moves the code the
 generators share. The body is written plainly until
-[E09-S04](E09-S04-docx-content.md) writes the content (headings and numbering, lists, tables,
+[E09-S04](../55-in-progress/doc-3/E09-S04-docx-content.md) writes the content (headings and numbering, lists, tables,
 captions, images, code, quotes, footnotes, links, task and definition lists, `lang`). Deck syntax
-([E09-S02](E09-S02-deck-syntax-in-word.md)) and charts and drawings
-([E09-S03](E09-S03-charts-drawings-and-guide.md)) build on both.
+([E09-S02](../55-in-progress/doc-3/E09-S02-deck-syntax-in-word.md)) and charts and drawings
+([E09-S03](../55-in-progress/doc-3/E09-S03-charts-drawings-and-guide.md)) build on both.
 
 ## Context
 
 - **Split.** The first plan of E09-S01 held the package and the content together; it was split as
   its question 1 proposed. This story is the former S01a; S01b is now
-  [E09-S04](E09-S04-docx-content.md).
+  [E09-S04](../55-in-progress/doc-3/E09-S04-docx-content.md).
 - **Order.** E09-S04 is implemented right after this story and before E09-S02 and E09-S03, despite
   its number: story IDs are allocated as the next free number.
 - **Generator packages.** Each generator is its own package on the shared
@@ -344,3 +344,136 @@ captions, images, code, quotes, footnotes, links, task and definition lists, `la
 - **Out of scope** by the human's decision: cross-references, abbreviations, accessibility, history,
   compare, comments and review import. Landscape sections are also left out (they were a fork
   draft).
+
+## Implementation notes
+
+### Breaking changes
+
+None. Everything public is added: the package `wwosik.DocLibs.DocumentGeneration.Docx`, and in the
+shared package `Brand.Docx`, `DocxBrandTemplate`, `DocxStyleNames` and `GeneratedTexts.Contents`;
+`brand.json` takes a `docx` section it used to reject as an unknown key. `TextMetrics` was internal
+and moved without changing a deck (verified below). `CHANGELOG.md` lists the additions under *New*.
+
+### Decisions and deviations
+
+- **Shared code** (question 2). `TextMetrics` is in the shared package and measures
+  `(string Text, bool Bold)` pieces (`"\n"` is a break, widths in EMU, the same arithmetic in the same
+  order); decks call it through `RunMetrics`, which knows what of a `TextRun` is bold. The core
+  properties writer is `src/Shared/OpenXml/CoreProperties.cs`, linked into Pptx and Docx as internal
+  source; it writes `dcterms:created`/`modified` only when given a time, so decks keep their
+  `core.xml`. The `fsType` check is `TrueTypeInfo.IsEmbeddingRestricted`, used by `FontEmbedding` and
+  `DocxFontEmbedding`.
+- **Roles as a table.** `DocxRoles.All` holds every role (front-matter key, default name as Word
+  stores it — `heading 1`, `toc 1` —, built-in id, `DocxStyleNames` property, built-in definition);
+  the built-in `styles.xml`, the lookup, the `styles.<role>` keys and the guide all come from it, so
+  E09-S04 and E09-S02 add a role in one place (plus its `DocxStyleNames` property and `brand.json`
+  property). `styles.normal` is a key too. The TOC levels `toc 1`–`toc 3` are roles without a key:
+  found by name, added when missing, never mapped.
+- **Lookup** (question 4): by `w:name`, case-insensitive; `Normal` also as the template's default
+  paragraph style. A missing role style is added from the built-in definition (neutral colours on a
+  caller's template, the brand's on its own) based on the template's `Normal`, under its built-in id
+  or, if taken, the id with `2`, `3`, … A mapped name the template lacks throws "The style 'X' that
+  styles.heading1 names is not in the caller's template. Its paragraph styles: …".
+- **Body until E09-S04.** `IBodyWriter` is the extension point; `PlainBody` writes headings in
+  `Heading N` by Markdown level (attributes checked and dropped by `HeadingAttributes.Split`), every
+  other leaf block as text in `Normal` (table rows with cells joined by ` | `, code line by line with
+  breaks), containers recursively; rules, build markers, top-level `::: notes` and link definitions
+  are left out. `DocxContent.Parse` uses the PDF's Markdig pipeline and cover rule.
+- **Cover.** The author and the date are one `CoverDetails` paragraph with a line break between. The
+  date is shown on the built-in template only (`ShowsDate`), as decks do; a caller's or a brand's own
+  template has no date option. The cover and the TOC each end with a page break run in their last
+  paragraph (none when nothing follows). Without a cover, `w:titlePg` is removed from the template's
+  section, on every kind of template, so page 1 does not get the cover header.
+- **Header and footer.** The header title is a content control bound to `dc:title`, filled by the same
+  code that fills caller templates' placeholders. The footer is footer text left, date centred,
+  `PAGE / NUMPAGES` right (centre and right tab stops of the `footer` style); the PDF puts the date
+  right after the footer text. Images are anchored to the page, behind the text; the SDK stores the
+  header images under `/media/` (not `word/media/`).
+- **Templates turned into documents** by the content type of the main part in `[Content_Types].xml`
+  (`DocxPackage.ChangeMainType`), not by the SDK's `ChangeDocumentType`, which renames the part to
+  `word/document2.xml`: Word follows the relationship, but `DocxConverter` reads `word/document.xml`
+  by path and found no body. `ChangeDocumentType` stays as the fallback for a `.dotm`.
+- **`w:updateFields`** is set only with a TOC or when a header or footer has a `TITLE`/`AUTHOR`
+  field, so ordinary documents open without Word's question. Simple `TITLE`/`AUTHOR` fields also get
+  the value as their cached text.
+- **TOC.** No `w:sdt` "Table of Contents" wrapper and no hyperlinks yet (E09-S04 links the entries
+  to bookmarks). With no headings the field holds no result.
+- **Fonts.** The font key (GUID) is derived from the face's SHA-256, so the same face gives the same
+  document; generating twice gives identical parts (relationship ids masked, tested). Table and code
+  families are embedded only when a style or run names them (`w:rFonts`), which nothing in this
+  story does.
+- **Front matter.** `toc`, `tocDepth` on every template; `showDate`, `showTagline`, `embedFonts` on
+  the built-in template, `embedFonts` on a brand's own, `styles.*` on a caller's. Like the PDF,
+  `transition`, `build`, `numberChapters` and `labels.*` are accepted, checked and ignored, so one
+  Markdown serves every format (the plan did not say). `PageSize`/`Orientation` are options only, as
+  planned (the PDF also has front-matter keys for them).
+- **Options.** `CodeBlockRenderers` and `ImageConverters` exist as planned but are unused (documented
+  as reserved). `TableOfContentsDepth` outside 1–3 throws `ArgumentOutOfRangeException`.
+- **`GeneratedTexts.Contents`** ("Contents" / "Inhalt") is added here; E03-S02 reuses it. `toc` and
+  `tocDepth` exist only for Word documents until E03-S02 adds them to the PDF.
+- **Language.** Only `dc:language` and the generated texts in this story; `w:lang` is E09-S04. The
+  shared front-matter table of the guide already says `lang` is "of spell checking", which holds once
+  E09-S04 writes `w:lang`.
+- **Errors.** A damaged template: "The template is damaged (the caller's template): …". An empty
+  `Brand.Docx` or a `null` `Styles` is an `ArgumentException` from `ResolvedBrand`.
+
+### Verification
+
+- `./run.sh build`: 0 warnings, 0 errors (also `--no-incremental`; the first two solution builds died
+  with "Internal CLR error", `dotnet build-server shutdown` fixed it). `./run.sh test` all green:
+  1 + 123 + 257 + 78 + 57 + 71 + 22 + 207 + 371 passed (1,187), 6 Windows-only skipped.
+  `./run.sh pack` packs `wwosik.DocLibs.DocumentGeneration.Docx` with its docs page as `README.md`
+  and `CHANGELOG.md`; CI and the release pack the solution, so they pick it up.
+- **New tests.** `Docx.Tests` (57): the three samples × neutral, sample, custom, each valid
+  (`OpenXmlValidator(Microsoft365)`, no errors) and compared through `DocxConverter` with
+  `<sample>-<template>.roundtrip.expected.md` (they show the TOC as plain paragraphs and a trailing
+  `\` where the converter reads a page break as a line break; E09-S04 regenerates them); the cover;
+  no cover without `w:titlePg`; both headers and footers with their images, title, footer text, date
+  and fields; `showDate`/`showTagline`; page sizes; core properties, front matter, `lang: de` with
+  "Inhalt", `language-unknown`; the TOC field, its entries, depth from options and front matter,
+  `w:updateFields`; built-in style sizes and colours; the theme; determinism; a damaged template;
+  localized ids found by name; placeholders and fields filled in a caller's header; missing role
+  styles added on `Normal` under a free id; a missing mapped name listing the styles; names
+  case-insensitive and from front matter; a brand's own template with its styles and only
+  `embedFonts`; front-matter keys and errors; embedded faces obfuscated and restored, the XOR order,
+  `embedFonts: false`, restricted faces; the guide's examples, expected guides (neutral, sample,
+  custom) and keys. `DocumentGeneration.Tests`: the `docx` brand-pack section, its defaults, and four
+  mistakes (missing template, missing file, a misspelt role, an unknown key).
+- **Unchanged output.** Every file the PPTX and PDF tests write to `.tmp/review/`, before (the claim
+  commit `bffda91` in a separate worktree) and after: 38 decks identical part by part with the SDK's
+  random relationship ids masked, embedded workbooks included; 12 PDFs byte-identical once `/ID` and
+  the creation and modification dates are masked (stricter than pixel-identical).
+- **For review** in `.tmp/review/`: `report-`, `long-`, `layouts-` × `neutral`, `sample`, `custom`
+  `.docx` (all with `TableOfContents = true`), and `embedded-fonts-sample.docx`.
+
+### To verify by hand (no Word or LibreOffice on this machine)
+
+The Word export through COM (`.tmp/scripts/word-export.ps1`) was not written: there is no Windows
+here. Open the review files in Word, then *File → Export → PDF*, and check:
+
+1. **No repair prompt** for all ten files, especially `report-custom.docx` (a caller's `.dotx` turned
+   into a document by content type) and `report-sample.docx` (embedded fonts, header images under
+   `/media/`).
+2. **Update fields:** Word asks once whether to update the fields; after *Yes* the TOC on page 2 has
+   dotted leaders and page numbers. Save, reopen: record whether Word kept `w:updateFields` (asks
+   again) or dropped it.
+3. **Cover** (`report-sample.docx`, page 1): the title about a quarter down the page in teal, 30 pt;
+   the subtitle below; "DocLibs" and "09.03.2026" in grey; the logo top right, the artwork across
+   the bottom, the tagline bottom right over the artwork; no header title, no footer.
+4. **Content pages** (page 3 on): "Quarterly review" left and the small logo right in the header, not
+   overlapping; "Sample Corporation", "09.03.2026" centred and "3 / N" right in the footer.
+5. **Fonts:** on a machine without Liberation Serif, the text is in Liberation Serif
+   (*File → Options → Save* shows "Embed fonts in the file" ticked); this checks the `.odttf`
+   obfuscation, which the tests can only round-trip.
+6. **Caller template** (`report-custom.docx`): the styles pane shows Word's names (*Heading 1*,
+   *Title*, *Untertitel Haus*, *Cover Details*, *TOC Heading*), no duplicates; the header shows
+   "Quarterly review" and "DocLibs" (the `TITLE` field and the author control).
+7. **No cover** (any Markdown without a leading `#`): page 1 has the content header and footer.
+8. **LibreOffice:** `soffice --headless --convert-to pdf` of the same files: not done, LibreOffice is
+   not installed here.
+
+### Loose ends
+
+- The acceptance items "Real Word" and the TOC filled by Word depend on items 1–5 above.
+- Heading numbers, bookmarks, hyperlinked TOC entries, later `#` on a new page, `w:lang`, and all
+  content formatting are E09-S04's.

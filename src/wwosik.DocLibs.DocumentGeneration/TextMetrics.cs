@@ -1,11 +1,16 @@
-namespace wwosik.DocLibs.DocumentGeneration.Pptx;
+namespace wwosik.DocLibs.DocumentGeneration;
 
 /// <summary>
 /// Estimates how wide text is without the font: a width in ems per class of character, a little more for bold. On
-/// the generous side, so that what is measured to fit does fit in common sans faces.
+/// the generous side, so that what is measured to fit does fit in common sans faces. Text comes as pieces, each set
+/// bold or not; a piece whose text is exactly <see cref="LineBreak"/> breaks the line. Widths are in EMU (12,700 a
+/// point).
 /// </summary>
 internal static class TextMetrics
 {
+    /// <summary>The text of a piece that breaks the line.</summary>
+    public const string LineBreak = "\n";
+
     private const double EmuPerPoint = 12700;
     private const double BoldFactor = 1.08;
 
@@ -13,16 +18,16 @@ internal static class TextMetrics
     public static double Width(string text, int size, bool bold) =>
         text.Sum(Em) * size / 100.0 * EmuPerPoint * (bold ? BoldFactor : 1.0);
 
-    /// <summary>The width of the longest word of <paramref name="runs"/>, which no line break can split.</summary>
-    public static double LongestWord(IReadOnlyList<TextRun> runs, int size, bool bold) =>
-        Words(runs, size, bold).SelectMany(line => line).DefaultIfEmpty(0).Max();
+    /// <summary>The width of the longest word of <paramref name="pieces"/>, which no line break can split.</summary>
+    public static double LongestWord(IEnumerable<(string Text, bool Bold)> pieces, int size) =>
+        Words(pieces, size).SelectMany(line => line).DefaultIfEmpty(0).Max();
 
-    /// <summary>How many lines <paramref name="runs"/> take at <paramref name="width"/>, wrapping between words.</summary>
-    public static int Lines(IReadOnlyList<TextRun> runs, int size, bool bold, double width)
+    /// <summary>How many lines <paramref name="pieces"/> take at <paramref name="width"/> (EMU), wrapping between words.</summary>
+    public static int Lines(IEnumerable<(string Text, bool Bold)> pieces, int size, double width)
     {
         var space = Em(' ') * size / 100.0 * EmuPerPoint;
         var lines = 0;
-        foreach (var line in Words(runs, size, bold))
+        foreach (var line in Words(pieces, size))
         {
             lines++;
             var x = 0.0;
@@ -51,12 +56,8 @@ internal static class TextMetrics
         return Math.Max(lines, 1);
     }
 
-    /// <summary>Whether a run is set bold: bold itself, marked text, a status label, or everything in a header row.</summary>
-    public static bool IsBold(TextRun run, bool header) =>
-        header || run.Style.HasFlag(RunStyle.Bold) || run.Style.HasFlag(RunStyle.Mark) || run.Style.HasFlag(RunStyle.Label);
-
-    // The widths of the words of each line; a word runs across runs until a space or a line break.
-    private static List<List<double>> Words(IReadOnlyList<TextRun> runs, int size, bool bold)
+    // The widths of the words of each line; a word runs across pieces until a space or a line break.
+    private static List<List<double>> Words(IEnumerable<(string Text, bool Bold)> pieces, int size)
     {
         var lines = new List<List<double>> { new() };
         var word = 0.0;
@@ -69,17 +70,16 @@ internal static class TextMetrics
             }
         }
 
-        foreach (var run in runs)
+        foreach (var (text, bold) in pieces)
         {
-            if (run.IsBreak)
+            if (text == LineBreak)
             {
                 EndWord();
                 lines.Add([]);
                 continue;
             }
 
-            var runBold = IsBold(run, bold);
-            foreach (var c in run.Text)
+            foreach (var c in text)
             {
                 if (char.IsWhiteSpace(c))
                 {
@@ -87,7 +87,7 @@ internal static class TextMetrics
                 }
                 else
                 {
-                    word += Em(c) * size / 100.0 * EmuPerPoint * (runBold ? BoldFactor : 1.0);
+                    word += Em(c) * size / 100.0 * EmuPerPoint * (bold ? BoldFactor : 1.0);
                 }
             }
         }

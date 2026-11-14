@@ -1,0 +1,202 @@
+using System.Globalization;
+using System.Xml;
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
+using wwosik.DocLibs.DocumentConversions;
+using Format = wwosik.DocLibs.DocumentConversions.DocumentFormat;
+
+namespace wwosik.DocLibs.DocumentGeneration.Docx;
+
+/// <summary>
+/// Generates Word documents (<c>.docx</c>) from Markdown: a cover from a leading <c>#</c> heading and the paragraphs
+/// after it, an optional table of contents, and the body, on the built-in template in a brand's design or on a
+/// caller's template, whose styles every paragraph references by name. Front matter at the top of the Markdown
+/// overrides the options.
+/// </summary>
+public static class DocxGenerator
+{
+    private const string TocKey = "toc";
+    private const string TocDepthKey = "tocDepth";
+
+    // Keys of decks, accepted so that one Markdown serves every format: their values are checked, then ignored.
+    private const string TransitionKey = "transition";
+    private const string BuildKey = "build";
+    private const string NumberChaptersKey = "numberChapters";
+
+    /// <summary>
+    /// Writes <paramref name="document"/> as a <c>.docx</c> to <paramref name="output"/>. Returns the notes for the
+    /// writer; <see cref="GenerationResult.Pages"/> is 0, because Word lays out the pages itself.
+    /// </summary>
+    /// <exception cref="DocumentConversionException">
+    /// The front matter is invalid or names an unknown brand, a style the template options name is not in the template,
+    /// the language is not a language tag, or the template is damaged.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// The brand is invalid, or two of <see cref="DocxOptions.Brands"/> share a name.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException"><see cref="DocxOptions.TableOfContentsDepth"/> is not 1, 2 or 3.</exception>
+    public static GenerationResult Generate(MarkdownDocument document, Stream output, DocxOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentNullException.ThrowIfNull(output);
+        options ??= DocxOptions.Default;
+        ArgumentOutOfRangeException.ThrowIfLessThan(options.TableOfContentsDepth, 1, nameof(options));
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(options.TableOfContentsDepth, 3, nameof(options));
+
+        var frontMatter = FrontMatter.Read(document.Markdown, Format.Docx);
+        frontMatter.Labels(); // checked like in decks; status labels are for slides
+        options = Apply(frontMatter, options);
+        var template = options.Template ?? DocxOptions.Default.Template;
+        var brand = template.BrandValue is { } value ? ResolvedBrand.Resolve(value) : null;
+        var notes = new GenerationNotes();
+        var language = DocumentLanguage.Resolve(frontMatter.Language, options.Language, options.Texts, notes, Format.Docx);
+        var content = DocxContent.Parse(frontMatter.Body);
+        var now = options.TimeProvider.GetUtcNow();
+        var date = template.ShowsDate ? options.TimeProvider.GetLocalNow().ToString("dd.MM.yyyy", CultureInfo.InvariantCulture) : null;
+        var title = frontMatter.Title ?? document.Metadata.GetValueOrDefault(MetadataKeys.Title) ?? content.Cover?.Title;
+        var author = frontMatter.Author ?? document.Metadata.GetValueOrDefault(MetadataKeys.Author);
+        var codeFont = options.CodeFont ?? brand?.CodeFontFamily ?? DocxOptions.DefaultCodeFont;
+
+        using var buffer = new MemoryStream();
+        template.Write(buffer, date);
+        DocxPackage.ChangeMainType(buffer, DocxPackage.TemplateType, DocxPackage.DocumentType);
+        try
+        {
+            using (var package = WordprocessingDocument.Open(buffer, isEditable: true))
+            {
+                if (package.DocumentType is WordprocessingDocumentType.Template or WordprocessingDocumentType.MacroEnabledTemplate)
+                {
+                    // A template the content type alone did not turn into a document, such as a .dotm; its macros go.
+                    package.ChangeDocumentType(WordprocessingDocumentType.Document);
+                }
+
+                var main = package.MainDocumentPart ?? throw new InvalidDataException("The package has no word/document.xml.");
+                var section = main.Document?.Body?.Elements<SectionProperties>().LastOrDefault();
+                var page = DocxPage.Of(section);
+                var design = new StyleDesign(brand ?? ResolvedBrand.Neutral, page.CoverTitleSpace, page.TextWidth);
+                var styles = DocxStyles.Resolve(main, template.StyleNames, design, template.Description);
+                var context = new DocxContext(main, styles, notes, language.Texts, language.Tag, codeFont, options);
+                DocxWriter.Write(content, context, PlainBody.Instance, author, date, options.TableOfContents, options.TableOfContentsDepth);
+
+                var fields = DocxPlaceholders.Fill(main, title, author);
+                if (options.TableOfContents || fields)
+                {
+                    DocxSettings.Set(main, new UpdateFieldsOnOpen());
+                }
+
+                if (template.EmbedsFonts && brand?.Fonts is { } fonts)
+                {
+                    DocxFontEmbedding.Embed(main, fonts, codeFont);
+                }
+
+                CoreProperties.Write(package.CoreFilePropertiesPart ?? package.AddCoreFilePropertiesPart(), title, author, language.Tag, now);
+            }
+        }
+        catch (Exception ex) when (ex is OpenXmlPackageException or InvalidDataException or XmlException or FormatException)
+        {
+            throw new DocumentConversionException(Format.Docx, $"The template is damaged ({template.Description}): " + ex.Message, ex);
+        }
+
+        buffer.Position = 0;
+        buffer.CopyTo(output);
+        return notes.Result(0);
+    }
+
+    /// <summary>
+    /// The authoring guide for whoever writes the Markdown (often an AI agent): how headings become the cover and the
+    /// table of contents, the front matter keys of the options' template and brands, and the characters the brand's fonts
+    /// lack. Markdown starting at <c>##</c>, in English, so a host can put it under a heading of its own and add what
+    /// only it knows. Pass the same options as to <see cref="Generate"/>.
+    /// </summary>
+    /// <exception cref="ArgumentException">The brand is invalid, or two of <see cref="DocxOptions.Brands"/> share a name.</exception>
+    public static string AuthoringGuide(DocxOptions? options = null)
+    {
+        options ??= DocxOptions.Default;
+        var template = options.Template ?? DocxOptions.Default.Template;
+        var registry = BrandRegistry.Of(template.BrandValue, options.Brands);
+        var brand = template.BrandValue is { } value ? ResolvedBrand.Resolve(value) : null;
+        var codeFont = options.CodeFont ?? brand?.CodeFontFamily ?? DocxOptions.DefaultCodeFont;
+        var meanings = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["showDate"] = "`true` or `false`: today's date on the cover and in the footer. Default `true`.",
+            ["showTagline"] = "`true` or `false`: the design's tagline on the cover, if it has one. Default `true`.",
+            ["embedFonts"] = "`true` or `false`. Leave it out: by default the document carries its fonts.",
+            [TocKey] = $"`true` or `false`: a table of contents after the cover. Default `{(options.TableOfContents ? "true" : "false")}`.",
+            [TocDepthKey] = $"`1`, `2` or `3`: the heading levels the table of contents lists. Default `{options.TableOfContentsDepth.ToString(CultureInfo.InvariantCulture)}`.",
+        };
+        foreach (var role in DocxRoles.All.Where(r => r.Key is not null))
+        {
+            meanings[DocxRoles.KeyPrefix + role.Key] = $"The name of the template's style for {RoleText(role)}, as Word shows it.";
+        }
+
+        (string, string) deckKeys = (
+            "transition`, `build`, `numberChapters",
+            "Settings for decks. A Word document accepts them and ignores them.");
+        (string, string) labels = (
+            "labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral",
+            "Status labels for decks, separated by `;`. A Word document accepts them.");
+        return AuthoringGuides.Fill(
+            AuthoringGuides.Template(typeof(DocxGenerator).Assembly, "Docx"),
+            new Dictionary<string, string>
+            {
+                ["frontMatter"] = AuthoringGuides.FrontMatter(
+                    registry.Expected,
+                    options.Language,
+                    [.. template.Keys.Concat([TocKey, TocDepthKey]).Select(k => (k, meanings[k])), deckKeys, labels]),
+                ["characters"] = Characters(brand?.Fonts, codeFont),
+                ["notes"] = AuthoringGuides.Notes(Format.Docx),
+            });
+    }
+
+    /// <summary>The caller's options with the front matter applied on top.</summary>
+    internal static DocxOptions Apply(FrontMatter frontMatter, DocxOptions options)
+    {
+        var template = options.Template ?? DocxOptions.Default.Template;
+        var brands = BrandRegistry.Of(template.BrandValue, options.Brands);
+        return frontMatter.Apply(
+            options with { Template = template },
+            (current, name) => brands.Find(name) is not { } brand ? null
+                : current.Template.BrandValue is not null && current.Template.Name == brand.Name.ToLowerInvariant() ? current
+                : current with { Template = new BrandDocxTemplateOptions { Brand = brand } },
+            brands.Expected,
+            current => current.Template.Name,
+            current => [.. current.Template.Keys, TocKey, TocDepthKey, TransitionKey, BuildKey, NumberChaptersKey],
+            (current, key, value) => key switch
+            {
+                TocKey => current with { TableOfContents = frontMatter.Bool(key, value) },
+                TocDepthKey => current with { TableOfContentsDepth = frontMatter.OneOf(key, value, ("1", 1), ("2", 2), ("3", 3)) },
+                TransitionKey => frontMatter.OneOf(key, value, [.. LayoutSyntax.Transitions.Select(t => (t, current))]),
+                BuildKey => frontMatter.OneOf(key, value, ("none", current), ("lists", current)),
+                NumberChaptersKey => frontMatter.Bool(key, value) ? current : current,
+                _ => current with { Template = current.Template.With(frontMatter, key, value) },
+            });
+    }
+
+    private static string RoleText(StyleRole role) => role.Key switch
+    {
+        "title" => "the cover title",
+        "subtitle" => "the paragraphs under the cover title",
+        "coverDetails" => "the author and date on the cover",
+        "tocHeading" => "the heading of the table of contents",
+        "normal" => "body text",
+        var key => "headings of level " + key![^1],
+    };
+
+    // The characters the brand's fonts lack, which Word shows in a substitute font.
+    private static string Characters(ResolvedFonts? fonts, string codeFont)
+    {
+        if (fonts is null)
+        {
+            return "Each character is shown in the document's font, or in a substitute where that font lacks it. Prefer "
+                + "plain characters (`•`, `–`, `→`, typographic quotes) to symbols, and leave out emoji.";
+        }
+
+        var mono = fonts.Mono is { } monoFace && fonts.MonoFamily == codeFont ? monoFace : null;
+        return AuthoringGuides.Characters(
+            c => TrueTypeInfo.HasCharacter(fonts.Regular, c),
+            c => mono is null || TrueTypeInfo.HasCharacter(mono, c),
+            $"The document is set in {fonts.Family}. A character this font lacks is shown in a substitute font and looks "
+                + "out of place. Leave out emoji, and write these symbols as shown:");
+    }
+}

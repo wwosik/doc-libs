@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration.Docx\wwosik.DocLibs.DocumentGeneration.Docx.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Samples\**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\wwosik.DocLibs.DocumentGeneration.Pdf.Tests\Samples\report.md" Link="Samples\report.md" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\wwosik.DocLibs.DocumentGeneration.Pdf.Tests\Samples\long.md" Link="Samples\long.md" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\wwosik.DocLibs.DocumentGeneration.Pdf.Tests\Samples\diagram.png" Link="Samples\diagram.png" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\wwosik.DocLibs.DocumentGeneration.Pdf.Tests\Samples\photo.png" Link="Samples\photo.png" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\wwosik.DocLibs.DocumentGeneration.Pptx.Tests\Samples\layouts.md" Link="Samples\layouts.md" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\wwosik.DocLibs.DocumentGeneration.Tests\Samples\brand-sample\**" Link="Samples\brand-sample\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

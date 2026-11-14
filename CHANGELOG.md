@@ -235,6 +235,31 @@ updating, breaking changes first.
   template lacks, and `agenda-empty` (`NoteCodes.AgendaEmpty`), for an empty agenda without chapters.
 - **The authoring guides** describe the kinds and both containers; the deck guide says which kinds
   have a layout of their own in the design, and which layout two text columns go to.
+- **New package `wwosik.DocLibs.DocumentGeneration.Docx`:** `DocxGenerator.Generate` writes Markdown
+  to Word (`.docx`) and returns a `GenerationResult` (`Pages` is 0: Word lays out the pages). This
+  version writes the frame of the document; the body is plain text (headings in their styles,
+  everything else as `Normal` paragraphs) until lists, tables, images, footnotes and links follow.
+  - **Templates:** `BrandDocxTemplateOptions` (the built-in template written from the brand, with
+    `ShowDate`, `ShowTagline`, `EmbedFonts`, `PageSize` `A4`/`Letter`/`A3` and `Orientation`) and
+    `CustomDocxTemplateOptions(Stream)` for a caller's `.dotx` / `.docx`, whose styles, numbering,
+    theme, settings, headers and footers are kept and whose body is replaced.
+  - **Roles:** `DocxStyleNames` names the template's style for the cover title, subtitle, cover
+    details, TOC heading, headings 1–6 and body text, by name as Word shows it (front matter
+    `styles.<role>`). Styles are found by name, never by id, so localized templates work; a missing
+    role style is added from the built-in definition, a named style the template lacks throws.
+  - **Cover** from the first `#` (title, subtitle paragraphs, author and date), header and footer
+    with the title, logo, footer text, date and page numbers, cover artwork and tagline, and the
+    core properties (title, author, language, dates). Title and author content controls and
+    `TITLE`/`AUTHOR` fields in a caller's headers and footers are filled in.
+  - **Table of contents:** `DocxOptions.TableOfContents` / `TableOfContentsDepth`, front matter
+    `toc` and `tocDepth` (1–3, default 2): a TOC field pre-filled with the headings, which Word gives
+    page numbers when it opens the document.
+  - **Fonts:** the brand's faces are embedded as obfuscated `.odttf` parts by default, restricted
+    faces skipped (front matter `embedFonts`).
+  - `DocxGenerator.AuthoringGuide(options)` describes it for the writer of the Markdown.
+- **`Brand.Docx`** (`DocxBrandTemplate` with `Styles`): a brand's own Word template, and the
+  `docx` section of `brand.json` (`template`, `styles`). Decks and PDFs ignore it.
+- **`GeneratedTexts.Contents`:** the heading of a table of contents ("Contents", German "Inhalt").
 
 ## 2610.28.22
 

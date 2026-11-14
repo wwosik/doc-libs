@@ -2,7 +2,7 @@
 
 /// <summary>
 /// A client's or project's design for the generators: colours, fonts, footer text, images, and optionally its own
-/// PowerPoint template. Build one in code or load it with <see cref="BrandPack"/>. Only <see cref="Name"/> and
+/// PowerPoint and Word templates. Build one in code or load it with <see cref="BrandPack"/>. Only <see cref="Name"/> and
 /// <see cref="BrandColors.Primary"/> are required; everything left out falls back to a documented default or is
 /// simply not drawn. A brand is checked when a generator uses it: anything invalid throws
 /// <see cref="ArgumentException"/> naming the property.
@@ -42,6 +42,9 @@ public sealed record Brand
 
     /// <summary>A <c>.pptx</c> or <c>.potx</c> to build decks on instead of the built-in master. PDFs ignore it.</summary>
     public PptxBrandTemplate? Pptx { get; init; }
+
+    /// <summary>A <c>.dotx</c> or <c>.docx</c> to build Word documents on instead of the built-in template. Decks and PDFs ignore it.</summary>
+    public DocxBrandTemplate? Docx { get; init; }
 
     /// <summary>White, dark titles, blue accents; no fonts of its own, no images, no footer text. Front-matter name <c>neutral</c>.</summary>
     public static Brand Neutral { get; } = new() { Name = "neutral" };
