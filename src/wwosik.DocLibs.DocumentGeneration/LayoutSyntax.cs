@@ -9,8 +9,8 @@ namespace wwosik.DocLibs.DocumentGeneration;
 /// </summary>
 internal static class LayoutSyntax
 {
-    /// <summary>The containers, for error messages.</summary>
-    public const string Containers = "cards, rows, panel, statement, columns, notes";
+    /// <summary>The containers, for error messages: the layouts, <c>notes</c>, then the drawn ones (<see cref="VisualContainers"/>).</summary>
+    public static readonly string Containers = string.Join(", ", ["cards", "rows", "panel", "statement", "columns", Notes, .. VisualContainers.Names]);
 
     /// <summary>The alerts, for error messages.</summary>
     public const string Alerts = "NOTE, TIP, IMPORTANT, WARNING, CAUTION";
@@ -23,11 +23,17 @@ internal static class LayoutSyntax
 
     /// <summary>
     /// Checks a container's name and arguments: <c>panel</c> takes <c>dark</c>, <c>columns</c> a ratio of two or three
-    /// widths (<c>1:2</c>); the others take none.
+    /// widths (<c>1:2</c>), the drawn containers their <c>key=value</c> arguments; the others take none.
     /// </summary>
     /// <exception cref="DocumentConversionException">The name is unknown or the arguments are not allowed.</exception>
     public static void CheckContainer(string name, string arguments, DocumentFormat format)
     {
+        if (VisualContainers.IsVisual(name))
+        {
+            VisualContainers.Check(name, arguments, format);
+            return;
+        }
+
         if (name is not ("cards" or "rows" or "panel" or "statement" or "columns" or Notes))
         {
             throw new DocumentConversionException(format, $"Unknown container '::: {name}'. Valid containers: {Containers}.");

@@ -62,6 +62,27 @@ attributes, alerts, transitions and build markers (a paragraph such as `{.note}`
 decks, and so are a `::: notes` inside another block and a build marker that builds nothing. Write
 `\{` to show braces as text.
 
+**Timelines and Gantt charts:** `::: timeline` around a list of 2–8 `- **date** Title: description`;
+`::: gantt` around a table of 1–20 rows of task, start and end (no end: a milestone). Dates:
+`2026`, `2026-Q2`, `2026-03`, `2026-03-15`; what ended before today is grey. `today=2026-11-01`
+after the name pins today; `grid=week|month|quarter` sets a Gantt's grid.
+
+````markdown
+## Plan
+
+::: timeline
+- **2026-01** Start
+- **2026-06** Go-live: all regions
+:::
+
+::: gantt grid=month
+| Task | Start | End |
+| ---- | ----- | --- |
+| Build | 2026-02 | 2026-05 |
+| Launch | 2026-06 | |
+:::
+````
+
 ## Icons
 
 `:icon-name:` draws the icon of that name of [Tabler Icons](https://tabler.io/icons) (3.52.0, outline), such as `:icon-circle-check:`. A PDF draws it inside text, one letter wide in the text's colour; at the start of a list item, in place of its bullet; and alone in a paragraph, large. In headings, table cells and on the cover it is left out. An unknown name is an error.

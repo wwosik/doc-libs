@@ -4,12 +4,16 @@ using wwosik.DocLibs.DocumentConversions;
 namespace wwosik.DocLibs.DocumentGeneration;
 
 /// <summary>
-/// The texts a generator writes itself, in one language: the titles of alerts, the heading of the footnotes and the word before a chart's source, and
-/// more as generators gain them. Every property defaults to English, so a language of a host's own starts from
+/// The texts a generator writes itself, in one language: the titles of alerts, the heading of the footnotes, the word before a chart's source, the
+/// month names and date formats of timelines and Gantt charts, and more as generators gain them. Every property defaults to English, so a language of a host's own starts from
 /// <see cref="English"/> with <c>with { … }</c> and stays complete when a later version adds a text.
 /// </summary>
 public sealed record GeneratedTexts
 {
+    // Before English and German, which use them: static fields are set in the order they are written.
+    private static readonly IReadOnlyList<string> EnglishMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    private static readonly IReadOnlyList<string> GermanMonths = ["Jan.", "Feb.", "März", "Apr.", "Mai", "Juni", "Juli", "Aug.", "Sept.", "Okt.", "Nov.", "Dez."];
+
     /// <summary>English, the default.</summary>
     public static GeneratedTexts English { get; } = new();
 
@@ -23,6 +27,9 @@ public sealed record GeneratedTexts
         Caution = "Vorsicht",
         Footnotes = "Anmerkungen",
         Source = "Quelle",
+        MonthNames = GermanMonths,
+        DayFormat = "{0}. {1} {2}",
+        WeekFormat = "KW {0}",
     };
 
     /// <summary>The title of <c>> [!NOTE]</c>.</summary>
@@ -45,6 +52,24 @@ public sealed record GeneratedTexts
 
     /// <summary>The word before the source under a chart (<c>source:</c>): "Source: Annual report".</summary>
     public string Source { get; init; } = "Source";
+
+    /// <summary>
+    /// The twelve month names, January first, as timelines and Gantt charts show dates: short, such as "Mar" or
+    /// "März". A list of another length is an error when a date is shown.
+    /// </summary>
+    public IReadOnlyList<string> MonthNames { get; init; } = EnglishMonths;
+
+    /// <summary>A day: <c>{0}</c> the day of the month, <c>{1}</c> the month name, <c>{2}</c> the year. "15 Mar 2026".</summary>
+    public string DayFormat { get; init; } = "{0} {1} {2}";
+
+    /// <summary>A month: <c>{0}</c> the month name, <c>{1}</c> the year. "Mar 2026".</summary>
+    public string MonthFormat { get; init; } = "{0} {1}";
+
+    /// <summary>A quarter: <c>{0}</c> its number from 1 to 4. "Q2"; a timeline adds the year after a space.</summary>
+    public string QuarterFormat { get; init; } = "Q{0}";
+
+    /// <summary>An ISO week on a Gantt chart's axis: <c>{0}</c> its number. "W12"; German "KW 12".</summary>
+    public string WeekFormat { get; init; } = "W{0}";
 
     /// <summary>The title of an alert of the kind <paramref name="kind"/> (<c>NOTE</c>, <c>TIP</c>, …).</summary>
     internal string Alert(string kind) => kind.ToUpperInvariant() switch

@@ -254,6 +254,7 @@ as plain Markdown.
 | `::: panel` or `::: panel dark` | A box behind its blocks, in the band colour or, dark, in the primary colour with white text. |
 | `::: statement` | Its first paragraph large and bold; the rest of the container follows as normal blocks. |
 | `::: columns` (or `::: columns 1:2`) … `---` … `:::` | Two or three columns side by side, split at `---` lines (a blank line before each, or Markdown reads the line above as a heading); widths equal or in the ratio given. Each column stacks its blocks: text beside an image or a chart. |
+| `::: timeline` around a list of `- **2026-03** Title: description`, `::: gantt` around a table of task, start and end | A timeline or a Gantt chart as a group of editable shapes, fitted to the width like a diagram (enlarged at most 1.5 times); on a dark slide or `::: panel dark` in light lines and white text. See [Timelines and Gantt charts](wwosik.DocLibs.DocumentGeneration.md#timelines-and-gantt-charts). |
 | `> [!NOTE]`, `> [!TIP]` | A band with a bar on the left in the primary colour (not italic). |
 | `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]` | The same with the bar in the highlight colour. |
 | A paragraph of only code spans: `` `a` `b` `c` `` (at least two) | Outlined chips in the code font, flowing and wrapping. |
@@ -274,8 +275,9 @@ as plain Markdown.
   other braces (`## Sets {a, b}`) stay in the title. `##` headings take `.dark`, `kicker` and
   `layout`; `#` headings take `layout` and `.closing`.
 - **Mistakes throw** `DocumentConversionException`: an unknown attribute or a key given twice, an
-  unknown container (the message lists `cards, rows, panel, statement, columns`), arguments on a
-  container other than `panel dark` and a `columns` ratio, a `columns` without two or three parts,
+  unknown container (the message lists `cards, rows, panel, statement, columns, notes, timeline, gantt`), arguments on a
+  container other than `panel dark`, a `columns` ratio and the `key=value` pairs of `timeline` and `gantt`, a `timeline` or `gantt`
+  whose content or dates are not what it takes, a `columns` without two or three parts,
   `layout="…"` naming no layout of the template (or used on the built-in master), `.closing` on a
   `##` or `.dark` / `kicker` on a `#`, `[words]{.x}` with an unknown colour, content before the first `###` in `::: cards`, a `::: rows` that is not
   one list, an item of `cards` or `rows` that does not start with bold text, an unknown alert.

@@ -35,17 +35,15 @@ a title that states the point, then a few short lines.
   `![Team](team.jpg){fit=cover focus=top .round .grey}`. `fit=cover` fills the image's box (the
   slide's room, or its cell in a row) and crops what sticks out; `focus=top`, `bottom`, `left`,
   `right` or `center` (the default) says which part stays. `.round` crops it to a circle, `.grey`
-  shows it in grey, `.caption` is the same as `"caption"`, and `scale=1` as `"scale=1"`. An unknown
+  shows it in grey, `.caption` and `scale=1` work as in the title. An unknown
   attribute is an error.
-- **QR codes:** `![Survey](qr:https://example.com)` draws a QR code of the text after `qr:`;
-  `"caption"` puts the alt text under it.
+- **QR codes:** `![Survey](qr:https://example.com)` draws a QR code of the text after `qr:`.
 - `==text==` marks text like a highlighter pen.
 - `[words]{.success}` sets a few words bold in a status colour: `.success`, `.info`, `.warning`,
   `.danger` or `.neutral` — for a verdict inside a sentence, such as `[on schedule]{.success}`.
 - **Footnotes:** `[^1]` in the text and `[^1]: The source.` on a line of its own anywhere below.
-  The reference becomes a small raised number, counted from 1 on each slide, and the note is set in
-  small text at the foot of the slide that references it. Use them for sources, not for content. A
-  reference without its definition stays as written.
+  The reference becomes a raised number, the note small text at the foot of its slide. Use them for
+  sources. A reference without its definition stays as written.
 - **Task lists:** `- [ ] open` and `- [x] done` get an empty or ticked box instead of a bullet.
 - **Definition lists:** a term on a line of its own, then `:   ` and its description on the next
   line. They are shown like `::: rows`: the term in bold on the left, its description beside it.
@@ -102,12 +100,31 @@ of memory per plan.
   blocks; cards, a panel or columns stay together. Three or four cards with one or two lines each
   fill a slide.
 
+**Timelines and Gantt charts:** `::: timeline` around a list of 2–8 `- **date** Title: description`;
+`::: gantt` around a table of 1–20 rows of task, start and end (no end: a milestone). Dates:
+`2026`, `2026-Q2`, `2026-03`, `2026-03-15`; what ended before today is grey. `today=2026-11-01`
+after the name pins today; `grid=week|month|quarter` sets a Gantt's grid.
+
+````markdown
+## Plan
+
+::: timeline
+- **2026-01** Start
+- **2026-06** Go-live: all regions
+:::
+
+::: gantt grid=month
+| Task | Start | End |
+| ---- | ----- | --- |
+| Build | 2026-02 | 2026-05 |
+| Launch | 2026-06 | |
+:::
+````
+
 ## Presenting
 
 **Speaker notes:** `::: notes` … `:::` under a heading holds what the presenter says. It is not
-shown on the slide but in PowerPoint's notes pane and on the notes pages. It goes on every slide
-the section produces, also on the further slides of a slide that did not fit, and it never changes
-the slide's layout.
+shown on the slide but in PowerPoint's notes pane, on every slide the section produces.
 
 ````markdown
 ## Where we stand
@@ -126,13 +143,13 @@ Start with the **good news**, then the delays:
 - Speaker notes hold paragraphs and lists, with bold, italic, code and links. A table, code block,
   image or quote in them is written as plain text.
 - Put `::: notes` at the top level of a section, after its heading: not inside another container,
-  a list or a quote. Several of them in one section are joined in order.
+  a list or a quote.
 
 **Transitions:** how a slide is brought on when the deck is presented. `transition: fade` in the
 front matter sets it for every slide; `transition="…"` on a heading (`## Results {transition="push"}`,
 also with other attributes) for that slide alone, and `transition="none"` turns it off there. The
 transitions: `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut` and
-`morph`, each in PowerPoint's default direction and speed. `morph` moves the shapes that two
+`morph`. `morph` moves the shapes that two
 slides share from one to the other; viewers without it fade. Use one transition for the whole
 deck, and a different one only where it means something.
 
@@ -158,8 +175,7 @@ The end date does not move.
 | `{.exit}` | the block disappears |
 | `{.emphasize}` | the block pulses |
 
-- `{.frag .exit}` and other combinations play one after the other. Clicks follow the Markdown; a
-  slide that continues on another starts each from its first click.
+- `{.frag .exit}` and other combinations play one after the other. Clicks follow the Markdown.
 - Put a marker at the top level of a section, or inside a `:::` container or alert for what follows
   it there; before a container it builds the whole container. Not before a heading, `::: notes`,
   another marker or nothing, and not in a list, quote or speaker notes.

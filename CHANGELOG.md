@@ -134,6 +134,18 @@ updating, breaking changes first.
   `PptxOptions.Icons` / `PdfOptions.Icons` replace the set with your own, or switch icons off (`null`).
 - **New note:** `icon-not-drawn`, for an icon where the format cannot draw it.
 - **`tools/icon-import`** (`run.sh icon-import`) re-imports the Tabler set and checks its size budget.
+- **Timelines and Gantt charts:** `::: timeline` around a list of 2–8 `- **2026-03** Title: description`
+  entries draws a horizontal timeline, evenly spaced in date order, entries in the past grey and the
+  next one ringed; `::: gantt` around a table of 1–20 rows (task, start, end by position; no end: a
+  milestone) draws bars on a week, month or quarter grid (`grid=`, else chosen from the span) with a
+  line for today. Dates are `2026`, `2026-Q2`, `2026-03` or `2026-03-15`. Today comes from the
+  options' `TimeProvider`, or `today=2026-11-01` on the container pins it. Editable shapes on a flow
+  slide in decks (light on dark slides), vectors in PDFs. Both containers used to be an "Unknown
+  container" error, so no working document changes.
+- **`GeneratedTexts` has `MonthNames`, `DayFormat`, `MonthFormat`, `QuarterFormat` and
+  `WeekFormat`** for those dates, English ("15 Mar 2026", "W12") and German ("15. März 2026",
+  "KW 12"). A host's own `GeneratedTexts` built from `English` with `with { … }` gets the English
+  month names.
 
 ## 2610.28.22
 

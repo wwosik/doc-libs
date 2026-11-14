@@ -85,7 +85,7 @@ string guide = PdfGenerator.AuthoringGuide(options);   // starts at "##"
 | `Icons` | `TablerIcons.Outline` | the icons of `:icon-name:`; `null` switches them off, see [QR codes and icons](#qr-codes-and-icons) |
 | `Language` | `en` | the document language, unless front matter sets `lang` |
 | `Texts` | none | `GeneratedTexts` for further languages, by tag |
-| `TimeProvider` | `TimeProvider.System` | the date of generation in the footer |
+| `TimeProvider` | `TimeProvider.System` | the date of generation in the footer, and today for timelines and Gantt charts |
 
 Margins, font sizes, header and footer are fixed by the design.
 
@@ -304,6 +304,10 @@ Markdown written for the PPTX generator's
   throws. With front matter `transition` and `build`, a PDF from Markdown written for a deck is the
   same as from that Markdown without its
   [presenting](wwosik.DocLibs.DocumentGeneration.Pptx.md#presenting) parts.
+- **Timelines and Gantt charts** (`::: timeline`, `::: gantt`) are drawn as vectors, scaled down to
+  the text width and kept on one page like diagrams; see
+  [Timelines and Gantt charts](wwosik.DocLibs.DocumentGeneration.md#timelines-and-gantt-charts). Today is
+  `PdfOptions.TimeProvider`'s date unless `today=` pins it.
 - **Containers** (`::: cards`, `rows`, `panel`, `statement`, `columns`) show their content as normal
   blocks: a card's `###` is a heading, a short-form list a list, the columns of `::: columns` one
   after the other without the `---` between them.

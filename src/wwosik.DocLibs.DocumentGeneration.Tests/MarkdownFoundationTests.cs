@@ -62,10 +62,14 @@ public class MarkdownFoundationTests
     [Fact]
     public void GermanTexts_DifferFromEnglishInEveryText()
     {
-        foreach (var property in typeof(GeneratedTexts).GetProperties().Where(p => p.PropertyType == typeof(string)))
+        // "März 2026" and "Q2" are written as in English: only the month names differ there.
+        foreach (var property in typeof(GeneratedTexts).GetProperties()
+            .Where(p => p.PropertyType == typeof(string) && p.Name is not (nameof(GeneratedTexts.MonthFormat) or nameof(GeneratedTexts.QuarterFormat))))
         {
             Assert.NotEqual(property.GetValue(GeneratedTexts.English), property.GetValue(GeneratedTexts.German));
         }
+
+        Assert.NotEqual(GeneratedTexts.English.MonthNames, GeneratedTexts.German.MonthNames);
     }
 
     [Fact]

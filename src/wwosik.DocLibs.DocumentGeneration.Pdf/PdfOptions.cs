@@ -66,7 +66,10 @@ public sealed record PdfOptions
     /// </summary>
     public IIconSet? Icons { get; init; } = TablerIcons.Outline;
 
-    /// <summary>The clock for the date of generation in the footer. Default <see cref="TimeProvider.System"/>.</summary>
+    /// <summary>
+    /// The clock for the date of generation in the footer, and for today in timelines and Gantt charts that do not pin it
+    /// with <c>today=</c>. Default <see cref="TimeProvider.System"/>.
+    /// </summary>
     public TimeProvider TimeProvider { get; init; } = TimeProvider.System;
 }
 

@@ -34,6 +34,9 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
     private BuildMark? build;
     private Block? marked;
 
+    // Whether the blocks being walked are on a dark background: a `.dark` slide or a `::: panel dark`, for drawn containers.
+    private bool onDark;
+
     /// <remarks>
     /// <paramref name="brand"/> is the brand code-block renderers draw in; <paramref name="lineOffset"/> the lines of
     /// front matter cut off the Markdown, so renderers get the block's line in the original; <paramref name="notes"/>
@@ -365,7 +368,9 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         }
 
         var flow = new FlowCollector(this, inContainer: false);
+        this.onDark = attributes?.Dark ?? false;
         this.WalkMarked(blocks, flow, section: true);
+        this.onDark = false;
         this.slides.Add(new FlowSlide(title, attributes?.Kicker, attributes?.Dark ?? false, flow.Finish()) { Layout = attributes?.Layout });
         return Transition(attributes);
     }
@@ -697,6 +702,12 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         var name = container.Info ?? string.Empty;
         var arguments = container.Arguments?.Trim() ?? string.Empty;
         LayoutSyntax.CheckContainer(name, arguments, Format.Pptx);
+        if (VisualContainers.IsVisual(name))
+        {
+            target.Add(new DrawingBlock(VisualContainers.Draw(container, this.Visuals())) { Placement = DrawingPlacement.Default });
+            return;
+        }
+
         switch (name)
         {
             case "cards":
@@ -706,7 +717,10 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
                 target.Add(new RowsBlock(this.Rows(container)));
                 break;
             case "panel":
+                var outerDark = this.onDark;
+                this.onDark |= arguments == "dark";
                 target.Add(new PanelBlock(arguments == "dark", this.Flow(container)));
+                this.onDark = outerDark;
                 break;
             case "columns":
                 target.Add(this.Columns(container, arguments));
@@ -734,6 +748,14 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
                 break;
         }
     }
+
+    // What drawn containers are drawn with: on a dark background the brand for dark slides, unless it already is one.
+    private VisualContext Visuals() => new(
+        ResolvedBrand.Resolve(this.onDark && !ResolvedBrand.IsDark(brand) ? ResolvedBrand.DarkSlideBrand(brand) : brand),
+        VisualContext.TodayOf(options.TimeProvider),
+        texts,
+        this.LineOf,
+        Format.Pptx);
 
     // Its parts, split at thematic breaks (`---` after a blank line), side by side.
     private ColumnsBlock Columns(CustomContainer container, string arguments)

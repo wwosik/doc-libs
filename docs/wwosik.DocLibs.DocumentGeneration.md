@@ -341,7 +341,8 @@ provides `MermaidRenderer`. Any other diagram language can plug in the same way.
 
 The PPTX generator draws [layouts](wwosik.DocLibs.DocumentGeneration.Pptx.md#layouts) from Markdown:
 heading attributes (`## Title {.dark kicker="Label" layout="Name"}`, `# Thank you {.closing}`),
-`:::` containers (`cards`, `rows`, `panel`, `statement`, `columns`), GitHub alerts (`> [!NOTE]`),
+`:::` containers (`cards`, `rows`, `panel`, `statement`, `columns`, and the drawn
+[`timeline` and `gantt`](#timelines-and-gantt-charts)), GitHub alerts (`> [!NOTE]`),
 tag lists of code spans, `==marked==` text, `[words]{.success}` in a status colour, and paragraphs of
 only images, side by side.
 
@@ -416,7 +417,9 @@ is a BCP 47 tag such as `en`, `de`, `de-CH` or `en-GB`. Anything else is an erro
 
 - **Texts.** It picks the `GeneratedTexts`: the texts a generator writes itself, today the alert
   titles (`Note`, `Tip`, `Important`, `Warning`, `Caution`), the heading of the footnotes in a
-  PDF (`Notes`) and the word before a chart's source (`Source`; German `Quelle`). Code-block
+  PDF (`Notes`), the word before a chart's source (`Source`; German `Quelle`) and the dates of
+  [timelines and Gantt charts](#timelines-and-gantt-charts) (`MonthNames`, `DayFormat`,
+  `MonthFormat`, `QuarterFormat`, `WeekFormat`). Code-block
   renderers get them as `CodeBlockRequest.Texts`. `GeneratedTexts.English` and `GeneratedTexts.German` are built in; a host adds or
   replaces languages with the options' `Texts`, by tag. Every property defaults to English, so a
   new language starts from `GeneratedTexts.English with { Warning = "…" }` and stays complete when
@@ -440,6 +443,90 @@ one shows them is in its own documentation.
 - `- [ ] item` and `- [x] item` are task list items: a box instead of the bullet, empty or ticked.
 - A paragraph of one line followed by `:   description` lines is a definition list: the line is the
   term, each `:` line a description. Several terms in a row share the descriptions after them.
+
+## Timelines and Gantt charts
+
+Two `:::` containers draw a schedule from the Markdown inside them. Both are `Drawing`s, so decks get
+editable shapes on a [flow slide](wwosik.DocLibs.DocumentGeneration.Pptx.md#layouts) and PDFs vectors,
+scaled down to the text width; neither needs an option or a renderer.
+
+````markdown
+::: timeline
+- **2026-01** Kick-off
+- **2026-03** Design review: scope and budget agreed
+- **2026-06-30** Go-live
+:::
+
+::: gantt grid=month
+| Task         | Start      | End        |
+|--------------|------------|------------|
+| Analysis     | 2026-01-05 | 2026-02-13 |
+| Build        | 2026-02-16 | 2026-05-29 |
+| Go-live      | 2026-06-01 |            |
+:::
+````
+
+**Dates** are written in ISO form: `2026`, `2026-Q2`, `2026-03` or `2026-03-15`. Each is a period from
+its first to its last day; anything else throws `DocumentConversionException` naming the line and the
+accepted forms. They are shown in the document's [language](#document-language), from
+`GeneratedTexts` and without `CultureInfo` (hosts with invariant globalization show the same text):
+
+| Written | English | German |
+| ------- | ------- | ------ |
+| `2026-03-15` | 15 Mar 2026 (`DayFormat` `{0} {1} {2}`) | 15. März 2026 (`{0}. {1} {2}`) |
+| `2026-03` | Mar 2026 (`MonthFormat` `{0} {1}`) | März 2026 |
+| `2026-Q2` | Q2 2026 (`QuarterFormat` `Q{0}`, then the year) | Q2 2026 |
+| `2026` | 2026 | 2026 |
+| an ISO week on a Gantt axis | W12 (`WeekFormat` `W{0}`) | KW 12 (`KW {0}`) |
+
+`MonthNames` are twelve short names, January first: `Jan` … `Dec`, German `Jan.`, `Feb.`, `März`,
+`Apr.`, `Mai`, `Juni`, `Juli`, `Aug.`, `Sept.`, `Okt.`, `Nov.`, `Dez.`. A host's own `GeneratedTexts`
+built from `English` with `with { … }` keeps the English ones; a list of another length throws
+`ArgumentException` when a date is shown.
+
+**Today** is the date of `PptxOptions.TimeProvider` / `PdfOptions.TimeProvider` in UTC. `today=2026-11-01`
+after the container's name pins it, so a document looks the same whenever it is generated.
+
+**Arguments** are `key=value` pairs after the name: `today=YYYY-MM-DD` on both,
+`grid=week|month|quarter` on `gantt`. An unknown key or value, a key given twice, or a word that is no
+pair throws, listing the valid ones; both generators check them alike (`LayoutSyntax`).
+
+**`::: timeline`** holds one list of 2 to 8 entries, each starting with a bold date, then a title and an
+optional description after the first `:`. Fewer or more entries, another block, or an entry without
+a bold date or a title throw. Entries are sorted by date (equal dates in the order written) and drawn
+as a horizontal line with one dot per entry, **evenly spaced** — not to scale, so labels never collide
+— the date above the line, the bold title (at most two lines) and the description (at most three, cut
+with "…") below. With more than five entries every other entry has them the other way round, so its
+labels have twice the room. Entries whose period ended before today are grey (diagram `Line`); the
+first one that has not ended is ringed and its date in the accent colour, later ones have an accent
+dot. 960 px wide and as tall as the labels need: 116 px with one-line titles and no descriptions, up to 300 px.
+
+**`::: gantt`** holds one pipe table of 1 to 20 rows. The first three columns **by position** are task,
+start and end, whatever their headers say; further columns are ignored. A row without an end, or
+with the same end as start, is a milestone (a diamond on its start); an end before its start throws.
+A bar runs from the start's first to the end's last day.
+
+- **Grid:** `grid=` or, without it, from the span: up to 10 weeks weeks, up to 18 months months, else
+  quarters. The axis shows the year at its start and at each new year, then each unit's label: the
+  ISO week (`W12`), the month name or the quarter; with more than 26 units, every second (third, …)
+  label only.
+- **Drawing:** task names on the left (at most 226 px, shrunk down to 70 %), every other row banded in
+  the diagram `Surface` colour, a thin line at each unit, bars and diamonds in the diagram palette by
+  row, grey once they ended before today, and a line in `Highlight` for today when it lies within the
+  axis. 960 px wide, 50 px of axis plus 28 px a row.
+
+**Text** inside entries and cells keeps bold; other emphasis and links become plain text, code its
+text (a task that is only code is set in the mono font). Line breaks are estimated from the
+characters, since the real font is only known when the drawing is placed.
+
+**Colours** are the brand's [diagram colours](#what-a-brand-holds). On a dark slide — a `{.dark}`
+heading, a `::: panel dark`, or a brand's dark template — decks draw with the brand for dark slides
+(white text, light lines, the highlight as accent), as Mermaid diagrams on dark templates.
+
+Internally, `VisualContainers` is the ground for drawn containers: its names join `LayoutSyntax`'s, it
+checks their arguments and draws them from the `CustomContainer` and a `VisualContext` (brand, today,
+texts, lines, format); both parsers turn the drawing into a `DrawingBlock`. `DrawingTexts` turns inlines
+into `DrawingSpan`s and breaks them into lines; `SchedulePeriod` parses and shows the dates.
 
 ## QR codes and icons
 

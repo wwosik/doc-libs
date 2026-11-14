@@ -264,6 +264,17 @@ same change that made it untrue — a stale fact here is worse than a missing on
   `AuthoringGuides.Icons` and is empty with `Icons = null`. The shared package's licences are in its
   own `THIRD-PARTY-NOTICES.txt`.
 
+- **Drawn containers (E04-S07):** `VisualContainers` (shared) owns the `:::` containers drawn as a
+  `Drawing` (`timeline`, `gantt`; E04-S08 adds `steps`, `riskmatrix`): `Names` joins
+  `LayoutSyntax.Containers`, `CheckContainer` hands them to `VisualContainers.Check` (`key=value`
+  arguments per name in `Arguments`), and both parsers call `Draw(container, VisualContext)` and add a
+  `DrawingBlock` — decks in `DeckParser.Container` (a flow slide like any container), PDFs in
+  `MarkdownParser.Add` instead of showing the content plainly. `VisualContext` has the brand (decks: the
+  dark-slide brand when `onDark`, set by a `.dark` heading or `::: panel dark`), today (`TimeProvider`
+  in UTC, `today=` wins), `GeneratedTexts`, `LineOf` and the format. `DrawingTexts` makes `DrawingSpan`s
+  from inlines and breaks lines by an estimate; `SchedulePeriod` parses and shows ISO dates without
+  `CultureInfo`. `GeneratedTexts`' static month lists are declared before `English`/`German` (static
+  initialisation order). The PPTX guide is at the 2,600-word limit (E04-S07 trimmed other prose to fit).
 - **PDF structure (E08-S01):** `PdfConverter` runs a structured pass per page (`PageGraphics.Read` sorts
   `page.Paths` into rules, boxes, dots, fills; tables first, their words leave the flow; then lines with
   superscripts, footnotes, markers, code) and falls back to a plain pass (the converter before E08-S01:

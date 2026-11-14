@@ -114,6 +114,14 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
                 throw LayoutSyntax.NestedNotes(DocumentFormat.Pdf);
             case CustomContainer container:
                 LayoutSyntax.CheckContainer(container.Info ?? string.Empty, container.Arguments?.Trim() ?? string.Empty, DocumentFormat.Pdf);
+                if (VisualContainers.IsVisual(container.Info ?? string.Empty))
+                {
+                    target.Add(new DrawingBlock(VisualContainers.Draw(
+                        container,
+                        new VisualContext(ResolvedBrand.Resolve(brand), VisualContext.TodayOf(options.TimeProvider), texts, this.LineOf, DocumentFormat.Pdf))));
+                    break;
+                }
+
                 foreach (var child in container)
                 {
                     // The `---` between the columns of `::: columns` only separates them; the columns follow one another.
