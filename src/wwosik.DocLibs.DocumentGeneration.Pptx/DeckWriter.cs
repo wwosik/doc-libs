@@ -86,6 +86,9 @@ internal sealed partial class DeckWriter
     private readonly TemplateRoles roles;
     private readonly string? footerPattern;
     private string? deckTitle;
+
+    // Whether the code being written is on a dark code box (a `.dark` flow slide), for the colours of highlighted runs.
+    private bool codeOnDark;
     private readonly string? author;
     private readonly string templateName;
 
@@ -995,17 +998,20 @@ internal sealed partial class DeckWriter
     private long Code(Canvas? canvas, CodeLinesBlock code, Rect box, FlowStyle style)
     {
         var inner = box.W - (2 * Pad);
-        var lines = code.Lines.Sum(line => EstimateLines([new TextRun(line, RunStyle.Code)], style.Scaled(FlowSmallSize), inner));
+        var lines = code.Lines.Sum(line => EstimateLines(line.Count > 0 ? line : [new TextRun(string.Empty, RunStyle.Code)], style.Scaled(FlowSmallSize), inner));
         var height = (long)(lines * CodeLineSpacing / 100000.0) + TextInsets + (2 * RowPad);
         if (canvas is not null)
         {
             canvas.Add(Shape(canvas, box with { H = height }, A.ShapeTypeValues.RoundRectangle, style.Dark ? this.palette.DarkSurface : this.palette.Code, null));
+            // Highlighted runs on the dark box take the colours for dark code.
+            this.codeOnDark = style.Dark;
             var paragraphs = code.Lines.Select(line =>
             {
-                var paragraph = this.Paragraph(canvas, new TextParagraph(line.Length > 0 ? [new TextRun(line, RunStyle.Code)] : []), explicitBullets: true, style.Scaled(FlowSmallSize), color: style.Text);
+                var paragraph = this.Paragraph(canvas, new TextParagraph(line), explicitBullets: true, style.Scaled(FlowSmallSize), color: style.Text);
                 paragraph.ParagraphProperties!.PrependChild(new A.LineSpacing(new A.SpacingPercent { Val = CodeLineSpacing }));
                 return paragraph;
-            });
+            }).ToList();
+            this.codeOnDark = false;
             canvas.Add(TextBoxShape(canvas, new Rect(box.X + Pad, box.Y + RowPad, inner, height - (2 * RowPad)), paragraphs));
         }
 
@@ -1417,7 +1423,8 @@ internal sealed partial class DeckWriter
             properties.Bold = true;
         }
 
-        if ((run.Colour is { } category ? this.palette.WordColour(category)
+        if ((run.Token is { } token && this.palette.CodeColour(token, this.codeOnDark) is { } tokenColor ? tokenColor
+            : run.Colour is { } category ? this.palette.WordColour(category)
             : run.Style.HasFlag(RunStyle.Mark) ? this.palette.MarkText ?? color
             : color) is { } runColor)
         {

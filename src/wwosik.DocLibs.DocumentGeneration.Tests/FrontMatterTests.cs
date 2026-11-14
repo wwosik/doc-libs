@@ -52,7 +52,7 @@ public class FrontMatterTests
     }
 
     [Theory]
-    [InlineData("---\ncolour: red\n---\n", "'colour' is not supported by the template 'a'. Valid keys: template, title, author, lang, classification, draft, typography, size.")]
+    [InlineData("---\ncolour: red\n---\n", "'colour' is not supported by the template 'a'. Valid keys: template, title, author, lang, classification, draft, typography, highlight, size.")]
     [InlineData("---\ntemplate: c\n---\n", "'template' has the value 'c'; expected 'a' or 'b'.")]
     [InlineData("---\nsize: huge\n---\n", "'size' has the value 'huge'; expected 'small' or 'large'.")]
     public void Apply_Mistakes_ThrowNamingTheKey(string markdown, string expected)

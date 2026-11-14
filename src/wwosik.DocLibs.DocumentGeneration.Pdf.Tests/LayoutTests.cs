@@ -155,7 +155,7 @@ public class LayoutTests
         [
             new HeadingBlock(2, [Run("Done ✓")], "done"),
             Table(["Head ✓"], ["cell ✓"]),
-            new CodeBlock(["a ‖ b"]),
+            CodeBlock.Plain(["a ‖ b"]),
             new ParagraphBlock([Run("body ‖")]),
             .. Filler(60),
         ]);
@@ -218,7 +218,7 @@ public class LayoutTests
     {
         var code = "x" + string.Concat(Enumerable.Repeat("e\u0301", 200));
 
-        var layout = Engine().Run(new DocumentModel(null, [new CodeBlock([code])]));
+        var layout = Engine().Run(new DocumentModel(null, [CodeBlock.Plain([code])]));
 
         var lines = layout.Pages[0].Items.OfType<TextItem>().Where(t => t.Face == FontFace.Mono).Select(t => t.Text).ToList();
         Assert.True(lines.Count > 1);
@@ -390,7 +390,7 @@ public class LayoutTests
         "drawing" => [new DrawingBlock(new Drawing(400, 300, [new DrawingShape(DrawingPath.Rectangle(0, 0, 400, 300), "FF0000", null, 0)]))],
         "image" => [new ImageBlock(new DocumentResource("i.png", "image/png", new byte[1]), new ImageInfo(ImageFormat.Png, 400, 300), 1)],
         "table" => [Table(["first", "b"], ["c", "d"], ["e", "f"])],
-        "code" => [new CodeBlock(["first", "second", "third"])],
+        "code" => [CodeBlock.Plain(["first", "second", "third"])],
         "list" => [new ListBlock(false, 1, [[new ParagraphBlock([Run("first"), TextRun.Break, Run("x"), TextRun.Break, Run("y"), TextRun.Break, Run("z")])]])],
         "quote" => [new QuoteBlock([new ParagraphBlock([Run("first"), TextRun.Break, Run("x"), TextRun.Break, Run("y")])])],
         "paragraph" => [new ParagraphBlock([Run("first"), TextRun.Break, Run("x"), TextRun.Break, Run("y")])],

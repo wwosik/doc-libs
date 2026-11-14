@@ -49,6 +49,9 @@ internal sealed partial record ResolvedBrand(
     /// <summary>The brand's own Word template, if it has one.</summary>
     public DocxBrandTemplate? Docx { get; init; }
 
+    /// <summary>The colours of highlighted code, before the contrast correction (<see cref="ResolvedCodeColors.On"/>).</summary>
+    public ResolvedCodeColors Code { get; init; } = null!;
+
     /// <summary>The family name decks put in their theme: the brand's, else Arial.</summary>
     public string FontFamily => this.Fonts?.Family ?? "Arial";
 
@@ -186,7 +189,75 @@ internal sealed partial record ResolvedBrand(
             Docx = brand.Docx is { Content.IsEmpty: true } ? throw Invalid(brand, nameof(Brand.Docx), "is empty")
                 : brand.Docx is { Styles: null } ? throw Invalid(brand, "Docx.Styles", "is missing")
                 : brand.Docx,
+            Code = ResolveCode(brand, colors.Code, primary, footer, link, resolvedDiagram, resolvedLabels),
         };
+    }
+
+    // Code colours: each set one checked and kept as it is, each other derived (and corrected per background by `On`).
+    private static ResolvedCodeColors ResolveCode(
+        Brand brand, BrandCodeColors? code, string primary, string footer, string link, ResolvedDiagramColors diagram, ResolvedLabelColors labels)
+    {
+        var given = new HashSet<CodeTokenKind>();
+        string Role(CodeTokenKind kind, string? value, string fallback)
+        {
+            if (value is null)
+            {
+                return fallback;
+            }
+
+            given.Add(kind);
+            return Color(brand, "Colors.Code." + kind, value);
+        }
+
+        return new ResolvedCodeColors(
+            Role(CodeTokenKind.Keyword, code?.Keyword, primary),
+            Role(CodeTokenKind.String, code?.String, labels.Success),
+            Role(CodeTokenKind.Comment, code?.Comment, footer),
+            Role(CodeTokenKind.Number, code?.Number, labels.Warning),
+            Role(CodeTokenKind.Type, code?.Type, diagram.Accent),
+            Role(CodeTokenKind.Markup, code?.Markup, link))
+        {
+            Given = given,
+        };
+    }
+
+    /// <summary>The WCAG contrast ratio of two colours, 1 to 21.</summary>
+    internal static double Contrast(string a, string b)
+    {
+        var (la, lb) = (Luminance(a), Luminance(b));
+        return (Math.Max(la, lb) + 0.05) / (Math.Min(la, lb) + 0.05);
+    }
+
+    /// <summary>
+    /// <paramref name="color"/>, darkened (with <paramref name="dark"/>, for light text on a dark background: lightened)
+    /// in steps until its contrast on <paramref name="background"/> is at least <paramref name="ratio"/>; unchanged when
+    /// it already is. Where even black (white) falls short, black (white): as readable as text on it can be.
+    /// </summary>
+    internal static string Readable(string color, string background, bool dark, double ratio = 4.5)
+    {
+        for (var share = 1.0; share > 0; share -= 0.02)
+        {
+            var candidate = share >= 1.0 ? color : dark ? Mix(color, share) : Shade(color, share);
+            if (Contrast(candidate, background) >= ratio)
+            {
+                return candidate;
+            }
+        }
+
+        return dark ? White : Black;
+    }
+
+    // The relative luminance of WCAG 2.
+    private static double Luminance(string color)
+    {
+        var rgb = int.Parse(color, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        static double Linear(int channel)
+        {
+            var c = channel / 255.0;
+            return c <= 0.03928 ? c / 12.92 : Math.Pow((c + 0.055) / 1.055, 2.4);
+        }
+
+        return (0.2126 * Linear((rgb >> 16) & 0xFF)) + (0.7152 * Linear((rgb >> 8) & 0xFF)) + (0.0722 * Linear(rgb & 0xFF));
     }
 
     // Chart colours: each set one checked, each other derived; for a dark background, darker fills and lighter lines.
@@ -267,6 +338,15 @@ internal sealed partial record ResolvedBrand(
         },
         Highlight = slides.Highlight ?? pdf.Highlight,
         Chart = slides.Chart ?? pdf.Chart,
+        Code = slides.Code is null ? pdf.Code : pdf.Code is null ? slides.Code : new BrandCodeColors
+        {
+            Keyword = slides.Code.Keyword ?? pdf.Code.Keyword,
+            String = slides.Code.String ?? pdf.Code.String,
+            Comment = slides.Code.Comment ?? pdf.Code.Comment,
+            Number = slides.Code.Number ?? pdf.Code.Number,
+            Type = slides.Code.Type ?? pdf.Code.Type,
+            Markup = slides.Code.Markup ?? pdf.Code.Markup,
+        },
         Labels = slides.Labels is null ? pdf.Labels : pdf.Labels is null ? slides.Labels : new BrandLabelColors
         {
             Success = slides.Labels.Success ?? pdf.Labels.Success,
@@ -406,6 +486,45 @@ internal sealed record ResolvedChartColors(
     string TotalFill,
     string TooltipFill,
     string TooltipText);
+
+/// <summary>
+/// The colours of highlighted code by <see cref="CodeTokenKind"/>; <see cref="Given"/> are the kinds the brand set, which
+/// are used as they are.
+/// </summary>
+internal sealed record ResolvedCodeColors(string Keyword, string String, string Comment, string Number, string Type, string Markup)
+{
+    public IReadOnlySet<CodeTokenKind> Given { get; init; } = new HashSet<CodeTokenKind>();
+
+    /// <summary>The colour of <paramref name="kind"/>; <see langword="null"/> for plain text and punctuation, which are in the text colour.</summary>
+    public string? Of(CodeTokenKind kind) => kind switch
+    {
+        CodeTokenKind.Keyword => this.Keyword,
+        CodeTokenKind.String => this.String,
+        CodeTokenKind.Comment => this.Comment,
+        CodeTokenKind.Number => this.Number,
+        CodeTokenKind.Type => this.Type,
+        CodeTokenKind.Markup => this.Markup,
+        _ => null,
+    };
+
+    /// <summary>
+    /// The colours for code on <paramref name="background"/>: each derived one with a contrast of at least 4.5:1 on it,
+    /// darkened for dark text, lightened with <paramref name="dark"/> (white text on a dark background).
+    /// </summary>
+    public ResolvedCodeColors On(string background, bool dark = false)
+    {
+        string Fix(CodeTokenKind kind, string color) => this.Given.Contains(kind) ? color : ResolvedBrand.Readable(color, background, dark);
+        return this with
+        {
+            Keyword = Fix(CodeTokenKind.Keyword, this.Keyword),
+            String = Fix(CodeTokenKind.String, this.String),
+            Comment = Fix(CodeTokenKind.Comment, this.Comment),
+            Number = Fix(CodeTokenKind.Number, this.Number),
+            Type = Fix(CodeTokenKind.Type, this.Type),
+            Markup = Fix(CodeTokenKind.Markup, this.Markup),
+        };
+    }
+}
 
 internal sealed record ResolvedDiagramColors(string Text, string Line, string Accent, string Surface, string Border, IReadOnlyList<string> Palette);
 

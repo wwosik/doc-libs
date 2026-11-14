@@ -50,9 +50,11 @@ internal static partial class AuthoringGuides
     /// <summary>The front matter section: the syntax, then one table row per key.</summary>
     /// <param name="templates">The names <c>template</c> takes, as <see cref="BrandRegistry.Expected"/> lists them.</param>
     /// <param name="language">The options' document language, the default of <c>lang</c>.</param>
-    /// <param name="keys">The keys besides <c>title</c>, <c>author</c>, <c>lang</c>, <c>typography</c> and <c>template</c>, with their values and meaning.</param>
+    /// <param name="keys">The keys besides <c>title</c>, <c>author</c>, <c>lang</c>, <c>typography</c>, <c>highlight</c> and <c>template</c>, with their values and meaning.</param>
     /// <param name="typography">The options' typography, the default of <c>typography</c>.</param>
-    public static string FrontMatter(string templates, string language, IEnumerable<(string Key, string Meaning)> keys, bool typography = false)
+    /// <param name="highlight">The options' code highlighting, the default of <c>highlight</c>.</param>
+    public static string FrontMatter(
+        string templates, string language, IEnumerable<(string Key, string Meaning)> keys, bool typography = false, bool highlight = false)
     {
         var text = new StringBuilder("""
             ## Front matter
@@ -77,6 +79,8 @@ internal static partial class AuthoringGuides
             $"| `lang` | The document language, such as `en`, `de` or `de-CH`: of the texts the generator writes itself, and of spell checking. Default `{language}`. |\n"));
         text.Append(CultureInvariant(
             $"| `typography` | `true` sets typographic quotes, dashes, `…` and no-break spaces (`10 km`) for the language; type straight quotes. Default `{(typography ? "true" : "false")}`. |\n"));
+        text.Append(CultureInvariant(
+            $"| `highlight` | `true` colours fenced code in these languages: {CodeLanguages.List()}. Default `{(highlight ? "true" : "false")}`. |\n"));
         text.Append(CultureInvariant($"| `template` | The design: {templates.Replace("'", "`", StringComparison.Ordinal)}. |\n"));
         foreach (var (key, meaning) in keys)
         {

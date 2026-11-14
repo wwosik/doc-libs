@@ -71,6 +71,19 @@ internal sealed record SlidePalette(
 {
     private static readonly SlideColor Black = new("000000");
 
+    // Highlighted code on a caller's template: keywords in accent 1, types in accent 2, strings in accent 6, numbers in
+    // accent 4, comments in the text colour at 60 %, markup in the hyperlink colour.
+    private static readonly Dictionary<CodeTokenKind, SlideColor> SchemeCodeTokens = new()
+    {
+        [CodeTokenKind.Keyword] = SlideColor.Theme(A.SchemeColorValues.Accent1),
+        [CodeTokenKind.Type] = SlideColor.Theme(A.SchemeColorValues.Accent2),
+        [CodeTokenKind.String] = SlideColor.Theme(A.SchemeColorValues.Accent6),
+        [CodeTokenKind.Number] = SlideColor.Theme(A.SchemeColorValues.Accent4),
+        [CodeTokenKind.Comment] = SlideColor.Theme(A.SchemeColorValues.Text1, 60000, 40000),
+        [CodeTokenKind.Markup] = SlideColor.Theme(A.SchemeColorValues.Hyperlink),
+    };
+
+
     /// <summary>
     /// Whether every slide is dark (a brand template of <see cref="SlideTone.Dark"/>): the blocks then take the dark
     /// styles throughout, and everything the generator writes is in <see cref="Text"/>.
@@ -97,6 +110,16 @@ internal sealed record SlidePalette(
 
     /// <summary>Table cells on dark slides: the header row, every other row and the text; <see langword="null"/>: the table style's.</summary>
     public (SlideColor Header, SlideColor Band, SlideColor Text)? DarkTable { get; init; }
+
+    /// <summary>Highlighted code on the code box and on light slides, by token kind; plain text has none.</summary>
+    public IReadOnlyDictionary<CodeTokenKind, SlideColor> CodeTokens { get; init; } = new Dictionary<CodeTokenKind, SlideColor>();
+
+    /// <summary>Highlighted code on the dark code box of a <c>.dark</c> slide, by token kind.</summary>
+    public IReadOnlyDictionary<CodeTokenKind, SlideColor> DarkCodeTokens { get; init; } = new Dictionary<CodeTokenKind, SlideColor>();
+
+    /// <summary>The colour of a highlighted run of <paramref name="kind"/>; <see langword="null"/>: the text's own.</summary>
+    public SlideColor? CodeColour(CodeTokenKind kind, bool onDark) =>
+        (onDark ? this.DarkCodeTokens : this.CodeTokens).TryGetValue(kind, out var color) ? color : null;
 
     /// <summary>The colour of <c>[words]{.success}</c>: the category's colour, on dark slides lightened halfway to white.</summary>
     public SlideColor WordColour(LabelCategory category) => this.DarkSlides
@@ -131,6 +154,8 @@ internal sealed record SlidePalette(
         NoteBar = new SlideColor(brand.Primary),
         ImportantBar = new SlideColor(brand.Highlight),
         MarkFill = new SlideColor(ResolvedBrand.Mix(brand.Highlight, 0.15)),
+        CodeTokens = Tokens(brand.Code.On(ResolvedBrand.Mix(brand.TableLine, 0.30))),
+        DarkCodeTokens = Tokens(brand.Code.On(ResolvedBrand.Mix(brand.Primary, 0.85), dark: true)),
     };
 
     /// <summary>
@@ -162,6 +187,8 @@ internal sealed record SlidePalette(
         MarkFill = null,
         MarkText = new SlideColor(brand.Highlight),
         DarkTable = (Black.Translucent(40), SlideColor.White.Translucent(8), SlideColor.White),
+        CodeTokens = Tokens(brand.Code.On(DarkCodeBackground, dark: true)),
+        DarkCodeTokens = Tokens(brand.Code.On(DarkCodeBackground, dark: true)),
     };
 
     /// <summary>
@@ -180,7 +207,18 @@ internal sealed record SlidePalette(
         SlideColor.Theme(A.SchemeColorValues.Text2),
         SlideColor.Theme(A.SchemeColorValues.Text2, 85000, 15000),
         SlideColor.Theme(A.SchemeColorValues.Text2, 65000, 35000),
-        LabelColors(ResolvedBrand.Neutral.Labels));
+        LabelColors(ResolvedBrand.Neutral.Labels))
+    {
+        CodeTokens = SchemeCodeTokens,
+        DarkCodeTokens = SchemeCodeTokens,
+    };
+
+    // What code on a dark template is checked against: the slide's background is the template's, unknown here, so a
+    // dark grey that the white veil of the code box over most dark backgrounds is no lighter than.
+    private const string DarkCodeBackground = "374151";
+
+    private static Dictionary<CodeTokenKind, SlideColor> Tokens(ResolvedCodeColors colors) =>
+        Enum.GetValues<CodeTokenKind>().Where(k => colors.Of(k) is not null).ToDictionary(k => k, k => new SlideColor(colors.Of(k)));
 
     private static Dictionary<LabelCategory, string> LabelColors(ResolvedLabelColors labels) => new()
     {

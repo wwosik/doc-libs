@@ -95,7 +95,8 @@ public static class PdfGenerator
             options.TypographyRules,
             c => TextFaces.All(face => fonts.HasGlyph(new Rune(c), face)),
             notes);
-        var model = MarkdownParser.Parse(document with { Markdown = frontMatter.Body }, options, options.Template.BrandValue, frontMatter.BodyLine, notes, language.Texts, typography);
+        var model = MarkdownParser.Parse(document with { Markdown = frontMatter.Body }, options, options.Template.BrandValue, frontMatter.BodyLine, notes, language.Texts, typography,
+            CodeHighlighting.For(frontMatter, options.HighlightCode, notes));
         if (options.TableOfContents && model.Contents is null)
         {
             notes.Add(
@@ -169,7 +170,7 @@ public static class PdfGenerator
                     registry.Expected,
                     options.Language,
                     [.. options.Template.Keys.Concat([PageSizeKey, OrientationKey, TocKey, TocDepthKey, HeadingNumbersKey, JustifyKey]).Select(k => (k, meanings[k])), classification, draft, deckKeys, labels],
-                    options.Typography),
+                    options.Typography, options.HighlightCode),
                 ["characters"] = Characters(FontSet.For(ResolvedBrand.Resolve(options.Template.BrandValue)), options.ReplaceUnsupported is not null),
                 ["icons"] = AuthoringGuides.Icons(
                     options.Icons,

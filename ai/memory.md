@@ -113,7 +113,8 @@ same change that made it untrue — a stale fact here is worse than a missing on
 - Exception: **generators** (Markdown → document) live in `wwosik.DocLibs.DocumentGeneration.<Format>`
   packages, because their dependencies are heavy and disjoint (Open XML SDK for PPTX; Markdig and
   bundled fonts for PDF). What they share lives in `wwosik.DocLibs.DocumentGeneration`, which
-  depends only on the main package. The main package must stay PdfPig-only.
+  depends on the main package, Markdig, QRCoder and (since E06-S04) ColorCode.Core. The main package must stay
+  PdfPig-only.
 - **Diagrams are our own vector `Drawing`, never images** (E04-S01): the PDF renderer writes
   path operators straight into `PdfPageBuilder.CurrentStream.Operations` inside `q … Q` (PdfPig
   has no curve API), the PPTX writer makes a group of preset shapes, custom geometry and text
@@ -287,6 +288,20 @@ same change that made it untrue — a stale fact here is worse than a missing on
   must lie within one run. The font check is a `Func<int, bool>`: PDFs `FontSet.HasGlyph` over the eight text and
   table faces, decks and DOCX `ResolvedFonts.HasEveryTextFace`, everything without brand fonts. Drawings
   (renderers, `VisualContainers`) are never typeset.
+- **Code highlighting (E06-S04):** `CodeHighlighting.For(frontMatter, options.HighlightCode, notes)` (null = off;
+  front matter `highlight` over the option) goes to `DeckParser`, `MarkdownParser` and `DocxContext`; its `Lines`
+  returns `null` for a block it does not highlight, and every caller then takes its old plain path, which is what
+  keeps output byte-identical with highlighting off — keep it that way. It runs after the renderers (a renderer
+  that reported `code-not-drawn` on the block's line suppresses `code-language-unknown`, via `GenerationNotes.Has`).
+  `CodeHighlighter` wraps ColorCode.Core with its **own** `LanguageCompiler` cache and repository (ColorCode's
+  global `Languages` registry is read for its built-in definitions but never loaded into or compiled in); own
+  JSON/YAML/Bash definitions in `Highlighting/OwnLanguages.cs` must stay linear-time (no nested quantifiers over
+  the same characters; ColorCode's regexes have no timeout), and a literal `(` inside a character class would break
+  ColorCode's capture counting. Colours: `ResolvedBrand.Code` (`ResolvedCodeColors`), corrected per background by
+  `On(background, dark)`: only derived colours are corrected, brand-set ones are used as given. Decks: `TextRun.Token`,
+  `SlidePalette.CodeTokens`/`DarkCodeTokens` (`DeckWriter.codeOnDark` while writing a `.dark` code box); PDFs:
+  `CodeBlock` lines of `CodeSpan`s, one `TextItem` per span; DOCX: a run per span with `w:color` (theme colours on
+  caller templates). ColorCode.Core passes a Native AOT publish without warnings.
 - **Speaker notes and transitions (E07-S01):** `DeckParser.Section` takes top-level `::: notes` out
   of a section before the slide kind is decided and sets `Slide.SpeakerNotes` and `Slide.Transition`
   on every slide of the section; `Fit` copies both to every part. A new per-slide property must be

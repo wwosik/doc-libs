@@ -1,7 +1,7 @@
 # E06-S04 Code highlighting
 
-> Status: in progress (doc-3)
-> Epic: [E06 Markdown syntax](../../50-todo/E06-markdown-syntax.md)
+> Status: in verification
+> Epic: [E06 Markdown syntax](../50-todo/E06-markdown-syntax.md)
 
 ## Summary
 
@@ -205,3 +205,111 @@ Split from the analysis's "typography and code highlighting" item; typography is
   whole shared package — and so every generator — not AOT-compatible. If the AOT check warns,
   implementation stops and asks; the alternatives are suppressing a warning that is shown to be
   harmless, or an own regex tokeniser for the same languages without ColorCode.
+
+## Implementation notes
+
+### Breaking changes
+
+- **The shared package `wwosik.DocLibs.DocumentGeneration` now depends on ColorCode.Core 2.0.15** (MIT,
+  managed, `netstandard2.0`, 122 000 bytes, no further dependencies), so every generator brings it along.
+  It is loaded only when a document is highlighted. In the CHANGELOG under *Breaking changes*, like the
+  QRCoder dependency before it.
+- No change in output: highlighting is off unless switched on. The off state was checked by generating every
+  Markdown sample of the PPTX, PDF and DOCX tests plus a code-heavy document (all fenced languages, unknown
+  ones, `text`, indented code, a `.dark` flow slide, long lines) for the neutral and the sample brand as
+  `.pptx`, `.pdf` and `.docx` before and after the change, and comparing them: decks and Word documents part
+  by part (embedded workbooks too) with relationship ids masked, PDFs with `/ID`, dates and XMP ids masked,
+  plus the notes — 132 of 132 files identical; repeated after rebasing onto E03-S03, E03-S04, E07-S04 and
+  E07-S06 against `origin/main`: 144 of 144 identical.
+- The authoring guides change (a `highlight` row in *Front matter* with the languages, the note
+  `code-language-unknown` in the notes list), and with them `tool-guide.expected.md`. To keep within the word
+  limits (PPTX 3,500, PDF 2,500, both full after the stories merged in parallel), a few sentences elsewhere
+  in `Pptx.md` and `Pdf.md` were shortened. PDF: the paragraph bullet ("broken at spaces"), the table
+  bullet ("wider tables squeeze their words"), the image caption and `scale=` attribute lines, the QR-code
+  length hint and "dark on white", the definition-list bullet, "not interpreted" for HTML, "and a link to
+  it" for contents entries, the *When something is wrong* paragraph. PPTX: the *Keep slides short* bullet,
+  the footnote bullet ("Use them for sources", "A reference without its definition stays as written" — the
+  note `footnote-missing` says it), the definition-list and "several images" asides, the status-colour
+  aside. Worth a read by the human; nothing a writer needs is lost.
+- The front-matter error for an unknown key lists `highlight` among the valid keys.
+
+### Decisions and deviations
+
+- **DOCX too,** as asked after the plan was written: `DocxOptions.HighlightCode`, the same key, a run per
+  piece in the `Code` style with `w:color` as direct formatting; on a caller's Word template the theme colours
+  (`w:themeColor` accent 1, accent 2, accent 6, accent 4, `text1` with tint `99` for comments, `hyperlink`),
+  with the neutral brand's hex as Word's fallback. The DOCX → Markdown round trip still reads the block.
+- **JSON is an own definition although ColorCode 2.0.15 ships one:** its string pattern
+  (`"[^"\\]*(?:\\[^\r\n]|[^"\\]*)*"`) nests quantifiers over the same characters and can take exponential
+  time on an unclosed string — and ColorCode builds its regexes without a timeout. The own JSON, YAML and Bash
+  definitions avoid such patterns; a test runs a 400 000-character unclosed string through all three.
+  ColorCode's own languages remain regex-based without a timeout; with highlighting switched on, a hostile
+  document could in principle find a slow pattern there (verification item below).
+- **ColorCode's global registry is left alone:** the plan said own languages are loaded with
+  `Languages.Load`. That would change a process-wide registry a host using ColorCode shares. Instead
+  `CodeHighlighter` has its own `LanguageParser` with its own `LanguageCompiler` cache and an
+  `ILanguageRepository` that serves the own definitions (ids `doclibs-json`, `doclibs-yaml`, `doclibs-bash`)
+  and falls back to ColorCode's built-in ones. Nothing is compiled before the first highlighted block.
+- **Languages offered:** the plan's list. ColorCode also has Fortran, MATLAB, Koka and the ASP.NET variants;
+  they are not offered (not in the plan, not in the guides). Aliases: `cs`, `c#`; `vbnet`, `vb.net`; `fs`,
+  `f#`; `c`, `c++`; `js`; `ts`; `py`; `ps1`, `pwsh`; `htm`; `xaml`; `md`; `hs`; `yml`; `sh`, `shell`, `zsh`.
+  The guides list only the main names (word limit); the docs list the aliases.
+- **Token mapping:** ColorCode's scope names map to `CodeTokenKind`; the innermost scope wins. Shell
+  variables, PowerShell variables and attributes are `Type`; JSON and YAML keys and PowerShell parameters
+  are `Markup`. ColorCode's own definitions decide what is found: e.g. C# class names in declarations, `let`
+  in TypeScript and `#include` in C++ are not marked by ColorCode 2.0.15 and stay plain.
+- **Note `code-language-unknown`:** given for any fenced language that neither a renderer drew nor the
+  highlighter knows, so also for `mermaid` or `chart` when no such renderer is registered. A renderer that
+  declined a block and reported `code-not-drawn` on its line suppresses the second note
+  (`GenerationNotes.Has`).
+- **Contrast correction:** only colours the brand leaves out are corrected; a colour set in
+  `colors.code.*` is used as given (the plan's acceptance names the defaults). `On(background, dark)` darkens
+  (or for light-on-dark text lightens) in 2 % steps until 4.5:1; where even black or white falls short, it
+  becomes black or white. The direction is explicit, not inferred from the background: a `.dark` code box can
+  be mid-tone while the text on it is white. Backgrounds: PDFs and Word `F3F4F6`; deck code box
+  `Mix(TableLine, 0.30)` (also used for code on plain light slides, which sit on white and so have more
+  contrast); `.dark` slides of a light template their code box `Mix(Primary, 0.85)`; dark templates a fixed
+  `374151`, since their background is the template's and unknown to the palette.
+- **Dark slides with a mid-tone primary get no visible highlighting:** on the sample brand's teal `.dark`
+  slide even white text has only about 3.5:1 on the code box, so every derived colour becomes white. On a
+  dark template, or a dark primary such as the neutral brand's, the lightened colours are visible but pale.
+  `slideColors.code.*` sets deck colours, but for light and dark slides of one deck alike.
+- **The neutral brand's keywords and types look almost like the text** (`Primary` and `Diagram.Accent` are
+  both `1F2937`): highlighting there shows strings, numbers, comments and markup. As planned (question 4);
+  worth a look.
+- **Decks:** `TextRun.Token` (null outside highlighted code); `CodeLinesBlock` now holds lines of runs, built
+  by the parser exactly as the writer used to build them when off. Theme colours on caller templates as
+  planned; comments are text 1 with `lumMod 60000 lumOff 40000`.
+- **PDFs:** `CodeBlock(Lines of CodeSpan, Language)`, `CodeBlock.Plain` for plain lines. `LayoutEngine` breaks
+  by characters across spans (a break splits a span, keeping its kind) and writes one `TextItem` per span,
+  each starting where the previous one ended in the mono face. With one span per line it is the old code
+  path's output.
+- **The HTML deck's DrawingML contract** (`EverySampleDeck_IsDrawn_WithNothingLeftOut`): the features deck
+  now has `highlight: true` and highlighted code on a light and a `.dark` slide; the reader needed no change
+  (run fills in hex and scheme colours were already read).
+
+### Verification
+
+- Native AOT: a small app in `.tmp/aot-app` referencing the PDF generator and generating a PDF with
+  `highlight: true` (C#, JSON, YAML, Bash, HTML, an unknown language) publishes for `linux-x64` without a
+  warning and runs; the shared package stays `IsAotCompatible`. A probe of ColorCode.Core alone published
+  without warnings too.
+- Tests: `CodeHighlightingTests` in the shared tests (each own language, ColorCode languages, aliases,
+  token coverage, linear time, line splitting, the note and its suppression, the switch, default colours
+  and contrast on light and dark backgrounds for three brands, brand colours used as given and checked,
+  brand pack `colors.code.*` and an unknown key, slide colours merged), PPTX (off, the switch both ways,
+  colours for both brands, a `.dark` flow slide, the dark template, a caller template's theme colours, brand
+  colours, the note, renderers first, inline and indented code plain; decks through the Open XML validator),
+  PDF (spans, the switch, colours and positions in the layout, breaking across spans, the note, PDF/A marker
+  and text for both brands) and DOCX (all three templates through the validator, theme colours on the caller
+  template, the switch, the note, the round trip).
+- `./run.sh build`: 0 warnings. `./run.sh test` after the rebase: 123 + 161 + 1 + 300 + 35 + 466 + 525 + 71 + 78
+  = 1,760 passed, 6 Windows-only skipped, none failed.
+- Review files in `.tmp/review/`: `code-highlighting-*.pptx|pdf|docx` (from the tests),
+  `code-neutral.*` / `code-sample.*` (the code-heavy document, highlighted) with PNG renders of the decks and
+  PDFs, `aot-highlighting.pdf`.
+- For the human: open a highlighted deck in PowerPoint (no PowerPoint here; the Open XML validator and the
+  HTML deck reader pass); run veraPDF on a highlighted PDF (only the `pdfaid` marker is checked); look at the
+  colours of the neutral brand and on `.dark` slides (see above) and decide whether the derivation is
+  good enough; decide whether ColorCode's own regexes without a timeout are acceptable for untrusted Markdown
+  with highlighting on.

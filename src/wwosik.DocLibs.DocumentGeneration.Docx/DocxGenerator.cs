@@ -137,6 +137,7 @@ public static class DocxGenerator
                     Design = design,
                     Marking = marking,
                     Typography = typography,
+                    Highlighting = CodeHighlighting.For(frontMatter, options.HighlightCode, notes),
                 };
                 DocxWriter.Write(content, context, DocxBody.Instance, author, date, options.TableOfContents, options.TableOfContentsDepth);
                 DocxMarking.Apply(context, template.IsBuiltIn ? LogoIndent(brand) : null, (brand ?? ResolvedBrand.Neutral).FontFamily);
@@ -227,7 +228,7 @@ public static class DocxGenerator
                     registry.Expected,
                     options.Language,
                     [.. template.Keys.Concat([TocKey, TocDepthKey, HeadingNumbersKey, JustifyKey]).Select(k => (k, meanings[k])), classification, draft, deckKeys, labels],
-                    options.Typography),
+                    options.Typography, options.HighlightCode),
                 ["characters"] = Characters(brand?.Fonts, codeFont),
                 ["imageFormats"] = options.ImageConverters.Count > 0
                     ? "Images are PNG, JPEG or GIF, or SVG: an `.svg` image keeps its SVG, which Word draws sharp\n  at any size."

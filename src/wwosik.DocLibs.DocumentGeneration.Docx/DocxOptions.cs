@@ -83,6 +83,15 @@ public sealed record DocxOptions
     public IReadOnlyDictionary<string, TypographyRules> TypographyRules { get; init; } = new Dictionary<string, TypographyRules>();
 
     /// <summary>
+    /// Colours fenced code blocks that name their language (<c>```csharp</c>), unless the front matter sets
+    /// <c>highlight</c>: keywords, strings, comments, numbers, type names and markup in the brand's code colours
+    /// (<see cref="BrandColors.Code"/>), on a caller's template in its theme colours. Colour only: line widths stay the
+    /// same. A language the highlighter does not know gives the note <see cref="NoteCodes.CodeLanguageUnknown"/>.
+    /// Default <see langword="false"/>.
+    /// </summary>
+    public bool HighlightCode { get; init; }
+
+    /// <summary>
     /// The clock for the date of generation on the cover and in the footer, and for the document's created and modified
     /// dates. Default <see cref="TimeProvider.System"/>.
     /// </summary>

@@ -5,10 +5,11 @@ What the generators [wwosik.DocLibs.DocumentGeneration.Pptx](wwosik.DocLibs.Docu
 and [wwosik.DocLibs.DocumentGeneration.Pdf](wwosik.DocLibs.DocumentGeneration.Pdf.md) share: the
 public **brand** API (`Brand`, `BrandPack`), the **drawing** model and the code-block renderer
 interface, [QR codes and icons](#qr-codes-and-icons) (`IIconSet`, `TablerIcons`),
+[code highlighting](#code-highlighting) (`CodeTokenKind`, `BrandCodeColors`),
 [checks](#checking-a-document), [a tool for AI agents](#a-tool-for-ai-agents) (`DocumentTool`,
 `IMarkdownGenerator`), and internally front matter and image headers. It comes along as a dependency of either generator. Depends on
-[wwosik.DocLibs.DocumentConversions](wwosik.DocLibs.DocumentConversions.md), Markdig and QRCoder;
-AOT-compatible. Third-party licences (QRCoder, Tabler Icons) are in the package's
+[wwosik.DocLibs.DocumentConversions](wwosik.DocLibs.DocumentConversions.md), Markdig, QRCoder and
+ColorCode.Core; AOT-compatible. Third-party licences (QRCoder, Tabler Icons, ColorCode) are in the package's
 `THIRD-PARTY-NOTICES.txt`.
 
 ## Brands
@@ -52,6 +53,7 @@ drawn.
 | `Colors.Chart` | Financial charts (see [Charts](wwosik.DocLibs.DocumentGeneration.Charts.md#colours)): `Series` (up to three; fills are mixed from each), `Categories`, `Reference`, `ReferenceFill`, `Axis`, `Gridline`, `Band`, `Emphasis`, `Ahead`, `Level`, `Behind`, `Surface`, `TableHeader`, `TotalHeader`, `TotalFill`, `TooltipFill`, `TooltipText` | diagram palette, greys, `Labels.Success` / `Footer` / `Labels.Danger` for the verdicts, white surface (none on dark slides) |
 | `Colors.Highlight` | Slides: `==marked==` text (a light tint behind it), highlighted table rows, the bar of important callouts | theme accent 2 |
 | `Colors.Labels` | Slides: status labels in tables by category — `Success`, `Info`, `Warning`, `Danger`, `Neutral`; the cell gets a light tint of the colour (see [Slide layouts in Markdown](#slide-layouts-in-markdown)) | `16A34A`, `Link`, `D97706`, `DC2626`, `9CA3AF` |
+| `Colors.Code` | [Highlighted code](#code-highlighting): `Keyword`, `String`, `Comment`, `Number`, `Type`, `Markup`; colour only. A colour set here is used as it is | `Primary`, `Labels.Success`, `Footer`, `Labels.Warning`, `Diagram.Accent`, `Link`, each darkened (on dark slides lightened) to a 4.5:1 contrast on the code background |
 | `Colors.Theme` | The 12 PowerPoint theme colours (dark 1, light 1, dark 2, light 2, accents 1–6, hyperlink, followed hyperlink) | black, white, `Primary`, `TableBand`, `Primary`, five neutral accents, `Link`, violet |
 | `Fonts` | PDF text (embedded as subsets); the PPTX theme font family and code (embedded whole, see [Fonts](#fonts)) | Liberation Sans and Mono in PDFs, Arial and Consolas in decks |
 | `Fonts.Table` | Table cells, typically a condensed cut (see [Table fonts](#table-fonts)) | the text faces |
@@ -196,7 +198,7 @@ paths relative to the pack.
 ```
 
 Every key but `name` and `colors.primary` is optional (inside `fonts`, the four text faces are
-required, and inside `fonts.table` its `regular` and `bold`); `colors` also takes `footer`, `theme` (12 colours) and `chart` (the roles of `BrandChartColors` in camel case, such as `"chart": { "series": ["#0B5FFF", "#3FC1FF"], "ahead": "#16A34A" }`), as in the table above. `slideColors` takes the same keys as `colors`, all optional; `pptx.tone` is `auto` (the default), `light` or `dark`. `//` comments and trailing commas are allowed.
+required, and inside `fonts.table` its `regular` and `bold`); `colors` also takes `footer`, `theme` (12 colours), `chart` (the roles of `BrandChartColors` in camel case, such as `"chart": { "series": ["#0B5FFF", "#3FC1FF"], "ahead": "#16A34A" }`) and `code` (`keyword`, `string`, `comment`, `number`, `type`, `markup`, such as `"code": { "keyword": "#7C3AED" }`), as in the table above. `slideColors` takes the same keys as `colors`, all optional; `pptx.tone` is `auto` (the default), `light` or `dark`. `//` comments and trailing commas are allowed.
 
 The rest of `pptx` holds the template's roles (`PptxBrandTemplate.Roles`, a `PptxTemplateRoles`;
 what they do is in
@@ -294,6 +296,7 @@ if (result.HasNotes)
 | `footnote-missing` | PPTX, DOCX, PDF | A footnote reference such as `[^1]` has no definition, so it is shown as written |
 | `footnote-split` | PDF | A footnote was too long for the foot of its page and continues at the foot of the next; with the line of its definition |
 | `language-unknown` | PPTX, DOCX, PDF | The document language has no `GeneratedTexts` of its own, built in or from the options; the texts are English, the tag is kept; without a line |
+| `code-language-unknown` | PPTX, DOCX, PDF | With [highlighting](#code-highlighting) on, a fenced code block names a language that neither a renderer nor the highlighter knows, so it is not highlighted; not for `text`, `plain`, `console`, `output` |
 | `typography-skipped` | PPTX, DOCX, PDF | With [typography](#typography) on, a typographic character (a quote, dash, `…` or the no-break space) was not used because a face the text can be set in lacks it; the character stays as typed. Once per character, with the line of its first paragraph |
 | `notes-dropped` | PPTX | A `::: notes` stands before the first heading, so it belongs to no slide and was left out |
 | `notes-simplified` | PPTX | Speaker notes held a table, code block, image, quote, alert, heading or other container, written as plain text; one note per block |
@@ -742,7 +745,8 @@ title: Network expansion 2027
   looks like YAML but is only this flat subset — no nesting, no lists.
 - An opening `---` followed by a blank line is a thematic break, not front matter.
 - **Shared keys:** `template` (applied first, whatever its position), `title`, `author`, `lang` (see
-  [Document language](#document-language)), `typography` (see [Typography](#typography)),
+  [Document language](#document-language)), `typography` (see [Typography](#typography)), `highlight`
+  (see [Code highlighting](#code-highlighting)),
   `classification` and `draft` (see
   [Classification](#classification)), and `labels.<category>` (see
   [Slide layouts in Markdown](#slide-layouts-in-markdown)). The rest are the generator's.
@@ -841,6 +845,50 @@ the option says. Writers type straight quotes and hyphens; the generator does th
   rules unless the host gives its own, and any other language the English ones, without a note
   beyond `language-unknown`. A French profile with « » and no-break spaces inside the quotes:
   `TypographyRules.English with { DoubleQuotes = ("«\u00A0", "\u00A0»") }`.
+
+## Code highlighting
+
+Off by default. `highlight: true` in the front matter, or `PptxOptions.HighlightCode` /
+`PdfOptions.HighlightCode` / `DocxOptions.HighlightCode`, colours fenced code blocks that name their
+language after the fence; `highlight: false` switches it off whatever the option says. Any other
+value is an error. With highlighting off, nothing about code changes: the files are as before.
+
+- **Languages** (name after the fence, any case; aliases in brackets): `csharp` (`cs`, `c#`), `vb`
+  (`vbnet`, `vb.net`), `fsharp` (`fs`, `f#`), `cpp` (`c`, `c++`), `java`, `javascript` (`js`),
+  `typescript` (`ts`), `php`, `python` (`py`), `powershell` (`ps1`, `pwsh`), `sql`, `html` (`htm`),
+  `xml` (`xaml`), `css`, `markdown` (`md`), `haskell` (`hs`), `json`, `yaml` (`yml`), `bash` (`sh`,
+  `shell`, `zsh`). The guides list the same names (internal `CodeLanguages`).
+- **The highlighter** (internal `CodeHighlighter`) is built in: the regular-expression languages of
+  [ColorCode.Core](https://github.com/CommunityToolkit/ColorCode-Universal) (MIT, managed), with own
+  definitions for `json` (ColorCode's string pattern can take exponential time on an unclosed string),
+  `yaml` and `bash`, whose patterns take linear time per line. Its scopes are mapped to the public
+  enum **`CodeTokenKind`**: `Keyword`, `String`, `Comment`, `Number`, `Type` (type and namespace
+  names, attributes, shell variables), `Markup` (tags and attribute names, JSON and YAML keys),
+  `Punctuation` (drawn as `Plain`) and `Plain`. The languages are compiled on the first highlighted
+  block, into a cache of the highlighter's own: ColorCode's global registry is neither used nor
+  changed. There is no public extension point for other highlighters.
+- **What is highlighted:** fenced blocks with a known language that no code-block renderer took
+  (`mermaid` and `chart` still go to their renderers first). Indented code blocks, fences without a
+  language or with `text`, `plain`, `console` or `output`, and inline code stay as before.
+- **Colours** come from `Brand.Colors.Code` (`BrandCodeColors`, brand packs `colors.code.*`), on
+  slides `SlideColors.Code` merged over it; each colour left out is derived from the brand (see
+  [What a brand holds](#what-a-brand-holds)) and darkened in steps until it has a contrast of at
+  least 4.5:1 on the code background — PDFs and Word `F3F4F6`, decks their code box. On dark
+  slides (a dark template, or a `.dark` slide's code box) it is lightened instead; where even white
+  falls short of 4.5:1, such as on a mid-tone code box, it becomes white, the plain text's colour. A
+  colour the brand sets is used as it is. Decks on a caller's template and Word documents on a
+  caller's template take theme colours: keywords accent 1, types accent 2, strings accent 6, numbers
+  accent 4, comments the text colour at 60 %, markup the hyperlink colour.
+- **Colour only:** no bold, no italic, so line widths and breaks stay as they are and no face is
+  needed that a font lacks. Decks keep one paragraph per line with a run per piece; PDFs draw one
+  text item per piece, breaking long lines by characters across the pieces; Word writes a run per
+  piece with `w:color` (and `w:themeColor` on a caller's template) as direct formatting in the
+  `Code` style.
+- **Note `code-language-unknown`:** with highlighting on, a fenced block names a language neither a
+  renderer nor the highlighter knows (a typo such as `csharpp`); not given for the plain names above
+  or when a renderer already reported on the block.
+- **Size:** ColorCode.Core adds 122 000 bytes (its `netstandard2.0` assembly); a Native AOT app that
+  highlights publishes without warnings.
 
 ## Footnotes, task lists and definition lists
 

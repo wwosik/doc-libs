@@ -90,7 +90,16 @@ internal sealed record DefinitionListBlock(IReadOnlyList<Definition> Items) : Bl
 
 internal sealed record Definition(IReadOnlyList<IReadOnlyList<TextRun>> Terms, IReadOnlyList<Block> Description);
 
-internal sealed record CodeBlock(IReadOnlyList<string> Lines) : Block;
+/// <summary>
+/// A code block that no renderer took: per line its spans, one plain span unless the block is highlighted. The language
+/// is the fence's, if any.
+/// </summary>
+internal sealed record CodeBlock(IReadOnlyList<IReadOnlyList<CodeSpan>> Lines, string? Language = null) : Block
+{
+    /// <summary>A block of plain lines, one span each.</summary>
+    public static CodeBlock Plain(IEnumerable<string> lines, string? language = null) =>
+        new([.. lines.Select(line => (IReadOnlyList<CodeSpan>)[new CodeSpan(line, CodeTokenKind.Plain)])], language);
+}
 
 internal sealed record QuoteBlock(IReadOnlyList<Block> Blocks) : Block;
 

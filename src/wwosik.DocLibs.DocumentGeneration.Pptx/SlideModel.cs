@@ -34,6 +34,9 @@ internal sealed record TextRun(string Text, RunStyle Style, string? Link = null)
     /// <summary>A Harvey ball's glyph (○ ◔ ◑ ◕ ●): written in <see cref="HarveyBall.SymbolFont"/>, never embedded.</summary>
     public bool Symbol { get; init; }
 
+    /// <summary>In a highlighted code block: what the run is, which gives it its colour. <see langword="null"/> elsewhere.</summary>
+    public CodeTokenKind? Token { get; init; }
+
     public static TextRun Break { get; } = new("\n", RunStyle.None);
 
     public bool IsBreak => this.Text == "\n";
@@ -388,8 +391,11 @@ internal abstract record FlowBlock
 
 internal sealed record TextBlock(IReadOnlyList<TextParagraph> Paragraphs) : FlowBlock;
 
-/// <summary>A code block that no renderer took: its lines on a box of their own.</summary>
-internal sealed record CodeLinesBlock(IReadOnlyList<string> Lines) : FlowBlock;
+/// <summary>
+/// A code block that no renderer took: its lines on a box of their own, each line its runs of code (none for an empty
+/// line); highlighted runs carry their <see cref="TextRun.Token"/>.
+/// </summary>
+internal sealed record CodeLinesBlock(IReadOnlyList<IReadOnlyList<TextRun>> Lines) : FlowBlock;
 
 internal sealed record TableBlock(SlideTable Table) : FlowBlock;
 

@@ -95,6 +95,7 @@ combined guide and JSON replies. See [A tool for AI agents](wwosik.DocLibs.Docum
 | `Texts` | none | `GeneratedTexts` for further languages, by tag |
 | `Typography` | `false` | typographic quotes, dashes, `…` and no-break spaces in the document language, unless front matter sets `typography`; see [Typography](wwosik.DocLibs.DocumentGeneration.md#typography) |
 | `TypographyRules` | none | `TypographyRules` for further languages, by tag |
+| `HighlightCode` | `false` | colours fenced code blocks that name their language (keywords, strings, comments, numbers, types, markup), unless front matter sets `highlight`; see [Code highlighting](wwosik.DocLibs.DocumentGeneration.md#code-highlighting) |
 | `TimeProvider` | `TimeProvider.System` | the date on the cover and in the footer, and the created and modified dates |
 | `Classification` | `Classification.Public` | `Internal` or `Confidential` marks the document, see [Classification](#classification); front matter can raise it, not lower it |
 | `Draft` | `false` | marks the document a draft, with Word's watermark; front matter's `draft: true` also does |
@@ -110,6 +111,7 @@ The shared syntax and rules are in
 | `title`, `author` | text | all |
 | `lang` | a language tag such as `en`, `de`, `de-CH` | all |
 | `typography` | `true`, `false` | all — see [Typography](wwosik.DocLibs.DocumentGeneration.md#typography) |
+| `highlight` | `true`, `false` | all — see [Code highlighting](wwosik.DocLibs.DocumentGeneration.md#code-highlighting) |
 | `classification` | `public`, `internal`, `confidential` | all; see [Classification](#classification) |
 | `draft` | `true`, `false` | all |
 | `toc` | `true`, `false` | all |

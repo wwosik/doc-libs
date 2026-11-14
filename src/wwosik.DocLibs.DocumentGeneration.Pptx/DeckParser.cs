@@ -29,7 +29,8 @@ internal sealed partial class DeckParser(
     GeneratedTexts texts,
     bool numberChapters,
     Func<string, IReadOnlyList<SlotKind>?>? layoutSlots,
-    Typography? typography)
+    Typography? typography,
+    CodeHighlighting? highlighting)
 {
     private static readonly MarkdownPipeline Pipeline = BuildPipeline();
 
@@ -72,10 +73,20 @@ internal sealed partial class DeckParser(
         GeneratedTexts? texts = null,
         bool numberChapters = false,
         Func<string, IReadOnlyList<SlotKind>?>? layoutSlots = null,
-        Typography? typography = null)
+        Typography? typography = null,
+        CodeHighlighting? highlighting = null)
     {
         var parser = new DeckParser(
-            document, options, brand ?? Brand.Neutral, lineOffset, notes ?? new GenerationNotes(), texts ?? GeneratedTexts.English, numberChapters, layoutSlots, typography);
+            document,
+            options,
+            brand ?? Brand.Neutral,
+            lineOffset,
+            notes ?? new GenerationNotes(),
+            texts ?? GeneratedTexts.English,
+            numberChapters,
+            layoutSlots,
+            typography,
+            highlighting);
         HeadingBlock? heading = null;
         var blocks = new List<Block>();
         var markdown = Markdown.Parse(document.Markdown, Pipeline);
@@ -746,6 +757,19 @@ internal sealed partial class DeckParser(
             },
             Format.Pptx);
 
+    // A code block's lines as runs of `style`: a line one run (none when empty), or with highlighting on a run per span,
+    // each with its token.
+    private List<IReadOnlyList<TextRun>> CodeLines(CodeBlock code, RunStyle style)
+    {
+        var text = code.Lines.ToString();
+        if (code is FencedCodeBlock fenced && highlighting?.Lines(fenced.Info, text, this.LineOf(fenced)) is { } lines)
+        {
+            return [.. lines.Select(line => (IReadOnlyList<TextRun>)[.. line.Select(span => new TextRun(span.Text, style) { Token = span.Kind })])];
+        }
+
+        return [.. text.Split('\n').Select(line => (IReadOnlyList<TextRun>)(line.Length > 0 ? [new TextRun(line, style)] : []))];
+    }
+
     private void Walk(Block block, ITarget target, int level, RunStyle style)
     {
         switch (block)
@@ -804,12 +828,12 @@ internal sealed partial class DeckParser(
 
                 break;
             case CodeBlock code when target is FlowCollector flow:
-                flow.Add(new CodeLinesBlock(code.Lines.ToString().Split('\n')));
+                flow.Add(new CodeLinesBlock(this.CodeLines(code, RunStyle.Code)));
                 break;
             case CodeBlock code:
-                foreach (var line in code.Lines.ToString().Split('\n'))
+                foreach (var line in this.CodeLines(code, style | RunStyle.Code))
                 {
-                    target.Text(new TextParagraph(line.Length > 0 ? [new TextRun(line, style | RunStyle.Code)] : [], Level: level));
+                    target.Text(new TextParagraph(line, Level: level));
                 }
 
                 break;

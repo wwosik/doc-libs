@@ -824,11 +824,14 @@ internal sealed class LayoutEngine
     {
         var lineHeight = CodeSize * LineFactor;
         var inner = frame.Width - (2 * CodePadding);
-        var lines = code.Lines.SelectMany(line => this.BreakByCharacters(this.Supported(line, FontFace.Mono), FontFace.Mono, CodeSize, inner)).ToList();
-        while (lines.Count > 0 && lines[^1].Length == 0)
+        var lines = code.Lines.SelectMany(line => this.BreakByCharacters(
+            [.. line.Select(span => span with { Text = this.Supported(span.Text, FontFace.Mono) })], FontFace.Mono, CodeSize, inner)).ToList();
+        while (lines.Count > 0 && lines[^1].Sum(span => span.Text.Length) == 0)
         {
             lines.RemoveAt(lines.Count - 1);
         }
+
+        var colors = this.design.Brand.Code.On(CodeBackground);
 
         this.Ensure(CodePadding + lineHeight);
         this.Page.Items.Add(new RectItem(frame.Left, this.y, frame.Width, CodePadding, CodeBackground));
@@ -837,9 +840,12 @@ internal sealed class LayoutEngine
         {
             this.Ensure(lineHeight);
             this.Page.Items.Add(new RectItem(frame.Left, this.y, frame.Width, lineHeight, CodeBackground));
-            if (line.Length > 0)
+            // A span after another starts where the one before it ends: the mono face's widths add up.
+            var x = frame.Left + CodePadding;
+            foreach (var span in line.Where(s => s.Text.Length > 0))
             {
-                this.Page.Items.Add(new TextItem(frame.Left + CodePadding, this.Baseline(CodeSize), line, FontFace.Mono, CodeSize, this.TextColor));
+                this.Page.Items.Add(new TextItem(x, this.Baseline(CodeSize), span.Text, FontFace.Mono, CodeSize, colors.Of(span.Kind) ?? this.TextColor));
+                x += this.metrics.Width(span.Text, FontFace.Mono, CodeSize);
             }
 
             this.Advance(lineHeight, frame);
@@ -1931,6 +1937,50 @@ internal sealed class LayoutEngine
     private static string NoteAnchor(int number) => string.Create(CultureInfo.InvariantCulture, $"footnote:{number}");
 
     private static string ReferenceAnchor(int number) => string.Create(CultureInfo.InvariantCulture, $"footnote-reference:{number}");
+
+    // A line of code spans broken like a string: by characters, each piece keeping its span's kind; a break inside a
+    // span splits it. One span per line in, one span per line out.
+    private List<IReadOnlyList<CodeSpan>> BreakByCharacters(IReadOnlyList<CodeSpan> line, FontFace face, double size, double width)
+    {
+        var result = new List<IReadOnlyList<CodeSpan>>();
+        var current = new List<CodeSpan>();
+        var used = 0.0;
+        var empty = true;
+        foreach (var span in line)
+        {
+            this.CheckGlyphs(span.Text, face);
+            var text = new StringBuilder();
+            foreach (var element in TextElements(span.Text))
+            {
+                var w = this.metrics.Width(element, face, size);
+                if (!empty && used + w > width)
+                {
+                    if (text.Length > 0)
+                    {
+                        current.Add(span with { Text = text.ToString() });
+                        text.Clear();
+                    }
+
+                    result.Add(current);
+                    current = [];
+                    used = 0;
+                    empty = true;
+                }
+
+                text.Append(element);
+                used += w;
+                empty = false;
+            }
+
+            if (text.Length > 0 || line.Count == 1)
+            {
+                current.Add(span with { Text = text.ToString() });
+            }
+        }
+
+        result.Add(current);
+        return result;
+    }
 
     private List<string> BreakByCharacters(string line, FontFace face, double size, double width)
     {

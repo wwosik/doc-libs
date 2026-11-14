@@ -154,6 +154,7 @@ author: Planning team
 | `author` | The author in the file's properties. |
 | `lang` | The document language, such as `en`, `de` or `de-CH`: of the texts the generator writes itself, and of spell checking. Default `en`. |
 | `typography` | `true` sets typographic quotes, dashes, `…` and no-break spaces (`10 km`) for the language; type straight quotes. Default `false`. |
+| `highlight` | `true` colours fenced code in these languages: `csharp`, `vb`, `fsharp`, `cpp`, `java`, `javascript`, `typescript`, `php`, `python`, `powershell`, `sql`, `html`, `xml`, `css`, `markdown`, `haskell`, `json`, `yaml`, `bash`. Default `false`. |
 | `template` | The design: `neutral`. |
 | `styles.normal` | The name of the template's style for body text, as Word shows it. |
 | `styles.title` | The name of the template's style for the cover title, as Word shows it. |
@@ -244,6 +245,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `list-too-deep`: a list is nested deeper than three levels; the deeper items are set at the third level. Flatten the list to three levels.
 - `classification-kept`: front matter cannot lower the host's `classification`, which applies. Leave the key out.
 - `typography-skipped`: with `typography: true`, a character the fonts lack was kept as typed. Nothing to fix.
+- `code-language-unknown`: with `highlight: true`, a code block's language is unknown. Check the spelling, or write `text`.
 
 A check before generating writes nothing and returns these notes too, and also:
 

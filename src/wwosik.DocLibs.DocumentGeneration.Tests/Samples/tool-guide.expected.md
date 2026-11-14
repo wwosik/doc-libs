@@ -35,9 +35,8 @@ a title that states the point, then a few short lines.
 | Text before the first heading, `---`, HTML comments | Nothing: they are dropped. |
 
 - **Keep slides short:** at most about six bullets of one line each, or one table, image or
-  diagram with a sentence. What does not fit is set smaller, and what still does not fit continues
-  on a further slide with the same title; long tables repeat their header row. Better: split long
-  content yourself, into slides whose titles say what each one shows.
+  diagram with a sentence. What does not fit is set smaller, then continues on a further slide with
+  the same title; long tables repeat their header row. Better: split long content yourself.
 - **A table, an image or a diagram gets a slide of its own,** titled like its section; text before
   it goes above, text after it below as a caption; a leading `Table: ` or `Figure: ` is dropped
   there (documents number such captions). A second one in the same section gets a further
@@ -50,7 +49,7 @@ a title that states the point, then a few short lines.
 - **Images** (PNG, JPEG, GIF) are referenced by the path given to you and fill the room they have,
   keeping their shape; `![Chart](chart.png "scale=1")` stops one from growing beyond its own size.
   **Several images in one paragraph** (`![Orders](orders.png) ![Sales](sales.png)`) stand side by
-  side on one slide, equally wide: the way to show two charts together. `"caption"` in an image's
+  side on one slide, equally wide. `"caption"` in an image's
   title (`![Orders by month](orders.png "caption")`) puts its alt text under it.
 - **Image attributes** in braces right after an image, without a space:
   `![Team](team.jpg){fit=cover focus=top .round .grey}`. `fit=cover` fills the image's box (the
@@ -61,13 +60,12 @@ a title that states the point, then a few short lines.
 - **QR codes:** `![Survey](qr:https://example.com)` draws a QR code of the text after `qr:`.
 - `==text==` marks text like a highlighter pen.
 - `[words]{.success}` sets a few words bold in a status colour: `.success`, `.info`, `.warning`,
-  `.danger` or `.neutral` — for a verdict inside a sentence, such as `[on schedule]{.success}`.
+  `.danger` or `.neutral`, such as `[on schedule]{.success}`.
 - **Footnotes:** `[^1]` in the text and `[^1]: The source.` on a line of its own anywhere below.
-  The reference becomes a raised number, the note small text at the foot of its slide. A reference
-  without its definition stays as written.
+  The reference becomes a raised number, the note small text at the foot of its slide.
 - **Task lists:** `- [ ] open` and `- [x] done` get an empty or ticked box instead of a bullet.
 - **Definition lists:** a term on a line of its own, then `:   ` and its description on the next
-  line. They are shown like `::: rows`: the term in bold on the left, its description beside it.
+  line. They are shown like `::: rows`.
 
 ### Layouts
 
@@ -313,6 +311,7 @@ author: Planning team
 | `author` | The author in the file's properties. |
 | `lang` | The document language, such as `en`, `de` or `de-CH`: of the texts the generator writes itself, and of spell checking. Default `en`. |
 | `typography` | `true` sets typographic quotes, dashes, `…` and no-break spaces (`10 km`) for the language; type straight quotes. Default `false`. |
+| `highlight` | `true` colours fenced code in these languages: `csharp`, `vb`, `fsharp`, `cpp`, `java`, `javascript`, `typescript`, `php`, `python`, `powershell`, `sql`, `html`, `xml`, `css`, `markdown`, `haskell`, `json`, `yaml`, `bash`. Default `false`. |
 | `template` | The design: `neutral`. |
 | `showDate` | `true` or `false`: today's date in the footer. Default `true`. |
 | `showTagline` | `true` or `false`: the design's tagline on the cover, if it has one. Default `true`. |
@@ -366,6 +365,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `agenda-empty`: an empty `{.agenda}` found no `#` chapters to list. Add the chapters, or write the agenda as a list.
 - `caption-ignored`: a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text.
 - `typography-skipped`: with `typography: true`, a character the fonts lack was kept as typed. Nothing to fix.
+- `code-language-unknown`: with `highlight: true`, a code block's language is unknown. Check the spelling, or write `text`.
 
 A check before generating writes nothing and returns these notes too, and also:
 
@@ -432,7 +432,7 @@ headings that say what a section is about, lists where items really are parallel
 | `##` to `######` | Headings, in the table of contents (bookmarks), kept on a page with what follows them. |
 | `---` | A thin line. |
 
-- Paragraphs are left-aligned and broken at spaces; a line break is `\` at the end of a line.
+- Paragraphs are left-aligned; a line break is `\` at the end of a line.
 - Lists nest with indentation; `1.` lists are numbered from their first number.
 - `**bold**`, `*italic*`, `~~strike~~`, `` `code` `` and links work. A link needs an absolute URL
   (`https://…`) or a heading anchor (`[see costs](#costs)`); anything else stays text.
@@ -442,34 +442,33 @@ headings that say what a section is about, lists where items really are parallel
   background, long lines wrapped.
 - **Tables** span the page width; columns get the room their content needs, alignment follows the
   `:--`/`--:` markers. Long tables continue on the next page with the header row repeated. Keep
-  them to about six columns: wider tables squeeze their words.
+  them to about six columns.
 - **Images** (PNG or JPEG) are referenced by the path given to you, keep their size, are only
   scaled down to fit and never split; `![Chart](chart.png "scale=0.5")` halves the size. Several
-  images in one paragraph stand side by side, equally wide. Any other words in the title are its
+  images in one paragraph stand side by side, equally wide. Other words in the title are its
   caption (below).
 - **Image attributes** in braces right after an image, without a space:
-  `![Team](team.jpg){.round .grey}`. `.round` crops it to a circle, `.grey` shows it in grey,
-  `scale=0.5` is the same as `"scale=0.5"`. In a row of images, `fit=cover` fills the row's height
+  `![Team](team.jpg){.round .grey}`. `.round` crops it to a circle, `.grey` shows it in grey.
+  In a row of images, `fit=cover` fills the row's height
   and crops what sticks out, and `focus=top`, `bottom`, `left`, `right` or `center` (the default)
   says which part stays; an image of its own is never cropped. An unknown attribute is an error.
 - **QR codes:** `![Survey](qr:https://example.com/survey)` draws a QR code for the text after
-  `qr:`, taken literally (a web address, `mailto:…`), dark on white. `"caption"` in the title or
-  `{.caption}` puts the alt text under it, `scale=2` doubles it; no other attributes. Keep it under
-  1 000 characters: shorter addresses scan better.
+  `qr:`, taken literally (a web address, `mailto:…`). `"caption"` in the title or
+  `{.caption}` puts the alt text under it, `scale=2` doubles it; no other attributes. Shorter
+  addresses scan better.
 - **Footnotes:** `[^1]` in the text and `[^1]: The note.` on a line of its own anywhere below.
   The reference is a small raised number linked to its note at the foot of its page, numbered
   through the document; a long note continues on the next page.
 - **Task lists:** `- [ ] open` and `- [x] done` get an empty or ticked box instead of a bullet.
 - **Definition lists:** a term on a line of its own, then `:   ` and its description on the next
-  line (several `:` lines for several descriptions). The term is set in bold, the description
-  indented under it.
-- HTML is printed as text, not interpreted: do not use it. HTML comments are dropped.
+  line. The term is bold, the description indented.
+- HTML is printed as text: do not use it. HTML comments are dropped.
 
 ### Contents, numbers and captions
 
 - `toc: true` in the front matter puts a table of contents on a page after the cover: the headings
   of `tocDepth` levels (default 2) from the highest level after the cover, each with its page
-  number and a link to it.
+  number.
 - `headingNumbers: true` numbers three heading levels from the highest one after the cover: `1`,
   `1.1`, `1.1.1`, also in the bookmarks and the contents. A skipped level does not count: a `###`
   right under a `#` is `1.1`. `{.unnumbered}` at the end of any heading gives it no number.
@@ -597,6 +596,7 @@ author: Planning team
 | `author` | The author in the file's properties. |
 | `lang` | The document language, such as `en`, `de` or `de-CH`: of the texts the generator writes itself, and of spell checking. Default `en`. |
 | `typography` | `true` sets typographic quotes, dashes, `…` and no-break spaces (`10 km`) for the language; type straight quotes. Default `false`. |
+| `highlight` | `true` colours fenced code in these languages: `csharp`, `vb`, `fsharp`, `cpp`, `java`, `javascript`, `typescript`, `php`, `python`, `powershell`, `sql`, `html`, `xml`, `css`, `markdown`, `haskell`, `json`, `yaml`, `bash`. Default `false`. |
 | `template` | The design: `neutral`. |
 | `showDate` | `true` or `false`: today's date in the footer. Default `true`. |
 | `showTagline` | `true` or `false`: the design's tagline on the cover, if it has one. Default `true`. |
@@ -637,8 +637,8 @@ A check before generating reports what goes beyond these: at most 150 words in a
 
 ### When something is wrong
 
-Generation stops with a message that says what to fix: a character the fonts lack, an image that
-is not among the files, a front matter key that does not exist, or a broken diagram with its line.
+Generation stops with a message that says what to fix, such as a character the fonts lack or an
+image that is not among the files. Fix the Markdown and generate again.
 
 ### Notes you may get back
 
@@ -655,6 +655,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `caption-ignored`: a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text.
 - `toc-empty`: `toc: true` asked for a table of contents, but the document has no headings at the depth it lists, so there is none. Add headings, raise `tocDepth`, or leave `toc` out.
 - `typography-skipped`: with `typography: true`, a character the fonts lack was kept as typed. Nothing to fix.
+- `code-language-unknown`: with `highlight: true`, a code block's language is unknown. Check the spelling, or write `text`.
 
 A check before generating writes nothing and returns these notes too, and also:
 

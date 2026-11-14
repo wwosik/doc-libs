@@ -18,6 +18,9 @@ internal sealed record DocxContext(
     /// <summary>The typography pass, or <see langword="null"/> when typography is off.</summary>
     public Typography? Typography { get; init; }
 
+    /// <summary>Code highlighting, or <see langword="null"/> when it is off.</summary>
+    public CodeHighlighting? Highlighting { get; init; }
+
     /// <summary>The page of the template's last section.</summary>
     public DocxPage Page { get; init; } = DocxPage.For(DocxPageSize.A4, DocxOrientation.Portrait);
 

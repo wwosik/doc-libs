@@ -15,9 +15,8 @@ a title that states the point, then a few short lines.
 | Text before the first heading, `---`, HTML comments | Nothing: they are dropped. |
 
 - **Keep slides short:** at most about six bullets of one line each, or one table, image or
-  diagram with a sentence. What does not fit is set smaller, and what still does not fit continues
-  on a further slide with the same title; long tables repeat their header row. Better: split long
-  content yourself, into slides whose titles say what each one shows.
+  diagram with a sentence. What does not fit is set smaller, then continues on a further slide with
+  the same title; long tables repeat their header row. Better: split long content yourself.
 - **A table, an image or a diagram gets a slide of its own,** titled like its section; text before
   it goes above, text after it below as a caption; a leading `Table: ` or `Figure: ` is dropped
   there (documents number such captions). A second one in the same section gets a further
@@ -30,7 +29,7 @@ a title that states the point, then a few short lines.
 - **Images** (PNG, JPEG, GIF) are referenced by the path given to you and fill the room they have,
   keeping their shape; `![Chart](chart.png "scale=1")` stops one from growing beyond its own size.
   **Several images in one paragraph** (`![Orders](orders.png) ![Sales](sales.png)`) stand side by
-  side on one slide, equally wide: the way to show two charts together. `"caption"` in an image's
+  side on one slide, equally wide. `"caption"` in an image's
   title (`![Orders by month](orders.png "caption")`) puts its alt text under it.
 - **Image attributes** in braces right after an image, without a space:
   `![Team](team.jpg){fit=cover focus=top .round .grey}`. `fit=cover` fills the image's box (the
@@ -41,13 +40,12 @@ a title that states the point, then a few short lines.
 - **QR codes:** `![Survey](qr:https://example.com)` draws a QR code of the text after `qr:`.
 - `==text==` marks text like a highlighter pen.
 - `[words]{.success}` sets a few words bold in a status colour: `.success`, `.info`, `.warning`,
-  `.danger` or `.neutral` — for a verdict inside a sentence, such as `[on schedule]{.success}`.
+  `.danger` or `.neutral`, such as `[on schedule]{.success}`.
 - **Footnotes:** `[^1]` in the text and `[^1]: The source.` on a line of its own anywhere below.
-  The reference becomes a raised number, the note small text at the foot of its slide. A reference
-  without its definition stays as written.
+  The reference becomes a raised number, the note small text at the foot of its slide.
 - **Task lists:** `- [ ] open` and `- [x] done` get an empty or ticked box instead of a bullet.
 - **Definition lists:** a term on a line of its own, then `:   ` and its description on the next
-  line. They are shown like `::: rows`: the term in bold on the left, its description beside it.
+  line. They are shown like `::: rows`.
 
 ## Layouts
 
@@ -305,6 +303,7 @@ author: Planning team
 | `author` | The author in the file's properties. |
 | `lang` | The document language, such as `en`, `de` or `de-CH`: of the texts the generator writes itself, and of spell checking. Default `en`. |
 | `typography` | `true` sets typographic quotes, dashes, `…` and no-break spaces (`10 km`) for the language; type straight quotes. Default `false`. |
+| `highlight` | `true` colours fenced code in these languages: `csharp`, `vb`, `fsharp`, `cpp`, `java`, `javascript`, `typescript`, `php`, `python`, `powershell`, `sql`, `html`, `xml`, `css`, `markdown`, `haskell`, `json`, `yaml`, `bash`. Default `false`. |
 | `template` | The design: `neutral`. |
 | `layouts.title` | The name of the template's layout for the cover. |
 | `layouts.content` | The name of the template's layout for text slides. |
@@ -370,6 +369,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `agenda-empty`: an empty `{.agenda}` found no `#` chapters to list. Add the chapters, or write the agenda as a list.
 - `caption-ignored`: a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text.
 - `typography-skipped`: with `typography: true`, a character the fonts lack was kept as typed. Nothing to fix.
+- `code-language-unknown`: with `highlight: true`, a code block's language is unknown. Check the spelling, or write `text`.
 
 A check before generating writes nothing and returns these notes too, and also:
 

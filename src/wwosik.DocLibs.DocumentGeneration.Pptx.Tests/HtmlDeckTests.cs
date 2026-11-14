@@ -17,9 +17,26 @@ namespace wwosik.DocLibs.DocumentGeneration.Pptx.Tests;
 /// </summary>
 public partial class HtmlDeckTests
 {
-    /// <summary>What the samples do not cover: slide kinds, image attributes, QR codes, icons, charts, financial charts, callouts.</summary>
+    /// <summary>What the samples do not cover: slide kinds, image attributes, QR codes, icons, charts, financial charts, callouts, highlighted code.</summary>
     private const string Features = """
+        ---
+        highlight: true
+        ---
+
         # Features
+
+        ## Highlighted code
+
+        ```csharp
+        // A comment
+        public int Count => 42;
+        ```
+
+        ## Highlighted code on dark {.dark}
+
+        ```json
+        { "name": "x", "count": 3, "ok": true }
+        ```
 
         ## Agenda {.agenda}
 

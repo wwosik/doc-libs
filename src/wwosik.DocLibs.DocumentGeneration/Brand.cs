@@ -102,6 +102,12 @@ public sealed record BrandColors
     /// <summary>Charts drawn by the chart renderers, such as the financial charts. Default: every colour derived from the others.</summary>
     public BrandChartColors? Chart { get; init; }
 
+    /// <summary>
+    /// Highlighted code (<c>HighlightCode</c>, front matter <c>highlight: true</c>). Default: every colour derived from the
+    /// others, with at least 4.5:1 contrast on the code background.
+    /// </summary>
+    public BrandCodeColors? Code { get; init; }
+
     /// <summary>The colours of <see cref="Brand.Neutral"/>.</summary>
     public static BrandColors Neutral { get; } = new()
     {
@@ -121,7 +127,8 @@ public sealed record BrandColors
         && this.Primary == other.Primary && this.Link == other.Link && this.Footer == other.Footer
         && this.TableHeader == other.TableHeader && this.TableBand == other.TableBand && this.TableLine == other.TableLine
         && SameList(this.Gradient, other.Gradient) && SameList(this.Theme, other.Theme) && Equals(this.Diagram, other.Diagram)
-        && this.Highlight == other.Highlight && Equals(this.Labels, other.Labels) && Equals(this.Chart, other.Chart);
+        && this.Highlight == other.Highlight && Equals(this.Labels, other.Labels) && Equals(this.Chart, other.Chart)
+        && Equals(this.Code, other.Code);
 
     /// <inheritdoc/>
     public override int GetHashCode() => HashCode.Combine(this.Primary, this.Link, this.TableHeader, this.Gradient?.Count, this.Theme?.Count);
@@ -164,6 +171,33 @@ public sealed record BrandDiagramColors
 
     /// <inheritdoc/>
     public override int GetHashCode() => HashCode.Combine(this.Text, this.Line, this.Accent, this.Surface, this.Border, this.Palette?.Count);
+}
+
+/// <summary>
+/// The colours of highlighted code, as RGB hex, one per <see cref="CodeTokenKind"/>; everything else is in the text
+/// colour. Code is coloured only, never bold or italic. Each colour is optional: a colour left out is derived from the
+/// brand and darkened (on dark slides lightened) until it has a contrast of at least 4.5:1 on the code background; a
+/// colour given here is used as it is.
+/// </summary>
+public sealed record BrandCodeColors
+{
+    /// <summary>Keywords. Default: <see cref="BrandColors.Primary"/>.</summary>
+    public string? Keyword { get; init; }
+
+    /// <summary>Strings. Default: <see cref="BrandLabelColors.Success"/>.</summary>
+    public string? String { get; init; }
+
+    /// <summary>Comments. Default: <see cref="BrandColors.Footer"/>.</summary>
+    public string? Comment { get; init; }
+
+    /// <summary>Numbers. Default: <see cref="BrandLabelColors.Warning"/>.</summary>
+    public string? Number { get; init; }
+
+    /// <summary>Type names. Default: <see cref="BrandDiagramColors.Accent"/>.</summary>
+    public string? Type { get; init; }
+
+    /// <summary>Tags and attribute names, keys in JSON and YAML. Default: <see cref="BrandColors.Link"/>.</summary>
+    public string? Markup { get; init; }
 }
 
 /// <summary>

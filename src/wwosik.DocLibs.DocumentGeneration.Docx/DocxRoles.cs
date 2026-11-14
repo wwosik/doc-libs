@@ -76,6 +76,29 @@ internal sealed record StyleDesign(ResolvedBrand Brand, int CoverTitleSpace, int
     /// <summary>Panels and the shading of notes and tips.</summary>
     public WordColor Band => new(this.Brand.TableBand, this.Theme ? "background2" : null);
 
+    /// <summary>
+    /// The colour of highlighted code of <paramref name="kind"/>, <see langword="null"/> for plain text: the brand's code
+    /// colours on the code background; on a caller's template its theme colours (keywords accent 1, types accent 2,
+    /// strings accent 6, numbers accent 4, comments the text at 60 %, markup the hyperlink colour).
+    /// </summary>
+    /// <param name="kind">The token's kind.</param>
+    /// <param name="colors">The brand's code colours on the code background, <see cref="CodeColors"/>.</param>
+    public WordColor? Code(CodeTokenKind kind, ResolvedCodeColors colors) =>
+        colors.Of(kind) is not { } hex ? null
+        : !this.Theme ? new WordColor(hex)
+        : kind switch
+        {
+            CodeTokenKind.Keyword => new WordColor(hex, "accent1"),
+            CodeTokenKind.Type => new WordColor(hex, "accent2"),
+            CodeTokenKind.String => new WordColor(hex, "accent6"),
+            CodeTokenKind.Number => new WordColor(hex, "accent4"),
+            CodeTokenKind.Comment => new WordColor(hex, "text1", "99"),
+            _ => new WordColor(hex, "hyperlink"),
+        };
+
+    /// <summary>The brand's code colours, each derived one readable on the code background.</summary>
+    public ResolvedCodeColors CodeColors => this.Brand.Code.On(DocxRoles.CodeBackground);
+
     /// <summary>The colour of a status label category, from the brand (the neutral brand's on a caller's template).</summary>
     public WordColor Label(LabelCategory category) => new(category switch
     {

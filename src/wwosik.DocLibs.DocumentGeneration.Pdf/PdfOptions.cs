@@ -76,6 +76,15 @@ public sealed record PdfOptions
     public IReadOnlyDictionary<string, TypographyRules> TypographyRules { get; init; } = new Dictionary<string, TypographyRules>();
 
     /// <summary>
+    /// Colours fenced code blocks that name their language (<c>```csharp</c>), unless the front matter sets
+    /// <c>highlight</c>: keywords, strings, comments, numbers, type names and markup in the brand's code colours
+    /// (<see cref="BrandColors.Code"/>). Colour only: line widths stay the
+    /// same. A language the highlighter does not know gives the note <see cref="NoteCodes.CodeLanguageUnknown"/>.
+    /// Default <see langword="false"/>.
+    /// </summary>
+    public bool HighlightCode { get; init; }
+
+    /// <summary>
     /// The icons <c>:icon-name:</c> draws (as list bullets, alone in a paragraph, and inline in text). Default
     /// <see cref="TablerIcons.Outline"/>, the whole Tabler outline set; a set of your own replaces it, and an unknown
     /// name is an error. <see langword="null"/> switches icons off: <c>:icon-name:</c> then stays text and is not checked.

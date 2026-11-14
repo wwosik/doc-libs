@@ -25,7 +25,8 @@ namespace wwosik.DocLibs.DocumentGeneration.Pdf;
 /// its entries.
 /// </summary>
 internal sealed partial class MarkdownParser(
-    MarkdownDocument document, PdfOptions options, Brand brand, int lineOffset, GenerationNotes notes, GeneratedTexts texts, Typography? typography)
+    MarkdownDocument document, PdfOptions options, Brand brand, int lineOffset, GenerationNotes notes, GeneratedTexts texts, Typography? typography,
+    CodeHighlighting? highlighting)
 {
     private static readonly MarkdownPipeline Pipeline = BuildPipeline();
 
@@ -65,11 +66,12 @@ internal sealed partial class MarkdownParser(
         int lineOffset = 0,
         GenerationNotes? notes = null,
         GeneratedTexts? texts = null,
-        Typography? typography = null)
+        Typography? typography = null,
+        CodeHighlighting? highlighting = null)
     {
         notes ??= new GenerationNotes();
         texts ??= GeneratedTexts.English;
-        var parser = new MarkdownParser(document, options, brand ?? Brand.Neutral, lineOffset, notes, texts, typography);
+        var parser = new MarkdownParser(document, options, brand ?? Brand.Neutral, lineOffset, notes, texts, typography, highlighting);
         var markdown = Markdown.Parse(document.Markdown, Pipeline);
 
         // Page breaks: their content stays where they were, and a PageBreakBlock goes before the block each comes before.
@@ -243,7 +245,7 @@ internal sealed partial class MarkdownParser(
 
                     break;
                 case CodeBlock code:
-                    into.AddRange(code.Lines.Where(l => l.Trim().Length > 0).Select(l => (IReadOnlyList<TextRun>)[new TextRun(l, RunStyle.Code)]));
+                    into.AddRange(code.Lines.Select(l => string.Concat(l.Select(s => s.Text))).Where(l => l.Trim().Length > 0).Select(l => (IReadOnlyList<TextRun>)[new TextRun(l, RunStyle.Code)]));
                     break;
                 case QuoteBlock quote:
                     NoteParagraphs(quote.Blocks, into);
@@ -383,7 +385,7 @@ internal sealed partial class MarkdownParser(
                 });
                 break;
             case Markdig.Syntax.CodeBlock code:
-                target.Add(new CodeBlock(code.Lines.ToString().Replace("\t", "    ", StringComparison.Ordinal).Split('\n')));
+                target.Add(this.Code(code));
                 break;
             case ThematicBreakBlock:
                 target.Add(new RuleBlock());
@@ -509,6 +511,16 @@ internal sealed partial class MarkdownParser(
         }
 
         return new DefinitionListBlock(items);
+    }
+
+    // A code block, tabs as four spaces: a plain span per line, or with highlighting on the highlighted spans.
+    private CodeBlock Code(Markdig.Syntax.CodeBlock code)
+    {
+        var text = code.Lines.ToString().Replace("\t", "    ", StringComparison.Ordinal);
+        var language = (code as FencedCodeBlock)?.Info;
+        return code is FencedCodeBlock fenced && highlighting?.Lines(language, text, this.LineOf(fenced)) is { } lines
+            ? new CodeBlock(lines, language)
+            : CodeBlock.Plain(text.Split('\n'), language);
     }
 
     private CodeBlockGraphic? Render(FencedCodeBlock fenced) =>

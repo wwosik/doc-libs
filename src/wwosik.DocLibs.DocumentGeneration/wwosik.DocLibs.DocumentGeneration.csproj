@@ -1,12 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Brands for the wwosik.DocLibs document generators: colours, fonts, logo, footer and cover images, in code or as brand packs (brand.json plus files), the vector drawing model code-block renderers produce, QR codes, the Tabler outline icons, the Liberation fonts, document checks and DocumentTool, a tool description for AI agents that write documents through the generators. Shared by the PPTX, DOCX and PDF generators.</Description>
+    <Description>Brands for the wwosik.DocLibs document generators: colours, fonts, logo, footer and cover images, in code or as brand packs (brand.json plus files), the vector drawing model code-block renderers produce, QR codes, the Tabler outline icons, code highlighting, the Liberation fonts, document checks and DocumentTool, a tool description for AI agents that write documents through the generators. Shared by the PPTX, DOCX and PDF generators.</Description>
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\wwosik.DocLibs.DocumentConversions\wwosik.DocLibs.DocumentConversions.csproj" />
+    <PackageReference Include="ColorCode.Core" />
     <PackageReference Include="Markdig" />
     <PackageReference Include="QRCoder" />
   </ItemGroup>

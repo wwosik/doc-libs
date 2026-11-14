@@ -191,7 +191,8 @@ public static class PptxGenerator
                 language.Texts,
                 template.NumberChaptersOverride ?? writer.NumbersChapters,
                 writer.Slots,
-                typography);
+                typography,
+                CodeHighlighting.For(frontMatter, options.HighlightCode, notes));
             var title = Typeset(typography, frontMatter.Title, frontMatter.LineOf(FrontMatter.TitleKey)) ?? Title(document, slides);
             count = writer.Write(slides, title);
             if (template.EmbedsFonts && resolved?.Fonts is { } fonts)
@@ -244,7 +245,7 @@ public static class PptxGenerator
             new Dictionary<string, string>
             {
                 ["diagrams"] = AuthoringGuides.Renderers(options.CodeBlockRenderers),
-                ["frontMatter"] = AuthoringGuides.FrontMatter(registry.Expected, options.Language, [.. template.Keys.Select(k => (k, KeyMeanings[k])), classification, draft, Labels], options.Typography),
+                ["frontMatter"] = AuthoringGuides.FrontMatter(registry.Expected, options.Language, [.. template.Keys.Select(k => (k, KeyMeanings[k])), classification, draft, Labels], options.Typography, options.HighlightCode),
                 ["characters"] = Characters(brand?.Fonts, codeFont),
                 ["templateLayouts"] = TemplateLayouts(brand?.Pptx, (template as CustomTemplateOptions)?.Roles),
                 ["icons"] = AuthoringGuides.Icons(

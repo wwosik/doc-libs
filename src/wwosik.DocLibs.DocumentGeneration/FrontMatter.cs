@@ -129,7 +129,7 @@ internal sealed partial class FrontMatter
     /// Applies the entries to <paramref name="options"/>: <c>template</c> first, through
     /// <paramref name="withTemplate"/> (which returns <see langword="null"/> for an unknown name), then every other
     /// key but the shared ones (<c>title</c>, <c>author</c>, <c>lang</c>, <c>classification</c>, <c>draft</c>,
-    /// <c>typography</c>, <c>labels.*</c>), in any order, through <paramref name="with"/>. One of <see cref="DocumentKeys"/> that is not in
+    /// <c>typography</c>, <c>highlight</c>, <c>labels.*</c>), in any order, through <paramref name="with"/>. One of <see cref="DocumentKeys"/> that is not in
     /// <paramref name="keys"/> is checked and skipped; any other key not in <paramref name="keys"/> of the options at
     /// that point throws, listing the valid ones.
     /// </summary>
@@ -163,6 +163,7 @@ internal sealed partial class FrontMatter
                 || key.Equals(ClassificationKey, StringComparison.OrdinalIgnoreCase)
                 || key.Equals(DraftKey, StringComparison.OrdinalIgnoreCase)
                 || key.Equals(TypographyKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(CodeHighlighting.Key, StringComparison.OrdinalIgnoreCase)
                 || key.StartsWith(LabelsPrefix, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
@@ -179,7 +180,7 @@ internal sealed partial class FrontMatter
             var known = supported.FirstOrDefault(k => k.Equals(key, StringComparison.OrdinalIgnoreCase))
                 ?? throw this.Error(
                     $"The front matter key '{key}' is not supported by the template '{templateName(options)}'. "
-                    + $"Valid keys: {string.Join(", ", new[] { TemplateKey, TitleKey, AuthorKey, DocumentLanguage.Key, ClassificationKey, DraftKey, TypographyKey }.Concat(supported))}.");
+                    + $"Valid keys: {string.Join(", ", new[] { TemplateKey, TitleKey, AuthorKey, DocumentLanguage.Key, ClassificationKey, DraftKey, TypographyKey, CodeHighlighting.Key }.Concat(supported))}.");
             options = with(options, known, value);
         }
 

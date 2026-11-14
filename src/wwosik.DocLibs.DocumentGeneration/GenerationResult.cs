@@ -128,6 +128,12 @@ public static class NoteCodes
     /// <summary>Typography left a straight quote, hyphen, dots or space as typed because the document's fonts lack its typographic character.</summary>
     public const string TypographySkipped = "typography-skipped";
 
+    /// <summary>
+    /// With highlighting on, a fenced code block names a language that neither a renderer nor the highlighter knows, so
+    /// it is not highlighted. Not given for <c>text</c>, <c>plain</c>, <c>console</c> and <c>output</c>.
+    /// </summary>
+    public const string CodeLanguageUnknown = "code-language-unknown";
+
     /// <summary>Check only: a slide has more list items, at every level, than <see cref="CheckOptions.MaxBulletsPerSlide"/>.</summary>
     public const string TooManyBullets = "too-many-bullets";
 
@@ -186,6 +192,7 @@ public static class NoteCodes
         (ListTooDeep, [DocumentFormat.Docx], "a list is nested deeper than three levels; the deeper items are set at the third level. Flatten the list to three levels."),
         (ClassificationKept, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "front matter cannot lower the host's `classification`, which applies. Leave the key out."),
         (TypographySkipped, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "with `typography: true`, a character the fonts lack was kept as typed. Nothing to fix."),
+        (CodeLanguageUnknown, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "with `highlight: true`, a code block's language is unknown. Check the spelling, or write `text`."),
         (TooManyBullets, [DocumentFormat.Pptx], "a slide has more list items, counting every level, than *Limits* allows. Cut them, or split the slide into slides of your own."),
         (TooManyWords, [DocumentFormat.Pptx], "a slide has more words than *Limits* allows, its title and speaker notes not counted. Shorten it, or move detail into `::: notes`."),
         (LongParagraph, [DocumentFormat.Pdf, DocumentFormat.Docx], "a paragraph has more words than *Limits* allows. Split it, or make a list of it."),
@@ -223,6 +230,9 @@ internal sealed class GenerationNotes
             this.notes.Add(new GenerationNote(code, line, message));
         }
     }
+
+    /// <summary>Whether a note of <paramref name="code"/> was added for <paramref name="line"/>.</summary>
+    public bool Has(string code, int line) => this.notes.Exists(n => n.Code == code && n.Line == line);
 
     /// <summary>
     /// The notes ordered by line, those without one last; stable, so notes of one line keep the order they were added in.

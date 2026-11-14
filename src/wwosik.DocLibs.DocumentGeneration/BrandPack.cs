@@ -336,6 +336,15 @@ internal sealed record BrandManifest(
                 TooltipFill = chart.TooltipFill,
                 TooltipText = chart.TooltipText,
             },
+            Code = colors.Code is not { } code ? null : new BrandCodeColors
+            {
+                Keyword = code.Keyword,
+                String = code.String,
+                Comment = code.Comment,
+                Number = code.Number,
+                Type = code.Type,
+                Markup = code.Markup,
+            },
         };
 
     private static byte[] File(Func<string, Stream?> openFile, string key, string path)
@@ -369,7 +378,10 @@ internal sealed record BrandManifest(
         DiagramSection? Diagram,
         string? Highlight,
         LabelsSection? Labels,
-        ChartSection? Chart = null);
+        ChartSection? Chart = null,
+        CodeSection? Code = null);
+
+    internal sealed record CodeSection(string? Keyword, string? String, string? Comment, string? Number, string? Type, string? Markup);
 
     internal sealed record LabelsSection(string? Success, string? Info, string? Warning, string? Danger, string? Neutral);
 

@@ -897,12 +897,59 @@ internal sealed partial class DocxBody
 
     private void CodeLines(CodeBlock code, List<OpenXmlElement> target)
     {
-        foreach (var line in code.Lines.ToString().Replace("\t", "    ", StringComparison.Ordinal).Split('\n'))
+        var text = code.Lines.ToString().Replace("\t", "    ", StringComparison.Ordinal);
+        if (code is FencedCodeBlock fenced && this.Context.Highlighting?.Lines(fenced.Info, text, this.LineOf(fenced)) is { } lines)
+        {
+            this.HighlightedLines(lines, target);
+            return;
+        }
+
+        foreach (var line in text.Split('\n'))
         {
             var paragraph = this.Paragraph(DocxRoles.Code);
             if (line.TrimEnd('\r').Length > 0)
             {
                 paragraph.Append(DocxWriter.Run(line.TrimEnd('\r')));
+            }
+
+            target.Add(paragraph);
+        }
+    }
+
+    // A paragraph per line in the code style, a run per span, coloured runs with their colour as direct formatting.
+    private void HighlightedLines(IReadOnlyList<IReadOnlyList<CodeSpan>> lines, List<OpenXmlElement> target)
+    {
+        var design = this.Context.Design ?? new StyleDesign(ResolvedBrand.Neutral, 0, 0);
+        var colors = design.CodeColors;
+        foreach (var line in lines)
+        {
+            var paragraph = this.Paragraph(DocxRoles.Code);
+            for (var i = 0; i < line.Count; i++)
+            {
+                var spanText = i == line.Count - 1 ? line[i].Text.TrimEnd('\r') : line[i].Text;
+                if (spanText.Length == 0)
+                {
+                    continue;
+                }
+
+                var run = DocxWriter.Run(spanText);
+                if (design.Code(line[i].Kind, colors) is { } color)
+                {
+                    var element = new Color { Val = color.Hex };
+                    if (color.Theme is { } theme)
+                    {
+                        element.ThemeColor = new ThemeColorValues(theme);
+                    }
+
+                    if (color.Tint is { } tint)
+                    {
+                        element.ThemeTint = tint;
+                    }
+
+                    run.PrependChild(new RunProperties(element));
+                }
+
+                paragraph.Append(run);
             }
 
             target.Add(paragraph);

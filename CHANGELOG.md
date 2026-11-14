@@ -30,6 +30,10 @@ updating, breaking changes first.
   front matter (it is checked and ignored), and the lists of valid front-matter keys in PDF and Word
   error messages name it; code that matches the messages' text adjusts. The PDF authoring guide's
   front-matter table lists the deck keys `transition`, `build` and `numberChapters` in one row.
+- **`wwosik.DocLibs.DocumentGeneration` depends on ColorCode.Core** (2.0.15, MIT, managed, about
+  120 KB, no further dependencies) for code highlighting, so every generator brings it along. Nothing
+  loads it until a document is highlighted; output with highlighting off is unchanged. Its licence
+  is in the package's `THIRD-PARTY-NOTICES.txt`.
 - **The Markdown from PDFs changes shape** (`PdfConverter`). Ruled tables come out as pipe tables,
   drawn and glyph bullets, task boxes and numbered lines with a hanging indent as (nested) lists,
   monospace lines as fenced code blocks, footnotes at the foot of a page as `[^n]` with their
@@ -183,6 +187,21 @@ updating, breaking changes first.
   count a scene as a diagram and decks' `SlidesByKind` as the new kind `scene`.
 - **The HTML deck plays Morph:** items named for Morph (`!!name`) move and resize from the previous
   slide to their new place while the others fade, instead of the whole slide fading.
+- **Code highlighting,** off by default: `highlight: true` in the front matter, or the new
+  `PptxOptions.HighlightCode`, `PdfOptions.HighlightCode` and `DocxOptions.HighlightCode`, colours
+  fenced code blocks that name their language (```` ```csharp ````) — keywords, strings, comments,
+  numbers, type names and markup — in decks (plain and flow slides, light and dark), PDFs and Word
+  documents; `highlight: false` switches it off whatever the option says. Languages: C#, VB, F#,
+  C/C++, Java, JavaScript, TypeScript, PHP, Python, PowerShell, SQL, HTML, XML, CSS, Markdown,
+  Haskell, JSON, YAML and Bash, with their usual aliases. Colours come from the new
+  `BrandColors.Code` (`BrandCodeColors`; `colors.code.*` and `slideColors.code.*` in brand packs),
+  and by default from the brand's own colours, darkened (on dark slides lightened) to a 4.5:1
+  contrast on the code background; on a caller's PowerPoint or Word template, from its theme. Colour
+  only: no bold or italic, so lines break as before. A block in a language the highlighter does not
+  know stays plain, with the new note `code-language-unknown`. The public `CodeTokenKind` names the
+  kinds. The authoring guides list the `highlight` key, the languages and the note (and are slightly
+  shorter elsewhere to stay within their word limits). With highlighting off, every deck, PDF and
+  Word document is as before.
 - **Typography,** off by default: `typography: true` in the front matter, or the new
   `PptxOptions.Typography`, `PdfOptions.Typography` and `DocxOptions.Typography`, sets typographic
   quotes, apostrophes, dashes, the ellipsis and no-break spaces (`10 km`, `z. B.`, `13. November`) in

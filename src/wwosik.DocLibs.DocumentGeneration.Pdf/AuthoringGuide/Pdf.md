@@ -13,7 +13,7 @@ headings that say what a section is about, lists where items really are parallel
 | `##` to `######` | Headings, in the table of contents (bookmarks), kept on a page with what follows them. |
 | `---` | A thin line. |
 
-- Paragraphs are left-aligned and broken at spaces; a line break is `\` at the end of a line.
+- Paragraphs are left-aligned; a line break is `\` at the end of a line.
 - Lists nest with indentation; `1.` lists are numbered from their first number.
 - `**bold**`, `*italic*`, `~~strike~~`, `` `code` `` and links work. A link needs an absolute URL
   (`https://…`) or a heading anchor (`[see costs](#costs)`); anything else stays text.
@@ -23,34 +23,33 @@ headings that say what a section is about, lists where items really are parallel
   background, long lines wrapped.
 - **Tables** span the page width; columns get the room their content needs, alignment follows the
   `:--`/`--:` markers. Long tables continue on the next page with the header row repeated. Keep
-  them to about six columns: wider tables squeeze their words.
+  them to about six columns.
 - **Images** (PNG or JPEG) are referenced by the path given to you, keep their size, are only
   scaled down to fit and never split; `![Chart](chart.png "scale=0.5")` halves the size. Several
-  images in one paragraph stand side by side, equally wide. Any other words in the title are its
+  images in one paragraph stand side by side, equally wide. Other words in the title are its
   caption (below).
 - **Image attributes** in braces right after an image, without a space:
-  `![Team](team.jpg){.round .grey}`. `.round` crops it to a circle, `.grey` shows it in grey,
-  `scale=0.5` is the same as `"scale=0.5"`. In a row of images, `fit=cover` fills the row's height
+  `![Team](team.jpg){.round .grey}`. `.round` crops it to a circle, `.grey` shows it in grey.
+  In a row of images, `fit=cover` fills the row's height
   and crops what sticks out, and `focus=top`, `bottom`, `left`, `right` or `center` (the default)
   says which part stays; an image of its own is never cropped. An unknown attribute is an error.
 - **QR codes:** `![Survey](qr:https://example.com/survey)` draws a QR code for the text after
-  `qr:`, taken literally (a web address, `mailto:…`), dark on white. `"caption"` in the title or
-  `{.caption}` puts the alt text under it, `scale=2` doubles it; no other attributes. Keep it under
-  1 000 characters: shorter addresses scan better.
+  `qr:`, taken literally (a web address, `mailto:…`). `"caption"` in the title or
+  `{.caption}` puts the alt text under it, `scale=2` doubles it; no other attributes. Shorter
+  addresses scan better.
 - **Footnotes:** `[^1]` in the text and `[^1]: The note.` on a line of its own anywhere below.
   The reference is a small raised number linked to its note at the foot of its page, numbered
   through the document; a long note continues on the next page.
 - **Task lists:** `- [ ] open` and `- [x] done` get an empty or ticked box instead of a bullet.
 - **Definition lists:** a term on a line of its own, then `:   ` and its description on the next
-  line (several `:` lines for several descriptions). The term is set in bold, the description
-  indented under it.
-- HTML is printed as text, not interpreted: do not use it. HTML comments are dropped.
+  line. The term is bold, the description indented.
+- HTML is printed as text: do not use it. HTML comments are dropped.
 
 ## Contents, numbers and captions
 
 - `toc: true` in the front matter puts a table of contents on a page after the cover: the headings
   of `tocDepth` levels (default 2) from the highest level after the cover, each with its page
-  number and a link to it.
+  number.
 - `headingNumbers: true` numbers three heading levels from the highest one after the cover: `1`,
   `1.1`, `1.1.1`, also in the bookmarks and the contents. A skipped level does not count: a `###`
   right under a `#` is `1.1`. `{.unnumbered}` at the end of any heading gives it no number.
@@ -168,8 +167,8 @@ around a table of 1–15 rows of risk, likelihood and impact (each 1–5) puts n
 
 ## When something is wrong
 
-Generation stops with a message that says what to fix: a character the fonts lack, an image that
-is not among the files, a front matter key that does not exist, or a broken diagram with its line.
+Generation stops with a message that says what to fix, such as a character the fonts lack or an
+image that is not among the files. Fix the Markdown and generate again.
 
 ## Notes you may get back
 
