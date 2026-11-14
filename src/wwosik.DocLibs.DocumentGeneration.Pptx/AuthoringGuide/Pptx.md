@@ -121,6 +121,40 @@ after the name pins today; `grid=week|month|quarter` sets a Gantt's grid.
 :::
 ````
 
+**Steps, Harvey balls and risk matrices:** `::: steps` around a list of 2–7 `- **Title** –
+description` draws them as chevrons in a row; `{.current}` at the end of one item marks it, the
+steps before it done, later ones outlined. A table cell that is only `[0/4]` to `[4/4]`, or
+`[1/2]`, is a Harvey ball, a circle filled by quarters; `\[3/4]` keeps the text. `::: riskmatrix`
+around a table of 1–15 rows of risk, likelihood and impact (each 1–5) puts numbered dots on a
+5 × 5 grid, likelihood up, impact right, with a legend; cells are tinted by likelihood × impact:
+1–4 in the success, 5–9 in the warning, 10–25 in the danger colour.
+
+````markdown
+## Programme
+
+::: steps
+- **Analyse** – understand the current process
+- **Design** – agree the target picture {.current}
+- **Build**
+:::
+
+## Risks
+
+::: riskmatrix
+| Risk | Likelihood | Impact |
+| ---- | ---------- | ------ |
+| Supplier delay | 4 | 3 |
+| Key person leaves | 2 | 5 |
+:::
+
+## Options
+
+| Option | Cost | Speed |
+| ------ | :---: | :---: |
+| Buy | [1/4] | [4/4] |
+| Build | [3/4] | [1/2] |
+````
+
 ## Presenting
 
 **Speaker notes:** `::: notes` … `:::` under a heading holds what the presenter says. It is not

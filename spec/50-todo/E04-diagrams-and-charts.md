@@ -21,7 +21,7 @@ Writers, often AI agents, describe a graphic in text; the generators draw it, so
 | [E04-S05](../60-verify/E04-S05-chart-source-and-image-attributes.md) | Chart source, semicolon CSV and image attributes | in verification |
 | [E04-S06](../60-verify/E04-S06-qr-codes-and-icons.md) | QR codes and icons | in verification |
 | [E04-S07](../60-verify/E04-S07-timeline-and-gantt.md) | Timeline and Gantt | in verification |
-| [E04-S08](../55-in-progress/doc-3/E04-S08-steps-harvey-balls-and-risk-matrix.md) | Steps, Harvey balls and risk matrix | in progress (doc-3) |
+| [E04-S08](../60-verify/E04-S08-steps-harvey-balls-and-risk-matrix.md) | Steps, Harvey balls and risk matrix | in verification |
 
 Stories marked *to plan* come from the
 [Python fork analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed

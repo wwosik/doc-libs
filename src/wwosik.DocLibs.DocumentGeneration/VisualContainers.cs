@@ -28,7 +28,7 @@ internal sealed record VisualContext(ResolvedBrand Brand, DateOnly Today, Genera
 
 /// <summary>
 /// The <c>:::</c> containers that both generators draw as a <see cref="Drawing"/> from the Markdown inside them:
-/// <c>timeline</c> and <c>gantt</c>. Decks put the drawing on a flow slide as editable shapes, PDFs draw it as
+/// <c>timeline</c>, <c>gantt</c>, <c>steps</c> and <c>riskmatrix</c>. Decks put the drawing on a flow slide as editable shapes, PDFs draw it as
 /// vectors. Arguments are <c>key=value</c> pairs after the name, checked by <see cref="Check"/> through
 /// <see cref="LayoutSyntax.CheckContainer"/>, so both formats reject the same mistakes. A new drawn container adds its
 /// name to <see cref="Names"/>, its arguments to <see cref="Arguments"/> and its drawing to <see cref="Draw"/>.
@@ -36,7 +36,7 @@ internal sealed record VisualContext(ResolvedBrand Brand, DateOnly Today, Genera
 internal static class VisualContainers
 {
     /// <summary>The drawn containers, in the order the guides list them.</summary>
-    public static readonly IReadOnlyList<string> Names = ["timeline", "gantt"];
+    public static readonly IReadOnlyList<string> Names = ["timeline", "gantt", "steps", "riskmatrix"];
 
     /// <summary>The argument <c>today=YYYY-MM-DD</c>, which pins today's date.</summary>
     public const string Today = "today";
@@ -54,7 +54,8 @@ internal static class VisualContainers
     public static IReadOnlyList<string> Arguments(string name) => name switch
     {
         "gantt" => [Grid + "=" + string.Join("|", Grids), Today + "=YYYY-MM-DD"],
-        _ => [Today + "=YYYY-MM-DD"],
+        "timeline" => [Today + "=YYYY-MM-DD"],
+        _ => [],
     };
 
     /// <summary>Checks the arguments of a drawn container.</summary>
@@ -66,6 +67,11 @@ internal static class VisualContainers
     public static IReadOnlyDictionary<string, string> Parse(string name, string arguments, DocumentFormat format)
     {
         var allowed = Arguments(name);
+        if (allowed.Count == 0 && arguments.Trim().Length > 0)
+        {
+            throw new DocumentConversionException(format, $"The container '::: {name} {arguments.Trim()}' takes no arguments.");
+        }
+
         var keys = allowed.Select(a => a[..a.IndexOf('=', StringComparison.Ordinal)]).ToList();
         var takes = $"The container '::: {name}' takes {string.Join(" and ", allowed)}";
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -116,6 +122,8 @@ internal static class VisualContainers
         {
             "timeline" => TimelineDrawing.Draw(container, context),
             "gantt" => GanttDrawing.Draw(container, context, arguments.GetValueOrDefault(Grid)),
+            "steps" => StepsDrawing.Draw(container, context),
+            "riskmatrix" => RiskMatrixDrawing.Draw(container, context),
             _ => throw new ArgumentException($"'{name}' is not a drawn container.", nameof(container)),
         };
     }

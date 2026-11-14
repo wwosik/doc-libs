@@ -75,6 +75,10 @@ updating, breaking changes first.
   relationship ids of the existing layouts do not change. A caller that uses a deck of the built-in
   master as its own template, with a section layout that has no title placeholder, now gets the
   subtitle in the chapter-number placeholder: delete that placeholder, or declare its role.
+- **A table cell that is exactly `[0/4]` … `[4/4]` or `[1/2]` is a Harvey ball now,** in both
+  generators and every table: decks write the glyph ○ ◔ ◑ ◕ ● (in `Segoe UI Symbol`), PDFs draw it,
+  instead of the text as typed. A cell with anything beside it stays text; write `\[3/4]` to keep
+  such a cell as text.
 
 ### New
 
@@ -165,6 +169,17 @@ updating, breaking changes first.
   declared dark layout takes `{.dark}` slides. Templates that declare nothing are used as before.
 - **The deck authoring guide** lists the new front-matter keys for caller templates and, for a
   brand's own template, the layouts of its roles and what text levels make of `###`.
+- **Steps and risk matrices:** `::: steps` around a list of 2–7 `- **Title** – description` draws a
+  row of chevrons; `{.current}` at the end of one item marks it, the steps before it done, later ones
+  outlined, and without it all are alike. `::: riskmatrix` around a table of 1–15 rows (risk,
+  likelihood and impact from 1 to 5, by position) draws a 5 × 5 grid, likelihood up and impact
+  right, cells tinted by score (1–4 success, 5–9 warning, 10–25 danger colour), each risk a numbered
+  dot with a legend beside the grid. Editable shapes on a flow slide in decks, vectors in PDFs. Both
+  containers used to be an "Unknown container" error.
+- **Harvey balls:** `[0/4]` to `[4/4]` and `[1/2]` alone in a table cell are circles filled by
+  quarters (see Breaking changes).
+- **`GeneratedTexts` has `Likelihood` and `Impact`,** the risk matrix's axis titles (German
+  `Eintrittswahrscheinlichkeit`, `Auswirkung`).
 
 ## 2610.28.22
 

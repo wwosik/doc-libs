@@ -1014,6 +1014,11 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
     private IReadOnlyList<TextRun> Cell(TableCell cell, bool labels)
     {
         var leaves = cell.Descendants<LeafBlock>().Where(l => l.Inline is not null).ToList();
+        if (HarveyBall.Quarters(leaves) is { } quarters)
+        {
+            return [new TextRun(HarveyBall.Glyph(quarters), RunStyle.None) { Symbol = true }];
+        }
+
         if (labels && leaves is [{ Inline: { } only }]
             && only.Where(i => i is not LiteralInline literal || literal.Content.ToString().Trim().Length > 0).ToList() is [CodeInline code])
         {

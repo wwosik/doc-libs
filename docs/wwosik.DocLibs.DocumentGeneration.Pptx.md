@@ -109,7 +109,9 @@ string guide = PptxGenerator.AuthoringGuide(options);   // starts at "##"
   never break), measured by character class and bold; the rest of the width goes to the columns by
   the length of their text. A table whose words do not fit steps its font down from 16 pt (14 pt
   from 7 rows, 12 pt from 11) to 10 pt before anything wraps inside a word. Cell alignment follows
-  the Markdown, and the template's default table style applies.
+  the Markdown, and the template's default table style applies. A cell that is only `[0/4]` …
+  `[4/4]` or `[1/2]` is a Harvey ball: the glyph ○ ◔ ◑ ◕ ● in `Segoe UI Symbol` (never embedded), on
+  every slide; see [Harvey balls](wwosik.DocLibs.DocumentGeneration.md#steps-harvey-balls-and-risk-matrices).
 - **Footnotes** of a slide are set in 10 pt at the foot of its content area, each with its number
   raised before it; the content area is shortened by their height, so fitting leaves room for them.
   A slide split by [fitting](#fitting) is measured with all its footnotes, and each part keeps those
@@ -255,6 +257,7 @@ as plain Markdown.
 | `::: statement` | Its first paragraph large and bold; the rest of the container follows as normal blocks. |
 | `::: columns` (or `::: columns 1:2`) … `---` … `:::` | Two or three columns side by side, split at `---` lines (a blank line before each, or Markdown reads the line above as a heading); widths equal or in the ratio given. Each column stacks its blocks: text beside an image or a chart. |
 | `::: timeline` around a list of `- **2026-03** Title: description`, `::: gantt` around a table of task, start and end | A timeline or a Gantt chart as a group of editable shapes, fitted to the width like a diagram (enlarged at most 1.5 times); on a dark slide or `::: panel dark` in light lines and white text. See [Timelines and Gantt charts](wwosik.DocLibs.DocumentGeneration.md#timelines-and-gantt-charts). |
+| `::: steps` around a list of `- **Title** – description` (`{.current}` at the end of one), `::: riskmatrix` around a table of risk, likelihood and impact | A row of chevrons, or a 5 × 5 risk grid with numbered dots and a legend, as a group of editable shapes, fitted like a timeline. See [Steps, Harvey balls and risk matrices](wwosik.DocLibs.DocumentGeneration.md#steps-harvey-balls-and-risk-matrices). |
 | `> [!NOTE]`, `> [!TIP]` | A band with a bar on the left in the primary colour (not italic). |
 | `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]` | The same with the bar in the highlight colour. |
 | A paragraph of only code spans: `` `a` `b` `c` `` (at least two) | Outlined chips in the code font, flowing and wrapping. |
@@ -275,9 +278,9 @@ as plain Markdown.
   other braces (`## Sets {a, b}`) stay in the title. `##` headings take `.dark`, `kicker` and
   `layout`; `#` headings take `layout` and `.closing`.
 - **Mistakes throw** `DocumentConversionException`: an unknown attribute or a key given twice, an
-  unknown container (the message lists `cards, rows, panel, statement, columns, notes, timeline, gantt`), arguments on a
-  container other than `panel dark`, a `columns` ratio and the `key=value` pairs of `timeline` and `gantt`, a `timeline` or `gantt`
-  whose content or dates are not what it takes, a `columns` without two or three parts,
+  unknown container (the message lists `cards, rows, panel, statement, columns, notes, timeline, gantt, steps, riskmatrix`), arguments on a
+  container other than `panel dark`, a `columns` ratio and the `key=value` pairs of `timeline` and `gantt`, a `timeline`, `gantt`,
+  `steps` or `riskmatrix` whose content, dates or values are not what it takes, a `columns` without two or three parts,
   `layout="…"` naming no layout of the template (or used on the built-in master), `.closing` on a
   `##` or `.dark` / `kicker` on a `#`, `[words]{.x}` with an unknown colour, content before the first `###` in `::: cards`, a `::: rows` that is not
   one list, an item of `cards` or `rows` that does not start with bold text, an unknown alert.

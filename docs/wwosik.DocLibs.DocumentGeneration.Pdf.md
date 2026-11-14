@@ -128,7 +128,7 @@ The shared syntax and rules are in
 | Lists | Hanging indent of 18 pt per level, `•` / `–` alternating by level, numbers from the list's start value. |
 | Code blocks | The brand's mono face, else Liberation Mono, 9 pt on light grey, wrapped by characters. |
 | Quotes | Indented, grey, with a rule on the left per quote level. |
-| Tables | 9.5 pt, in the brand's table fonts if it has them; full content width. Each column gets at least its longest word, the rest is shared in proportion to the content. Header row in the brand table colour with white bold text, banded rows, thin lines, alignment from the Markdown. A row that doesn't fit moves to the next page and the header row repeats there; a row taller than a page splits at line boundaries. |
+| Tables | 9.5 pt, in the brand's table fonts if it has them; full content width. Each column gets at least its longest word, the rest is shared in proportion to the content. Header row in the brand table colour with white bold text, banded rows, thin lines, alignment from the Markdown. A cell that is only `[0/4]` … `[4/4]` or `[1/2]` is a drawn Harvey ball, one em, in the cell's text colour and alignment (see [Harvey balls](wwosik.DocLibs.DocumentGeneration.md#steps-harvey-balls-and-risk-matrices)). A row that doesn't fit moves to the next page and the header row repeats there; a row taller than a page splits at line boundaries. |
 | Images | Natural size at 96 DPI, `"scale=N.N"` in the title multiplies it; scaled down to the content width and page height, never up; centred; moved to the next page if they don't fit. An `.svg` image needs an image converter (`SvgImageConverter` from [wwosik.DocLibs.DocumentConversions.Svg](wwosik.DocLibs.DocumentConversions.Svg.md)): placed the same way, as a PNG drawn twice as large. |
 | `---` | A thin line. |
 | `**bold**`, `*italic*`, `~~strike~~`, `` `code` `` | Font face; strike as a line through. |
@@ -308,6 +308,8 @@ Markdown written for the PPTX generator's
   the text width and kept on one page like diagrams; see
   [Timelines and Gantt charts](wwosik.DocLibs.DocumentGeneration.md#timelines-and-gantt-charts). Today is
   `PdfOptions.TimeProvider`'s date unless `today=` pins it.
+- **Steps and risk matrices** (`::: steps`, `::: riskmatrix`) are drawn the same way; see
+  [Steps, Harvey balls and risk matrices](wwosik.DocLibs.DocumentGeneration.md#steps-harvey-balls-and-risk-matrices).
 - **Containers** (`::: cards`, `rows`, `panel`, `statement`, `columns`) show their content as normal
   blocks: a card's `###` is a heading, a short-form list a list, the columns of `::: columns` one
   after the other without the `---` between them.

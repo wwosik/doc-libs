@@ -278,7 +278,7 @@ same change that made it untrue — a stale fact here is worse than a missing on
   own `THIRD-PARTY-NOTICES.txt`.
 
 - **Drawn containers (E04-S07):** `VisualContainers` (shared) owns the `:::` containers drawn as a
-  `Drawing` (`timeline`, `gantt`; E04-S08 adds `steps`, `riskmatrix`): `Names` joins
+  `Drawing` (`timeline`, `gantt`, and since E04-S08 `steps`, `riskmatrix`, which take no arguments): `Names` joins
   `LayoutSyntax.Containers`, `CheckContainer` hands them to `VisualContainers.Check` (`key=value`
   arguments per name in `Arguments`), and both parsers call `Draw(container, VisualContext)` and add a
   `DrawingBlock` — decks in `DeckParser.Container` (a flow slide like any container), PDFs in
@@ -287,7 +287,15 @@ same change that made it untrue — a stale fact here is worse than a missing on
   in UTC, `today=` wins), `GeneratedTexts`, `LineOf` and the format. `DrawingTexts` makes `DrawingSpan`s
   from inlines and breaks lines by an estimate; `SchedulePeriod` parses and shows ISO dates without
   `CultureInfo`. `GeneratedTexts`' static month lists are declared before `English`/`German` (static
-  initialisation order). The PPTX guide is at the 2,600-word limit (E04-S07 trimmed other prose to fit).
+  initialisation order). The PPTX guide's word limit is 3,500 (the human, 2026-11-14; it was 2,600, and
+  E04-S07 had trimmed other prose to fit it).
+- **Harvey balls (E04-S08):** `HarveyBall.Quarters` reads a table cell whose only inlines are unescaped
+  literals spelling `[n/4]` or `[1/2]` (Markdig leaves an unresolved `[3/4]` as literals). Decks:
+  `DeckParser.Cell` returns one `TextRun { Symbol = true }` with the glyph, and `DeckWriter.Run` names
+  `HarveyBall.SymbolFont` (`Segoe UI Symbol`) in `a:latin`, `a:ea` and `a:cs` instead of the table
+  font; it is never embedded. PDFs: `MarkdownParser.Cell` returns an icon run (`RunStyle.Icon`,
+  `InlineIcon` with `HarveyBall.Drawing`), so the layout's icon-in-text path draws it one em wide in the
+  text colour and at the cell's alignment — before `NotDrawn`, which drops real icons from cells.
 - **PDF structure (E08-S01):** `PdfConverter` runs a structured pass per page (`PageGraphics.Read` sorts
   `page.Paths` into rules, boxes, dots, fills; tables first, their words leave the flow; then lines with
   superscripts, footnotes, markers, code) and falls back to a plain pass (the converter before E08-S01:

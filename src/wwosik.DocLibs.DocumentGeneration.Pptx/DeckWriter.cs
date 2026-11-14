@@ -1229,6 +1229,13 @@ internal sealed partial class DeckWriter
         {
             properties.Append(new A.LatinFont { Typeface = this.codeFont });
         }
+        else if (run.Symbol)
+        {
+            // In every script slot: PowerPoint may take geometric shapes for East Asian or complex script text.
+            properties.Append(new A.LatinFont { Typeface = HarveyBall.SymbolFont });
+            properties.Append(new A.EastAsianFont { Typeface = HarveyBall.SymbolFont });
+            properties.Append(new A.ComplexScriptFont { Typeface = HarveyBall.SymbolFont });
+        }
         else if (font is not null)
         {
             properties.Append(new A.LatinFont { Typeface = font });

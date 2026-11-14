@@ -31,6 +31,9 @@ internal sealed record TextRun(string Text, RunStyle Style, string? Link = null)
     /// card's figure or in an icon list; anywhere else it is left out, with a note.</summary>
     public InlineIcon? Icon { get; init; }
 
+    /// <summary>A Harvey ball's glyph (○ ◔ ◑ ◕ ●): written in <see cref="HarveyBall.SymbolFont"/>, never embedded.</summary>
+    public bool Symbol { get; init; }
+
     public static TextRun Break { get; } = new("\n", RunStyle.None);
 
     public bool IsBreak => this.Text == "\n";

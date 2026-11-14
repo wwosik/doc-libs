@@ -358,7 +358,8 @@ provides `MermaidRenderer`. Any other diagram language can plug in the same way.
 The PPTX generator draws [layouts](wwosik.DocLibs.DocumentGeneration.Pptx.md#layouts) from Markdown:
 heading attributes (`## Title {.dark kicker="Label" layout="Name"}`, `# Thank you {.closing}`),
 `:::` containers (`cards`, `rows`, `panel`, `statement`, `columns`, and the drawn
-[`timeline` and `gantt`](#timelines-and-gantt-charts)), GitHub alerts (`> [!NOTE]`),
+[`timeline` and `gantt`](#timelines-and-gantt-charts),
+[`steps` and `riskmatrix`](#steps-harvey-balls-and-risk-matrices)), GitHub alerts (`> [!NOTE]`),
 tag lists of code spans, `==marked==` text, `[words]{.success}` in a status colour, and paragraphs of
 only images, side by side.
 
@@ -435,7 +436,9 @@ is a BCP 47 tag such as `en`, `de`, `de-CH` or `en-GB`. Anything else is an erro
   titles (`Note`, `Tip`, `Important`, `Warning`, `Caution`), the heading of the footnotes in a
   PDF (`Notes`), the word before a chart's source (`Source`; German `Quelle`) and the dates of
   [timelines and Gantt charts](#timelines-and-gantt-charts) (`MonthNames`, `DayFormat`,
-  `MonthFormat`, `QuarterFormat`, `WeekFormat`). Code-block
+  `MonthFormat`, `QuarterFormat`, `WeekFormat`) and the axis titles of
+  [risk matrices](#steps-harvey-balls-and-risk-matrices) (`Likelihood`, `Impact`; German
+  `Eintrittswahrscheinlichkeit`, `Auswirkung`). Code-block
   renderers get them as `CodeBlockRequest.Texts`. `GeneratedTexts.English` and `GeneratedTexts.German` are built in; a host adds or
   replaces languages with the options' `Texts`, by tag. Every property defaults to English, so a
   new language starts from `GeneratedTexts.English with { Warning = "…" }` and stays complete when
@@ -543,6 +546,72 @@ Internally, `VisualContainers` is the ground for drawn containers: its names joi
 checks their arguments and draws them from the `CustomContainer` and a `VisualContext` (brand, today,
 texts, lines, format); both parsers turn the drawing into a `DrawingBlock`. `DrawingTexts` turns inlines
 into `DrawingSpan`s and breaks them into lines; `SchedulePeriod` parses and shows the dates.
+
+## Steps, Harvey balls and risk matrices
+
+Three graphics common in consulting decks and reports. `::: steps` and `::: riskmatrix` are drawn
+containers like [timelines](#timelines-and-gantt-charts): `Drawing`s, editable shapes on a flow slide
+in decks, vectors in PDFs, taking no arguments. Harvey balls live inside tables.
+
+````markdown
+::: steps
+- **Analyse** – understand the current process
+- **Design** – agree the target picture {.current}
+- **Build**
+- **Roll out**
+:::
+
+::: riskmatrix
+| Risk               | Likelihood | Impact |
+|--------------------|------------|--------|
+| Supplier delay     | 4          | 3      |
+| Key person leaves  | 2          | 5      |
+:::
+
+| Option | Cost  | Speed |
+|--------|:-----:|:-----:|
+| Buy    | [1/4] | [4/4] |
+| Build  | [3/4] | [1/2] |
+````
+
+**`::: steps`** holds one list of 2 to 7 items, each starting with a bold title, then an optional
+description after a dash or colon (as the items of `::: cards`). `{.current}` at the end of at most one
+item marks the current step: the steps before it are done (accent fill, white title), the current one
+is filled in `Highlight` with a bold white title, later ones are outlined (diagram `Surface` fill,
+`Border` line, `Text` title). Without `{.current}` every step is alike, in the accent colour with a
+bold white title. `{.current}` is the only attribute; any other `{…}` at the end of an item, a second
+`{.current}`, fewer or more items, or an item without a bold title throw. Drawn 960 px wide as one row
+of chevrons (the first with a flat left end), titles inside (at most two lines), descriptions below
+(at most three, cut with "…"), every line shrunk to its room; 68 px tall without descriptions. Where
+the highlight is the accent colour, as on dark slides, the current step also gets an outline in the
+diagram text colour.
+
+**Harvey balls:** a table cell whose whole content is `[0/4]`, `[1/4]`, `[2/4]`, `[3/4]` or `[4/4]` —
+or `[1/2]`, the same as `[2/4]` — is a circle filled by that many quarters, from twelve o'clock
+clockwise. A cell with anything else beside it, in code or emphasis, or with its bracket escaped
+(`\[3/4]`) stays text. It applies to every table, header rows included, in decks (plain and flow
+slides) and PDFs.
+
+- **PDFs** draw it like an icon in text: a ring and a filled sector of one em (`HarveyBall.Drawing`, a
+  24 × 24 px drawing), in the cell's text colour (white in the header row), at the cell's alignment.
+  No character is written, so the bundled fonts, which lack ◔ ◑ ◕, are no matter.
+- **Decks** write the glyph `○ ◔ ◑ ◕ ●` (U+25CB, U+25D4, U+25D1, U+25D5, U+25CF) into the cell, so it
+  stays aligned with its row and editable. The run names `Segoe UI Symbol` in its Latin, East Asian
+  and complex-script fonts, so PowerPoint does not depend on the theme font having the glyphs; the font
+  is never embedded, and where it is missing (macOS) Office's font fallback supplies the glyphs. The
+  PPTX converter reads them back as the glyphs.
+
+**`::: riskmatrix`** holds one pipe table of 1 to 15 rows. The first three columns **by position** are
+the risk, its likelihood and its impact, each a whole number from 1 to 5; headers are free, further
+columns ignored. Anything else, an empty risk, or more rows throw, naming the line. It is drawn as a
+5 × 5 grid, likelihood up and impact right, with the values along both axes and the axis titles from
+`GeneratedTexts` (`Likelihood` above, `Impact` below). Each cell is tinted by its score, likelihood ×
+impact, in fixed bands: 1–4 the brand's `Labels.Success`, 5–9 `Labels.Warning`, 10–25
+`Labels.Danger`, each at 22 % on white as status labels tint cells. Each risk is a dot in its band's
+full colour with its number (in the order written) in white; risks sharing a cell sit side by side,
+in rows of three (four when more than nine share it). A numbered legend beside the grid names them
+(at most two lines each). 960 px wide; 446 px tall, or the legend's height when that is more — the
+drawing is always wider than tall, so the legend never needs to go below the grid.
 
 ## QR codes and icons
 

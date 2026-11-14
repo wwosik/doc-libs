@@ -427,8 +427,14 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         return new TableBlock(grid, alignments, rows.Count > 0 && rows[0].IsHeader);
     }
 
+    // A Harvey ball is drawn like an icon in text: one em wide, in the cell's text colour, at the cell's alignment.
     private IReadOnlyList<TextRun> Cell(TableCell cell)
     {
+        if (HarveyBall.Quarters(cell.Descendants<LeafBlock>()) is { } quarters)
+        {
+            return [new TextRun(string.Empty, RunStyle.Icon) { Icon = new InlineIcon($"harvey-{quarters}", HarveyBall.Drawing(quarters), this.LineOf(cell)) }];
+        }
+
         var runs = new List<TextRun>();
         foreach (var leaf in cell.Descendants<LeafBlock>().Where(l => l.Inline is not null))
         {

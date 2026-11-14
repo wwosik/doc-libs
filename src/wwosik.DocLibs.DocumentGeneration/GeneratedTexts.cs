@@ -5,7 +5,7 @@ namespace wwosik.DocLibs.DocumentGeneration;
 
 /// <summary>
 /// The texts a generator writes itself, in one language: the titles of alerts, the heading of the footnotes, the word before a chart's source, the
-/// month names and date formats of timelines and Gantt charts, and more as generators gain them. Every property defaults to English, so a language of a host's own starts from
+/// month names and date formats of timelines and Gantt charts, the axis titles of risk matrices, and more as generators gain them. Every property defaults to English, so a language of a host's own starts from
 /// <see cref="English"/> with <c>with { … }</c> and stays complete when a later version adds a text.
 /// </summary>
 public sealed record GeneratedTexts
@@ -30,6 +30,8 @@ public sealed record GeneratedTexts
         MonthNames = GermanMonths,
         DayFormat = "{0}. {1} {2}",
         WeekFormat = "KW {0}",
+        Likelihood = "Eintrittswahrscheinlichkeit",
+        Impact = "Auswirkung",
     };
 
     /// <summary>The title of <c>> [!NOTE]</c>.</summary>
@@ -70,6 +72,12 @@ public sealed record GeneratedTexts
 
     /// <summary>An ISO week on a Gantt chart's axis: <c>{0}</c> its number. "W12"; German "KW 12".</summary>
     public string WeekFormat { get; init; } = "W{0}";
+
+    /// <summary>The title of a risk matrix's vertical axis: "Likelihood"; German "Eintrittswahrscheinlichkeit".</summary>
+    public string Likelihood { get; init; } = "Likelihood";
+
+    /// <summary>The title of a risk matrix's horizontal axis: "Impact"; German "Auswirkung".</summary>
+    public string Impact { get; init; } = "Impact";
 
     /// <summary>The title of an alert of the kind <paramref name="kind"/> (<c>NOTE</c>, <c>TIP</c>, …).</summary>
     internal string Alert(string kind) => kind.ToUpperInvariant() switch

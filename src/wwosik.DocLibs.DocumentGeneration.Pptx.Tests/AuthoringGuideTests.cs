@@ -20,11 +20,11 @@ public partial class AuthoringGuideTests
 
     [Theory]
     [MemberData(nameof(Cases))]
-    public void Guide_StaysUnder2600Words(string template)
+    public void Guide_StaysUnder3500Words(string template)
     {
         var words = AuthoringGuides.Words(PptxGenerator.AuthoringGuide(Options(template)));
 
-        Assert.True(words < 2600, $"{words} words");
+        Assert.True(words < 3500, $"{words} words");
     }
 
     [Fact]
