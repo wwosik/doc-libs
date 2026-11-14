@@ -55,8 +55,6 @@ Blob storage is the only external dependency.
 - revisions bookings, reference data
 - latest-wins only the rule header
 
-09.03.2026 2 / 3
-
 ## Page 3
 
 ### Tables for status and lists
@@ -108,4 +106,44 @@ Before: every change waited for the weekly release.
 
 After: changes ship the same day, behind a switch, and the old path stays until the numbers agree.
 
-09.03.2026 3 / 3
+### Agenda
+
+- Why rebuild the planner
+
+## Page 4
+
+- How Harbour works
+- Status and next steps
+
+Documents instead of tables: the largest schedule now fits in memory. — Planning lead, Harbour pilot
+
+### Harbour goes live in June
+
+After the shadow run, one region at a time.
+
+### Contact
+
+- Ann Example – Product owner ann@example.com
+- Ben Example – Architecture ben@example.com
+
+### Calculation time
+
+```
+type: bar
+title: Minutes per schedule
+unit: min
+source: Shadow run
+---
+region, today, Harbour
+North, 42, 9
+South, 37, 8
+```
+
+### Shadow run
+
+- Same bookings, same results in 97 % of the runs
+- The rest differ in rounding only
+
+Rounding is fixed in the next release.
+
+Harbour is ready for the switch.

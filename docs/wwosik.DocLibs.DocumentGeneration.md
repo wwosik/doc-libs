@@ -270,6 +270,8 @@ if (result.HasNotes)
 | `slide-shrunk` | PPTX | A slide's text or table had to be set at the smallest size to fit; smaller steps above it are not reported, nor are the parts of a split slide |
 | `slide-overfull` | PPTX | Something runs past the content area even at the smallest size: one list item, table row or block too big for a slide of its own |
 | `image-enlarged` | PPTX | An image was drawn at more than twice its natural size; not when its title gives `scale=`, nor for a converted SVG, which PowerPoint draws as a vector |
+| `layout-fallback` | PPTX | A slide kind (`{.agenda}`, `{.quote}`, `{.statement}`, `{.contact}`, `{.chart}`) asked for a layout the template does not have; it is drawn as a flow slide with the same content |
+| `agenda-empty` | PPTX, PDF | An empty `{.agenda}` found no `#` chapters to list, so it shows its title only |
 | `image-cropped` | PPTX | An image filling a layout's picture placeholder (`layout="…"`) was cut by more than a tenth of its width or height to the placeholder's shape |
 | `code-not-drawn` | PPTX, PDF | A renderer declined a block in its own language and said why, such as `MermaidRenderer` for a diagram type it does not draw; blocks in languages no renderer claims stay code silently |
 | `html-as-text` | PPTX, PDF | Raw HTML, a block or inline, was written as text; HTML comments are left out silently |
@@ -360,7 +362,8 @@ provides `MermaidRenderer`. Any other diagram language can plug in the same way.
 
 The PPTX generator draws [layouts](wwosik.DocLibs.DocumentGeneration.Pptx.md#layouts) from Markdown:
 heading attributes (`## Title {.dark kicker="Label" layout="Name"}`, `# Thank you {.closing}`),
-`:::` containers (`cards`, `rows`, `panel`, `statement`, `columns`, and the drawn
+slide kinds (`## Agenda {.agenda}`, `{.quote}`, `{.statement}`, `{.contact}`, `{.chart}`),
+`:::` containers (`cards`, `rows`, `panel`, `statement`, `columns`, `conclusion`, `comment`, and the drawn
 [`timeline` and `gantt`](#timelines-and-gantt-charts),
 [`steps` and `riskmatrix`](#steps-harvey-balls-and-risk-matrices)), GitHub alerts (`> [!NOTE]`),
 tag lists of code spans, `==marked==` text, `[words]{.success}` in a status colour, and paragraphs of
@@ -379,8 +382,9 @@ on the [PPTX](wwosik.DocLibs.DocumentGeneration.Pptx.md#image-attributes) and
 `attribute-ignored` says so.
 The PDF generator accepts the same Markdown, so one source serves both, and shows it plainly: see
 [its documentation](wwosik.DocLibs.DocumentGeneration.Pdf.md#slide-layouts). Both reject the same
-mistakes — unknown heading attributes, containers and alerts — with a `DocumentConversionException`
-in their format. Custom containers are block-level only in both: `::text::` stays text.
+mistakes — unknown heading attributes, containers and alerts, a kind of slide with content it does
+not take, a misplaced `::: conclusion` or `::: comment` (internally `SlideKinds`) — with a
+`DocumentConversionException` in their format. Custom containers are block-level only in both: `::text::` stays text.
 
 Front matter can assign status labels — table cells that are one code span — to categories, one key
 per category with its labels separated by `;`:

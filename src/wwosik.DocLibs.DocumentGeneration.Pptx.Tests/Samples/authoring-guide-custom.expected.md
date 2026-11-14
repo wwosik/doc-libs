@@ -70,6 +70,8 @@ is fine.
 | A line of only code spans: `` `Orders` `Invoices` `Stock` `` | Tags, as chips. At least two. |
 | In a container, `` - `write-once` text `` | The code span as a bold label, the text beside it. |
 | A table cell that is one code span: `` `Done` ``, on a layout slide | A status label; front matter `labels.success: Done` colours it. Categories: `success`, `info`, `warning`, `danger`, `neutral`; labels no key names are neutral. |
+| `::: conclusion` … `:::`, the slide's last block | A band at the foot of the slide: the takeaway. |
+| `::: comment` … `:::`, right after a block | A callout over that block's top right. |
 
 ````markdown
 ## Why rebuild? {kicker="Motivation"}
@@ -99,6 +101,46 @@ of memory per plan.
 - Layout slides that do not fit are set smaller, then continued on a further slide between their
   blocks; cards, a panel or columns stay together. Three or four cards with one or two lines each
   fill a slide.
+
+**Kinds of slide:** a class on a `##` heading puts the slide on the design's layout for it.
+
+| Markdown | On the slide |
+| -------- | ------------ |
+| `## Agenda {.agenda}` with a list | The list, numbered. With nothing under the heading: the deck's `#` chapters. |
+| `## {.quote}` with `> quote` and a last line `— Name, role` | The quote, with the line as its byline. A heading shows only where the design has a title for it. |
+| `## One message {.statement}`, text below if you like | The heading as one large statement, the text under it. |
+| `## Team {.contact}` with a list, one item per person | Per item an image as the photo, the **bold** name, the other lines below; five a slide. |
+| `## Revenue {.chart}` with one or two `chart` blocks, text if you like | The charts with their title, unit and source in the design's places; two a slide. |
+
+A kind excludes the other kinds and `.dark`, goes with `kicker` and `layout`, and holds only what
+the table says.
+
+````markdown
+## Agenda {.agenda}
+
+## {.quote}
+
+> We ship when the numbers agree.
+> — Ann Example, Chief Engineer
+
+## Team {.contact}
+
+- **Ann Example** – Chief Engineer
+  ann@example.com
+- **Ben Example** – Project lead
+
+## Where we stand
+
+- 14 of 20 substations upgraded
+
+::: comment
+Two more by June.
+:::
+
+::: conclusion
+The end date holds.
+:::
+````
 
 **Timelines and Gantt charts:** `::: timeline` around a list of 2–8 `- **date** Title: description`;
 `::: gantt` around a table of 1–20 rows of task, start and end (no end: a milestone). Dates:
@@ -217,6 +259,8 @@ The end date does not move.
   own marker.
 - Other braces alone in a paragraph, such as `{.note}`, are a mistake; `\{` keeps them as text.
 
+**Kinds of slide** are drawn as layout slides with the same content, unless the template has a layout of the right type.
+
 **Layouts with several boxes.** On a `layout="…"` slide, lines `---` (each after a blank line) cut the text into parts, which fill the layout's text boxes in order; images fill its picture boxes, cropped to their shape, and charts its chart boxes. What has no box left continues on a further slide. Such a slide takes text, images, charts, tables and diagrams, but no `:::` containers, alerts, `.dark` or `kicker`.
 
 ````text
@@ -285,7 +329,8 @@ Each character is shown in the deck's font, or in a substitute where that font l
 Generation stops with a message that says what to fix: an unknown container (`::: grid`), heading
 attribute (`{.wide}`), alert (`[!INFO]`), transition or build marker (`{.note}`), a marker that
 builds nothing, a `::: notes` inside another block, a
-`cards` or `rows` item without a bold start, an
+`cards` or `rows` item without a bold start, a kind of slide with content it does not take, a
+`::: comment` first or a `::: conclusion` not last, an
 image that is not among the files, a front matter key that does not exist, or a broken diagram
 with its line. Fix the Markdown and generate again.
 
@@ -306,6 +351,8 @@ The document is still written, but whoever passes it to you may also pass on not
 - `notes-simplified`: speaker notes hold only paragraphs and lists; a table, code block, image or quote in `::: notes` was written as plain text. Keep speaker notes to text and lists.
 - `attribute-ignored`: an image attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `focus` on an image that is not cropped. Remove it, or use it where it works.
 - `icon-not-drawn`: an icon was left out where it cannot be drawn. Move it as the *Icons* section says.
+- `layout-fallback`: the design has no layout for that kind of slide (`{.quote}` and the others), so it is drawn as a layout slide with the same content. Nothing to fix, unless the design's own look matters.
+- `agenda-empty`: an empty `{.agenda}` found no `#` chapters to list. Add the chapters, or write the agenda as a list.
 
 ## Example
 

@@ -212,6 +212,29 @@ public static class PptxGenerator
                 + string.Join(", ", roles.Select(r => $"{RoleText(r.Role)} `{r.Name}`")) + ".");
         }
 
+        // Which kinds of slide have a layout of their own; on a caller's template the ones found by type are not known here.
+        var kinds = new[] { LayoutRole.Agenda, LayoutRole.Quote, LayoutRole.Statement, LayoutRole.Contact, LayoutRole.Chart, LayoutRole.TwoCharts };
+        if (template is null && custom is null)
+        {
+            parts.Add("This design has a layout for every kind of slide.");
+        }
+        else if (roles.Where(r => kinds.Contains(r.Role)).Select(r => RoleText(r.Role)).ToList() is { Count: > 0 } own)
+        {
+            parts.Add($"**Kinds of slide with a layout of their own here:** {string.Join(", ", own)}. "
+                + (custom is not null ? "Others use a layout of the right type, if the template has one; else they are " : "The others are ")
+                + "drawn as layout slides with the same content.");
+        }
+        else
+        {
+            parts.Add("**Kinds of slide** are drawn as layout slides with the same content"
+                + (custom is not null ? ", unless the template has a layout of the right type." : ": this design has no layouts for them."));
+        }
+
+        if ((template?.Roles ?? custom)?.Layouts?.TwoContent is { } twoContent)
+        {
+            parts.Add($"A `##` slide whose only block is `::: columns` with two columns of text goes on `{twoContent}`, one column in each box.");
+        }
+
         if (template is not null || custom is not null)
         {
             parts.Add("**Layouts with several boxes.** On a `layout=\"…\"` slide, lines `---` (each after a blank line) cut the text "

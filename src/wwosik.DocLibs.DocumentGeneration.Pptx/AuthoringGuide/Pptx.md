@@ -70,6 +70,8 @@ is fine.
 | A line of only code spans: `` `Orders` `Invoices` `Stock` `` | Tags, as chips. At least two. |
 | In a container, `` - `write-once` text `` | The code span as a bold label, the text beside it. |
 | A table cell that is one code span: `` `Done` ``, on a layout slide | A status label; front matter `labels.success: Done` colours it. Categories: `success`, `info`, `warning`, `danger`, `neutral`; labels no key names are neutral. |
+| `::: conclusion` … `:::`, the slide's last block | A band at the foot of the slide: the takeaway. |
+| `::: comment` … `:::`, right after a block | A callout over that block's top right. |
 
 ````markdown
 ## Why rebuild? {kicker="Motivation"}
@@ -99,6 +101,46 @@ of memory per plan.
 - Layout slides that do not fit are set smaller, then continued on a further slide between their
   blocks; cards, a panel or columns stay together. Three or four cards with one or two lines each
   fill a slide.
+
+**Kinds of slide:** a class on a `##` heading puts the slide on the design's layout for it.
+
+| Markdown | On the slide |
+| -------- | ------------ |
+| `## Agenda {.agenda}` with a list | The list, numbered. With nothing under the heading: the deck's `#` chapters. |
+| `## {.quote}` with `> quote` and a last line `— Name, role` | The quote, with the line as its byline. A heading shows only where the design has a title for it. |
+| `## One message {.statement}`, text below if you like | The heading as one large statement, the text under it. |
+| `## Team {.contact}` with a list, one item per person | Per item an image as the photo, the **bold** name, the other lines below; five a slide. |
+| `## Revenue {.chart}` with one or two `chart` blocks, text if you like | The charts with their title, unit and source in the design's places; two a slide. |
+
+A kind excludes the other kinds and `.dark`, goes with `kicker` and `layout`, and holds only what
+the table says.
+
+````markdown
+## Agenda {.agenda}
+
+## {.quote}
+
+> We ship when the numbers agree.
+> — Ann Example, Chief Engineer
+
+## Team {.contact}
+
+- **Ann Example** – Chief Engineer
+  ann@example.com
+- **Ben Example** – Project lead
+
+## Where we stand
+
+- 14 of 20 substations upgraded
+
+::: comment
+Two more by June.
+:::
+
+::: conclusion
+The end date holds.
+:::
+````
 
 **Timelines and Gantt charts:** `::: timeline` around a list of 2–8 `- **date** Title: description`;
 `::: gantt` around a table of 1–20 rows of task, start and end (no end: a milestone). Dates:
@@ -234,7 +276,8 @@ The end date does not move.
 Generation stops with a message that says what to fix: an unknown container (`::: grid`), heading
 attribute (`{.wide}`), alert (`[!INFO]`), transition or build marker (`{.note}`), a marker that
 builds nothing, a `::: notes` inside another block, a
-`cards` or `rows` item without a bold start, an
+`cards` or `rows` item without a bold start, a kind of slide with content it does not take, a
+`::: comment` first or a `::: conclusion` not last, an
 image that is not among the files, a front matter key that does not exist, or a broken diagram
 with its line. Fix the Markdown and generate again.
 

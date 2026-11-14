@@ -96,6 +96,17 @@ updating, breaking changes first.
 - **`numberChapters` is a front-matter key of every deck template and of PDFs** (checked, then
   ignored there). A host that lists or checks front-matter keys sees it; nothing changes unless it
   is set or a template declares `NumberChapters`.
+- **Two columns of text go into a declared two-content layout:** a `##` section whose only block is
+  a `::: columns` of two text columns (no attributes) now fills the first two text placeholders of
+  the template's `TwoContent` layout when a brand pack (`pptx.layouts.twoContent`) or
+  `CustomTemplateOptions.Roles` declares one, instead of being drawn as a flow slide; the column
+  ratio is the layout's. The built-in master and templates without the declaration are unchanged.
+  To keep the flow slide, add an attribute such as `kicker="…"`, or do not declare the role.
+- **Heading classes `.agenda`, `.quote`, `.statement`, `.contact`, `.chart` and the containers
+  `::: conclusion` and `::: comment` are syntax now,** in both generators: Markdown that failed with
+  "Unknown heading attribute" or "Unknown container" for them now generates, and their misuse throws
+  `DocumentConversionException` with its own message. The lists of valid attributes and containers
+  in those error messages name the new ones; code that matches the messages' text adjusts.
 
 ### New
 
@@ -209,6 +220,21 @@ updating, breaking changes first.
   fill a picture placeholder.
 - **The deck authoring guide** explains `---` on `layout="…"` slides for brand and caller
   templates.
+- **Slide kinds in decks:** `## Agenda {.agenda}` (a list, or nothing for the deck's chapters, with
+  their numbers when chapters are numbered), `## {.quote}` (a `>` quote and a `— Name` byline),
+  `## One message {.statement}`, `## Contact {.contact}` (a list of people: photo, bold name, lines;
+  five a slide) and `## Revenue {.chart}` (one or two `chart` blocks; two a slide). Each goes on the
+  template's layout for that role with its content in the layout's placeholders — byline, chart
+  title, unit and source included — and combines with `kicker` and `layout="…"`. A template without
+  the layout gets a flow slide with the same content. PDFs show the content as written, an empty
+  agenda as the list of chapters.
+- **`::: conclusion`** (the last block: a band at the foot of the slide) and **`::: comment`** (a
+  callout over the top right of the block before it) on flow slides; in PDFs a quote and an italic
+  quote.
+- **New notes:** `layout-fallback` (`NoteCodes.LayoutFallback`), for a kind whose layout the
+  template lacks, and `agenda-empty` (`NoteCodes.AgendaEmpty`), for an empty agenda without chapters.
+- **The authoring guides** describe the kinds and both containers; the deck guide says which kinds
+  have a layout of their own in the design, and which layout two text columns go to.
 
 ## 2610.28.22
 

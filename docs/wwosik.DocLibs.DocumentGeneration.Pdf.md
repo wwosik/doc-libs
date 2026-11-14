@@ -317,6 +317,14 @@ Markdown written for the PPTX generator's
   blocks: a card's `###` is a heading, a short-form list a list, the columns of `::: columns` one
   after the other without the `---` between them.
 - **Alerts** (`> [!NOTE]` …) are quotes that start with their kind in bold ("Note", "Warning").
+- **Slide kinds** (`{.agenda}`, `{.quote}`, `{.statement}`, `{.contact}`, `{.chart}`) are checked
+  like in decks and show their content as written: the quote with its byline, the people as a list,
+  the charts as their renderer draws them. A kind's heading without text (`## {.quote}`) is left out.
+  An `{.agenda}` with nothing under it lists the chapters: the `#` headings but the cover and a
+  `{.closing}` one, as a numbered list after its heading (`agenda-empty` when there are none).
+- **`::: conclusion`** is shown like an alert without its title, a quote of its text;
+  **`::: comment`** after the block it comments, as an italic quote. Their misplacements throw, as in
+  decks.
 - **`==marked==`** text is bold; tags and status labels stay code spans. `labels.<category>` front
   matter is checked and otherwise ignored.
 - **`[words]{.success}`** sets the words bold in that status colour (`Colors.Labels`), as in decks.

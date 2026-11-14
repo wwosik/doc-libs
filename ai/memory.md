@@ -318,6 +318,17 @@ same change that made it untrue — a stale fact here is worse than a missing on
 - **The slide that fills placeholders writes `p:pic` / `p:graphicFrame` with a `ph`,** a pic without
   `spPr` transform (it takes the layout's box), a chart frame with an explicit `xfrm` — to be confirmed
   in PowerPoint (E01-S07 verification).
+- **Slide kinds (E02-S05):** `HeadingAttributes.Kind` (`.agenda` … `.chart`), checked for both generators by
+  `SlideKinds.Check` / `CheckContainers` (shared package) on Markdig blocks, so PDFs throw the same
+  errors. `DeckParser` makes `KindSlide`s (`AgendaSlide`, `QuoteSlide`, `StatementSlide`,
+  `ContactSlide` with `Person`, `ChartSlide`) through a `KindCollector`; empty agendas are filled in
+  `FillAgendas` after parsing. Soft line breaks are kept as a sentinel run (`SoftBreak`, U+2028) only
+  for a quote's byline and a person's lines. `DeckWriter.Kinds.cs`: `Resolve` (before `Fit`) turns a
+  flow slide of two text columns into a `PlaceholderSlide` on a declared `TwoContent` layout; `FitKind`
+  chunks people and charts, writes each part on `KindLayout` or as a `Fallback` flow slide
+  (`layout-fallback`). `::: comment` wraps the block before it (`CommentBlock`; `WalkMarked` breaks
+  the text block a comment follows); `::: conclusion` (`ConclusionBlock`) is placed by `Stack` at the
+  foot. Text levels are not applied on kind slides.
 
 ## Traps
 

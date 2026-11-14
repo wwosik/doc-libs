@@ -179,7 +179,7 @@ public class DarkTemplateTests
     public void LayoutsSample_RoundTrips_OnTheDarkTemplate()
     {
         var markdown = Samples.Markdown(File.ReadAllText(Samples.Path("layouts.md")).ReplaceLineEndings("\n"));
-        var pptx = Samples.Generate(markdown, DarkTemplate.Options);
+        var pptx = Samples.Generate(markdown, DarkTemplate.Options with { CodeBlockRenderers = [new Charts.ChartRenderer()] });
         Samples.WriteForReview("layouts-brand-dark.pptx", pptx);
 
         Samples.AssertValid(pptx);

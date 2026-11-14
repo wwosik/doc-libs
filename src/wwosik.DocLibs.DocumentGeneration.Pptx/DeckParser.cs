@@ -96,7 +96,38 @@ internal sealed partial class DeckParser(
         }
 
         parser.Section(heading, blocks);
+        parser.FillAgendas();
         return parser.slides;
+    }
+
+    // An empty `{.agenda}` lists the deck's chapters, the section dividers before and after it, with their numbers when
+    // chapters are numbered; without chapters it keeps its title only, with a note.
+    private void FillAgendas()
+    {
+        var chapters = this.slides.OfType<TitleSlide>().Where(t => t.IsSection).ToList();
+        for (var i = 0; i < this.slides.Count; i++)
+        {
+            if (this.slides[i] is not AgendaSlide { FromChapters: true } agenda)
+            {
+                continue;
+            }
+
+            if (chapters.Count == 0)
+            {
+                notes.Add(
+                    NoteCodes.AgendaEmpty,
+                    agenda.Line,
+                    $"The agenda '{PlainText(agenda.Title)}' has no list and the deck no chapters ('#' headings after the cover) to list, so it shows its title only. Add the chapters, or write the agenda as a list.");
+                continue;
+            }
+
+            this.slides[i] = agenda with
+            {
+                Items = [.. chapters.Select(c => c.Number is { } number
+                    ? new TextParagraph([new TextRun(number.ToString("00", CultureInfo.InvariantCulture), RunStyle.Bold), new TextRun("  ", RunStyle.None), .. c.Title.Where(r => !r.IsBreak)])
+                    : new TextParagraph([.. c.Title.Where(r => !r.IsBreak)], ParagraphKind.Numbered))],
+            };
+        }
     }
 
     // Custom containers without their inline form (`::text::`), which would take `std::vector::size` apart.
@@ -134,6 +165,8 @@ internal sealed partial class DeckParser(
         {
             LayoutSyntax.CheckNoNestedNotes(block, Format.Pptx);
         }
+
+        SlideKinds.CheckContainers(blocks, Format.Pptx);
 
         // Every slide of the section carries its heading's line, for the notes about it, and the footnotes it references.
         var first = this.slides.Count;
@@ -380,6 +413,18 @@ internal sealed partial class DeckParser(
             throw Error("{.closing} goes on a '#' heading: the closing slide.");
         }
 
+        if (attributes?.Kind is { } kind)
+        {
+            if (isTitle)
+            {
+                throw Error($"{{.{kind}}} goes on a '##' heading: a '#' heading is the cover or a section divider.");
+            }
+
+            SlideKinds.Check(kind, blocks, PlainText(title), Format.Pptx);
+            this.slides.Add(this.KindSlide(kind, title, blocks, attributes));
+            return Transition(attributes);
+        }
+
         // `layout="…"` with `---` fills the layout's placeholders, which have no room for flow blocks.
         var split = !isTitle && attributes?.Layout is not null && blocks.Any(b => b is ThematicBreakBlock);
         if (split && (attributes is { Dark: true } or { Kicker: not null } || blocks.Any(this.UsesLayouts)))
@@ -458,6 +503,180 @@ internal sealed partial class DeckParser(
         }
 
         collector.Replay(section);
+    }
+
+    // The slide of a kind, from blocks checked by SlideKinds.Check. A chart slide whose charts no renderer drew is the
+    // flow slide its blocks make.
+    private Slide KindSlide(string kind, List<TextRun> title, List<Block> blocks, HeadingAttributes attributes)
+    {
+        var content = SlideKinds.Content(blocks);
+        KindSlide slide;
+        switch (kind)
+        {
+            case SlideKinds.Agenda:
+                slide = content.Count == 0
+                    ? new AgendaSlide(title, []) { FromChapters = true }
+                    : new AgendaSlide(title, [.. this.Collect(blocks).Paragraphs.Select(p => p is { Level: 0, Kind: ParagraphKind.Bullet } ? p with { Kind = ParagraphKind.Numbered, NumberStart = 1 } : p)]);
+                break;
+            case SlideKinds.Quote:
+                slide = this.Quote(title, content);
+                break;
+            case SlideKinds.Statement:
+                slide = new StatementSlide(title, this.Collect(blocks).Paragraphs);
+                break;
+            case SlideKinds.Contact:
+                slide = new ContactSlide(title, this.People(blocks));
+                break;
+            default:
+                var collected = this.Collect(blocks);
+                if (collected.Charts.Count == 0 || collected.Other)
+                {
+                    var flow = new FlowCollector(this, inContainer: false);
+                    this.WalkMarked(blocks, flow, section: true);
+                    return new FlowSlide(title, attributes.Kicker, false, flow.Finish()) { Layout = attributes.Layout };
+                }
+
+                slide = new ChartSlide(title, collected.Charts, collected.Paragraphs);
+                break;
+        }
+
+        return slide with { Layout = attributes.Layout, Kicker = attributes.Kicker };
+    }
+
+    private KindCollector Collect(IEnumerable<Block> blocks, RunStyle style = RunStyle.None)
+    {
+        var collector = new KindCollector(this);
+        if (style == RunStyle.None)
+        {
+            this.WalkMarked(blocks, collector, section: true);
+        }
+        else
+        {
+            foreach (var block in blocks)
+            {
+                this.Walk(block, collector, 0, style);
+            }
+        }
+
+        return collector;
+    }
+
+    // The quote in italics, and its byline: the paragraph after it, or the quote's last line, that starts with a dash.
+    private QuoteSlide Quote(List<TextRun> title, List<Block> content)
+    {
+        var quote = (QuoteBlock)content[0];
+        var children = quote.ToList();
+        List<TextRun>? byline = null;
+        TextParagraph? tail = null;
+        if (content is [_, ParagraphBlock after])
+        {
+            byline = this.Runs(after.Inline, imagesAsText: true);
+        }
+        else if (children.LastOrDefault() is ParagraphBlock last)
+        {
+            var runs = this.LineRuns(last.Inline, RunStyle.Italic);
+            var cut = runs.FindLastIndex(r => r.IsBreak || r.Text == SoftBreak);
+            var line = Trim(runs[(cut + 1)..]);
+            if (line is [{ IsBreak: false } first, ..] && SlideKinds.StartsWithDash(first.Text))
+            {
+                byline = [.. line.Select(r => r with { Style = r.Style & ~RunStyle.Italic })];
+                children.RemoveAt(children.Count - 1);
+                var body = Trim([.. runs[..Math.Max(cut, 0)].Select(r => r.Text == SoftBreak ? new TextRun(" ", r.Style) : r)]);
+                tail = body.Count > 0 ? new TextParagraph(body) : null;
+            }
+        }
+
+        if (byline is [var dash, ..])
+        {
+            byline[0] = dash with { Text = SlideKinds.WithoutDash(dash.Text) };
+            byline = Trim(byline);
+        }
+
+        var paragraphs = this.Collect(children, RunStyle.Italic).Paragraphs;
+        return new QuoteSlide(title, tail is null ? paragraphs : [.. paragraphs, tail], byline is { Count: > 0 } ? byline : null);
+    }
+
+    // Per item of the list: its first image as the photo; its lines (cut at line breaks) with the bold start of the first
+    // as the name, else the first line; the rest of the item as further lines.
+    private List<Person> People(List<Block> blocks)
+    {
+        var (list, mark) = this.Marked(blocks, section: true).Where(m => m.Block is ListBlock).Select(m => ((ListBlock)m.Block, m.Mark)).First();
+        var people = new List<Person>();
+        foreach (var (index, item) in list.OfType<ListItemBlock>().Index())
+        {
+            SlideImage? photo = null;
+            var lines = new List<List<TextRun>>();
+            var more = new List<TextParagraph>();
+            foreach (var child in item)
+            {
+                if (child is not ParagraphBlock paragraph)
+                {
+                    more.AddRange(this.Collect([child]).Paragraphs.Select(p => p with { Kind = ParagraphKind.Plain, Level = 0 }));
+                    continue;
+                }
+
+                // A photo is cropped into the contact layout's picture placeholder, so `focus` has its effect there.
+                var collector = new RunCollector(this, imagesAsText: false, softBreaks: true);
+                this.pictureSlots = true;
+                collector.Add(paragraph.Inline, RunStyle.None, null);
+                this.pictureSlots = false;
+                photo ??= collector.Pieces.OfType<SlideImage>().FirstOrDefault();
+                var runs = this.Icons(Colour(collector.Pieces.OfType<List<TextRun>>().SelectMany(r => r).ToList()), this.LineOf(paragraph.Inline));
+                var line = new List<TextRun>();
+                foreach (var run in runs.Append(TextRun.Break))
+                {
+                    if (run.IsBreak || run.Text == SoftBreak)
+                    {
+                        if (Trim(line) is { Count: > 0 } trimmed)
+                        {
+                            lines.Add(trimmed);
+                        }
+
+                        line = [];
+                    }
+                    else
+                    {
+                        line.Add(run);
+                    }
+                }
+            }
+
+            var name = new List<TextRun>();
+            if (lines.Count > 0)
+            {
+                var bold = lines[0].TakeWhile(r => r.Style.HasFlag(RunStyle.Bold)).ToList();
+                if (bold.Count > 0)
+                {
+                    name = Trim([.. bold.Select(r => r with { Style = r.Style & ~RunStyle.Bold })]);
+                    var rest = lines[0].Skip(bold.Count).ToList();
+                    if (rest.Count > 0 && rest[0].Style == RunStyle.None)
+                    {
+                        rest[0] = rest[0] with { Text = SeparatorPattern().Replace(rest[0].Text, string.Empty) };
+                    }
+
+                    lines[0] = Trim(rest);
+                }
+                else
+                {
+                    name = lines[0];
+                    lines[0] = [];
+                }
+            }
+
+            people.Add(new Person(name, [.. lines.Where(l => l.Count > 0).Select(l => new TextParagraph(l)), .. more], photo)
+            {
+                Build = mark is null ? null : mark with { Item = index },
+            });
+        }
+
+        return people;
+    }
+
+    private List<TextRun> LineRuns(ContainerInline? inline, RunStyle style)
+    {
+        var collector = new RunCollector(this, imagesAsText: true, softBreaks: true);
+        collector.Add(inline, style, null);
+        return this.Icons(Colour(collector.Pieces.OfType<List<TextRun>>().SelectMany(r => r).ToList()), this.LineOf(inline));
     }
 
     private static string PlainText(IReadOnlyList<TextRun> runs) => string.Concat(runs.Select(r => r.IsBreak ? " " : r.Text)).Trim();
@@ -667,8 +886,15 @@ internal sealed partial class DeckParser(
     private void WalkMarked(IEnumerable<Block> blocks, ITarget target, bool section = false)
     {
         var (outer, outerBlock) = (this.build, this.marked);
-        foreach (var (block, mark) in this.Marked(blocks, section))
+        var all = this.Marked(blocks, section).ToList();
+        foreach (var (index, (block, mark)) in all.Index())
         {
+            // A block a comment follows becomes a block of its own, so that the comment belongs to it alone.
+            if (target is FlowCollector flow && index + 1 < all.Count && all[index + 1].Block is CustomContainer { Info: SlideKinds.Comment })
+            {
+                flow.Break();
+            }
+
             (this.build, this.marked) = (mark, mark is null ? null : block);
             this.Walk(block, target, 0, RunStyle.None);
         }
@@ -814,6 +1040,12 @@ internal sealed partial class DeckParser(
                 break;
             case LayoutSyntax.Notes:
                 throw LayoutSyntax.NestedNotes(Format.Pptx);
+            case SlideKinds.Conclusion:
+                target.Add(new ConclusionBlock(this.Collect(container).Paragraphs));
+                break;
+            case SlideKinds.Comment:
+                target.Comment(this.Collect(container).Paragraphs);
+                break;
             case "statement":
                 // Its blocks follow on the slide itself: with the statement's marker, unless they have their own.
                 var children = this.Marked(container, section: false).ToList();
@@ -1201,6 +1433,9 @@ internal sealed partial class DeckParser(
 
     private static DocumentConversionException Error(string message) => new(Format.Pptx, message);
 
+    // A soft line break, kept apart from spaces only where lines matter: a quote's byline, a person's lines.
+    private const string SoftBreak = "\u2028";
+
     [GeneratedRegex(@"scale\s*=\s*([0-9]+(?:\.[0-9]+)?)", RegexOptions.CultureInvariant)]
     private static partial Regex ScalePattern();
 
@@ -1222,7 +1457,7 @@ internal sealed partial class DeckParser(
     private sealed record QrCode(Drawing Drawing, DrawingPlacement Placement);
 
     /// <summary>Collects runs, cut into pieces at images unless images count as their alt text.</summary>
-    private sealed class RunCollector(DeckParser parser, bool imagesAsText)
+    private sealed class RunCollector(DeckParser parser, bool imagesAsText, bool softBreaks = false)
     {
         private List<TextRun> current = [];
 
@@ -1277,6 +1512,9 @@ internal sealed partial class DeckParser(
                     case LineBreakInline lineBreak when lineBreak.IsHard:
                         this.current.Add(TextRun.Break);
                         break;
+                    case LineBreakInline when softBreaks:
+                        this.current.Add(new TextRun(SoftBreak, RunStyle.None));
+                        break;
                     case LineBreakInline:
                         this.Text(" ", style, link);
                         break;
@@ -1309,7 +1547,7 @@ internal sealed partial class DeckParser(
 
             // Footnote references stay apart, so `[^1][^2]` is two of them.
             if (this.current.Count > 0 && this.current[^1] is { IsBreak: false } last && last.Style == style && last.Link == link
-                && !style.HasFlag(RunStyle.Superscript))
+                && !style.HasFlag(RunStyle.Superscript) && last.Text != SoftBreak)
             {
                 this.current[^1] = last with { Text = last.Text + text };
             }
@@ -1523,6 +1761,48 @@ internal sealed partial class DeckParser(
             this.blocks.Add(parser.build is { } mark && block.Build is null ? block with { Build = mark } : block);
         }
 
+        /// <summary>The next paragraph starts a text block of its own.</summary>
+        public void Break() => this.text = null;
+
+        /// <summary>A <c>::: comment</c>: it takes the block before it as its target.</summary>
+        public void Comment(IReadOnlyList<TextParagraph> paragraphs)
+        {
+            if (this.blocks.Count == 0)
+            {
+                throw Error("A '::: comment' goes right after the block it comments; it cannot be the first block of a slide.");
+            }
+
+            this.blocks[^1] = new CommentBlock(this.blocks[^1], paragraphs) { Build = parser.build };
+            this.text = null;
+        }
+
         public List<FlowBlock> Finish() => this.blocks;
+    }
+
+    /// <summary>
+    /// Collects the text of a slide kind, each paragraph with its build marker, and its charts; <see cref="Other"/>
+    /// says whether anything else came.
+    /// </summary>
+    private sealed class KindCollector(DeckParser parser) : ITarget
+    {
+        public List<TextParagraph> Paragraphs { get; } = [];
+
+        public List<ChartBlock> Charts { get; } = [];
+
+        public bool Other { get; private set; }
+
+        public void Text(TextParagraph paragraph) => this.Paragraphs.Add(parser.build is { } mark ? paragraph with { Build = mark } : paragraph);
+
+        public void Visual(SlideTable? table, IReadOnlyList<SlideImage>? images, Drawing? drawing = null, ChartSpec? chart = null, DrawingPlacement? placement = null)
+        {
+            if (chart is not null)
+            {
+                this.Charts.Add(new ChartBlock(chart) { Build = parser.build });
+            }
+            else
+            {
+                this.Other = true;
+            }
+        }
     }
 }

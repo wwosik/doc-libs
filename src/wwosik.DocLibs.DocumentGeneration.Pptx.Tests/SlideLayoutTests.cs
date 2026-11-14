@@ -19,7 +19,7 @@ public class SlideLayoutTests
     [MemberData(nameof(Samples.BuiltInTemplates), MemberType = typeof(Samples))]
     public void Sample_RoundTripsThroughThePptxConverter(string template)
     {
-        var pptx = Samples.Generate(Layouts(), new PptxOptions { Template = Samples.BuiltIn(template) });
+        var pptx = Samples.Generate(Layouts(), new PptxOptions { Template = Samples.BuiltIn(template), CodeBlockRenderers = [new Charts.ChartRenderer()] });
         Samples.WriteForReview($"layouts-{template}.pptx", pptx);
 
         var back = new PptxConverter().Convert(new MemoryStream(pptx), ConversionOptions.Default);
@@ -30,7 +30,7 @@ public class SlideLayoutTests
     [Theory]
     [MemberData(nameof(Samples.BuiltInTemplates), MemberType = typeof(Samples))]
     public void Sample_IsSchemaValid(string template) =>
-        Samples.AssertValid(Samples.Generate(Layouts(), new PptxOptions { Template = Samples.BuiltIn(template) }));
+        Samples.AssertValid(Samples.Generate(Layouts(), new PptxOptions { Template = Samples.BuiltIn(template), CodeBlockRenderers = [new Charts.ChartRenderer()] }));
 
     [Fact]
     public void Sample_HasOneSlidePerSection_TheDarkOneOnTheDarkLayout()
@@ -39,7 +39,7 @@ public class SlideLayoutTests
 
         var layouts = Samples.Slides(package).Select(Samples.LayoutName).ToList();
 
-        Assert.Equal(["Title Slide", "Title Only", "Title Only", "Title Only", "Title Only", "Title Only", "Title Only Dark", "Title Only", "Title Only"], layouts);
+        Assert.Equal(["Title Slide", "Title Only", "Title Only", "Title Only", "Title Only", "Title Only", "Title Only Dark", "Title Only", "Title Only", "Agenda", "Quote", "Statement", "Contact", "Title Only", "Title Only"], layouts);
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public class SlideLayoutTests
     [Theory]
     [InlineData("## T {.wide}\n", "Unknown heading attribute '.wide'")]
     [InlineData("## T {kicker=\"a\" kicker=\"b\"}\n", "name kicker twice")]
-    [InlineData("## T\n\n::: card\n- **a** b\n:::\n", "Unknown container '::: card'. Valid containers: cards, rows, panel, statement, columns, notes, timeline, gantt, steps, riskmatrix.")]
+    [InlineData("## T\n\n::: card\n- **a** b\n:::\n", "Unknown container '::: card'. Valid containers: cards, rows, panel, statement, columns, conclusion, comment, notes, timeline, gantt, steps, riskmatrix.")]
     [InlineData("## T\n\n::: cards dark\n- **a** b\n:::\n", "takes no arguments")]
     [InlineData("## T\n\n::: cards\nText first\n\n### Card\n:::\n", "each card starts with a ### heading")]
     [InlineData("## T\n\n::: rows\n- plain item\n:::\n", "starts with **bold** text")]

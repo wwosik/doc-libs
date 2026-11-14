@@ -131,6 +131,7 @@ internal abstract record Slide(IReadOnlyList<TextRun> Title)
         FlowSlide flow => flow.Blocks.SelectMany(Runs),
         PlaceholderSlide placeholders => placeholders.Items.SelectMany(i => (i.Text ?? []).SelectMany(p => p.Runs)
             .Concat(i.Visual?.Table?.Rows.SelectMany(r => r).SelectMany(c => c) ?? [])),
+        KindSlide kind => kind.Paragraphs().SelectMany(p => p.Runs),
         _ => [],
     });
 
@@ -151,6 +152,9 @@ internal abstract record Slide(IReadOnlyList<TextRun> Title)
         PanelBlock panel => panel.Blocks.SelectMany(Runs),
         CalloutBlock callout => callout.Blocks.SelectMany(Runs),
         StatementBlock statement => statement.Text,
+        ConclusionBlock conclusion => conclusion.Paragraphs.SelectMany(p => p.Runs),
+        CommentBlock comment => Runs(comment.Target).Concat(comment.Paragraphs.SelectMany(p => p.Runs)),
+        BylineBlock byline => byline.Text,
         LabelledTagsBlock tags => tags.Items.SelectMany(i => i.Text),
         IconListBlock icons => icons.Items.SelectMany(i => i.Text),
         _ => [],
@@ -287,6 +291,60 @@ internal static class PlaceholderFill
 }
 
 /// <summary>
+/// A <c>##</c> section of a kind (<c>{.agenda}</c>, <c>{.quote}</c>, <c>{.statement}</c>, <c>{.contact}</c>,
+/// <c>{.chart}</c>): on the template's layout for that kind, its content in the layout's placeholders; on a template
+/// without that layout, a <see cref="FlowSlide"/> with the same content.
+/// </summary>
+internal abstract record KindSlide(IReadOnlyList<TextRun> Title) : Slide(Title)
+{
+    /// <summary>From <c>kicker="…"</c>: a small label above the title.</summary>
+    public string? Kicker { get; init; }
+
+    /// <summary>Every paragraph of the slide, for its runs.</summary>
+    public abstract IEnumerable<TextParagraph> Paragraphs();
+}
+
+/// <summary><c>{.agenda}</c>: its list, or the deck's chapters when it had none (<see cref="FromChapters"/>).</summary>
+internal sealed record AgendaSlide(IReadOnlyList<TextRun> Title, IReadOnlyList<TextParagraph> Items) : KindSlide(Title)
+{
+    /// <summary>Whether it is to list the chapters, filled in once the whole document is parsed.</summary>
+    public bool FromChapters { get; init; }
+
+    public override IEnumerable<TextParagraph> Paragraphs() => this.Items;
+}
+
+/// <summary><c>{.quote}</c>: the quote, and its byline without the dash, if any.</summary>
+internal sealed record QuoteSlide(IReadOnlyList<TextRun> Title, IReadOnlyList<TextParagraph> Quote, IReadOnlyList<TextRun>? Byline) : KindSlide(Title)
+{
+    public override IEnumerable<TextParagraph> Paragraphs() => this.Byline is { } byline ? [.. this.Quote, new TextParagraph(byline)] : this.Quote;
+}
+
+/// <summary><c>{.statement}</c>: the heading is the statement; <see cref="Text"/> goes below it.</summary>
+internal sealed record StatementSlide(IReadOnlyList<TextRun> Title, IReadOnlyList<TextParagraph> Text) : KindSlide(Title)
+{
+    public override IEnumerable<TextParagraph> Paragraphs() => this.Text;
+}
+
+/// <summary><c>{.contact}</c>: up to five people a slide; more continue on further slides.</summary>
+internal sealed record ContactSlide(IReadOnlyList<TextRun> Title, IReadOnlyList<Person> People) : KindSlide(Title)
+{
+    public override IEnumerable<TextParagraph> Paragraphs() => this.People.SelectMany(p => p.Lines.Prepend(new TextParagraph(p.Name)));
+}
+
+/// <summary>A person on a contact slide: the name, the other lines of the item, and the image in it.</summary>
+internal sealed record Person(IReadOnlyList<TextRun> Name, IReadOnlyList<TextParagraph> Lines, SlideImage? Photo)
+{
+    /// <summary>The build marker of the list item, if the list builds item by item.</summary>
+    public BuildMark? Build { get; init; }
+}
+
+/// <summary><c>{.chart}</c>: its charts (two a slide; more continue) and its text.</summary>
+internal sealed record ChartSlide(IReadOnlyList<TextRun> Title, IReadOnlyList<ChartBlock> Charts, IReadOnlyList<TextParagraph> Text) : KindSlide(Title)
+{
+    public override IEnumerable<TextParagraph> Paragraphs() => this.Text;
+}
+
+/// <summary>
 /// How far a drawing is enlarged at most to fill its box, and the share of the box's width it may take: diagrams
 /// <see cref="Default"/>, a QR code at most a third of the width, or with <c>scale</c> its own size at most.
 /// </summary>
@@ -299,7 +357,11 @@ internal sealed record DrawingPlacement(double MaxUpscale, double MaxWidthShare)
 /// A <c>##</c> section that uses layouts — heading attributes, <c>:::</c> containers, alerts or tag lists: its blocks
 /// stacked top to bottom, with a <see cref="Kicker"/> above the title and, if <see cref="Dark"/>, a dark background.
 /// </summary>
-internal sealed record FlowSlide(IReadOnlyList<TextRun> Title, string? Kicker, bool Dark, IReadOnlyList<FlowBlock> Blocks) : Slide(Title);
+internal sealed record FlowSlide(IReadOnlyList<TextRun> Title, string? Kicker, bool Dark, IReadOnlyList<FlowBlock> Blocks) : Slide(Title)
+{
+    /// <summary>Whether the title is left off the slide: a statement drawn as a flow slide, whose first block is its heading.</summary>
+    public bool NoTitle { get; init; }
+}
 
 /// <summary>One block of a <see cref="FlowSlide"/>, or of a card, panel or callout on one.</summary>
 internal abstract record FlowBlock
@@ -341,6 +403,9 @@ internal sealed record CardsBlock(IReadOnlyList<Card> Cards) : FlowBlock;
 /// <summary>A card: its <c>###</c> or bold title, an optional big figure, and its blocks.</summary>
 internal sealed record Card(IReadOnlyList<TextRun> Title, IReadOnlyList<TextRun>? Figure, IReadOnlyList<FlowBlock> Blocks)
 {
+    /// <summary>A photo above the title: a person of a contact slide drawn as a flow slide.</summary>
+    public SlideImage? Photo { get; init; }
+
     /// <summary>A first paragraph that is one <c>:icon-name:</c>: the icon as the figure, at the figure size in the accent colour.</summary>
     public Drawing? FigureIcon { get; init; }
 }
@@ -358,6 +423,18 @@ internal sealed record CalloutBlock(bool Important, IReadOnlyList<FlowBlock> Blo
 
 /// <summary>The first paragraph of <c>::: statement</c>, set large; the rest of the container follows as normal blocks.</summary>
 internal sealed record StatementBlock(IReadOnlyList<TextRun> Text) : FlowBlock;
+
+/// <summary><c>::: conclusion</c>, the last block of a flow slide: a band across the foot of its content area.</summary>
+internal sealed record ConclusionBlock(IReadOnlyList<TextParagraph> Paragraphs) : FlowBlock;
+
+/// <summary>
+/// <c>::: comment</c> with the block before it, <see cref="Target"/>: a callout over the target's top right, taking no
+/// height of its own; both move together when a slide is split.
+/// </summary>
+internal sealed record CommentBlock(FlowBlock Target, IReadOnlyList<TextParagraph> Paragraphs) : FlowBlock;
+
+/// <summary>The byline of a quote drawn as a flow slide: right-aligned, under the quote.</summary>
+internal sealed record BylineBlock(IReadOnlyList<TextRun> Text) : FlowBlock;
 
 /// <summary>A paragraph of nothing but code spans: chips that flow and wrap.</summary>
 internal sealed record TagsBlock(IReadOnlyList<string> Tags) : FlowBlock;

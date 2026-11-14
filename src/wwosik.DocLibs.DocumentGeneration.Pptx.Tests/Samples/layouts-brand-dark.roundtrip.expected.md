@@ -151,3 +151,53 @@ Columns
 Before: every change waited for the weekly release.
 
 After: changes ship the same day, behind a switch, and the old path stays until the numbers agree.
+
+## Agenda
+
+Why rebuild the planner
+
+How Harbour works
+
+Status and next steps
+
+## Slide 11
+
+Documents instead of tables: the largest schedule now fits in memory.
+
+Planning lead, Harbour pilot
+
+## Slide 12
+
+Harbour goes live in June
+
+After the shadow run, one region at a time.
+
+## Contact
+
+Ann Example
+
+Product owner
+
+ann@example.com
+
+Ben Example
+
+Architecture
+
+ben@example.com
+
+## Calculation time
+
+Source: Shadow run
+
+## Shadow run
+
+Status
+
+Same bookings, same results in 97 % of the runs
+
+The rest differ in rounding only
+
+Rounding is fixed in the next release.
+
+Harbour is ready for the switch.

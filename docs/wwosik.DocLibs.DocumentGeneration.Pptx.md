@@ -269,21 +269,27 @@ as plain Markdown.
 | `[words]{.success}` (`.info`, `.warning`, `.danger`, `.neutral`) | The words bold in that status colour — on every slide. |
 | `## Title {layout="Name"}`, `# Title {layout="Name"}` | The slide on the template's layout of that name (case-insensitive), on a brand's own or a caller's template. Plain slides stay plain: text goes into the layout's body placeholder. A `##` with `---` lines, or with an image or chart where the layout has a picture or chart placeholder, fills the layout's placeholders instead, see [Layouts across placeholders](#layouts-across-placeholders). |
 | `# Thank you {.closing}` | The closing slide: on `PptxBrandTemplate.ClosingLayout` / `Layouts.Closing`, else a layout named like *Closing*, *End* or *Thank you*, else the cover's (the section layout on the built-in master). Title and subtitle go into the layout's placeholders if it has them; no footer. |
+| `::: conclusion` … `:::`, the section's last block | A band across the full content width at the foot of the content area: the surface colour (`TableBand`) with a 2 pt rule in `Primary` on top, on dark slides the dark surface and a `Highlight` rule; its text bold in the heading colour at the flow text size. The other blocks share the room above it; on a split slide it is on the last part only. |
+| `::: comment` … `:::`, right after a block | A `wedgeRoundRectCallout` over the top right of that block: a third of the content width (at least 2.5″), as high as its text (14 pt), raised by a third of its own height, kept inside the content area, its pointer towards the block's centre; filled with the highlight at 15 % (on dark slides the highlight veil), outlined in the highlight. It takes no height of its own and moves with its block when a slide is split. |
+| `## Title {.agenda}` and the other kinds | A slide of that kind on the template's layout for it, see [Slide kinds](#slide-kinds). |
 
 - **What makes a flow slide:** heading attributes, a `:::` container or an alert anywhere in the
   section, or a tag paragraph as a block of its own. Code-span lists outside containers stay
   bullet lists, code-only table cells on other slides stay code.
 - **Containers nest** with longer fences: `:::: panel` around `::: cards` … `:::` and `::::`.
 - **Heading attributes** count only as a trailing `{…}` made of `.class` and `key="value"` tokens;
-  other braces (`## Sets {a, b}`) stay in the title. `##` headings take `.dark`, `kicker` and
-  `layout`; `#` headings take `layout` and `.closing`.
+  other braces (`## Sets {a, b}`) stay in the title. `##` headings take `.dark`, `kicker`,
+  `layout` and a kind (`.agenda`, `.quote`, `.statement`, `.contact`, `.chart`); `#` headings take
+  `layout` and `.closing`.
 - **Mistakes throw** `DocumentConversionException`: an unknown attribute or a key given twice, an
-  unknown container (the message lists `cards, rows, panel, statement, columns, notes, timeline, gantt, steps, riskmatrix`), arguments on a
+  unknown container (the message lists `cards, rows, panel, statement, columns, conclusion, comment, notes, timeline, gantt, steps, riskmatrix`), arguments on a
   container other than `panel dark`, a `columns` ratio and the `key=value` pairs of `timeline` and `gantt`, a `timeline`, `gantt`,
   `steps` or `riskmatrix` whose content, dates or values are not what it takes, a `columns` without two or three parts,
   `layout="…"` naming no layout of the template (or used on the built-in master), `.closing` on a
   `##` or `.dark` / `kicker` on a `#`, `[words]{.x}` with an unknown colour, content before the first `###` in `::: cards`, a `::: rows` that is not
-  one list, an item of `cards` or `rows` that does not start with bold text, an unknown alert.
+  one list, an item of `cards` or `rows` that does not start with bold text, an unknown alert, a
+  `::: comment` as the first block, a `::: conclusion` that is not the last block or comes twice,
+  either of them inside another container or holding more than paragraphs and lists.
 - **Colours** come from the brand: titles of cards and rows, chips and statements in `Primary`
   (also the dark background), kickers and figures in `Link`, panels and callouts in `TableBand`,
   outlines and rules in `TableLine`, highlights in `Highlight`, status labels in `Labels`. On a
@@ -335,13 +341,57 @@ Otherwise it stays a text or visual slide, exactly as before.
 - **Too much content** continues on a further slide on the same layout, with `slide-split`: an item
   that finds no free placeholder starts the next slide. **Placeholders left over** are not written,
   so the slide shows none of their prompts. Byline, chart title, unit and source placeholders stay
-  empty.
+  empty: only the [slide kinds](#slide-kinds) fill them.
 - **Each text part is shrunk on its own,** with `normAutofit` by 2 pt steps down to 12 pt from its
   placeholder's size, and never split: a part that still does not fit gives `slide-overfull`.
   Footnotes go below the lowest placeholder written.
 - **Mistakes throw** `DocumentConversionException`: a `:::` container, an alert, `.dark` or
   `kicker` in a section with `layout` and `---`, or content of a kind the layout has no
   placeholder for (text on a layout without text placeholders, a table without an `obj` body).
+
+### Slide kinds
+
+A class on a `##` heading makes the slide a kind of its own, on the template's layout for it (a
+[layout role](#template-roles)), with its content in that layout's placeholders:
+
+| Markdown | Layout role | Placeholders |
+| -------- | ----------- | ------------ |
+| `## Agenda {.agenda}` with a list | Agenda | The list in the first body; top-level items numbered (an ordered list keeps its start), deeper ones as written. |
+| `## Agenda {.agenda}` with nothing under it | Agenda | The deck's chapters: every `#` divider after the cover, before or after the agenda, but the `{.closing}` slide; with numbered chapters "01  Market", else numbered items. Without chapters the slide has its title only, with the note `agenda-empty`. |
+| `## {.quote}` with `> quote` and a byline | Quote | The quote (italic) in the first body, the byline in the `Byline` placeholder (else as the quote's last paragraph). The heading goes into a title placeholder if the layout has one, else it is not shown. |
+| `## One message {.statement}`, text below | Statement | The heading in the title placeholder, the text in the first body. |
+| `## Contact {.contact}` with a list of people | Contact | Person *i*: their photo cropped into picture placeholder *i* (`image-cropped` when much is cut), the name in bold and the other lines one level down in body *i*. |
+| `## Revenue {.chart}` with one or two `chart` blocks, text | Chart, two charts with two | The charts in chart placeholders (else `obj` bodies); with one chart its title and unit in the `ChartTitle` and `ChartUnit` placeholders and left out of the chart part; the sources (both joined by `; `) in `ChartSource`; the text in a text placeholder left over, else in a text box above the charts, which move down for it. |
+
+- **Byline:** a paragraph right after the quote, or the quote's last line (also after a soft line
+  break), that starts with `—`, `–` or `--`; the dash is dropped.
+- **People:** each list item is a person. Its first image is the photo; its text is cut into lines at
+  line breaks; the bold start of the first line is the name (a separator like `–` after it is
+  dropped), else the first line is.
+- **Attributes:** the kinds exclude each other and `.dark`, and combine with `kicker` (a label above
+  the title, as on flow slides) and `layout="…"`, which picks the layout instead of the role. On `#`
+  headings they throw.
+- **More than fits:** five people a slide (or as many as the layout has bodies), two charts a slide
+  (one where the layout takes only one); the rest continue on further slides, with `slide-split`. An
+  agenda too long for its body continues between top-level items, numbered on. Each text is shrunk
+  in its placeholder with `normAutofit` to 12 pt; what still does not fit gives `slide-overfull`.
+- **Without the layout** (a brand's own or caller's template that has none for the role), the slide
+  is a flow slide with the same content, with the note `layout-fallback`: an agenda as a numbered
+  list; a quote as a large italic statement with the byline right-aligned below it; a statement as a
+  statement block of the heading, without a title; people as cards with the photo on top; charts one
+  below the text, or two side by side. The built-in master has every layout.
+- **Mistakes throw** `DocumentConversionException` naming what is allowed: an agenda with anything
+  but one list, a quote without a `>` quote or with other content, a statement with more than
+  paragraphs and lists, a contact slide without one list, a chart slide with other blocks than
+  `chart` blocks, paragraphs, lists and `###` headings, or without a chart.
+- A chart slide whose `chart` blocks no renderer drew is the flow slide its blocks make. Text levels
+  ([template roles](#template-roles)) do not apply to kind slides.
+
+**Two columns of text.** A `##` section whose only block is `::: columns` with two columns of text
+(paragraphs, lists, `###`), without attributes, goes into the two-content layout when the brand pack
+or the caller's options declare `TwoContent`: the left column in the first text placeholder, the
+right in the second, each shrunk on its own. The column widths come from the layout. Without that
+declaration, and on the built-in master, it stays a flow slide.
 
 ### Dark templates
 
@@ -364,7 +414,8 @@ estimate of each character's width, wrapped between words); what does not fit is
 | ----- | ------- | -------------------------------- |
 | Text | The body placeholder gets `normAutofit` with a font scale, 2 pt per step, to 12 pt — PowerPoint keeps it fitted when edited | Between top-level list items (a nested list stays with its item) |
 | Table, image or drawing | Text 18 → 12 pt, captions to 10 pt, the table to 10 pt; an image gives up height first, to a quarter of the area | Tables between rows, the header row on each slide; text above on the first, below on the last |
-| Flow | Every size by an eighth, twice (16 → 12 pt text), gaps halved | Between blocks; paragraphs, rows of `::: rows`, labelled tags and table rows split, cards, panels, callouts and columns stay whole |
+| Flow | Every size by an eighth, twice (16 → 12 pt text), gaps halved | Between blocks; paragraphs, rows of `::: rows`, labelled tags and table rows split, cards, panels, callouts and columns stay whole, a commented block stays with its comment, a conclusion is on the last part |
+| Kind | Each text in its placeholder, by `normAutofit` to 12 pt | Five people, two charts a slide; an agenda between its items |
 
 Continuation slides keep the title and kicker; `PptxOptions.ContinuationSuffix` (e.g. `" (cont.)"`)
 marks them. A single block too big for a slide of its own is shrunk and left as it is. Each of these
@@ -538,8 +589,8 @@ var template = new CustomTemplateOptions(stream)
   [Numbered chapters](#numbered-chapters).
 
 `{layout="…"}` fills the roles' placeholders as [layouts across
-placeholders](#layouts-across-placeholders); slide kinds on the role layouts come with a later
-release.
+placeholders](#layouts-across-placeholders); the [slide kinds](#slide-kinds) go on the role layouts,
+and two columns of text on a declared `TwoContent` layout.
 
 ### Numbered chapters
 

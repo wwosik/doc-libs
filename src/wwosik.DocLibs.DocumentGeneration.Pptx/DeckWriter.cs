@@ -109,6 +109,9 @@ internal sealed partial class DeckWriter
     // The title of the latest section divider, for the footer pattern's {chapter}.
     private string? chapter;
 
+    // The content area of the flow slide being written, which a comment's callout stays inside.
+    private Rect? flowArea;
+
     /// <summary>Opens the deck for writing. Layouts named in <paramref name="names"/> win over the lookup by type.</summary>
     /// <remarks>
     /// <paramref name="date"/> is the text for the date placeholder, or <see langword="null"/> for no date;
@@ -222,7 +225,7 @@ internal sealed partial class DeckWriter
         this.deckTitle = deckTitle;
         var number = 0;
         var speakerNotes = new List<(SlidePart Slide, IReadOnlyList<TextParagraph> Notes)>();
-        foreach (var (slide, step) in slides.SelectMany(this.Fit))
+        foreach (var (slide, step) in slides.Select(this.Resolve).SelectMany(this.Fit))
         {
             this.current = slide;
             this.footnotes = slide.Footnotes;
@@ -238,6 +241,7 @@ internal sealed partial class DeckWriter
                 VisualSlide visual => this.WriteVisualSlide(visual, step),
                 FlowSlide flow => this.WriteFlowSlide(flow, step),
                 PlaceholderSlide placeholders => this.WritePlaceholderSlide(placeholders),
+                KindSlide kind => this.WriteKindSlide(kind),
                 _ => throw new InvalidOperationException("Unknown kind of slide."),
             };
 
@@ -496,23 +500,31 @@ internal sealed partial class DeckWriter
             canvas.Part.Slide!.CommonSlideData!.PrependChild(new P.Background(new P.BackgroundProperties(this.palette.Dark.Fill(), new A.EffectList())));
         }
 
-        var titleArea = this.TitleArea(layout);
-        Rect? titleBox = null;
-        if (slide.Kicker is { } kicker)
+        var titleBox = slide.Kicker is { } kicker ? this.Kicker(canvas, layout, kicker, slide.Dark && !this.palette.DarkSlides) : (Rect?)null;
+        if (!slide.NoTitle)
         {
-            var height = LineHeight(KickerSize) + TextInsets;
-            var run = this.Run(canvas, new TextRun(kicker, RunStyle.Bold), KickerSize, color: slide.Dark && !this.palette.DarkSlides ? SlideColor.White : this.palette.Accent);
-            run.RunProperties!.Capital = A.TextCapsValues.All;
-            run.RunProperties.Spacing = 100;
-            var paragraph = new A.Paragraph(new A.ParagraphProperties(new A.NoBullet()) { LeftMargin = 0, Indent = 0 }, run, new A.EndParagraphRunProperties { FontSize = KickerSize });
-            canvas.Add(TextBoxShape(canvas, titleArea with { H = height }, [paragraph]));
-            titleBox = titleArea with { Y = titleArea.Y + height, H = Math.Max(titleArea.H - height, height) };
+            this.Title(canvas, slide.Title, null, titleBox, this.PaintsDark(slide) ? SlideColor.White : null);
         }
 
-        this.Title(canvas, slide.Title, null, titleBox, this.PaintsDark(slide) ? SlideColor.White : null);
         var area = this.ContentArea(layout);
+        this.flowArea = area;
         this.Stack(canvas, slide.Blocks, area, this.FlowStyleOf(slide, step));
+        this.flowArea = null;
         return canvas;
+    }
+
+    // A small label in capitals at the top of the title area, in the accent colour (white on a dark slide of a light
+    // deck); returns the title's box below it.
+    private Rect Kicker(Canvas canvas, SlideLayoutPart layout, string kicker, bool white)
+    {
+        var titleArea = this.TitleArea(layout);
+        var height = LineHeight(KickerSize) + TextInsets;
+        var run = this.Run(canvas, new TextRun(kicker, RunStyle.Bold), KickerSize, color: white ? SlideColor.White : this.palette.Accent);
+        run.RunProperties!.Capital = A.TextCapsValues.All;
+        run.RunProperties.Spacing = 100;
+        var paragraph = new A.Paragraph(new A.ParagraphProperties(new A.NoBullet()) { LeftMargin = 0, Indent = 0 }, run, new A.EndParagraphRunProperties { FontSize = KickerSize });
+        canvas.Add(TextBoxShape(canvas, titleArea with { H = height }, [paragraph]));
+        return titleArea with { Y = titleArea.Y + height, H = Math.Max(titleArea.H - height, height) };
     }
 
     // The template's own notes master, else the built-in one on a copy of the deck's theme: the brand's fonts and
@@ -656,8 +668,23 @@ internal sealed partial class DeckWriter
 
     // Blocks top to bottom with a gap between them; returns the height they take. Without a canvas it only measures.
     // Images and drawings share the height the other blocks leave, each at least a quarter of the slide.
+    // A conclusion, the last block, sits at the foot of the box; the others share the room above it.
     private long Stack(Canvas? canvas, IReadOnlyList<FlowBlock> blocks, Rect box, FlowStyle style)
     {
+        if (blocks.Count > 0 && blocks[^1] is ConclusionBlock conclusion)
+        {
+            var others = blocks.Take(blocks.Count - 1).ToList();
+            var height = this.Place(null, conclusion, box with { H = 0 }, style);
+            var used = others.Count == 0 ? 0 : this.Stack(canvas, others, box with { H = Math.Max(box.H - height - style.BlockGap, 0) }, style) + style.BlockGap;
+            var top = Math.Max(box.Bottom - height, box.Y + used);
+            if (canvas is not null)
+            {
+                this.Place(canvas, conclusion, new Rect(box.X, top, box.W, height), style);
+            }
+
+            return canvas is null ? used + height : top + height - box.Y;
+        }
+
         var visuals = blocks.Count(IsVisual);
         long? visualRoom = null;
         if (visuals > 0 && box.H > 0)
@@ -685,12 +712,13 @@ internal sealed partial class DeckWriter
     {
         ImageBlock or ImageRowBlock or DrawingBlock or ChartBlock => true,
         ColumnsBlock columns => columns.Columns.Any(c => c.Any(IsVisual)),
+        CommentBlock comment => IsVisual(comment.Target),
         _ => false,
     };
 
-    // A block with a build marker: every shape written for it is part of its build.
+    // A block with a build marker: every shape written for it is part of its build. A comment's marker is its callout's.
     private long Place(Canvas? canvas, FlowBlock block, Rect box, FlowStyle style) =>
-        canvas is not null && block.Build is { } mark
+        canvas is not null && block.Build is { } mark && block is not CommentBlock
             ? canvas.Building(mark, () => this.PlaceBlock(canvas, block, box, style))
             : this.PlaceBlock(canvas, block, box, style);
 
@@ -712,6 +740,9 @@ internal sealed partial class DeckWriter
         CodeLinesBlock code => this.Code(canvas, code, box, style),
         LabelledTagsBlock labelled => this.LabelledTags(canvas, labelled, box, style),
         IconListBlock icons => this.IconList(canvas, icons, box, style),
+        ConclusionBlock conclusion => this.Conclusion(canvas, conclusion, box, style),
+        CommentBlock comment => this.Comment(canvas, comment, box, style),
+        BylineBlock byline => this.Byline(canvas, byline, box, style),
         _ => throw new InvalidOperationException("Unknown kind of block."),
     };
 
@@ -817,7 +848,13 @@ internal sealed partial class DeckWriter
     private long Card(Canvas? canvas, Card card, Rect box, FlowStyle style)
     {
         var inner = new Rect(box.X + Pad, box.Y + Pad, box.W - (2 * Pad), Math.Max(box.H - (2 * Pad), 0));
-        var y = inner.Y + this.FlowText(canvas, [new TextParagraph(Bold(card.Title))], inner, style.Scaled(CardTitleSize), this.Heading(style));
+        var y = inner.Y;
+        if (card.Photo is { } photo)
+        {
+            y += this.Picture(canvas, photo, inner with { H = Math.Min(inner.W, this.slideHeight / 5) }).H + TextInsets;
+        }
+
+        y += this.FlowText(canvas, [new TextParagraph(Bold(card.Title))], inner with { Y = y }, style.Scaled(CardTitleSize), this.Heading(style));
         if (card.Figure is { } figure)
         {
             y += this.FlowText(canvas, [new TextParagraph(Bold(figure))], inner with { Y = y }, style.Scaled(FigureSize), style.Dark && !this.palette.DarkSlides ? SlideColor.White : this.palette.Accent);

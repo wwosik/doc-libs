@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using wwosik.DocLibs.DocumentConversions;
 
 namespace wwosik.DocLibs.DocumentGeneration;
@@ -96,6 +96,12 @@ public static class NoteCodes
     /// <summary>An icon (<c>:icon-name:</c>) stands where the format cannot draw it, such as inside a slide's text, and was left out.</summary>
     public const string IconNotDrawn = "icon-not-drawn";
 
+    /// <summary>A slide kind (<c>{.quote}</c> and the others) asked for a layout the template does not have, so it is drawn as a flow slide.</summary>
+    public const string LayoutFallback = "layout-fallback";
+
+    /// <summary>An empty <c>{.agenda}</c> found no chapters to list, so it shows its title only.</summary>
+    public const string AgendaEmpty = "agenda-empty";
+
     /// <summary>Every code, with the formats it occurs in and what a writer changes about it, for the authoring guides.</summary>
     internal static readonly IReadOnlyList<(string Code, DocumentFormat[] Formats, string Advice)> All =
     [
@@ -113,6 +119,8 @@ public static class NoteCodes
         (NotesSimplified, [DocumentFormat.Pptx], "speaker notes hold only paragraphs and lists; a table, code block, image or quote in `::: notes` was written as plain text. Keep speaker notes to text and lists."),
         (AttributeIgnored, [DocumentFormat.Pptx, DocumentFormat.Pdf], "an image attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `focus` on an image that is not cropped. Remove it, or use it where it works."),
         (IconNotDrawn, [DocumentFormat.Pptx, DocumentFormat.Pdf], "an icon was left out where it cannot be drawn. Move it as the *Icons* section says."),
+        (LayoutFallback, [DocumentFormat.Pptx], "the design has no layout for that kind of slide (`{.quote}` and the others), so it is drawn as a layout slide with the same content. Nothing to fix, unless the design's own look matters."),
+        (AgendaEmpty, [DocumentFormat.Pptx, DocumentFormat.Pdf], "an empty `{.agenda}` found no `#` chapters to list. Add the chapters, or write the agenda as a list."),
     ];
 }
 

@@ -28,6 +28,7 @@ internal sealed partial class DeckWriter
             VisualSlide visual => (this.FitVisual(visual).ToList(), MaxVisualStep),
             FlowSlide flow => (this.FitFlow(flow).ToList(), MaxFlowStep),
             PlaceholderSlide placeholders => (this.FitPlaceholders(placeholders).ToList(), 0),
+            KindSlide kind => (this.FitKind(kind), 0),
             _ => ([(slide, 0, true)], 0),
         };
 

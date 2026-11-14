@@ -10,7 +10,7 @@ namespace wwosik.DocLibs.DocumentGeneration;
 internal static class LayoutSyntax
 {
     /// <summary>The containers, for error messages: the layouts, <c>notes</c>, then the drawn ones (<see cref="VisualContainers"/>).</summary>
-    public static readonly string Containers = string.Join(", ", ["cards", "rows", "panel", "statement", "columns", Notes, .. VisualContainers.Names]);
+    public static readonly string Containers = string.Join(", ", ["cards", "rows", "panel", "statement", "columns", SlideKinds.Conclusion, SlideKinds.Comment, Notes, .. VisualContainers.Names]);
 
     /// <summary>The alerts, for error messages.</summary>
     public const string Alerts = "NOTE, TIP, IMPORTANT, WARNING, CAUTION";
@@ -34,7 +34,7 @@ internal static class LayoutSyntax
             return;
         }
 
-        if (name is not ("cards" or "rows" or "panel" or "statement" or "columns" or Notes))
+        if (name is not ("cards" or "rows" or "panel" or "statement" or "columns" or SlideKinds.Conclusion or SlideKinds.Comment or Notes))
         {
             throw new DocumentConversionException(format, $"Unknown container '::: {name}'. Valid containers: {Containers}.");
         }

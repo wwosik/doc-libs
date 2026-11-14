@@ -6,13 +6,14 @@ namespace wwosik.DocLibs.DocumentGeneration;
 /// <summary>
 /// Slide settings at the end of a heading, Pandoc style: <c>## Title {.dark kicker="Label" layout="Name"}</c>, and
 /// <c># Thank you {.closing}</c>. Only a trailing <c>{…}</c> made of classes and quoted <c>key="value"</c> pairs counts;
-/// any other braces stay text. Of those, only <c>.dark</c>, <c>kicker</c>, <c>layout</c>, <c>transition</c> and
-/// <c>.closing</c> are known, anything else throws <see cref="DocumentConversionException"/>.
+/// any other braces stay text. Of those, only <c>.dark</c>, <c>kicker</c>, <c>layout</c>, <c>transition</c>,
+/// <c>.closing</c> and the slide kinds (<see cref="SlideKinds.Names"/>) are known, anything else throws
+/// <see cref="DocumentConversionException"/>.
 /// </summary>
 internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
 {
     /// <summary>The attributes, as they are written, for error messages.</summary>
-    public const string Valid = ".dark, kicker=\"…\", layout=\"…\", transition=\"…\", .closing";
+    public const string Valid = ".dark, kicker=\"…\", layout=\"…\", transition=\"…\", .closing, .agenda, .quote, .statement, .contact, .chart";
 
     /// <summary>The template's layout to put the slide on, by its name; <see langword="null"/>: chosen by the kind of slide.</summary>
     public string? Layout { get; init; }
@@ -22,6 +23,9 @@ internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
 
     /// <summary>On a <c>#</c> heading: the closing slide, on the template's closing layout.</summary>
     public bool Closing { get; init; }
+
+    /// <summary>The kind of slide (<see cref="SlideKinds.Names"/>, without the dot); <see langword="null"/>: none.</summary>
+    public string? Kind { get; init; }
 
     /// <summary>
     /// Splits <paramref name="text"/>, the end of a heading, into the text before the attributes and the attributes.
@@ -41,6 +45,7 @@ internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
         string? kicker = null;
         string? layout = null;
         string? transition = null;
+        string? kind = null;
         foreach (Match token in TokenPattern().Matches(match.Groups[1].Value))
         {
             switch (token.Groups["class"].Success ? "." + token.Groups["class"].Value : token.Groups["key"].Value)
@@ -50,6 +55,14 @@ internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
                     break;
                 case ".closing":
                     closing = true;
+                    break;
+                case var name when name.Length > 1 && name[0] == '.' && SlideKinds.Names.Contains(name[1..]):
+                    if (kind is not null && kind != name[1..])
+                    {
+                        throw new DocumentConversionException(format, $"The heading attributes '{match.Value.Trim()}' name two kinds of slide, .{kind} and {name}; a slide is one kind.");
+                    }
+
+                    kind = name[1..];
                     break;
                 case "kicker" when kicker is null:
                     kicker = token.Groups["value"].Value;
@@ -69,7 +82,12 @@ internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
             }
         }
 
-        return (text[..match.Index].TrimEnd(), new HeadingAttributes(dark, kicker) { Layout = layout, Transition = transition, Closing = closing });
+        if (kind is not null && dark)
+        {
+            throw new DocumentConversionException(format, $"The heading attributes '{match.Value.Trim()}' combine .{kind} with .dark; a kind of slide has its own layout, so leave out .dark.");
+        }
+
+        return (text[..match.Index].TrimEnd(), new HeadingAttributes(dark, kicker) { Layout = layout, Transition = transition, Closing = closing, Kind = kind });
     }
 
     [GeneratedRegex(@"\s*\{((?:\s*(?:\.[A-Za-z][\w-]*|[A-Za-z][\w-]*=""[^""]*""))+)\s*\}\s*$", RegexOptions.CultureInvariant)]

@@ -120,3 +120,51 @@ The race in the old system happened with a broker.
 
 **After:** changes ship the same day, behind a switch, and the old path stays until the numbers agree.
 :::
+
+## Agenda {.agenda}
+
+- Why rebuild the planner
+- How Harbour works
+- Status and next steps
+
+## {.quote}
+
+> Documents instead of tables: the largest schedule now fits in memory.
+> — Planning lead, Harbour pilot
+
+## Harbour goes live in June {.statement}
+
+After the shadow run, one region at a time.
+
+## Contact {.contact}
+
+- **Ann Example** – Product owner
+  ann@example.com
+- **Ben Example** – Architecture
+  ben@example.com
+
+## Calculation time {.chart}
+
+```chart
+type: bar
+title: Minutes per schedule
+unit: min
+source: Shadow run
+---
+region, today, Harbour
+North, 42, 9
+South, 37, 8
+```
+
+## Shadow run {kicker="Status"}
+
+- Same bookings, same results in 97 % of the runs
+- The rest differ in rounding only
+
+::: comment
+Rounding is fixed in the next release.
+:::
+
+::: conclusion
+Harbour is ready for the switch.
+:::

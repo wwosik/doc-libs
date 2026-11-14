@@ -62,6 +62,12 @@ attributes, alerts, transitions and build markers (a paragraph such as `{.note}`
 decks, and so are a `::: notes` inside another block and a build marker that builds nothing. Write
 `\{` to show braces as text.
 
+The kinds of slide `{.agenda}`, `{.quote}`, `{.statement}`, `{.contact}` and `{.chart}` show their
+content as written; an `{.agenda}` with nothing under it lists the document's `#` chapters.
+`::: conclusion` … `:::` is shown like an alert without a title, `::: comment` … `:::` after the
+block it comments as an italic quote. Their mistakes are errors as in decks: a kind with other
+content than it takes, a comment as the first block, a conclusion that is not the last.
+
 **Timelines and Gantt charts:** `::: timeline` around a list of 2–8 `- **date** Title: description`;
 `::: gantt` around a table of 1–20 rows of task, start and end (no end: a milestone). Dates:
 `2026`, `2026-Q2`, `2026-03`, `2026-03-15`; what ended before today is grey. `today=2026-11-01`
@@ -230,6 +236,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `language-unknown`: the language in `lang` has no texts of its own, so alert titles and similar texts are in English. Use `en` or `de`.
 - `attribute-ignored`: an image attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `focus` on an image that is not cropped. Remove it, or use it where it works.
 - `icon-not-drawn`: an icon was left out where it cannot be drawn. Move it as the *Icons* section says.
+- `agenda-empty`: an empty `{.agenda}` found no `#` chapters to list. Add the chapters, or write the agenda as a list.
 
 ## Example
 

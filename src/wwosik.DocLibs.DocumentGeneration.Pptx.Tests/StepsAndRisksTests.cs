@@ -93,7 +93,7 @@ public class StepsAndRisksTests
 
         using var package = Samples.Open(pptx);
         Assert.Equal(["[3/4] done", "[3/4]", "[2/3]"], Cells(package, 0)[^3..].Select(c => c.InnerText));
-        Assert.DoesNotContain(package.PresentationPart!.Presentation.Descendants<P.EmbeddedFont>(), f => f.Font?.Typeface?.Value == "Segoe UI Symbol");
+        Assert.DoesNotContain(package.PresentationPart!.Presentation!.Descendants<P.EmbeddedFont>(), f => f.Font?.Typeface?.Value == "Segoe UI Symbol");
     }
 
     [Theory]

@@ -62,6 +62,12 @@ attributes, alerts, transitions and build markers (a paragraph such as `{.note}`
 decks, and so are a `::: notes` inside another block and a build marker that builds nothing. Write
 `\{` to show braces as text.
 
+The kinds of slide `{.agenda}`, `{.quote}`, `{.statement}`, `{.contact}` and `{.chart}` show their
+content as written; an `{.agenda}` with nothing under it lists the document's `#` chapters.
+`::: conclusion` … `:::` is shown like an alert without a title, `::: comment` … `:::` after the
+block it comments as an italic quote. Their mistakes are errors as in decks: a kind with other
+content than it takes, a comment as the first block, a conclusion that is not the last.
+
 **Timelines and Gantt charts:** `::: timeline` around a list of 2–8 `- **date** Title: description`;
 `::: gantt` around a table of 1–20 rows of task, start and end (no end: a milestone). Dates:
 `2026`, `2026-Q2`, `2026-03`, `2026-03-15`; what ended before today is grey. `today=2026-11-01`

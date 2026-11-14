@@ -26,6 +26,9 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
 {
     private static readonly MarkdownPipeline Pipeline = BuildPipeline();
 
+    // The chapters an empty `{.agenda}` lists, by its heading.
+    private readonly Dictionary<Markdig.Syntax.HeadingBlock, ListBlock> agendas = new(ReferenceEqualityComparer.Instance);
+
     // Images in grey, by the image they were made from, so an image used twice is converted and embedded once.
     private readonly Dictionary<DocumentResource, DocumentResource> greyImages = new(ReferenceEqualityComparer.Instance);
 
@@ -63,6 +66,7 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
             cover = new Cover(parser.NotDrawn(WithoutAttributes(parser.Runs(first.Inline)), "the cover"), subtitle, Anchor(first));
         }
 
+        parser.CheckSections(blocks, start == 1 ? (Markdig.Syntax.HeadingBlock)blocks[0] : null);
         var result = new List<Block>();
         foreach (var block in blocks.Skip(start))
         {
@@ -102,13 +106,96 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         return builder.Build();
     }
 
+    // The checks of slide kinds and of `::: conclusion` and `::: comment` are the deck's, per `#` or `##` section. An empty
+    // `{.agenda}` gets the chapters: the `#` headings but the cover and a `{.closing}` one.
+    private void CheckSections(List<Markdig.Syntax.Block> blocks, Markdig.Syntax.HeadingBlock? cover)
+    {
+        var sections = new List<(Markdig.Syntax.HeadingBlock? Heading, List<Markdig.Syntax.Block> Blocks)> { (null, []) };
+        foreach (var block in blocks)
+        {
+            if (block is Markdig.Syntax.HeadingBlock { Level: <= 2 } heading)
+            {
+                sections.Add((heading, []));
+            }
+            else
+            {
+                sections[^1].Blocks.Add(block);
+            }
+        }
+
+        var chapters = new List<IReadOnlyList<TextRun>>();
+        foreach (var (heading, _) in sections)
+        {
+            if (heading is { Level: 1 } && heading != cover && this.AttributesOf(heading) is not { Closing: true })
+            {
+                chapters.Add(Trim([.. WithoutAttributes(this.Runs(heading.Inline)).Where(r => r.Icon is null)]));
+            }
+        }
+
+        foreach (var (heading, content) in sections)
+        {
+            SlideKinds.CheckContainers(content, DocumentFormat.Pdf);
+            if (heading is null || this.AttributesOf(heading)?.Kind is not { } kind)
+            {
+                continue;
+            }
+
+            var title = string.Concat(WithoutAttributes(this.Runs(heading.Inline)).Select(r => r.IsBreak ? " " : r.Text)).Trim();
+            if (heading.Level == 1)
+            {
+                throw new DocumentConversionException(DocumentFormat.Pdf, $"{{.{kind}}} goes on a '##' heading: a '#' heading is the cover or a section divider.");
+            }
+
+            SlideKinds.Check(kind, content, title, DocumentFormat.Pdf);
+            if (kind == SlideKinds.Agenda && SlideKinds.Content(content).Count == 0)
+            {
+                if (chapters.Count == 0)
+                {
+                    notes.Add(
+                        NoteCodes.AgendaEmpty,
+                        this.LineOf(heading),
+                        $"The agenda '{title}' has no list and the document no chapters ('#' headings after the cover) to list, so it shows its heading only. Add the chapters, or write the agenda as a list.");
+                }
+                else
+                {
+                    this.agendas[heading] = new ListBlock(true, 1, [.. chapters.Select(c => (IReadOnlyList<Block>)[new ParagraphBlock(c)])]);
+                }
+            }
+        }
+    }
+
+    private HeadingAttributes? AttributesOf(Markdig.Syntax.HeadingBlock heading) =>
+        this.Runs(heading.Inline) is [.., { IsBreak: false, Style: RunStyle.None, Link: null } last]
+            ? HeadingAttributes.Split(last.Text, DocumentFormat.Pdf).Attributes
+            : null;
+
     private void Add(Markdig.Syntax.Block block, List<Block> target)
     {
         switch (block)
         {
             case Markdig.Syntax.HeadingBlock heading:
                 var runs = this.NotDrawn(this.Runs(heading.Inline), "a heading");
-                target.Add(new HeadingBlock(heading.Level, heading.Level <= 2 ? WithoutAttributes(runs) : runs, Anchor(heading)));
+                var text = heading.Level <= 2 ? WithoutAttributes(runs) : runs;
+
+                // A kind of slide without a title, such as `## {.quote}`, has no heading here.
+                if (text.Count > 0 || heading.Level > 2 || this.AttributesOf(heading)?.Kind is null)
+                {
+                    target.Add(new HeadingBlock(heading.Level, text, Anchor(heading)));
+                }
+
+                if (this.agendas.TryGetValue(heading, out var agenda))
+                {
+                    target.Add(agenda);
+                }
+
+                break;
+            case CustomContainer { Info: SlideKinds.Conclusion } conclusion:
+                // Like an alert without its title.
+                target.Add(new QuoteBlock(this.Children(conclusion)));
+                break;
+            case CustomContainer { Info: SlideKinds.Comment } comment:
+                // After the block it comments, as an italic quote.
+                target.Add(new QuoteBlock([.. this.Children(comment).Select(Italic)]));
                 break;
             case CustomContainer { Info: LayoutSyntax.Notes }:
                 throw LayoutSyntax.NestedNotes(DocumentFormat.Pdf);
@@ -327,6 +414,14 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
 
         return text.Length > 0 ? [.. runs[..^1], last with { Text = text }] : runs[..^1];
     }
+
+    // Paragraphs in italics, those of list items too.
+    private static Block Italic(Block block) => block switch
+    {
+        ParagraphBlock paragraph => paragraph with { Runs = [.. paragraph.Runs.Select(r => r.IsBreak ? r : r with { Style = r.Style | RunStyle.Italic })] },
+        ListBlock list => list with { Items = [.. list.Items.Select(item => (IReadOnlyList<Block>)[.. item.Select(Italic)])] },
+        _ => block,
+    };
 
     // A block's line in the original Markdown, from 1.
     private int LineOf(MarkdownObject block) => block.Line + 1 + lineOffset;
