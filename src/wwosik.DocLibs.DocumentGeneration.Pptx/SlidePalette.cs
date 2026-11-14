@@ -80,6 +80,9 @@ internal sealed record SlidePalette(
     /// <summary>The colour of all text the generator writes outside placeholders; <see langword="null"/>: the template's.</summary>
     public SlideColor? Text { get; init; }
 
+    /// <summary>The colour of the footer line's text, which the classification label in the corner takes.</summary>
+    public SlideColor Footer { get; init; } = SlideColor.Theme(A.SchemeColorValues.Text1, 65000, 35000);
+
     /// <summary>The bar of notes and tips.</summary>
     public SlideColor NoteBar { get; init; } = SlideColor.Theme(A.SchemeColorValues.Text2);
 
@@ -124,6 +127,7 @@ internal sealed record SlidePalette(
         new SlideColor(ResolvedBrand.Mix(brand.Primary, 0.65)),
         LabelColors(brand.Labels))
     {
+        Footer = new SlideColor(brand.Footer),
         NoteBar = new SlideColor(brand.Primary),
         ImportantBar = new SlideColor(brand.Highlight),
         MarkFill = new SlideColor(ResolvedBrand.Mix(brand.Highlight, 0.15)),
@@ -152,6 +156,7 @@ internal sealed record SlidePalette(
     {
         DarkSlides = true,
         Text = SlideColor.White,
+        Footer = SlideColor.White,
         NoteBar = new SlideColor(brand.Highlight),
         ImportantBar = new SlideColor(brand.Labels.Warning),
         MarkFill = null,

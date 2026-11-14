@@ -93,6 +93,34 @@ public class DeckPreviewTests
     private static SKBitmap Bitmap(ReadOnlyMemory<byte> png) => SKBitmap.Decode(png.Span);
 
     [Fact]
+    public void TheClassificationLabel_IsPaintedInTheTopRightCorner_ForReview()
+    {
+        var markdown = "---\nclassification: confidential\ndraft: true\n---\n# Cover\n\nSubtitle\n\n# Part\n\n## Content\n\nText\n\n## Dark {.dark}\n\nText\n";
+        var plain = Svgs(Samples.Generate(Samples.Markdown(markdown.Replace("confidential", "public", StringComparison.Ordinal).Replace("true", "false", StringComparison.Ordinal)), new PptxOptions { Template = Samples.BuiltIn("sample") }));
+        var svgs = Svgs(Samples.Generate(Samples.Markdown(markdown), new PptxOptions { Template = Samples.BuiltIn("sample") }));
+        var marked = DeckPreview.Render(svgs.Slides, new DeckPreviewOptions { Width = 640, Fonts = svgs.Fonts });
+        var unmarked = DeckPreview.Render(plain.Slides, new DeckPreviewOptions { Width = 640, Fonts = plain.Fonts });
+
+        Samples.WriteForReview("preview-classification.png", DeckPreview.ContactSheet(marked));
+        for (var i = 0; i < marked.Slides.Count; i++)
+        {
+            using var with = Bitmap(marked.Slides[i].Png);
+            using var without = Bitmap(unmarked.Slides[i].Png);
+            var top = i == 0 ? 72 : 0;
+            var changed = 0;
+            for (var y = top; y < top + 30; y++)
+            {
+                for (var x = 480; x < 625; x++)
+                {
+                    changed += with.GetPixel(x, y) != without.GetPixel(x, y) ? 1 : 0;
+                }
+            }
+
+            Assert.True(changed > 20, $"slide {i + 1}: {changed} pixels differ in the corner");
+        }
+    }
+
+    [Fact]
     public void Slides_ArePainted_AtTheWidth_InTheSlidesAspectRatio()
     {
         var pptx = Samples.Generate(Samples.Markdown("## One\n\nA\n\n## Two\n\nB\n"));

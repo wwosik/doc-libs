@@ -16,12 +16,21 @@ public class SlideLayoutTests
     private static MarkdownDocument Layouts() => Samples.Markdown(File.ReadAllText(Samples.Path("layouts.md")).ReplaceLineEndings("\n"));
 
     [Fact]
-    public void PageBreaks_AndTheMarking_AreAcceptedAndIgnored_WithoutMakingFlowSlides()
+    public void PageBreaks_AreAcceptedAndIgnored_WithoutMakingFlowSlides_AndTheMarkingOnlyAddsItsLabel()
     {
         static List<string> Read(byte[] pptx)
         {
             using var package = Samples.Open(pptx);
-            return [.. Samples.Slides(package).Select(s => System.Text.RegularExpressions.Regex.Replace(s.Slide!.OuterXml, "r:(id|embed)=\"[^\"]*\"", string.Empty))];
+            return [.. Samples.Slides(package).Select(s =>
+            {
+                var slide = (DocumentFormat.OpenXml.Presentation.Slide)s.Slide!.CloneNode(true);
+                foreach (var label in slide.Descendants<DocumentFormat.OpenXml.Presentation.Shape>().Where(p => p.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value == "Classification").ToList())
+                {
+                    label.Remove();
+                }
+
+                return System.Text.RegularExpressions.Regex.Replace(slide.OuterXml, "r:(id|embed)=\"[^\"]*\"", string.Empty);
+            })];
         }
 
         var plain = Samples.Generate(Samples.Markdown("# Cover\n\n## One\n\n- Text\n\n### Deep\n\n## Two\n\nMore.\n\nLast.\n"));

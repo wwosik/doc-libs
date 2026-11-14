@@ -18,7 +18,7 @@ for these features, so the DOCX generator (E09) reads the same source the same w
     and visuals.
   - [E03-S03](E03-S03-footnotes-justification-and-page-breaks.md): footnotes at the page foot,
     justified text, page breaks. All three change how lines and pages are filled.
-  - [E03-S04](../55-in-progress/doc-3/E03-S04-classification-marking.md): classification marking in PDFs and decks. It
+  - [E03-S04](E03-S04-classification-marking.md): classification marking in PDFs and decks. It
     touches the page furniture of every format, not the flow.
 - **Layout today.** The layout runs once (`LayoutEngine.Run`, `LayoutEngine.cs:78`):
   - It places the cover, flows the blocks greedily, and then adds header and footer to every

@@ -27,12 +27,13 @@ public class SlideLayoutSyntaxTests
     }
 
     [Fact]
-    public void TheMarking_IsAcceptedAndIgnored_ForNow()
+    public void TheMarking_ChangesOnlyTheHeaderTheCoverAndTheWatermark()
     {
         static (int Pages, string Letters) Read(byte[] pdf)
         {
             using var document = PdfDocument.Open(pdf);
-            return (document.NumberOfPages, string.Concat(document.GetPages().SelectMany(p => p.Letters).Select(l => l.Value)));
+            var letters = document.GetPages().SelectMany(p => p.Letters).Where(l => l.TextOrientation == UglyToad.PdfPig.Content.TextOrientation.Horizontal);
+            return (document.NumberOfPages, string.Concat(letters.Select(l => l.Value)).Replace("Confidential · Draft", string.Empty, StringComparison.Ordinal));
         }
 
         var plain = Samples.Generate(Samples.Markdown("# Cover\n\n## One\n\nText.\n\n## Two\n\nMore.\n\nLast.\n"));

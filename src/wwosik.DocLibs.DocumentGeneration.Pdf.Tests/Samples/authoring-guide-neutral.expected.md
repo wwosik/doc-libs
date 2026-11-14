@@ -91,8 +91,7 @@ in the front matter, `transition="…"` on a heading) and builds (a paragraph su
 out. Unknown containers,
 attributes, alerts, transitions and build markers (a paragraph such as `{.note}`) are errors, as in
 decks, and so are a `::: notes` inside another block and a build marker that builds nothing. Write
-`\{` to show braces as text. The keys `classification:` and `draft:` are for Word documents; a
-PDF ignores them for now.
+`\{` to show braces as text.
 
 The kinds of slide `{.agenda}`, `{.quote}`, `{.statement}`, `{.contact}` and `{.chart}` show their
 content as written; an `{.agenda}` with nothing under it lists the document's `#` chapters.
@@ -213,6 +212,8 @@ author: Planning team
 | `tocDepth` | `1`, `2` or `3`: the heading levels the table of contents lists. Default `2`. |
 | `headingNumbers` | `true` or `false`: numbers on three heading levels (1, 1.1, 1.1.1). Default `false`. |
 | `justify` | `true` or `false`: body text justified, without hyphenation. Default `false`. |
+| `classification` | `public`, `internal` or `confidential`: a marking in the header and on the cover. Default `public`. |
+| `draft` | `true` adds "Draft" to the marking and a diagonal watermark. Default `false`. |
 | `transition`, `build`, `numberChapters` | Settings for decks. A PDF accepts them and ignores them. |
 | `labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral` | Status labels for decks, separated by `;`. A PDF accepts them and shows the labels as code. |
 
@@ -244,7 +245,6 @@ A check before generating reports what goes beyond these: at most 150 words in a
 
 Generation stops with a message that says what to fix: a character the fonts lack, an image that
 is not among the files, a front matter key that does not exist, or a broken diagram with its line.
-Fix the Markdown and generate again.
 
 ## Notes you may get back
 

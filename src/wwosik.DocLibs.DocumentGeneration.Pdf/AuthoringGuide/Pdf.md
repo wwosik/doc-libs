@@ -91,8 +91,7 @@ in the front matter, `transition="…"` on a heading) and builds (a paragraph su
 out. Unknown containers,
 attributes, alerts, transitions and build markers (a paragraph such as `{.note}`) are errors, as in
 decks, and so are a `::: notes` inside another block and a build marker that builds nothing. Write
-`\{` to show braces as text. The keys `classification:` and `draft:` are for Word documents; a
-PDF ignores them for now.
+`\{` to show braces as text.
 
 The kinds of slide `{.agenda}`, `{.quote}`, `{.statement}`, `{.contact}` and `{.chart}` show their
 content as written; an `{.agenda}` with nothing under it lists the document's `#` chapters.
@@ -171,7 +170,6 @@ around a table of 1–15 rows of risk, likelihood and impact (each 1–5) puts n
 
 Generation stops with a message that says what to fix: a character the fonts lack, an image that
 is not among the files, a front matter key that does not exist, or a broken diagram with its line.
-Fix the Markdown and generate again.
 
 ## Notes you may get back
 

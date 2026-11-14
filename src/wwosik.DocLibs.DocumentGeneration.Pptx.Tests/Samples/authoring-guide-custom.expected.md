@@ -262,8 +262,8 @@ The end date does not move.
 
 Page breaks are for documents and have no effect on slides: a deck shows the content of
 `::: pagebreak` … `:::` as usual, without making its slide a flow slide, and ignores `{.newpage}`
-and `{.unnumbered}` on a heading, as it ignores `classification:`, `draft:`, `toc:`, `tocDepth:`,
-`headingNumbers:` and `justify:` (checked, then ignored).
+and `{.unnumbered}` on a heading, as it ignores `toc:`, `tocDepth:`, `headingNumbers:` and
+`justify:` (checked, then ignored).
 
 **Kinds of slide** are drawn as layout slides with the same content, unless the template has a layout of the right type.
 
@@ -323,6 +323,8 @@ author: Planning team
 | `listBullets` | `always` to show bullets on every list level, also where the design's first level has none; `template` (the default) leaves it to the design. |
 | `transition` | How every slide is brought on when presented: `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut`, `morph`. Default `none`. A heading's `transition="…"` wins; see [Presenting](#presenting). |
 | `build` | `lists` builds every top-level list item by item; `none` (the default) only what has a marker. See [Presenting](#presenting). |
+| `classification` | `public`, `internal` or `confidential`: a marking in the top right corner of every slide. Default `public`. |
+| `draft` | `true` adds "Draft" to the marking. Default `false`. |
 | `labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral` | The [status labels](#layouts) in that category, separated by `;`: `labels.success: Done; Delivered`. |
 
 An unknown key, a key given twice or an invalid value is an error that lists the valid keys.

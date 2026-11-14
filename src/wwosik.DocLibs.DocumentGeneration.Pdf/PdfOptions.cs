@@ -111,6 +111,21 @@ public sealed record PdfOptions
     public bool Justify { get; init; }
 
     /// <summary>
+    /// How confidential the document is: <see cref="DocumentGeneration.Classification.Internal"/> and
+    /// <see cref="DocumentGeneration.Classification.Confidential"/> put "Internal" or "Confidential" in the header of every
+    /// page but the cover and above the cover title. The front matter's <c>classification</c> can raise it but not lower
+    /// it. Default <see cref="DocumentGeneration.Classification.Public"/>, which shows nothing.
+    /// </summary>
+    public Classification Classification { get; init; } = Classification.Public;
+
+    /// <summary>
+    /// Marks the document a draft: "Draft" joins the marking, and every page, the cover included, gets a diagonal
+    /// watermark under its content. The front matter's <c>draft: true</c> also does; it cannot undo this. Default
+    /// <see langword="false"/>.
+    /// </summary>
+    public bool Draft { get; init; }
+
+    /// <summary>
     /// The clock for the date of generation in the footer, and for today in timelines and Gantt charts that do not pin it
     /// with <c>today=</c>. Default <see cref="TimeProvider.System"/>.
     /// </summary>

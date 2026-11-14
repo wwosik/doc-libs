@@ -214,6 +214,9 @@ internal sealed class PdfRenderer
         var height = layout.Geometry.Height;
         switch (item)
         {
+            case TextItem { Angle: not 0 } rotated:
+                this.Rotated(page, rotated, height);
+                break;
             case TextItem text:
                 SetFill(page, text.Color);
                 this.Text(page, text.Text, text.Face, text.Size, new PdfPoint(text.X, height - text.Baseline));
@@ -355,6 +358,20 @@ internal sealed class PdfRenderer
         operations.Add(shape.Fill is null ? StrokePath.Value
             : stroke ? evenOdd ? FillEvenOddAndStroke.Value : FillPathNonZeroWindingAndStroke.Value
             : evenOdd ? FillPathEvenOddRule.Value : FillPathNonZeroWinding.Value);
+        operations.Add(Pop.Value);
+    }
+
+    // Rotated text: inside q … Q, a `cm` that turns the page about the text's start, then the text written at the origin
+    // as any other, so PdfPig embeds its characters in the font subset and extraction reads the rotated letters.
+    private void Rotated(PdfPageBuilder page, TextItem text, double pageHeight)
+    {
+        var radians = text.Angle * Math.PI / 180;
+        var (cos, sin) = (Math.Cos(radians), Math.Sin(radians));
+        var operations = page.CurrentStream.Operations;
+        operations.Add(Push.Value);
+        operations.Add(new ModifyCurrentTransformationMatrix([cos, sin, -sin, cos, text.X, pageHeight - text.Baseline]));
+        SetFill(page, text.Color);
+        this.Text(page, text.Text, text.Face, text.Size, new PdfPoint(0, 0));
         operations.Add(Pop.Value);
     }
 

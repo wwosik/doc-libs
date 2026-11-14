@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Security;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -73,8 +73,7 @@ internal static class DocxMarking
 
         if (context.Marking.Draft)
         {
-            var culture = Culture(context.Language);
-            var watermark = context.Texts.Draft.ToUpper(culture);
+            var watermark = Marking.Watermark(context.Texts, context.Language);
             var id = 0;
             foreach (var header in (cover ? [.. content, .. Headers(main, section, cover, first: true)] : content).Distinct())
             {
@@ -151,18 +150,6 @@ internal static class DocxMarking
         }
 
         return found;
-    }
-
-    private static CultureInfo Culture(string tag)
-    {
-        try
-        {
-            return CultureInfo.GetCultureInfo(tag);
-        }
-        catch (CultureNotFoundException)
-        {
-            return CultureInfo.InvariantCulture;
-        }
     }
 
     // Word's own watermark: a WordArt text path named PowerPlusWaterMarkObject, centred on the margins at 45°, light

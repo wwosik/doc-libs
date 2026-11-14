@@ -1,7 +1,7 @@
 # E03-S04 Classification marking
 
-> Status: in progress (doc-3)
-> Epic: [E03 PDF layout](../../50-todo/E03-pdf-layout.md)
+> Status: in verification
+> Epic: [E03 PDF layout](../50-todo/E03-pdf-layout.md)
 
 ## Summary
 
@@ -13,7 +13,7 @@ their meaning are shared, so the DOCX generator (E09) marks Word documents from 
 ## Context
 
 - Split from the epic's row E03-S02 (see
-  [E03-S02](../../60-verify/E03-S02-contents-heading-numbers-and-captions.md), question 1). The marking concerns
+  [E03-S02](E03-S02-contents-heading-numbers-and-captions.md), question 1). The marking concerns
   the page furniture of every format, not the flow of text.
 - **The fork**, made for one client, has a classification marking (confidential / internal /
   draft): in the Word header, on the cover, and as a draft watermark, with the same key for decks
@@ -199,3 +199,112 @@ their meaning are shared, so the DOCX generator (E09) marks Word documents from 
 ## Notes
 
 <!-- Free space for remarks that are not answers to the questions above. -->
+
+## Implementation notes
+
+### Breaking changes
+
+None for released output: documents and decks without a marking are unchanged (verified below), and
+the keys, options and texts were added unreleased by E09-S02. What a consumer can notice, all in
+`CHANGELOG.md`:
+
+- Markdown with `classification:` or `draft:`, which PDFs and decks accepted and ignored since E09-S02
+  (unreleased), now marks PDFs and decks.
+- Added: `PdfOptions.Classification`/`Draft`, `PptxOptions.Classification`/`Draft`;
+  `classification-kept` is now listed for PPTX and PDF too, and its advice text (used by the Word
+  guide) is shorter: "front matter cannot lower the host's `classification`, which applies. Leave the
+  key out."
+
+### Decisions and deviations
+
+- **Spike: rotated text works.** `TextItem.Angle`; `PdfRenderer.Rotated` writes `q`, a `cm` rotation
+  matrix about the text's start, then PdfPig's ordinary `AddText` at the origin, then `Q`. The font
+  subset gets the characters, PdfPig extraction returns the watermark as letters with a non-horizontal
+  `TextOrientation` (45°), and the PDF converter leaves them out (E08-S01). The horizontal fallback was
+  not needed. No transparency is used (tested: no `/SMask`, `/CA`, `/ca`).
+- **PDF placement.** Header: the marking right-aligned at the title's baseline (38), 8 pt bold, 12 pt
+  left of the logo or at the right margin; the title's `Fit` width shrinks by the marking plus 12 pt
+  (without a marking the old formula, so old PDFs stay byte-identical). Cover: 10 pt bold at the
+  title's left margin, baseline 4 pt above the top of the title's first line (the title does not move).
+  Watermark: inserted at index 0 of every page's items in `Decorate`, after the layout, so the empty-page
+  checks during layout are not affected; length 70 % of the page diagonal, centred (the baseline is
+  shifted by half the cap height so the letters' middle is the page centre), the text colour at 15 %
+  on white (`ResolvedBrand.Mix`, close to Word's `#D9D9D9`), regular face.
+- **Deck placement.** The text box's right edge is the right edge of the content layout's title (the
+  slide's right margin on every template), 0.1 in from the top; on the built-in cover below the logo
+  box (`TemplateBuilder.CoverLogoBottom` + half a gap). Size: the built-in footer size (10.67 pt) on
+  every template, bold, `wrap="none"`, right-aligned, no autofit, insets 0; its width estimated from
+  the text length. Written after the footer, before `Tag`, so it is last in the tree and language-tagged.
+- **Colours on dark slides** (the plan says "white text"): internal and draft white; confidential the
+  danger colour lightened halfway to white (`ResolvedBrand.Mix(danger, 0.5)`, as coloured words on dark
+  slides), so confidential stays red-ish but readable. A slide counts as dark when the palette is the
+  dark-template palette, the slide is a `{.dark}` flow slide, or `TemplateTone.IsDark(layout)` (new):
+  the layout's own title placeholder has light text, else the layout's own background is dark (solid or
+  the average of a gradient's stops). That catches the built-in section, closing (= section) and
+  statement layouts. New `SlidePalette.Footer` (brand footer colour; white on dark templates; text 1 at
+  65 % on caller templates).
+- **`cp:contentStatus`** is written only when there is a marking (`CoreProperties.ContentStatus`), so
+  unmarked decks keep their core part byte-for-byte.
+- **Guides (word limits).** The PDF guide was at 2,487 of 2,500 words and the PPTX guide at 3,473 of
+  3,500. Both get the two front-matter rows (shared `AuthoringGuides.MarkingKeys`, with the host's
+  defaults: "lower values have no effect" when the host sets a level, "Always `true` here" when the host
+  sets a draft); the sentences saying the keys are ignored are gone. To fit, **`classification-kept` is
+  left out of the PDF and PPTX guides' notes lists** (the row already says when lower values have no
+  effect), its shared advice was shortened (Word guide), and the PDF guide lost "Fix the Markdown and
+  generate again." Result: PDF 2,495 (sample brand) and PPTX 3,497 (caller template) words; **both are
+  now practically full** — the human should decide whether to raise the limits or trim prose before
+  E03-S05 adds to the PDF guide. The limits were not raised.
+- **Shared code.** `Marking.Watermark(texts, language)` (culture upper-casing with an invariant fallback)
+  replaces `DocxMarking.Culture`, so Word and PDF upper-case alike.
+- **Converters** (plan step 6, nothing to do): the PDF converter drops the header marking as a running
+  header on documents of three pages or more and the watermark always; the PPTX converter writes the
+  corner label as text. E08-S01's optional "skip a shape named `Classification`" is **not done** (not in
+  this plan): a converted marked deck has "Confidential · Draft" on every slide. Loose end for E08.
+
+### Verification
+
+- `./run.sh build`: 0 warnings, 0 errors. `./run.sh test` all green: 1 + 123 + 78 + 388 + 71 + 154 +
+  35 + 281 + 474 = 1,605 passed, 6 Windows-only skipped.
+- **New tests.** `Pdf.Tests/ClassificationMarkingTests.cs` (15): header marking on every page but the
+  cover, left of the logo, colour, bold 8 pt; at the right margin without a logo; header title fitted
+  beside it; cover marking above the title at its margin; the watermark the first item of every page,
+  45°, 70 % of the diagonal, centred; nothing added without a marking; rendering: the marking and the
+  rotated "DRAFT" extracted by PdfPig on every page (45°, middle near the centre), PDF/A-2b markers, all
+  fonts embedded and no transparency; the watermark left out of `PdfConverter`'s Markdown; `lang: de`
+  ("Vertraulich · Entwurf", "ENTWURF", "Intern"); host texts; host options with `classification-kept`
+  and its line; front matter raising the host's level; unknown values; `public`/`false` identical to no
+  keys. `Pptx.Tests/ClassificationMarkingTests.cs` (10): the label on every slide (cover, section, dark,
+  table, closing) on the neutral and sample built-in masters, a caller template and the dark brand
+  template, last in the tree, text box, bold, 10.67 pt, right-aligned, language-tagged, top right,
+  validator clean, `cp:contentStatus`; below the logo on the built-in cover; colours (danger, footer,
+  white and lightened danger on dark slides); German, `Intern`, host texts; host options, note and
+  raising; unknown values; no label and no status without a marking. `Svg.Tests/DeckPreviewTests`: the
+  label is painted in the top right corner of every slide (`.tmp/review/preview-classification.png`).
+  The former "accepted and ignored" tests now check that the marking changes nothing but the
+  furniture (PDF text without the marking and watermark, slide XML without the `Classification` box).
+- **Unchanged output.** All 193 files the tests write to `.tmp/review/` (18 PDFs, 67 decks, 21 Word
+  documents, HTML decks and PNG previews), from `a28da70` before any change and from this change:
+  identical — PDFs byte for byte with `/ID` and dates masked, decks and Word documents part by part
+  with relationship ids masked, embedded workbooks included.
+- **Open XML validator** passes on every marked deck the tests write.
+- **For review** in `.tmp/review/`: `classification-confidential-draft.pdf` (neutral, English),
+  `classification-internal-sample.pdf` (sample brand, German), `classification-neutral.pptx`,
+  `classification-sample.pptx`, `classification-custom.pptx`, `classification-dark.pptx`,
+  `preview-classification.png`.
+
+### To verify by hand (no veraPDF, PDF viewer, PowerPoint or Windows here)
+
+1. **veraPDF** (PDF/A-2b profile) on `classification-confidential-draft.pdf` and
+   `classification-internal-sample.pdf`: not available on this machine.
+2. **The PDFs in a viewer:** the marking right in the header beside the logo, red for confidential;
+   above the cover title; "DRAFT" light grey, diagonal, centred, under the text on every page including
+   the cover; text selection and search still work; nothing was rendered visually here (no
+   rasteriser), only checked by extraction.
+3. **PowerPoint** (`.tmp/scripts/export.ps1`): open `classification-*.pptx`, no repair prompt; the label
+   top right on every slide, below the logo on the built-in cover, readable on the section, dark and
+   closing slides and on `classification-dark.pptx`; *File → Info* shows the status.
+
+### Loose ends
+
+- `PptxConverter` could skip a shape named `Classification` (E08-S01 step 8 note); not done.
+- The PDF and PPTX guides are at their word limits (see above).

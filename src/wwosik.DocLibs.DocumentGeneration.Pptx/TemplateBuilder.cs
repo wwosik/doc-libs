@@ -85,7 +85,7 @@ internal static class TemplateBuilder
     private const long FooterTextWidth = 1056117;
     private const long DateWithFooterTextLeft = 2748329;
     private const long DateWidth = 722841;
-    private const int FooterSize = 1067;
+    internal const int FooterSize = 1067;
     private const long ColumnGap = 304800;
 
     private const string MasterLogoRelationship = "rId6";
@@ -97,6 +97,9 @@ internal static class TemplateBuilder
     private static readonly ImageBox CoverLogoBox = new(10137562, 359861, 1586924, 1122823, Top: true);
     private static readonly ImageBox TaglineBox = new(9700000, 6087210, 2103309, 475637, Top: false);
     private static readonly ImageBox FooterLogoBox = new(10986386, 6165304, 815143, 576752, Top: false);
+
+    /// <summary>The foot of the cover's logo box, which the classification label sits below.</summary>
+    internal static long CoverLogoBottom => CoverLogoBox.Y + CoverLogoBox.Height;
 
     /// <summary>The roles of the built-in master's layouts and placeholders, declared like any template's.</summary>
     public static PptxTemplateRoles Roles { get; } = new()

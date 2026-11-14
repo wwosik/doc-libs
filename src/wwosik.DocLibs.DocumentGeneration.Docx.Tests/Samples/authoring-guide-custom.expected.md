@@ -241,7 +241,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `icon-not-drawn`: an icon was left out where it cannot be drawn. Move it as the *Icons* section says. In a Word document, icons are drawn only where an image converter is set up, and are left out otherwise.
 - `caption-ignored`: a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text.
 - `list-too-deep`: a list is nested deeper than three levels; the deeper items are set at the third level. Flatten the list to three levels.
-- `classification-kept`: the front matter asks for a lower `classification` than the host set, and the host's applies. Leave the key out, or raise it.
+- `classification-kept`: front matter cannot lower the host's `classification`, which applies. Leave the key out.
 - `typography-skipped`: with `typography: true`, a character the fonts lack was kept as typed. Nothing to fix.
 
 A check before generating writes nothing and returns these notes too, and also:

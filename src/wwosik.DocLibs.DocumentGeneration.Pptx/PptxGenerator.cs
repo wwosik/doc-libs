@@ -114,8 +114,7 @@ public static class PptxGenerator
         var template = PptxTemplateOptions.Apply(frontMatter, options.Template ?? PptxOptions.Default.Template, options.Brands);
         var labels = frontMatter.Labels();
 
-        // The marking is checked like in Word documents; decks show it with E03-S04.
-        Marking.Resolve(frontMatter, Classification.Public, false, new GenerationNotes(), Format.Pptx);
+        var marking = Marking.Resolve(frontMatter, options.Classification, options.Draft, notes, Format.Pptx);
         if (template is CustomTemplateOptions custom && CustomRolesProblem(custom.Roles) is { } problem)
         {
             throw new ArgumentException($"{nameof(CustomTemplateOptions)}.{problem}.", nameof(options));
@@ -179,6 +178,8 @@ public static class PptxGenerator
                 template.Description)
             {
                 Written = written,
+                Marking = marking.IsEmpty ? null : marking.Text(language.Texts),
+                Confidential = marking.Classification == Classification.Confidential,
             };
             var slides = DeckParser.Parse(
                 document with { Markdown = frontMatter.Body },
@@ -197,7 +198,12 @@ public static class PptxGenerator
                 FontEmbedding.Embed(package.PresentationPart!, fonts, codeFont);
             }
 
-            CoreProperties.Write(package.CoreFilePropertiesPart ?? package.AddCoreFilePropertiesPart(), title, author, language.Tag);
+            var core = package.CoreFilePropertiesPart ?? package.AddCoreFilePropertiesPart();
+            CoreProperties.Write(core, title, author, language.Tag);
+            if (!marking.IsEmpty)
+            {
+                CoreProperties.ContentStatus(core, marking.Text(language.Texts));
+            }
         }
         catch (Exception ex) when (ex is OpenXmlPackageException or InvalidDataException or XmlException or FormatException)
         {
@@ -231,12 +237,13 @@ public static class PptxGenerator
         var registry = BrandRegistry.Of(template.BrandValue, options.Brands);
         var brand = template.BrandValue is { } value ? ResolvedBrand.Resolve(value) : null;
         var codeFont = options.CodeFont ?? brand?.CodeFontFamily ?? PptxOptions.DefaultCodeFont;
+        var (classification, draft) = AuthoringGuides.MarkingKeys(options.Classification, options.Draft, "in the top right corner of every slide", null);
         return AuthoringGuides.Fill(
             AuthoringGuides.Template(typeof(PptxGenerator).Assembly, "Pptx"),
             new Dictionary<string, string>
             {
                 ["diagrams"] = AuthoringGuides.Renderers(options.CodeBlockRenderers),
-                ["frontMatter"] = AuthoringGuides.FrontMatter(registry.Expected, options.Language, [.. template.Keys.Select(k => (k, KeyMeanings[k])), Labels], options.Typography),
+                ["frontMatter"] = AuthoringGuides.FrontMatter(registry.Expected, options.Language, [.. template.Keys.Select(k => (k, KeyMeanings[k])), classification, draft, Labels], options.Typography),
                 ["characters"] = Characters(brand?.Fonts, codeFont),
                 ["templateLayouts"] = TemplateLayouts(brand?.Pptx, (template as CustomTemplateOptions)?.Roles),
                 ["icons"] = AuthoringGuides.Icons(
@@ -244,7 +251,8 @@ public static class PptxGenerator
                     "Slides show it only alone after a card's `###` (as its figure) and at the start of every item of a list "
                     + "(as bullets); elsewhere it is left out."),
                 ["limits"] = AuthoringGuides.Limits(options.Checks ?? CheckOptions.Default, Format.Pptx),
-                ["notes"] = AuthoringGuides.Notes(Format.Pptx, NoteCodes.DrawingUnsupported, NoteCodes.FontMissing),
+                // classification-kept is left to the front matter table, which says when lower values have no effect.
+                ["notes"] = AuthoringGuides.Notes(Format.Pptx, NoteCodes.DrawingUnsupported, NoteCodes.FontMissing, NoteCodes.ClassificationKept),
             });
     }
 

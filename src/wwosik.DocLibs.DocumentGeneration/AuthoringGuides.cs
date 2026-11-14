@@ -88,6 +88,23 @@ internal static partial class AuthoringGuides
     }
 
     /// <summary>
+    /// The front matter rows of <c>classification</c> and <c>draft</c>, with the host's defaults: <paramref name="where"/>
+    /// says where the marking shows, <paramref name="watermark"/> what else a draft gets (<see langword="null"/>: nothing).
+    /// </summary>
+    public static ((string Key, string Meaning) Classification, (string Key, string Meaning) Draft) MarkingKeys(
+        Classification classification, bool draft, string where, string? watermark)
+    {
+        var name = classification.ToString().ToLowerInvariant();
+        var lower = classification == DocumentGeneration.Classification.Public ? "." : "; lower values have no effect.";
+        var also = watermark is null ? string.Empty : " and " + watermark;
+        return (
+            (DocumentGeneration.FrontMatter.ClassificationKey, $"`public`, `internal` or `confidential`: a marking {where}. Default `{name}`{lower}"),
+            (DocumentGeneration.FrontMatter.DraftKey, draft
+                ? "Always `true` here: the host marks a draft."
+                : $"`true` adds \"Draft\" to the marking{also}. Default `false`."));
+    }
+
+    /// <summary>
     /// The characters section: the <see cref="Symbols"/> the fonts lack, with what to write instead, in a table, or
     /// nothing when they have them all.
     /// </summary>

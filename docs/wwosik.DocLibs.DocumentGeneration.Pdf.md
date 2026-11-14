@@ -90,6 +90,8 @@ string guide = PdfGenerator.AuthoringGuide(options);   // starts at "##"
 | `TableOfContentsDepth` | `2` | the heading levels it lists, 1–3; another value throws `ArgumentOutOfRangeException` |
 | `HeadingNumbers` | `false` | numbers on three heading levels |
 | `Justify` | `false` | justified body text, see [Justified text](#justified-text) |
+| `Classification` | `Public` | `Internal` or `Confidential` marks every page, see [Classification marking](#classification-marking); front matter can raise it, not lower it |
+| `Draft` | `false` | "Draft" in the marking and a diagonal watermark on every page; front matter cannot undo it |
 | `CodeBlockRenderers` | none | see [Diagrams](#diagrams) |
 | `ImageConverters` | none | images in other formats, such as SVG, see [Image converters](wwosik.DocLibs.DocumentGeneration.md#image-converters) |
 | `ReplaceUnsupported` | none (throws) | see [Characters the fonts lack](#characters-the-fonts-lack) |
@@ -117,6 +119,8 @@ The shared syntax and rules are in
 | `tocDepth` | `1`, `2`, `3` | all |
 | `headingNumbers` | `true`, `false` | all |
 | `justify` | `true`, `false` | all |
+| `classification` | `public`, `internal`, `confidential` | all — see [Classification marking](#classification-marking) |
+| `draft` | `true`, `false` | all |
 | `title`, `author` | text | all |
 | `lang` | a language tag such as `en`, `de`, `de-CH` | all |
 | `typography` | `true`, `false` | all — see [Typography](wwosik.DocLibs.DocumentGeneration.md#typography) |
@@ -293,8 +297,29 @@ the contents stay left-aligned.
   nothing, on the cover heading it throws. A forced break on a page that is still empty does
   nothing, so two in a row make one break, and a break with nothing after it makes no page. A
   `::: pagebreak` right after the cover heading ends the subtitle.
-- The [classification](wwosik.DocLibs.DocumentGeneration.md#classification) keys are accepted and
-  ignored for now; their values are checked.
+
+## Classification marking
+
+The [shared keys](wwosik.DocLibs.DocumentGeneration.md#classification) `classification` and `draft`,
+or `PdfOptions.Classification` and `Draft`, mark the document (higher of the two wins):
+
+- **Header.** On every page but the cover the marking ("Confidential · Draft") stands right-aligned
+  in the header row, at the title's baseline: 8 pt bold, 12 pt left of the logo or at the right
+  margin without one. The header title is fitted into the width left of it, 12 pt apart.
+- **Cover.** The marking stands above the title at its left margin, 10 pt bold, its baseline 4 pt
+  above the top of the title's first line; the title stays at 28 % of the page height.
+- **Colour.** `Labels.Danger` for confidential, the footer colour otherwise.
+- **Watermark.** A draft gets the draft text in capitals (upper-cased in the document language,
+  "DRAFT", "ENTWURF") across the centre of every page, the cover included: at 45°, as long as 70 % of
+  the page's diagonal, in the regular face, in the text colour at 15 % on white. It is the first item
+  of the page, so everything else is drawn over it; it is opaque (no transparency, which keeps
+  PDF/A-2b simple).
+- **Rotated text.** `TextItem.Angle` rotates a text item about its start. The renderer writes it
+  inside `q … Q` with a `cm` rotation matrix and PdfPig's ordinary `AddText` at the origin, so the
+  characters go into the font subset like any other and text extraction reads them as rotated
+  letters (PdfPig's `TextOrientation` is not `Horizontal`), which the PDF converter leaves out.
+- **Metadata** is unchanged: PDF/A has no standard field for a classification.
+- Without a marking nothing is added: the PDFs are byte-identical to before (but `/ID` and dates).
 
 ## Fonts
 

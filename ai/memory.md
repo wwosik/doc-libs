@@ -450,9 +450,23 @@ same change that made it untrue — a stale fact here is worse than a missing on
   takes every `::: pagebreak` apart right after Markdig parses (all three generators), returning the
   blocks a break comes before; decks ignore that set, PDFs put a `PageBreakBlock` before each (E03-S03).
   `HeadingAttributes.NewPage` on every level in every format. `classification`/`draft` are shared front-matter keys
-  skipped by `FrontMatter.Apply`; `Marking.Resolve` applies them (higher classification wins,
-  `classification-kept`); PDF and PPTX call it only to check the values. `FrontMatter.LineOf(key)` gives a
-  key's line. `CoreProperties.ContentStatus` writes `cp:contentStatus` (Docx only so far).
+  skipped by `FrontMatter.Apply`; `Marking.Resolve(frontMatter, host classification, host draft, …)` applies
+  them in all three generators: the higher classification wins (front matter only raises it, else the note
+  `classification-kept`), `draft` only adds; `Marking.Watermark` upper-cases the draft text in the document
+  culture. `FrontMatter.LineOf(key)` gives a key's line. `CoreProperties.ContentStatus` writes
+  `cp:contentStatus` (Word and decks, only when there is a marking).
+- **Classification marking in PDFs and decks (E03-S04):** PDFs: `Design.Marking`/`MarkingColor`/`Watermark`;
+  `LayoutEngine.Decorate` puts the marking left of the logo in the header (the title's `Fit` width shrinks
+  by it), `Cover` above the title, and inserts the watermark `TextItem` at index 0 of every page's items
+  after the layout (never during it: the empty-page checks count items). **`TextItem.Angle`** (degrees
+  counter-clockwise about its start): `PdfRenderer.Rotated` writes `q`, a `cm` rotation and PdfPig's
+  `AddText` at the origin, `Q` — the font subset and extraction work as for any text, letters come out with
+  a non-horizontal `TextOrientation` (the spike of the plan passed; the horizontal fallback was not
+  needed). Decks: `DeckWriter.Marking`/`Confidential`, `Classification(canvas, slide)` adds a text box
+  named `Classification` after the footer, before `Tag`; dark when `palette.DarkSlides`, a `{.dark}` flow
+  slide, or `TemplateTone.IsDark(layout)` (light title text in the layout's own title placeholder, else
+  its own dark background); `SlidePalette.Footer` is its colour. Both guides leave `classification-kept`
+  out of their notes list for room (word limits).
 - **Charts and drawings in Word (E09-S03):** `DocxBody.Graphics.cs`. A chart is a native chart part on the
   main part (a chart in a footnote falls back to its drawing). Every other drawing (renderer drawings,
   `qr:`, icons, drawn containers) goes `DrawingSvg.Write` (hover and hotspots stripped, brand family or

@@ -302,7 +302,7 @@ if (result.HasNotes)
 | `caption-ignored` | PPTX, DOCX, PDF | A `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text, prefix included |
 | `toc-empty` | PDF | `toc: true` (or `PdfOptions.TableOfContents`) asked for a table of contents, but no heading is at the depth it lists, so the PDF has none; the line is the `toc` key's, 0 when the option asked |
 | `list-too-deep` | DOCX | A list is nested deeper than three levels; the deeper items are set at the third level, once per list |
-| `classification-kept` | DOCX | The front matter's `classification` is lower than the host's (`DocxOptions.Classification`); the host's applies. Decks and PDFs join with E03-S04 |
+| `classification-kept` | PPTX, PDF, DOCX | The front matter's `classification` is lower than the host's (`PptxOptions`, `PdfOptions` or `DocxOptions.Classification`); the host's applies. The PDF and deck guides leave it out of their notes list: their front matter table already says when lower values have no effect |
 | `too-many-bullets` | PPTX | Check only: a `#` or `##` section has more list items, all levels, than `CheckOptions.MaxBulletsPerSlide` |
 | `too-many-words` | PPTX | Check only: a `#` or `##` section has more words than `CheckOptions.MaxWordsPerSlide`; its title, speaker notes, tables, code and drawn containers are not counted |
 | `long-paragraph` | PDF, DOCX | Check only: a paragraph (not a table cell) has more words than `CheckOptions.MaxWordsPerParagraph` |
@@ -698,8 +698,8 @@ draft: true
 ```
 
 - `classification` is `public` (the default, which shows nothing), `internal` or `confidential`;
-  `draft` is `true` or `false`. A host sets them as `DocxOptions.Classification` (the public enum
-  `Classification`) and `DocxOptions.Draft`.
+  `draft` is `true` or `false`. A host sets them as `Classification` (the public enum
+  `Classification`) and `Draft` on `PptxOptions`, `PdfOptions` and `DocxOptions`.
 - **Precedence.** Front matter can raise the host's classification but not lower it: a host that sets
   `Confidential` keeps it when the Markdown says `internal`, with the note `classification-kept`.
   `draft: true` from either side makes a draft; front matter cannot undo the host's.
@@ -707,11 +707,22 @@ draft: true
   "Entwurf" in German), joined with " · ": "Confidential · Draft". A host with its own scheme renames
   them through `Texts`; the levels stay three.
 - **Colour:** `Labels.Danger` for confidential, the footer colour for internal and draft.
-- **Word documents** show the marking in the header of every content page, above the cover title,
-  and in `cp:contentStatus`, and give a draft Word's own watermark: see
-  [the DOCX page](wwosik.DocLibs.DocumentGeneration.Docx.md#classification).
-- **Decks and PDFs** check the values and show nothing yet (E03-S04); an unknown value throws in
-  every format.
+- **Errors.** An unknown value throws `DocumentConversionException` listing the valid ones, in every
+  format.
+- **Where it shows:**
+
+  | Format | Marking | Draft | Metadata |
+  | ------ | ------- | ----- | -------- |
+  | PDF | right of the header on every page but the cover, above the cover title | a diagonal watermark under every page's content, the cover included | none (PDF/A has no field for it) |
+  | Deck | a text box `Classification` in the top right corner of every slide, cover and closing slide included | only "Draft" in the label; no watermark | `cp:contentStatus` |
+  | Word | the header of every content page, above the cover title | Word's own watermark on every page | `cp:contentStatus` |
+
+  Details: [PDF](wwosik.DocLibs.DocumentGeneration.Pdf.md#classification-marking),
+  [decks](wwosik.DocLibs.DocumentGeneration.Pptx.md#classification-marking),
+  [Word](wwosik.DocLibs.DocumentGeneration.Docx.md#classification).
+- **Converters.** The PDF converter drops the header marking as a running header on documents of
+  three pages or more, and the rotated watermark always; on shorter documents the marking comes back
+  as text. The PPTX converter writes the corner label as text (it is not a placeholder).
 
 ## Front matter
 

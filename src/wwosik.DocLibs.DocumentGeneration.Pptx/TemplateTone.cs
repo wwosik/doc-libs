@@ -41,6 +41,50 @@ internal static class TemplateTone
         return Resolve(color) is { } backgroundColor && Luminance(backgroundColor) < 0.25 ? SlideTone.Dark : SlideTone.Light;
     }
 
+    /// <summary>
+    /// Whether a layout is dark of its own: its title placeholder's text is light (relative luminance above 0.5), or its
+    /// background is a solid colour, or a gradient whose colours average, below 0.25. Otherwise, with an image too, it is
+    /// taken as light.
+    /// </summary>
+    public static bool IsDark(SlideLayoutPart layout)
+    {
+        if (layout.SlideLayout?.CommonSlideData is not { } data || layout.SlideMasterPart is not { SlideMaster: { } slideMaster } master)
+        {
+            return false;
+        }
+
+        string? Resolve(OpenXmlColor color) => color switch
+        {
+            { Rgb: { } rgb } => rgb,
+            { Scheme: { } scheme } => SchemeColor(master, slideMaster, scheme),
+            _ => null,
+        };
+
+        var title = data.ShapeTree?.Elements<P.Shape>()
+            .Where(s => s.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape?.Type?.Value is { } type
+                && (type == P.PlaceholderValues.Title || type == P.PlaceholderValues.CenteredTitle))
+            .Select(s => s.TextBody?.ListStyle?.Level1ParagraphProperties?.GetFirstChild<A.DefaultRunProperties>()?.GetFirstChild<A.SolidFill>())
+            .FirstOrDefault(f => f is not null);
+        if (title is not null && Resolve(Read(title)) is { } titleColor)
+        {
+            return Luminance(titleColor) > 0.5;
+        }
+
+        if (data.Background?.BackgroundProperties is not { } properties)
+        {
+            return false;
+        }
+
+        if (properties.GetFirstChild<A.SolidFill>() is { } fill)
+        {
+            return Resolve(Read(fill)) is { } color && Luminance(color) < 0.25;
+        }
+
+        var stops = properties.GetFirstChild<A.GradientFill>()?.GradientStopList?.Elements<A.GradientStop>()
+            .Select(s => Resolve(Read(s))).ToList();
+        return stops is { Count: > 0 } && stops.All(s => s is not null) && stops.Average(s => Luminance(s!)) < 0.25;
+    }
+
     private static OpenXmlColor Read(DocumentFormat.OpenXml.OpenXmlElement element) =>
         element.GetFirstChild<A.RgbColorModelHex>()?.Val?.Value is { } rgb ? new OpenXmlColor(rgb, null)
         : element.GetFirstChild<A.SchemeColor>()?.Val?.InnerText is { } scheme ? new OpenXmlColor(null, scheme)

@@ -16,6 +16,9 @@ internal sealed partial class DeckWriter
     private const long EmuPerPixel = 9525;
     private const long BulletIndent = 285750;
     private const long Gap = 152400;
+
+    // How far the classification label hangs from the top edge of the slide.
+    private const long ClassificationTop = 91440;
     private const long MinRowHeight = 370840;
     private const long CellInsets = 91440 * 2;
     private const int MinTableSize = 1000;
@@ -216,6 +219,12 @@ internal sealed partial class DeckWriter
     /// <summary>Where <see cref="Write"/> adds each slide it writes, split parts included, for a check; <see langword="null"/>: nowhere.</summary>
     public List<Slide>? Written { get; init; }
 
+    /// <summary>The classification marking ("Confidential · Draft") in the top right corner of every slide; <see langword="null"/>: none.</summary>
+    public string? Marking { get; init; }
+
+    /// <summary>Whether <see cref="Marking"/> is confidential, and so in the danger colour.</summary>
+    public bool Confidential { get; init; }
+
     /// <summary>
     /// Writes the slides, fitted, with their speaker notes, transitions and builds; returns how many were written.
     /// <paramref name="deckTitle"/> is the deck's title, for the footer pattern.
@@ -253,6 +262,7 @@ internal sealed partial class DeckWriter
                 this.Footer(canvas, number, this.PaintsDark(slide) ? SlideColor.White : null);
             }
 
+            this.Classification(canvas, slide);
             this.Tag(canvas);
             Transitions.Write(canvas.Part.Slide!, slide.Transition);
             TimingWriter.Write(canvas.Part.Slide!, canvas.Targets);
@@ -615,6 +625,47 @@ internal sealed partial class DeckWriter
     // The height the footnotes take at the foot of the content area, the gap above them included.
     private long FootnoteRoom(long width) =>
         this.footnotes.Count == 0 ? 0 : EstimateHeight(FootnoteParagraphs(this.footnotes), FootnoteSize, width) + (Gap / 2);
+
+    // The marking in a text box named Classification, on top of everything: right-aligned at the right edge of the content
+    // layout's title, hanging from the top edge (on the built-in cover below the logo), bold at the footer size. In the
+    // footer colour, a confidential one in the danger colour; on dark slides white, a confidential one the danger colour
+    // lightened halfway to white.
+    private void Classification(Canvas canvas, Slide slide)
+    {
+        if (this.Marking is not { } marking)
+        {
+            return;
+        }
+
+        var dark = this.palette.DarkSlides || slide is FlowSlide { Dark: true } || TemplateTone.IsDark(canvas.Part.SlideLayoutPart!);
+        var danger = this.palette.Labels[LabelCategory.Danger];
+        var color = this.Confidential
+            ? new SlideColor(dark ? ResolvedBrand.Mix(danger, 0.5) : danger)
+            : dark ? SlideColor.White : this.palette.Footer;
+        var text = XmlSafe(marking);
+        const int size = TemplateBuilder.FooterSize;
+        var width = (long)(text.Length * size / 100.0 * 0.66 * EmuPerPoint);
+        var height = LineHeight(size);
+        var right = this.TitleArea(this.contentLayout).Right;
+        var top = this.builtIn && slide is TitleSlide { IsSection: false, Closing: false } ? TemplateBuilder.CoverLogoBottom + (Gap / 2) : ClassificationTop;
+        var id = canvas.NextId();
+        canvas.Add(new P.Shape(
+            new P.NonVisualShapeProperties(
+                new P.NonVisualDrawingProperties { Id = id, Name = "Classification" },
+                new P.NonVisualShapeDrawingProperties { TextBox = true },
+                new P.ApplicationNonVisualDrawingProperties()),
+            new P.ShapeProperties(
+                new Rect(Math.Max(right - width, 0), top, Math.Min(width, right), height).Transform(),
+                new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle },
+                new A.NoFill()),
+            new P.TextBody(
+                new A.BodyProperties(new A.NoAutoFit()) { Wrap = A.TextWrappingValues.None, LeftInset = 0, RightInset = 0, TopInset = 0, BottomInset = 0 },
+                new A.ListStyle(),
+                new A.Paragraph(
+                    new A.ParagraphProperties { Alignment = A.TextAlignmentTypeValues.Right },
+                    new A.Run(new A.RunProperties(color.Fill()) { FontSize = size, Bold = true }, new A.Text(text)),
+                    new A.EndParagraphRunProperties { FontSize = size }))));
+    }
 
     // Every run and paragraph end in the document's language, for spell checking; drawings and tables included.
     private void Tag(Canvas canvas)

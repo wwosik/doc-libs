@@ -3,8 +3,12 @@
 /// <summary>Something drawn on a page. Coordinates are points from the top left corner of the page.</summary>
 internal abstract record PageItem;
 
-/// <summary>Text on a baseline.</summary>
-internal sealed record TextItem(double X, double Baseline, string Text, FontFace Face, double Size, string Color) : PageItem;
+/// <summary>Text on a baseline; with an <see cref="Angle"/>, rotated about its start.</summary>
+internal sealed record TextItem(double X, double Baseline, string Text, FontFace Face, double Size, string Color) : PageItem
+{
+    /// <summary>Degrees counter-clockwise about (<see cref="X"/>, <see cref="Baseline"/>); 0: horizontal.</summary>
+    public double Angle { get; init; }
+}
 
 internal sealed record LineItem(double X1, double Y1, double X2, double Y2, double Width, string Color) : PageItem;
 

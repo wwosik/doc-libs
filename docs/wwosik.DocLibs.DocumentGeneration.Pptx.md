@@ -176,9 +176,7 @@ On slides:
 
 `::: pagebreak` and `{.newpage}` on a heading ([page breaks](wwosik.DocLibs.DocumentGeneration.md#page-breaks))
 are for documents: a deck shows the content of a `::: pagebreak` as usual, without making the slide
-a flow slide, and ignores `{.newpage}` on any heading level. The keys `classification` and `draft`
-([classification](wwosik.DocLibs.DocumentGeneration.md#classification)) are checked and show
-nothing on slides yet.
+a flow slide, and ignores `{.newpage}` on any heading level.
 
 The [document keys](wwosik.DocLibs.DocumentGeneration.md#contents-and-heading-numbers) `toc`,
 `tocDepth`, `headingNumbers` and `justify` are accepted on every template, their values checked, and
@@ -191,6 +189,28 @@ on an image or table slide, in order on a flow slide) but without its `Table: ` 
 decks number no captions. Anywhere else such a paragraph keeps its prefix and gives the note
 `caption-ignored`. Image titles keep their deck meaning: `scale=` and `caption` (the alt text below);
 other words have no effect, unlike in documents.
+
+## Classification marking
+
+The [shared keys](wwosik.DocLibs.DocumentGeneration.md#classification) `classification` and `draft`,
+or `PptxOptions.Classification` and `Draft`, mark the deck (higher of the two wins):
+
+- **Corner label.** Every slide, the cover, section dividers and the closing slide included, gets a
+  plain text box (`p:sp`, `txBox="1"`) named `Classification`, written after the slide's other
+  shapes so it is on top: the marking ("Confidential · Draft") right-aligned, bold, at the built-in
+  footer size (10.67 pt), without wrapping, tagged with the document language like every run.
+- **Position.** Its right edge is the right edge of the content layout's title, so it stays inside
+  the slide's right margin; it hangs 0.1 in from the top edge. On the built-in master's cover it
+  sits below the logo box instead.
+- **Colour.** The palette's footer colour (the brand's `Footer`, or text 1 at 65 % on a caller's
+  template), `Labels.Danger` for confidential. On dark slides (a brand template of dark slides, a
+  `{.dark}` slide, or a layout with light title text or a dark background of its own, such as the
+  built-in section divider, closing and statement layouts) it is white, and confidential the
+  danger colour lightened halfway to white.
+- **No watermark** on slides: a draft adds "Draft" to the label only.
+- **Core properties.** `cp:contentStatus` is set to the marking. A deck without a marking writes
+  none, so its output is unchanged.
+- The PPTX converter writes the label as text.
 
 ## Presenting
 
@@ -660,6 +680,7 @@ author: Team Docs
 | `listBullets` | `template`, `always` | all |
 | `transition` | `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut`, `morph` | all — see [Presenting](#presenting) |
 | `build` | `none`, `lists` | all — see [Presenting](#presenting) |
+| `classification`, `draft` | `public`, `internal`, `confidential`; `true`, `false` | all — see [Classification marking](#classification-marking) |
 | `layouts.title`, `layouts.content`, `layouts.titleOnly`, `layouts.sectionHeader`, `layouts.closing` | layout name | custom |
 | `layouts.twoContent`, `layouts.textAndPicture`, `layouts.picture`, `layouts.agenda`, `layouts.quote`, `layouts.statement`, `layouts.contact`, `layouts.chart`, `layouts.twoCharts`, `layouts.dark` | layout name | custom — see [Template roles](#template-roles) |
 | `title`, `author` | text | all — the core properties |

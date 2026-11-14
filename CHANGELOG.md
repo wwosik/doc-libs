@@ -128,9 +128,9 @@ updating, breaking changes first.
   in those error messages name the new ones; code that matches the messages' text adjusts.
 - **`::: pagebreak`, `{.newpage}`, `classification:` and `draft:` are syntax now,** in every
   generator: Markdown that failed with "Unknown container", "Unknown heading attribute" or an unknown
-  front-matter key for them now generates. Decks accept them and show nothing of them: the content of
-  a `::: pagebreak` is shown as before, slides stay as they were. PDFs break pages for the first two
-  (above) and show nothing of the marking yet. The lists of valid
+  front-matter key for them now generates. Decks accept the first two and show nothing of them: the
+  content of a `::: pagebreak` is shown as before, slides stay as they were. PDFs break pages for the
+  first two (above); PDFs and decks show the marking (under *New*). The lists of valid
   containers, attributes and front-matter keys in error messages name them; code that matches the
   messages' text adjusts.
 - **PDFs read captions.** An image's title, once `scale=N` and a standalone word `caption` are taken
@@ -158,6 +158,18 @@ updating, breaking changes first.
 
 ### New
 
+- **Classification marking in PDFs and decks.** `classification: internal|confidential` and
+  `draft: true` in the front matter, or the new `PdfOptions.Classification`/`Draft` and
+  `PptxOptions.Classification`/`Draft`, mark the document as Word documents already were: front
+  matter can raise the host's classification but not lower it (note `classification-kept`, now in
+  all three formats), and `draft` only adds. PDFs show the marking ("Confidential · Draft") right in
+  the header of every page but the cover and above the cover title, and a draft gets "DRAFT" at 45°
+  across every page, under the content, as extractable text (PDF/A-2b, opaque). Decks show it in a
+  text box named `Classification` in the top right corner of every slide, cover and closing slide
+  included, and in `cp:contentStatus`; slides get no watermark. Colour: `Labels.Danger` for
+  confidential, the footer colour otherwise. Texts come from `GeneratedTexts.Internal`,
+  `Confidential` and `Draft`. Documents and decks without a marking are unchanged. The advice of
+  `classification-kept` in the Word guide is shorter.
 - **Typography,** off by default: `typography: true` in the front matter, or the new
   `PptxOptions.Typography`, `PdfOptions.Typography` and `DocxOptions.Typography`, sets typographic
   quotes, apostrophes, dashes, the ellipsis and no-break spaces (`10 km`, `z. B.`, `13. November`) in

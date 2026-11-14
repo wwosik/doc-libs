@@ -15,6 +15,18 @@ internal sealed record Design(ResolvedBrand Brand, bool ShowTagline, string? Dat
     /// the line breaks stay those of left-aligned text.
     /// </summary>
     public bool Justify { get; init; }
+
+    /// <summary>
+    /// The classification marking ("Confidential · Draft"), in the header of every page but the cover and above the cover
+    /// title, in <see cref="MarkingColor"/>; <see langword="null"/>: none.
+    /// </summary>
+    public string? Marking { get; init; }
+
+    /// <summary>The colour of <see cref="Marking"/>: the danger colour for a confidential document, else the footer's.</summary>
+    public string? MarkingColor { get; init; }
+
+    /// <summary>A draft's watermark ("DRAFT"), diagonally under the content of every page; <see langword="null"/>: none.</summary>
+    public string? Watermark { get; init; }
 }
 
 /// <summary>
@@ -41,6 +53,15 @@ internal sealed class LayoutEngine
     private const double FooterSize = 8;
     private const double PointsPerPixel = 0.75;
     private const double MinLabelScale = 0.7;
+
+    // The classification marking: beside the logo in the header, this far from it and from the title; on the cover at
+    // this size, its baseline this far above the top of the title. A draft's watermark: this share of the page's
+    // diagonal long, in this share of the text colour on white.
+    private const double HeaderGap = 12;
+    private const double CoverMarkingSize = 10;
+    private const double CoverMarkingGap = 4;
+    private const double WatermarkShare = 0.7;
+    private const double WatermarkTint = 0.15;
 
     // Captions: 9 pt, this far from their visual. Heading numbers: this share of the heading's size after the widest
     // number of its level. The table of contents: indented by level; its page numbers in a column of the width of this
@@ -1299,6 +1320,11 @@ internal sealed class LayoutEngine
         }
 
         this.y = height * 0.28;
+        if (this.design.Marking is { } marking)
+        {
+            this.Page.Items.Add(new TextItem(margin, this.y - CoverMarkingGap, this.Supported(marking, FontFace.Bold), FontFace.Bold, CoverMarkingSize, this.design.MarkingColor ?? brand.Footer));
+        }
+
         var title = this.Supported(cover.Title, RunStyle.Bold);
         this.Mark(title, 0, cover.Anchor);
         var frame = new Frame(margin, this.geometry.ContentWidth * 0.85, this.TextColor, []);
@@ -1333,16 +1359,25 @@ internal sealed class LayoutEngine
         }
     }
 
-    // Header (document title, logo) and footer (footer text, date, page number) on every page but the cover.
+    // Header (document title, marking, logo) and footer (footer text, date, page number) on every page but the cover; a
+    // draft's watermark under everything on every page.
     private void Decorate(string? title)
     {
         var brand = this.design.Brand;
         var g = this.geometry;
         var logoInfo = brand.Logo is { } logo ? ImageInfo.Read(logo) : null;
+        var marking = this.design.Marking is { } marked ? this.Supported(marked, FontFace.Bold) : null;
+        var markingWidth = marking is null ? 0 : this.metrics.Width(marking, FontFace.Bold, FooterSize);
+        var watermark = this.design.Watermark is { } draft ? this.Watermark(this.Supported(draft, FontFace.Regular)) : null;
         List<string>? footer = null;
         for (var i = 0; i < this.pages.Count; i++)
         {
             var items = this.pages[i].Items;
+            if (watermark is not null)
+            {
+                items.Insert(0, watermark);
+            }
+
             if (this.pages[i].IsCover)
             {
                 continue;
@@ -1356,9 +1391,16 @@ internal sealed class LayoutEngine
                 items.Add(new ImageItem(brand.Logo!, brand.Logo, info.Format, g.Right - logoWidth, 24, logoWidth, h));
             }
 
+            if (marking is not null)
+            {
+                var right = g.Right - (logoWidth > 0 ? logoWidth + HeaderGap : 0);
+                items.Add(new TextItem(right - markingWidth, 38, marking, FontFace.Bold, FooterSize, this.design.MarkingColor ?? brand.Footer));
+            }
+
             if (title is { Length: > 0 })
             {
-                var text = this.Fit(title, FontFace.Regular, FooterSize, g.ContentWidth - logoWidth - 12);
+                var room = g.ContentWidth - logoWidth - HeaderGap - (marking is null ? 0 : markingWidth + HeaderGap);
+                var text = this.Fit(title, FontFace.Regular, FooterSize, room);
                 items.Add(new TextItem(g.Left, 38, text, FontFace.Regular, FooterSize, brand.Footer));
             }
 
@@ -1374,6 +1416,27 @@ internal sealed class LayoutEngine
             var number = string.Create(CultureInfo.InvariantCulture, $"{i + 1} / {this.pages.Count}");
             items.Add(new TextItem(g.Right - this.metrics.Width(number, FontFace.Regular, FooterSize), baseline, number, FontFace.Regular, FooterSize, brand.Footer));
         }
+    }
+
+    // The watermark: the text at 45°, as long as WatermarkShare of the page's diagonal, centred on the page, in a light
+    // tint of the text colour; opaque, since it lies under everything.
+    private TextItem Watermark(string text)
+    {
+        var (width, height) = (this.geometry.Width, this.geometry.Height);
+        var length = WatermarkShare * Math.Sqrt((width * width) + (height * height));
+        var size = length * 100 / this.metrics.Width(text, FontFace.Regular, 100);
+        var cap = size * CapHeight;
+        var (cos, sin) = (Math.Cos(Math.PI / 4), Math.Sin(Math.PI / 4));
+        return new TextItem(
+            (width / 2) - (length / 2 * cos) + (cap / 2 * sin),
+            (height / 2) + (length / 2 * sin) + (cap / 2 * cos),
+            text,
+            FontFace.Regular,
+            size,
+            ResolvedBrand.Mix(this.TextColor, WatermarkTint))
+        {
+            Angle = 45,
+        };
     }
 
     private string Fit(string text, FontFace face, double size, double width)

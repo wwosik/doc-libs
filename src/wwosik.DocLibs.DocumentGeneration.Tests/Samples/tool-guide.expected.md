@@ -282,8 +282,8 @@ The end date does not move.
 
 Page breaks are for documents and have no effect on slides: a deck shows the content of
 `::: pagebreak` … `:::` as usual, without making its slide a flow slide, and ignores `{.newpage}`
-and `{.unnumbered}` on a heading, as it ignores `classification:`, `draft:`, `toc:`, `tocDepth:`,
-`headingNumbers:` and `justify:` (checked, then ignored).
+and `{.unnumbered}` on a heading, as it ignores `toc:`, `tocDepth:`, `headingNumbers:` and
+`justify:` (checked, then ignored).
 
 This design has a layout for every kind of slide.
 
@@ -319,6 +319,8 @@ author: Planning team
 | `listBullets` | `always` to show bullets on every list level, also where the design's first level has none; `template` (the default) leaves it to the design. |
 | `transition` | How every slide is brought on when presented: `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut`, `morph`. Default `none`. A heading's `transition="…"` wins; see [Presenting](#presenting). |
 | `build` | `lists` builds every top-level list item by item; `none` (the default) only what has a marker. See [Presenting](#presenting). |
+| `classification` | `public`, `internal` or `confidential`: a marking in the top right corner of every slide. Default `public`. |
+| `draft` | `true` adds "Draft" to the marking. Default `false`. |
 | `labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral` | The [status labels](#layouts) in that category, separated by `;`: `labels.success: Done; Delivered`. |
 
 An unknown key, a key given twice or an invalid value is an error that lists the valid keys.
@@ -506,8 +508,7 @@ in the front matter, `transition="…"` on a heading) and builds (a paragraph su
 out. Unknown containers,
 attributes, alerts, transitions and build markers (a paragraph such as `{.note}`) are errors, as in
 decks, and so are a `::: notes` inside another block and a build marker that builds nothing. Write
-`\{` to show braces as text. The keys `classification:` and `draft:` are for Word documents; a
-PDF ignores them for now.
+`\{` to show braces as text.
 
 The kinds of slide `{.agenda}`, `{.quote}`, `{.statement}`, `{.contact}` and `{.chart}` show their
 content as written; an `{.agenda}` with nothing under it lists the document's `#` chapters.
@@ -603,6 +604,8 @@ author: Planning team
 | `tocDepth` | `1`, `2` or `3`: the heading levels the table of contents lists. Default `2`. |
 | `headingNumbers` | `true` or `false`: numbers on three heading levels (1, 1.1, 1.1.1). Default `false`. |
 | `justify` | `true` or `false`: body text justified, without hyphenation. Default `false`. |
+| `classification` | `public`, `internal` or `confidential`: a marking in the header and on the cover. Default `public`. |
+| `draft` | `true` adds "Draft" to the marking and a diagonal watermark. Default `false`. |
 | `transition`, `build`, `numberChapters` | Settings for decks. A PDF accepts them and ignores them. |
 | `labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral` | Status labels for decks, separated by `;`. A PDF accepts them and shows the labels as code. |
 
@@ -634,7 +637,6 @@ A check before generating reports what goes beyond these: at most 150 words in a
 
 Generation stops with a message that says what to fix: a character the fonts lack, an image that
 is not among the files, a front matter key that does not exist, or a broken diagram with its line.
-Fix the Markdown and generate again.
 
 ### Notes you may get back
 

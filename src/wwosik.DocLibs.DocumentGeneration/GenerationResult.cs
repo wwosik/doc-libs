@@ -184,7 +184,7 @@ public static class NoteCodes
         (CaptionIgnored, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text."),
         (TocEmpty, [DocumentFormat.Pdf], "`toc: true` asked for a table of contents, but the document has no headings at the depth it lists, so there is none. Add headings, raise `tocDepth`, or leave `toc` out."),
         (ListTooDeep, [DocumentFormat.Docx], "a list is nested deeper than three levels; the deeper items are set at the third level. Flatten the list to three levels."),
-        (ClassificationKept, [DocumentFormat.Docx], "the front matter asks for a lower `classification` than the host set, and the host's applies. Leave the key out, or raise it."),
+        (ClassificationKept, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "front matter cannot lower the host's `classification`, which applies. Leave the key out."),
         (TypographySkipped, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "with `typography: true`, a character the fonts lack was kept as typed. Nothing to fix."),
         (TooManyBullets, [DocumentFormat.Pptx], "a slide has more list items, counting every level, than *Limits* allows. Cut them, or split the slide into slides of your own."),
         (TooManyWords, [DocumentFormat.Pptx], "a slide has more words than *Limits* allows, its title and speaker notes not counted. Shorten it, or move detail into `::: notes`."),

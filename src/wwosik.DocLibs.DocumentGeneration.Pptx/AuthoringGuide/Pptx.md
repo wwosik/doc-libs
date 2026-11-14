@@ -262,8 +262,8 @@ The end date does not move.
 
 Page breaks are for documents and have no effect on slides: a deck shows the content of
 `::: pagebreak` … `:::` as usual, without making its slide a flow slide, and ignores `{.newpage}`
-and `{.unnumbered}` on a heading, as it ignores `classification:`, `draft:`, `toc:`, `tocDepth:`,
-`headingNumbers:` and `justify:` (checked, then ignored).
+and `{.unnumbered}` on a heading, as it ignores `toc:`, `tocDepth:`, `headingNumbers:` and
+`justify:` (checked, then ignored).
 
 {{templateLayouts}}
 

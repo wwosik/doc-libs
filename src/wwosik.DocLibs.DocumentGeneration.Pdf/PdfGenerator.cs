@@ -84,8 +84,7 @@ public static class PdfGenerator
         var frontMatter = FrontMatter.Read(document.Markdown, DocumentFormat.Pdf);
         frontMatter.Labels(); // checked like in decks; PDFs show status labels as code
 
-        // The marking is checked like in Word documents; PDFs show it with E03-S04.
-        Marking.Resolve(frontMatter, Classification.Public, false, new GenerationNotes(), DocumentFormat.Pdf);
+        var marking = Marking.Resolve(frontMatter, options.Classification, options.Draft, notes, DocumentFormat.Pdf);
         options = Apply(frontMatter, options);
         var brand = ResolvedBrand.Resolve(options.Template.BrandValue);
         var fonts = FontSet.For(brand);
@@ -112,7 +111,14 @@ public static class PdfGenerator
             ? options.TimeProvider.GetLocalNow().ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)
             : null;
 
-        var design = new Design(brand, options.Template.ShowsTagline, date, title) { Texts = language.Texts, Justify = options.Justify };
+        var design = new Design(brand, options.Template.ShowsTagline, date, title)
+        {
+            Texts = language.Texts,
+            Justify = options.Justify,
+            Marking = marking.IsEmpty ? null : marking.Text(language.Texts),
+            MarkingColor = marking.Classification == Classification.Confidential ? brand.Labels.Danger : brand.Footer,
+            Watermark = marking.Draft ? Marking.Watermark(language.Texts, language.Tag) : null,
+        };
         var layout = new LayoutEngine(fonts, PageGeometry.For(options.PageSize, options.Orientation), design, options.ReplaceUnsupported, notes).Run(model);
         return new LaidOut(layout, fonts, author, language.Tag);
     }
@@ -153,6 +159,7 @@ public static class PdfGenerator
         (string, string) deckKeys = (
             $"{TransitionKey}`, `{BuildKey}`, `{NumberChaptersKey}",
             "Settings for decks. A PDF accepts them and ignores them.");
+        var (classification, draft) = AuthoringGuides.MarkingKeys(options.Classification, options.Draft, "in the header and on the cover", "a diagonal watermark");
         return AuthoringGuides.Fill(
             AuthoringGuides.Template(typeof(PdfGenerator).Assembly, "Pdf"),
             new Dictionary<string, string>
@@ -161,7 +168,7 @@ public static class PdfGenerator
                 ["frontMatter"] = AuthoringGuides.FrontMatter(
                     registry.Expected,
                     options.Language,
-                    [.. options.Template.Keys.Concat([PageSizeKey, OrientationKey, TocKey, TocDepthKey, HeadingNumbersKey, JustifyKey]).Select(k => (k, meanings[k])), deckKeys, labels],
+                    [.. options.Template.Keys.Concat([PageSizeKey, OrientationKey, TocKey, TocDepthKey, HeadingNumbersKey, JustifyKey]).Select(k => (k, meanings[k])), classification, draft, deckKeys, labels],
                     options.Typography),
                 ["characters"] = Characters(FontSet.For(ResolvedBrand.Resolve(options.Template.BrandValue)), options.ReplaceUnsupported is not null),
                 ["icons"] = AuthoringGuides.Icons(
@@ -169,9 +176,10 @@ public static class PdfGenerator
                     "A PDF draws it inside text, one letter wide in the text's colour; at the start of a list item, in place "
                     + "of its bullet; and alone in a paragraph, large. In headings, table cells and on the cover it is left out."),
                 ["limits"] = AuthoringGuides.Limits(options.Checks ?? CheckOptions.Default, DocumentFormat.Pdf),
+                // classification-kept is left to the front matter table, which says when lower values have no effect.
                 ["notes"] = options.ReplaceUnsupported is null
-                    ? AuthoringGuides.Notes(DocumentFormat.Pdf, NoteCodes.CharacterReplaced)
-                    : AuthoringGuides.Notes(DocumentFormat.Pdf),
+                    ? AuthoringGuides.Notes(DocumentFormat.Pdf, NoteCodes.CharacterReplaced, NoteCodes.ClassificationKept)
+                    : AuthoringGuides.Notes(DocumentFormat.Pdf, NoteCodes.ClassificationKept),
             });
     }
 

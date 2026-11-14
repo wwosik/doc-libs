@@ -1,3 +1,4 @@
+﻿using System.Globalization;
 using wwosik.DocLibs.DocumentConversions;
 
 namespace wwosik.DocLibs.DocumentGeneration;
@@ -80,6 +81,25 @@ internal sealed record Marking(Classification Classification, bool Draft)
             },
             this.Draft ? texts.Draft : null,
         }.Where(t => !string.IsNullOrWhiteSpace(t)));
+
+    /// <summary>
+    /// The text of a draft's watermark: <see cref="GeneratedTexts.Draft"/> in capitals, upper-cased in the culture of
+    /// <paramref name="language"/> (the invariant culture for a tag .NET does not know).
+    /// </summary>
+    public static string Watermark(GeneratedTexts texts, string language)
+    {
+        CultureInfo culture;
+        try
+        {
+            culture = CultureInfo.GetCultureInfo(language);
+        }
+        catch (CultureNotFoundException)
+        {
+            culture = CultureInfo.InvariantCulture;
+        }
+
+        return texts.Draft.ToUpper(culture);
+    }
 
     private static string Name(Classification classification) => classification.ToString().ToLowerInvariant();
 }
