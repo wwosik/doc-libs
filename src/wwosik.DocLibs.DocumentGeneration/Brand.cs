@@ -372,12 +372,18 @@ public sealed record PptxBrandTemplate(ReadOnlyMemory<byte> Content)
     /// </summary>
     public SlideTone Tone { get; init; }
 
+    /// <summary>
+    /// What the template's further layouts and its placeholders are for, its text levels, footer pattern and content
+    /// grid. Default: none declared, so the template is used as without roles.
+    /// </summary>
+    public PptxTemplateRoles Roles { get; init; } = new();
+
     /// <inheritdoc/>
     public bool Equals(PptxBrandTemplate? other) =>
         other is not null && this.Content.Span.SequenceEqual(other.Content.Span)
         && this.TitleLayout == other.TitleLayout && this.ContentLayout == other.ContentLayout
         && this.TitleOnlyLayout == other.TitleOnlyLayout && this.SectionHeaderLayout == other.SectionHeaderLayout
-        && this.ClosingLayout == other.ClosingLayout && this.Tone == other.Tone;
+        && this.ClosingLayout == other.ClosingLayout && this.Tone == other.Tone && this.Roles == other.Roles;
 
     /// <inheritdoc/>
     public override int GetHashCode() => HashCode.Combine(this.Content.Length, this.TitleLayout, this.ContentLayout);

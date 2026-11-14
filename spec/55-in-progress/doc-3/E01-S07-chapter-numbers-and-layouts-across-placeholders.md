@@ -5,7 +5,7 @@
 
 ## Summary
 
-Two opt-in uses of the template roles from [E01-S06](E01-S06-template-roles-for-decks.md):
+Two opt-in uses of the template roles from [E01-S06](../../60-verify/E01-S06-template-roles-for-decks.md):
 
 - **Numbered chapter dividers.** Every `#` divider after the cover gets "01", "02", … in the
   section layout's chapter-number placeholder.

@@ -441,7 +441,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
                 flow.Add(new LabelledTagsBlock(items));
                 break;
             case HeadingBlock heading:
-                target.Text(new TextParagraph(this.Runs(heading.Inline, imagesAsText: true, style | RunStyle.Bold), Level: level));
+                target.Text(new TextParagraph(this.Runs(heading.Inline, imagesAsText: true, style | RunStyle.Bold), Level: level) { Heading = true });
                 break;
             case ParagraphBlock paragraph:
                 this.Paragraph(paragraph.Inline, target, ParagraphKind.Plain, level, 1, style);

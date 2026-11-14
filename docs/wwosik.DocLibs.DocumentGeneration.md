@@ -177,13 +177,29 @@ paths relative to the pack.
   "pptx": {
     "template": "template.potx",
     "tone": "dark",
-    "layouts": { "title": "Title Slide", "content": "Title and Content", "titleOnly": "Title Only", "sectionHeader": "Section Header", "closing": "Closing" }
+    "layouts": { "title": "Title Slide", "content": "Title and Content", "titleOnly": "Title Only", "sectionHeader": "Section Header", "closing": "Closing",
+                 "twoContent": "Two Content", "agenda": "Agenda", "quote": "Quote", "dark": "Title Only Dark" },
+    "placeholders": { "Quote": { "Text Placeholder 3": "byline", "Picture Placeholder 5": "decorative" } },
+    "textLevels": { "heading": 1, "paragraph": 2, "bullet": 3 },
+    "footer": "{footer} | {chapter}",
+    "contentArea": "guides"
   }
 }
 ```
 
 Every key but `name` and `colors.primary` is optional (inside `fonts`, the four text faces are
 required, and inside `fonts.table` its `regular` and `bold`); `colors` also takes `footer`, `theme` (12 colours) and `chart` (the roles of `BrandChartColors` in camel case, such as `"chart": { "series": ["#0B5FFF", "#3FC1FF"], "ahead": "#16A34A" }`), as in the table above. `slideColors` takes the same keys as `colors`, all optional; `pptx.tone` is `auto` (the default), `light` or `dark`. `//` comments and trailing commas are allowed.
+
+The rest of `pptx` holds the template's roles (`PptxBrandTemplate.Roles`, a `PptxTemplateRoles`;
+what they do is in
+[wwosik.DocLibs.DocumentGeneration.Pptx](wwosik.DocLibs.DocumentGeneration.Pptx.md#template-roles)):
+`layouts` also takes the layout roles `twoContent`, `textAndPicture`, `picture`, `agenda`,
+`quote`, `statement`, `contact`, `chart`, `twoCharts` and `dark`; `placeholders` maps a layout's
+name to its placeholders' shape names and their roles: `subtitle`, `byline`, `chapterNumber`,
+`body`, `picture`, `chartTitle`, `chartUnit`, `chartSource` or `decorative` — `body1`, `body2`, …
+give several bodies their order, after any plain `body`; `textLevels` needs all three of `heading`,
+`paragraph` and `bullet` (1–9); `footer` is the footer pattern; `contentArea` is `placeholders`
+(the default) or `guides`.
 
 | Load from | Call |
 | --------- | ---- |

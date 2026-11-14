@@ -9,8 +9,8 @@ namespace wwosik.DocLibs.DocumentGeneration.Pptx;
 /// <summary>
 /// The built-in 16:9 template, one master design for every brand: title top left in the brand's primary colour and
 /// font, a footer line with slide number, footer text and date, the logo bottom right, and the layouts <c>title</c>,
-/// <c>obj</c>, <c>titleOnly</c>, <c>secHead</c> and <see cref="DarkLayoutName"/>. Images keep their aspect ratio within
-/// fixed boxes.
+/// <c>obj</c>, <c>titleOnly</c>, <c>secHead</c> and <see cref="DarkLayoutName"/>, then one layout per layout role
+/// (<see cref="Roles"/>). Images keep their aspect ratio within fixed boxes.
 /// Written as XML here so it can be reviewed like code.
 /// </summary>
 internal static class TemplateBuilder
@@ -29,7 +29,26 @@ internal static class TemplateBuilder
     /// <summary>The name of the layout for dark flow slides.</summary>
     public const string DarkLayoutName = "Title Only Dark";
 
-    private const int LayoutCount = 5;
+    // The layouts of the layout roles (E01-S06), after the first five, and the names of their placeholders with roles.
+    public const string TwoContentLayoutName = "Two Content";
+    public const string PictureWithCaptionLayoutName = "Picture with Caption";
+    public const string PictureLayoutName = "Picture";
+    public const string AgendaLayoutName = "Agenda";
+    public const string QuoteLayoutName = "Quote";
+    public const string StatementLayoutName = "Statement";
+    public const string ContactLayoutName = "Contact";
+    public const string ChartLayoutName = "Chart";
+    public const string SectionLayoutName = "Section Header";
+    public const string ChapterNumberName = "Chapter Number";
+    public const string BylineName = "Byline";
+    public const string ChartTitleName = "Chart Title";
+    public const string ChartUnitName = "Chart Unit";
+    public const string ChartSourceName = "Chart Source";
+
+    /// <summary>The number of people on the contact layout.</summary>
+    public const int ContactCount = 5;
+
+    private const int LayoutCount = 13;
 
     private const string Namespaces =
         "xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
@@ -67,6 +86,7 @@ internal static class TemplateBuilder
     private const long DateWithFooterTextLeft = 2748329;
     private const long DateWidth = 722841;
     private const int FooterSize = 1067;
+    private const long ColumnGap = 304800;
 
     private const string MasterLogoRelationship = "rId6";
     private const string LogoRelationship = "rId2";
@@ -77,6 +97,32 @@ internal static class TemplateBuilder
     private static readonly ImageBox CoverLogoBox = new(10137562, 359861, 1586924, 1122823, Top: true);
     private static readonly ImageBox TaglineBox = new(9700000, 6087210, 2103309, 475637, Top: false);
     private static readonly ImageBox FooterLogoBox = new(10986386, 6165304, 815143, 576752, Top: false);
+
+    /// <summary>The roles of the built-in master's layouts and placeholders, declared like any template's.</summary>
+    public static PptxTemplateRoles Roles { get; } = new()
+    {
+        Layouts = new PptxLayoutRoles
+        {
+            TwoContent = TwoContentLayoutName,
+            TextAndPicture = PictureWithCaptionLayoutName,
+            Picture = PictureLayoutName,
+            Agenda = AgendaLayoutName,
+            Quote = QuoteLayoutName,
+            Statement = StatementLayoutName,
+            Contact = ContactLayoutName,
+            Chart = ChartLayoutName,
+            TwoCharts = TwoContentLayoutName,
+            Dark = DarkLayoutName,
+        },
+        Placeholders =
+        [
+            new(SectionLayoutName, ChapterNumberName, PlaceholderRole.ChapterNumber),
+            new(QuoteLayoutName, BylineName, PlaceholderRole.Byline),
+            new(ChartLayoutName, ChartTitleName, PlaceholderRole.ChartTitle),
+            new(ChartLayoutName, ChartUnitName, PlaceholderRole.ChartUnit),
+            new(ChartLayoutName, ChartSourceName, PlaceholderRole.ChartSource),
+        ],
+    };
 
     /// <summary>Writes the template for <paramref name="brand"/> as a <c>.pptx</c> without slides.</summary>
     public static void Write(Stream output, ResolvedBrand brand, bool showTagline)
@@ -127,6 +173,20 @@ internal static class TemplateBuilder
                     layout.AddPart(logoOnDarkPart, LogoRelationship);
                 }
             }),
+            (TwoContentLayout, _ => { }),
+            (PictureWithCaptionLayout, _ => { }),
+            (PictureLayout, _ => { }),
+            (AgendaLayout, _ => { }),
+            (QuoteLayout(brand), _ => { }),
+            (StatementLayout(brand), layout =>
+            {
+                if (logoOnDarkPart is not null)
+                {
+                    layout.AddPart(logoOnDarkPart, LogoRelationship);
+                }
+            }),
+            (ContactLayout, _ => { }),
+            (ChartLayout(brand), _ => { }),
         };
 
         for (var i = 0; i < layouts.Length; i++)
@@ -142,7 +202,8 @@ internal static class TemplateBuilder
         Feed(presentation, Presentation);
     }
 
-    // The master's relationships: layouts 1–4 as rId1–rId4, the theme rId5, the logo rId6, later layouts from rId7.
+    // The master's relationships: layouts 1–4 as rId1–rId4, the theme rId5, the logo rId6, later layouts from rId7
+    // (layout 5, Title Only Dark; the layouts of the roles, 6–13, as rId8–rId15).
     private static string LayoutRelationship(int number) =>
         "rId" + (number <= 4 ? number : number + 2).ToString(CultureInfo.InvariantCulture);
 
@@ -307,6 +368,14 @@ internal static class TemplateBuilder
         + FooterPlaceholders(4, White)
         + FooterText(6, brand, White)
         + (brand.LogoOnDark is { } logoOnDark ? Picture(7, "Logo", LogoRelationship, FooterLogoBox.Fit(logoOnDark)) : string.Empty)
+        + Placeholder(
+            8,
+            ChapterNumberName,
+            "<p:ph type=\"body\" sz=\"quarter\" idx=\"10\"/>",
+            Box(Left, 914400, 2743200, 731520),
+            " anchor=\"b\"",
+            null,
+            $"<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"4000\" b=\"1\"><a:solidFill><a:srgbClr val=\"{White}\"/></a:solidFill></a:defRPr></a:lvl1pPr></a:lstStyle>")
         + LayoutEnd;
 
     // Dark flow slides (`## Title {.dark}`): the title-only layout on the primary colour, with white title and footer
@@ -327,6 +396,171 @@ internal static class TemplateBuilder
         + FooterText(5, brand, White)
         + (brand.LogoOnDark is { } logoOnDark ? Picture(6, "Logo", LogoRelationship, FooterLogoBox.Fit(logoOnDark)) : string.Empty)
         + LayoutEnd;
+
+    private const long HalfWidth = (Width - ColumnGap) / 2;
+    private const long CaptionWidth = Width * 2 / 5;
+    private const long ContactGap = 228600;
+    private const long ContactWidth = (Width - ((ContactCount - 1) * ContactGap)) / ContactCount;
+    private const long ContactTextTop = BodyTop + ContactWidth + 137160;
+    private const long ChartTitleHeight = 457200;
+    private const long ChartNoteHeight = 320040;
+    private const long ChartTop = BodyTop + ChartTitleHeight + ChartNoteHeight + 91440;
+    private const long ChartBottom = BodyTop + BodyHeight - ChartNoteHeight - 91440;
+
+    // Picture and chart placeholders: their prompt without a bullet.
+    private const string PromptListStyle = "<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/></a:lvl1pPr></a:lstStyle>";
+
+    // Two bodies side by side, which also take a chart each.
+    private static readonly string TwoContentLayout =
+        $"<p:sldLayout {Namespaces} type=\"twoObj\" preserve=\"1\"><p:cSld name=\"{TwoContentLayoutName}\"><p:spTree>" + GroupHeader
+        + Placeholder(2, "Title 1", "<p:ph type=\"title\"/>", null, string.Empty, null)
+        + Placeholder(3, "Content Placeholder 2", "<p:ph sz=\"half\" idx=\"1\"/>", Box(Left, BodyTop, HalfWidth, BodyHeight), string.Empty, null)
+        + Placeholder(4, "Content Placeholder 3", "<p:ph sz=\"half\" idx=\"2\"/>", Box(Left + HalfWidth + ColumnGap, BodyTop, HalfWidth, BodyHeight), string.Empty, null)
+        + FooterPlaceholders(5, null)
+        + LayoutEnd;
+
+    // Text on the left (40 %), a picture on the right.
+    private static readonly string PictureWithCaptionLayout =
+        $"<p:sldLayout {Namespaces} type=\"picTx\" preserve=\"1\"><p:cSld name=\"{PictureWithCaptionLayoutName}\"><p:spTree>" + GroupHeader
+        + Placeholder(2, "Title 1", "<p:ph type=\"title\"/>", null, string.Empty, null)
+        + Placeholder(3, "Text Placeholder 2", "<p:ph type=\"body\" sz=\"half\" idx=\"2\"/>", Box(Left, BodyTop, CaptionWidth, BodyHeight), string.Empty, null)
+        + Placeholder(4, "Picture Placeholder 3", "<p:ph type=\"pic\" idx=\"1\"/>", Box(Left + CaptionWidth + ColumnGap, BodyTop, Width - CaptionWidth - ColumnGap, BodyHeight), string.Empty, null, PromptListStyle)
+        + FooterPlaceholders(5, null)
+        + LayoutEnd;
+
+    // One picture over the content area.
+    private static readonly string PictureLayout =
+        $"<p:sldLayout {Namespaces} type=\"cust\" preserve=\"1\"><p:cSld name=\"{PictureLayoutName}\"><p:spTree>" + GroupHeader
+        + Placeholder(2, "Title 1", "<p:ph type=\"title\"/>", null, string.Empty, null)
+        + Placeholder(3, "Picture Placeholder 2", "<p:ph type=\"pic\" idx=\"1\"/>", Box(Left, BodyTop, Width, BodyHeight), string.Empty, null, PromptListStyle)
+        + FooterPlaceholders(4, null)
+        + LayoutEnd;
+
+    // The agenda: its first level numbered.
+    private static readonly string AgendaLayout =
+        $"<p:sldLayout {Namespaces} type=\"cust\" preserve=\"1\"><p:cSld name=\"{AgendaLayoutName}\"><p:spTree>" + GroupHeader
+        + Placeholder(2, "Title 1", "<p:ph type=\"title\"/>", null, string.Empty, null)
+        + Placeholder(
+            3,
+            "Text Placeholder 2",
+            "<p:ph type=\"body\" idx=\"1\"/>",
+            Box(Left, BodyTop, Width, BodyHeight),
+            string.Empty,
+            null,
+            "<a:lstStyle><a:lvl1pPr marL=\"457200\" indent=\"-457200\"><a:spcBef><a:spcPts val=\"1200\"/></a:spcBef><a:buFont typeface=\"+mj-lt\"/><a:buAutoNum type=\"arabicPeriod\"/><a:defRPr sz=\"2400\"/></a:lvl1pPr></a:lstStyle>")
+        + FooterPlaceholders(4, null)
+        + LayoutEnd;
+
+    // A quote, large and italic, with its byline below it; no title.
+    private static string QuoteLayout(ResolvedBrand brand) =>
+        $"<p:sldLayout {Namespaces} type=\"cust\" preserve=\"1\"><p:cSld name=\"{QuoteLayoutName}\"><p:spTree>" + GroupHeader
+        + Placeholder(
+            2,
+            "Text Placeholder 1",
+            "<p:ph type=\"body\" idx=\"1\"/>",
+            Box(Left + (Width / 10), 1371600, Width * 4 / 5, 3017520),
+            " anchor=\"b\"",
+            null,
+            $"<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"3200\" i=\"1\"><a:solidFill><a:srgbClr val=\"{brand.Primary}\"/></a:solidFill></a:defRPr></a:lvl1pPr></a:lstStyle>")
+        + Placeholder(
+            3,
+            BylineName,
+            "<p:ph type=\"body\" sz=\"quarter\" idx=\"2\"/>",
+            Box(Left + (Width / 10), 4572000, Width * 4 / 5, 640080),
+            string.Empty,
+            null,
+            "<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"1800\"/></a:lvl1pPr></a:lstStyle>")
+        + FooterPlaceholders(4, null)
+        + LayoutEnd;
+
+    // One sentence, large and centred on the brand gradient, with a body below it.
+    private static string StatementLayout(ResolvedBrand brand) =>
+        $"<p:sldLayout {Namespaces} type=\"cust\" preserve=\"1\" showMasterSp=\"0\"><p:cSld name=\"{StatementLayoutName}\">"
+        + GradientBackground(brand)
+        + "<p:spTree>" + GroupHeader
+        + Placeholder(
+            2,
+            "Title 1",
+            "<p:ph type=\"title\"/>",
+            Box(Left, 1371600, Width, 2743200),
+            " anchor=\"b\"",
+            null,
+            $"<a:lstStyle><a:lvl1pPr algn=\"ctr\"><a:defRPr sz=\"4400\"><a:solidFill><a:srgbClr val=\"{White}\"/></a:solidFill></a:defRPr></a:lvl1pPr></a:lstStyle>")
+        + Placeholder(
+            3,
+            "Text Placeholder 2",
+            "<p:ph type=\"body\" idx=\"1\"/>",
+            Box(Left, 4297680, Width, 1097280),
+            string.Empty,
+            null,
+            $"<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\" algn=\"ctr\"><a:buNone/><a:defRPr sz=\"2000\"><a:solidFill><a:srgbClr val=\"{White}\"/></a:solidFill></a:defRPr></a:lvl1pPr></a:lstStyle>")
+        + FooterPlaceholders(4, White)
+        + FooterText(6, brand, White)
+        + (brand.LogoOnDark is { } logoOnDark ? Picture(7, "Logo", LogoRelationship, FooterLogoBox.Fit(logoOnDark)) : string.Empty)
+        + LayoutEnd;
+
+    // Five people in a row: a picture each, with a body under it.
+    private static readonly string ContactLayout =
+        $"<p:sldLayout {Namespaces} type=\"cust\" preserve=\"1\"><p:cSld name=\"{ContactLayoutName}\"><p:spTree>" + GroupHeader
+        + Placeholder(2, "Title 1", "<p:ph type=\"title\"/>", null, string.Empty, null)
+        + string.Concat(Enumerable.Range(0, ContactCount).Select(i => Placeholder(
+            3 + i,
+            $"Picture Placeholder {2 + i}",
+            $"<p:ph type=\"pic\" sz=\"quarter\" idx=\"{1 + i}\"/>",
+            Box(Left + (i * (ContactWidth + ContactGap)), BodyTop, ContactWidth, ContactWidth),
+            string.Empty,
+            null,
+            PromptListStyle)))
+        + string.Concat(Enumerable.Range(0, ContactCount).Select(i => Placeholder(
+            3 + ContactCount + i,
+            $"Text Placeholder {2 + ContactCount + i}",
+            $"<p:ph type=\"body\" sz=\"quarter\" idx=\"{1 + ContactCount + i}\"/>",
+            Box(Left + (i * (ContactWidth + ContactGap)), ContactTextTop, ContactWidth, BodyTop + BodyHeight - ContactTextTop),
+            string.Empty,
+            null,
+            "<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"1400\" b=\"1\"/></a:lvl1pPr>"
+                + "<a:lvl2pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"1200\"/></a:lvl2pPr></a:lstStyle>")))
+        + FooterPlaceholders(3 + (2 * ContactCount), null)
+        + LayoutEnd;
+
+    // A chart with its title and unit above it and its source below it.
+    private static string ChartLayout(ResolvedBrand brand) =>
+        $"<p:sldLayout {Namespaces} type=\"chart\" preserve=\"1\"><p:cSld name=\"{ChartLayoutName}\"><p:spTree>" + GroupHeader
+        + Placeholder(2, "Title 1", "<p:ph type=\"title\"/>", null, string.Empty, null)
+        + Placeholder(
+            3,
+            ChartTitleName,
+            "<p:ph type=\"body\" sz=\"quarter\" idx=\"2\"/>",
+            Box(Left, BodyTop, Width, ChartTitleHeight),
+            " anchor=\"b\"",
+            null,
+            $"<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"1800\" b=\"1\"><a:solidFill><a:srgbClr val=\"{brand.Primary}\"/></a:solidFill></a:defRPr></a:lvl1pPr></a:lstStyle>")
+        + Placeholder(
+            4,
+            ChartUnitName,
+            "<p:ph type=\"body\" sz=\"quarter\" idx=\"3\"/>",
+            Box(Left, BodyTop + ChartTitleHeight, Width, ChartNoteHeight),
+            string.Empty,
+            null,
+            $"<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"1200\"><a:solidFill><a:srgbClr val=\"{brand.Footer}\"/></a:solidFill></a:defRPr></a:lvl1pPr></a:lstStyle>")
+        + Placeholder(5, "Chart Placeholder 4", "<p:ph type=\"chart\" idx=\"1\"/>", Box(Left, ChartTop, Width, ChartBottom - ChartTop), string.Empty, null, PromptListStyle)
+        + Placeholder(
+            6,
+            ChartSourceName,
+            "<p:ph type=\"body\" sz=\"quarter\" idx=\"4\"/>",
+            Box(Left, BodyTop + BodyHeight - ChartNoteHeight, Width, ChartNoteHeight),
+            string.Empty,
+            null,
+            $"<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"1000\"><a:solidFill><a:srgbClr val=\"{brand.Footer}\"/></a:solidFill></a:defRPr></a:lvl1pPr></a:lstStyle>")
+        + FooterPlaceholders(7, null)
+        + LayoutEnd;
+
+    private static string GradientBackground(ResolvedBrand brand) =>
+        "<p:bg><p:bgPr><a:gradFill rotWithShape=\"1\"><a:gsLst>"
+        + string.Concat(brand.Gradient.Select((color, i) =>
+            $"<a:gs pos=\"{(i * 100000 / (brand.Gradient.Count - 1)).ToString(CultureInfo.InvariantCulture)}\"><a:srgbClr val=\"{color}\"/></a:gs>"))
+        + "</a:gsLst><a:lin ang=\"0\" scaled=\"0\"/></a:gradFill><a:effectLst/></p:bgPr></p:bg>";
+
 
     private static long DateLeft(ResolvedBrand brand) => brand.FooterText is null ? FooterTextLeft : DateWithFooterTextLeft;
 

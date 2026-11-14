@@ -80,7 +80,9 @@ internal sealed partial class DeckWriter
     private IEnumerable<(Slide Slide, int Step, bool Fits)> FitContent(ContentSlide slide)
     {
         var area = this.ContentArea(this.LayoutOf(slide, this.contentLayout));
-        long Height(IReadOnlyList<TextParagraph> body, int step) => EstimateHeight(body, this.BodySize(step), area.W);
+        long Height(IReadOnlyList<TextParagraph> body, int step) => this.levelSizes is { } sizes
+            ? body.Sum(p => EstimateHeight([p], sizes[MappedLevel(p, this.roles.Declared.TextLevels!)] * this.BodySize(step) / this.bodySize, area.W) - CellInsets) + CellInsets
+            : EstimateHeight(body, this.BodySize(step), area.W);
         int? Step(IReadOnlyList<TextParagraph> body) =>
             Enumerable.Range(0, this.MaxContentStep + 1).Cast<int?>().FirstOrDefault(s => Height(body, s!.Value) <= area.H);
 
@@ -320,14 +322,29 @@ internal sealed partial class DeckWriter
     }
 
     // The size of level-1 text in the content layout's body: its own list style, else the master's body style.
-    private static int ReadBodySize(SlideLayoutPart layout)
+    private int ReadBodySize(SlideLayoutPart layout) => this.LevelSize(layout, 1) ?? TextSize;
+
+    // The sizes of the nine outline levels of the content layout's body; a level without one takes the level above's.
+    private int[] ReadLevelSizes(SlideLayoutPart layout)
     {
-        var own = Placeholders(layout).FirstOrDefault(IsBody)?.Parent?.Parent?.Parent?
-            .Descendants<DocumentFormat.OpenXml.Drawing.Level1ParagraphProperties>().FirstOrDefault()?
-            .GetFirstChild<DocumentFormat.OpenXml.Drawing.DefaultRunProperties>()?.FontSize?.Value;
-        var master = layout.SlideMasterPart?.SlideMaster?.TextStyles?.BodyStyle?.Level1ParagraphProperties?
-            .GetFirstChild<DocumentFormat.OpenXml.Drawing.DefaultRunProperties>()?.FontSize?.Value;
-        return own ?? master ?? TextSize;
+        var sizes = new int[9];
+        for (var level = 1; level <= 9; level++)
+        {
+            sizes[level - 1] = this.LevelSize(layout, level) ?? (level == 1 ? this.bodySize : sizes[level - 2]);
+        }
+
+        return sizes;
+    }
+
+    // The size of an outline level (1–9) in the layout's first body: its own list style, else the master's body style.
+    private int? LevelSize(SlideLayoutPart layout, int level)
+    {
+        static int? Size(DocumentFormat.OpenXml.OpenXmlElement? styles, int level) =>
+            styles?.ChildElements.FirstOrDefault(e => e.LocalName == $"lvl{level}pPr")?
+                .GetFirstChild<DocumentFormat.OpenXml.Drawing.DefaultRunProperties>()?.FontSize?.Value;
+
+        var own = this.Bodies(layout).FirstOrDefault()?.Parent?.Parent?.Parent?.Descendants<DocumentFormat.OpenXml.Drawing.ListStyle>().FirstOrDefault();
+        return Size(own, level) ?? Size(layout.SlideMasterPart?.SlideMaster?.TextStyles?.BodyStyle, level);
     }
 
     private sealed record Piece(FlowBlock Block, int Origin);

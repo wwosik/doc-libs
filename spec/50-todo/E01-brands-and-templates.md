@@ -19,7 +19,7 @@ A deck or PDF is only useful to a consumer if it looks like theirs. Everything a
 | [E01-S03](../60-verify/E01-S03-brand-fonts-embedded-in-decks.md) | Brand fonts embedded in decks | in verification |
 | [E01-S04](../60-verify/E01-S04-slides-on-dark-templates.md) | Slides on dark templates | in verification |
 | [E01-S05](../60-verify/E01-S05-brand-template-features.md) | Brand template features | in verification |
-| [E01-S06](../55-in-progress/doc-3/E01-S06-template-roles-for-decks.md) | Template roles for decks | in progress (doc-3) |
+| [E01-S06](../60-verify/E01-S06-template-roles-for-decks.md) | Template roles for decks | in verification |
 | [E01-S07](../55-in-progress/doc-3/E01-S07-chapter-numbers-and-layouts-across-placeholders.md) | Chapter numbers and layouts across placeholders | in progress (doc-3) |
 
 Stories marked *to plan* come from the

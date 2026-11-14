@@ -74,6 +74,55 @@ public class BrandTests
         Assert.Contains($"'{color}'", error.Message, StringComparison.Ordinal);
     }
 
+    public static TheoryData<PptxTemplateRoles, string> InvalidRoles => new()
+    {
+        { new() { TextLevels = new(0, 2, 3) }, "Pptx.Roles.TextLevels.Heading is 0" },
+        { new() { TextLevels = new(1, 10, 3) }, "Pptx.Roles.TextLevels.Paragraph is 10" },
+        { new() { TextLevels = new(4, 2, 3) }, "Pptx.Roles.TextLevels.Heading is 4, deeper than Bullet (3)" },
+        { new() { FooterPattern = "{footer} | {date}" }, "Pptx.Roles.FooterPattern has the unknown field '{date}'" },
+        { new() { Placeholders = [new("Quote", "Text 2", PlaceholderRole.Body), new("Quote", "text 2", PlaceholderRole.Byline)] }, "Pptx.Roles.Placeholders[1] gives the placeholder 'text 2'" },
+        { new() { Placeholders = [new("Quote", "A", PlaceholderRole.Byline), new("Quote", "B", PlaceholderRole.Byline)] }, "Pptx.Roles.Placeholders[1] gives the layout 'Quote' a second placeholder with the role Byline" },
+        { new() { Placeholders = [new("Quote", " ", PlaceholderRole.Byline)] }, "Pptx.Roles.Placeholders[0] needs a layout and a placeholder name" },
+    };
+
+    [Theory]
+    [MemberData(nameof(InvalidRoles))]
+    public void InvalidTemplateRoles_ThrowNamingTheProperty(PptxTemplateRoles roles, string expected)
+    {
+        var brand = new Brand { Name = "a", Pptx = new PptxBrandTemplate(new byte[] { 1 }) { Roles = roles } };
+
+        var error = Assert.Throws<ArgumentException>(() => ResolvedBrand.Resolve(brand));
+
+        Assert.Contains(expected, error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SeveralBodiesOfOneLayout_AreValid()
+    {
+        var roles = new PptxTemplateRoles
+        {
+            Placeholders = [new("Two", "Left", PlaceholderRole.Body), new("Two", "Right", PlaceholderRole.Body), new("Two", "Bar", PlaceholderRole.Decorative)],
+            TextLevels = new(1, 1, 1),
+            FooterPattern = "{footer} {title} {chapter} {author}",
+        };
+
+        Assert.NotNull(ResolvedBrand.Resolve(new Brand { Name = "a", Pptx = new PptxBrandTemplate(new byte[] { 1 }) { Roles = roles } }).Pptx);
+    }
+
+    [Theory]
+    [InlineData("{footer} | {chapter}", "Footer text", "", "Footer text")]
+    [InlineData("{footer} | {chapter}", "", "Part two", "Part two")]
+    [InlineData("{footer} | {chapter} | {title}", "Footer text", "", "Footer text | Deck")]
+    [InlineData("{footer} · {chapter} – {author}", "", "", "Author")]
+    [InlineData("{title}: {chapter}", "", "Part two", "Deck: Part two")]
+    [InlineData("{footer}", "", "", "")]
+    public void FooterPattern_DropsTheSeparatorsOfEmptyFields(string pattern, string footer, string chapter, string expected)
+    {
+        var values = new Dictionary<string, string> { ["footer"] = footer, ["chapter"] = chapter, ["title"] = "Deck", ["author"] = "Author" };
+
+        Assert.Equal(expected, PptxTemplateRoles.FormatFooter(pattern, field => values[field]));
+    }
+
     [Fact]
     public void ThemeOfTheWrongLength_Throws()
     {

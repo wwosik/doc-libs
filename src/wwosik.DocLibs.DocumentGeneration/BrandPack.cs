@@ -160,8 +160,70 @@ internal sealed record BrandManifest(
                     "dark" => SlideTone.Dark,
                     var other => throw new InvalidDataException($"{BrandPack.ManifestFile}: 'pptx.tone' is '{other}'; expected 'auto', 'light' or 'dark'."),
                 },
+                Roles = ToRoles(pptx),
             },
         };
+    }
+
+    private static PptxTemplateRoles ToRoles(PptxSection pptx) =>
+        new()
+        {
+            Layouts = new PptxLayoutRoles
+            {
+                TwoContent = pptx.Layouts?.TwoContent,
+                TextAndPicture = pptx.Layouts?.TextAndPicture,
+                Picture = pptx.Layouts?.Picture,
+                Agenda = pptx.Layouts?.Agenda,
+                Quote = pptx.Layouts?.Quote,
+                Statement = pptx.Layouts?.Statement,
+                Contact = pptx.Layouts?.Contact,
+                Chart = pptx.Layouts?.Chart,
+                TwoCharts = pptx.Layouts?.TwoCharts,
+                Dark = pptx.Layouts?.Dark,
+            },
+            Placeholders = pptx.Placeholders is not { } layouts ? [] : [.. layouts.SelectMany(layout => ToPlaceholderRoles(layout.Key, layout.Value))],
+            TextLevels = pptx.TextLevels is not { } levels ? null : new PptxTextLevels(
+                levels.Heading ?? throw Missing("pptx.textLevels.heading"),
+                levels.Paragraph ?? throw Missing("pptx.textLevels.paragraph"),
+                levels.Bullet ?? throw Missing("pptx.textLevels.bullet")),
+            FooterPattern = pptx.Footer,
+            ContentArea = pptx.ContentArea switch
+            {
+                null or "placeholders" => PptxContentArea.Placeholders,
+                "guides" => PptxContentArea.Guides,
+                var other => throw new InvalidDataException($"{BrandPack.ManifestFile}: 'pptx.contentArea' is '{other}'; expected 'placeholders' or 'guides'."),
+            },
+        };
+
+    // One layout's placeholders: `body1`, `body2`, … give the order of its bodies; plain `body`s come first, as listed.
+    private static IEnumerable<PptxPlaceholderRole> ToPlaceholderRoles(string layout, Dictionary<string, string>? placeholders)
+    {
+        var roles = new List<(PptxPlaceholderRole Role, int Order)>();
+        foreach (var (name, value) in placeholders ?? [])
+        {
+            var key = $"pptx.placeholders.{layout}.{name}";
+            var (role, order) = value switch
+            {
+                "subtitle" => (PlaceholderRole.Subtitle, 0),
+                "byline" => (PlaceholderRole.Byline, 0),
+                "chapterNumber" => (PlaceholderRole.ChapterNumber, 0),
+                "body" => (PlaceholderRole.Body, 0),
+                "picture" => (PlaceholderRole.Picture, 0),
+                "chartTitle" => (PlaceholderRole.ChartTitle, 0),
+                "chartUnit" => (PlaceholderRole.ChartUnit, 0),
+                "chartSource" => (PlaceholderRole.ChartSource, 0),
+                "decorative" => (PlaceholderRole.Decorative, 0),
+                _ when value is not null && value.StartsWith("body", StringComparison.Ordinal)
+                    && int.TryParse(value.AsSpan(4), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var number)
+                    && number > 0 => (PlaceholderRole.Body, number),
+                _ => throw new InvalidDataException(
+                    $"{BrandPack.ManifestFile}: '{key}' is '{value}'; expected 'subtitle', 'byline', 'chapterNumber', 'body', 'body1', 'body2', …, "
+                    + "'picture', 'chartTitle', 'chartUnit', 'chartSource' or 'decorative'."),
+            };
+            roles.Add((new PptxPlaceholderRole(layout, name, role), order));
+        }
+
+        return roles.OrderBy(r => r.Role.Role == PlaceholderRole.Body ? r.Order : 0).Select(r => r.Role);
     }
 
     private static BrandColors ToColors(ColorsSection colors, string primary) =>
@@ -287,9 +349,33 @@ internal sealed record BrandManifest(
 
     internal sealed record TableFontsSection(string? Regular, string? Bold, string? Italic, string? BoldItalic, string? Family);
 
-    internal sealed record PptxSection(string? Template, LayoutsSection? Layouts, string? Tone);
+    internal sealed record PptxSection(
+        string? Template,
+        LayoutsSection? Layouts,
+        string? Tone,
+        Dictionary<string, Dictionary<string, string>?>? Placeholders = null,
+        TextLevelsSection? TextLevels = null,
+        string? Footer = null,
+        string? ContentArea = null);
 
-    internal sealed record LayoutsSection(string? Title, string? Content, string? TitleOnly, string? SectionHeader, string? Closing);
+    internal sealed record LayoutsSection(
+        string? Title,
+        string? Content,
+        string? TitleOnly,
+        string? SectionHeader,
+        string? Closing,
+        string? TwoContent = null,
+        string? TextAndPicture = null,
+        string? Picture = null,
+        string? Agenda = null,
+        string? Quote = null,
+        string? Statement = null,
+        string? Contact = null,
+        string? Chart = null,
+        string? TwoCharts = null,
+        string? Dark = null);
+
+    internal sealed record TextLevelsSection(int? Heading, int? Paragraph, int? Bullet);
 }
 
 [JsonSourceGenerationOptions(

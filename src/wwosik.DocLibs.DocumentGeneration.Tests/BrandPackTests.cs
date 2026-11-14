@@ -132,6 +132,57 @@ public class BrandPackTests : IDisposable
     }
 
     [Fact]
+    public void PptxRoles_AreLoaded_WithBodiesInTheirNumberedOrder()
+    {
+        var brand = BrandPack.Load(Files(
+            """
+            { "name": "a", "colors": { "primary": "#111111" }, "pptx": { "template": "t.potx",
+              "layouts": { "twoContent": "Two", "textAndPicture": "Text Pic", "picture": "Pic", "agenda": "Agenda", "quote": "Quote",
+                           "statement": "Big", "contact": "People", "chart": "Chart", "twoCharts": "Charts", "dark": "Night" },
+              "placeholders": {
+                "Quote": { "Text 3": "byline", "Picture 5": "decorative", "Text 2": "body2", "Text 1": "body1" },
+                "Chart": { "T": "chartTitle", "U": "chartUnit", "S": "chartSource", "P": "picture", "Sub": "subtitle", "N": "chapterNumber", "B": "body" } },
+              "textLevels": { "heading": 1, "paragraph": 2, "bullet": 3 },
+              "footer": "{footer} | {chapter}",
+              "contentArea": "guides" } }
+            """,
+            ("t.potx", [1])));
+
+        var roles = brand.Pptx!.Roles;
+        Assert.Equal(
+            new PptxLayoutRoles
+            {
+                TwoContent = "Two", TextAndPicture = "Text Pic", Picture = "Pic", Agenda = "Agenda", Quote = "Quote",
+                Statement = "Big", Contact = "People", Chart = "Chart", TwoCharts = "Charts", Dark = "Night",
+            },
+            roles.Layouts);
+        Assert.Equal(
+            [
+                new("Quote", "Text 3", PlaceholderRole.Byline), new("Quote", "Picture 5", PlaceholderRole.Decorative),
+                new("Quote", "Text 1", PlaceholderRole.Body), new("Quote", "Text 2", PlaceholderRole.Body),
+                new("Chart", "T", PlaceholderRole.ChartTitle), new("Chart", "U", PlaceholderRole.ChartUnit), new("Chart", "S", PlaceholderRole.ChartSource),
+                new("Chart", "P", PlaceholderRole.Picture), new("Chart", "Sub", PlaceholderRole.Subtitle), new("Chart", "N", PlaceholderRole.ChapterNumber),
+                new PptxPlaceholderRole("Chart", "B", PlaceholderRole.Body),
+            ],
+            roles.Placeholders);
+        Assert.Equal(new PptxTextLevels(1, 2, 3), roles.TextLevels);
+        Assert.Equal("{footer} | {chapter}", roles.FooterPattern);
+        Assert.Equal(PptxContentArea.Guides, roles.ContentArea);
+        Assert.Equal(brand.Pptx, brand.Pptx with { Roles = roles with { Placeholders = [.. roles.Placeholders] } });
+        Assert.NotEqual(brand.Pptx, brand.Pptx with { Roles = roles with { FooterPattern = "{title}" } });
+    }
+
+    [Fact]
+    public void PptxWithoutRoles_HasNone()
+    {
+        var brand = BrandPack.Load(Files("""{ "name": "a", "colors": { "primary": "#111111" }, "pptx": { "template": "t.potx" } }""", ("t.potx", [1])));
+
+        Assert.Equal(new PptxTemplateRoles(), brand.Pptx!.Roles);
+        Assert.Null(brand.Pptx.Roles.TextLevels);
+        Assert.Equal(PptxContentArea.Placeholders, brand.Pptx.Roles.ContentArea);
+    }
+
+    [Fact]
     public void CommentsAndTrailingCommas_AreAllowed()
     {
         var brand = BrandPack.Load(Files("""
@@ -159,6 +210,11 @@ public class BrandPackTests : IDisposable
     [InlineData("""{ "name": "a", "colors": { "primary": "#111111" }, "images": { "logo": "../logo.png" } }""", "'images.logo' is '../logo.png'")]
     [InlineData("""{ "name": "a", "colors": { "primary": "#111111" }, "images": { "logo": "/etc/logo.png" } }""", "'images.logo' is '/etc/logo.png'")]
     [InlineData("""{ "name": "a", "colors": { "primary": "#111111" }, "pptx": { } }""", "'pptx.template' is missing")]
+    [InlineData("""{ "name": "a", "colors": { "primary": "#111111" }, "pptx": { "template": "r", "placeholders": { "Quote": { "Text 3": "author" } } } }""", "'pptx.placeholders.Quote.Text 3' is 'author'")]
+    [InlineData("""{ "name": "a", "colors": { "primary": "#111111" }, "pptx": { "template": "r", "placeholders": { "Quote": { "Text 3": "body0" } } } }""", "'pptx.placeholders.Quote.Text 3' is 'body0'")]
+    [InlineData("""{ "name": "a", "colors": { "primary": "#111111" }, "pptx": { "template": "r", "textLevels": { "heading": 1, "bullet": 3 } } }""", "'pptx.textLevels.paragraph' is missing")]
+    [InlineData("""{ "name": "a", "colors": { "primary": "#111111" }, "pptx": { "template": "r", "contentArea": "grid" } }""", "'pptx.contentArea' is 'grid'")]
+    [InlineData("""{ "name": "a", "colors": { "primary": "#111111" }, "pptx": { "template": "r", "layouts": { "agendas": "A" } } }""", "agendas")]
     [InlineData("""{ "name": """, "brand.json")]
     public void Mistakes_ThrowNamingTheKey(string json, string expected)
     {

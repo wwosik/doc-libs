@@ -330,7 +330,7 @@ template.
 | Options | Template | Features |
 | ------- | -------- | -------- |
 | `BrandTemplateOptions` (default) | The built-in master in `Brand`'s design — by default `Brand.Neutral`: white, Arial, dark titles, blue accents, no images, no footer text | `Brand`, `ShowDate` (default on), `ShowTagline` (default on), `EmbedFonts` (default on), `ShowFooter` (default on; brand templates) |
-| `CustomTemplateOptions(stream)` | A caller's `.pptx` or `.potx` | `Layouts` (layout names) |
+| `CustomTemplateOptions(stream)` | A caller's `.pptx` or `.potx` | `Layouts` (layout names), `Roles` ([template roles](#template-roles)) |
 
 Every template takes `PptxOptions.ListBullets`: `Template` (default) leaves the bullets of text slides
 to the template's styles, `Always` writes Markdown's bullets on every level — for templates whose
@@ -351,7 +351,8 @@ Brands — colours, fonts, images, brand packs, and how front matter picks one f
 [wwosik.DocLibs.DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md#brands). A brand with
 its own `Pptx` template is built on that template, exactly like `CustomTemplateOptions` with the
 brand's layout names; such decks never get a date and take no `showDate` / `showTagline`, but
-they get the brand's footer text, its tone and its closing layout (`PptxBrandTemplate.ClosingLayout`).
+they get the brand's footer text, its tone, its closing layout (`PptxBrandTemplate.ClosingLayout`) and its
+[roles](#template-roles) (`PptxBrandTemplate.Roles`).
 
 ### The built-in template
 
@@ -367,9 +368,28 @@ One master design, written in code (`TemplateBuilder`), parameterized by a brand
 - **Layouts:** `title` (cover: large title, subtitle, and — where the brand has them — the logo
   top right, the artwork in the bottom right corner below the subtitle, the tagline over it; no
   footer line), `obj`, `titleOnly`, `secHead` (brand gradient, white title, white footer
-  line, the logo for dark backgrounds), and *Title Only Dark* (type `cust`, found by name: the
+  line, the logo for dark backgrounds, and a chapter-number placeholder above the title that no
+  slide fills yet), and *Title Only Dark* (type `cust`, found by name: the
   primary colour as background, white title and footer line, the logo for dark backgrounds — for
   [dark slides](#layouts)).
+- **A layout for every [layout role](#template-roles)**, after those five, in the same design. The
+  master declares their roles itself, so they are found as on any template. Slides do not use them
+  yet: the Markdown for them comes with later releases, and `layout="…"` stays an error on the
+  built-in master.
+
+  | Layout | Type | Placeholders |
+  | ------ | ---- | ------------ |
+  | *Two Content* (also two charts) | `twoObj` | title, two bodies side by side |
+  | *Picture with Caption* | `picTx` | title, body on the left (40 %), picture on the right |
+  | *Picture* | `cust` | title, one picture over the content area |
+  | *Agenda* | `cust` | title, body with a numbered first level |
+  | *Quote* | `cust` | large italic body and a byline below it, no title |
+  | *Statement* | `cust` | title large and centred on the brand gradient, body below |
+  | *Contact* | `cust` | title, five pictures in a row with a body under each |
+  | *Chart* | `chart` | title, chart, and the chart's title, unit and source |
+- **Relationship ids are fixed:** layouts 1–4 are `rId1`–`rId4` of the master, the theme `rId5`,
+  the logo `rId6`, *Title Only Dark* `rId7`, the role layouts `rId8`–`rId15`, so the parts of
+  decks made before them keep their names.
 - **Images keep their aspect ratio:** the logo, tagline and footer logo are fitted into fixed
   boxes and aligned right; the artwork is at most as wide as the slide and as high as the band
   below the subtitle. PNG and JPEG.
@@ -395,6 +415,77 @@ One master design, written in code (`TemplateBuilder`), parameterized by a brand
 - In placeholders, bullet levels set only `lvl`, so the template's indents, bullets and fonts apply.
   Text above and below images and tables sits in text boxes with explicit indents.
 - Caller templates never get a date.
+
+### Template roles
+
+A template can say what its layouts and placeholders are for, beyond what OOXML's layout and
+placeholder types say. Brands declare them in `PptxBrandTemplate.Roles` or under `pptx` in
+[`brand.json`](wwosik.DocLibs.DocumentGeneration.md#brand-packs), caller templates in
+`CustomTemplateOptions.Roles`; both take a `PptxTemplateRoles`. Everything is optional, and a
+template that declares nothing is used as before. Names are those PowerPoint shows.
+
+- **Layout roles** (`PptxLayoutRoles`): two content, text and picture, picture, agenda, quote,
+  statement, contact, chart, two charts and dark. Each is found, in this order: by the declared name
+  (exactly; an unknown name throws `DocumentConversionException` listing the template's layouts); by
+  type where OOXML has one (`twoObj` or `twoColTx` for two content, `picTx` for text and picture,
+  `chart` for chart); for dark, by the name *Title Only Dark*. Agenda, quote, statement, contact,
+  picture and two charts are found only by name. A declared dark layout takes `{.dark}` slides, so
+  they keep that layout's own background. Front matter names them for caller templates:
+  `layouts.twoContent`, `layouts.textAndPicture`, `layouts.picture`, `layouts.agenda`,
+  `layouts.quote`, `layouts.statement`, `layouts.contact`, `layouts.chart`, `layouts.twoCharts`,
+  `layouts.dark`.
+- **Placeholder roles** (`PptxPlaceholderRole(layout, placeholder, role)`): subtitle, byline,
+  chapter number, body, picture, chart title, chart unit, chart source and decorative, the
+  placeholder named by its shape name as the Selection Pane shows it (case-insensitive; a name the
+  layout lacks throws, listing its placeholders). Undeclared placeholders get the role of their
+  type: `subTitle` subtitle, `pic` picture, `chart` chart, `body`, `obj` or untyped body. Byline,
+  chapter number and the chart texts exist only when declared. Several declared bodies of one
+  layout are in the order declared, the undeclared ones follow in reading order (left to right
+  when their tops are within half the smaller height, else top to bottom).
+- **Decorative placeholders**, and those declared with another role than body, never take body
+  text: not as a content slide's body, the cover's or a divider's subtitle, nor for the content
+  area. They are never written to the slide, so PowerPoint shows only what the layout draws.
+- **Text levels** (`PptxTextLevels(heading, paragraph, bullet)`, 1 to 9 as PowerPoint counts list
+  levels): in the body placeholder of text slides a `###` goes to the heading level, in that level's
+  style instead of bold; a paragraph (and quote and code lines) to the paragraph level, without a
+  bullet; a list item to the bullet level plus its depth, at most 9. Numbered and task items keep
+  their numbers and boxes; with `ListBullets.Always` list items get Markdown's bullets at their
+  level, with the level's indents. Fitting then measures each paragraph at its level's size (the
+  layout's body list style, else the master's body style). Text boxes, tables and flow slides keep
+  their own formatting. Without text levels, nothing changes.
+- **Footer pattern** (`FooterPattern`): the text of the template's footer placeholder, with the
+  fields `{footer}` (the brand's footer text; empty on caller templates), `{title}` (the deck's
+  title, as in its properties), `{chapter}` (the title of the current `#` divider, empty before the
+  first) and `{author}`. Separators (`|`, `·`, `–`, `—`) left at either end by empty fields are
+  dropped, and two left side by side become one. `ShowFooter` / `showFooter: false` switches it off
+  on brand templates. The built-in master keeps its own footer text and has no pattern.
+- **Content grid** (`ContentArea = PptxContentArea.Guides`): flow, table, image and chart slides,
+  and footnotes, are placed inside the slide master's drawing guides (`p15:sldGuideLst`, positions
+  in eighths of a point): between the leftmost and rightmost vertical guide, from the first
+  horizontal guide below the layout's title to the last one above the master's footer
+  placeholders. A master with fewer than two guides of either kind throws
+  `DocumentConversionException`. Layouts' own guides are not read.
+- Invalid roles throw `ArgumentException` naming the property: a text level outside 1–9 or a
+  heading level deeper than the bullet level, an unknown field in the footer pattern, two roles
+  for one placeholder, or a role other than body twice in one layout — for brands when the brand is
+  used, for caller templates when the deck is generated.
+
+```csharp
+var template = new CustomTemplateOptions(stream)
+{
+    Roles = new PptxTemplateRoles
+    {
+        Layouts = new PptxLayoutRoles { Agenda = "Agenda", Quote = "Quote" },
+        Placeholders = [new("Quote", "Text Placeholder 3", PlaceholderRole.Byline), new("Quote", "Picture Placeholder 5", PlaceholderRole.Decorative)],
+        TextLevels = new PptxTextLevels(Heading: 1, Paragraph: 2, Bullet: 3),
+        FooterPattern = "{title} | {chapter}",
+        ContentArea = PptxContentArea.Guides,
+    },
+};
+```
+
+What the roles put on slides beyond this — chapter numbers, `{layout="…"}` across placeholders,
+slide kinds on the role layouts — comes with later releases.
 
 ## Front matter
 
@@ -425,6 +516,7 @@ author: Team Docs
 | `transition` | `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut`, `morph` | all — see [Presenting](#presenting) |
 | `build` | `none`, `lists` | all — see [Presenting](#presenting) |
 | `layouts.title`, `layouts.content`, `layouts.titleOnly`, `layouts.sectionHeader`, `layouts.closing` | layout name | custom |
+| `layouts.twoContent`, `layouts.textAndPicture`, `layouts.picture`, `layouts.agenda`, `layouts.quote`, `layouts.statement`, `layouts.contact`, `layouts.chart`, `layouts.twoCharts`, `layouts.dark` | layout name | custom — see [Template roles](#template-roles) |
 | `title`, `author` | text | all — the core properties |
 | `lang` | a language tag such as `en`, `de`, `de-CH`; default `PptxOptions.Language` (`en`), with `PptxOptions.Texts` for further languages | all — see [Document language](wwosik.DocLibs.DocumentGeneration.md#document-language) |
 

@@ -83,6 +83,14 @@ internal sealed partial class DeckWriter
     private readonly bool listBullets;
     private readonly SlidePalette palette;
     private readonly int bodySize;
+    private readonly TemplateRoles roles;
+    private readonly string? footerPattern;
+    private readonly string? deckTitle;
+    private readonly string? author;
+    private readonly string templateName;
+
+    // The sizes of the nine outline levels of the content layout's body, when the template declares text levels.
+    private readonly int[]? levelSizes;
     private readonly Dictionary<DocumentResource, ImagePart> images = [];
     private readonly Dictionary<DocumentResource, ImagePart> vectors = [];
     private readonly IReadOnlyDictionary<string, LabelCategory> labels;
@@ -95,6 +103,9 @@ internal sealed partial class DeckWriter
     private IReadOnlyList<SlideFootnote> footnotes = [];
     private uint nextSlideId = 256;
 
+    // The title of the latest section divider, for the footer pattern's {chapter}.
+    private string? chapter;
+
     /// <summary>Opens the deck for writing. Layouts named in <paramref name="names"/> win over the lookup by type.</summary>
     /// <remarks>
     /// <paramref name="date"/> is the text for the date placeholder, or <see langword="null"/> for no date;
@@ -102,7 +113,10 @@ internal sealed partial class DeckWriter
     /// <paramref name="codeFont"/> the family of code, by default <see cref="PptxOptions.CodeFont"/> or Consolas;
     /// <paramref name="palette"/> the colours of flow slides, by default the template's theme colours;
     /// <paramref name="labels"/> the categories of status labels, from front matter; <paramref name="texts"/> the texts of
-    /// the document language, such as the word before a chart's source.
+    /// the document language, such as the word before a chart's source; <paramref name="roles"/> what the template's
+    /// layouts and placeholders are for (the built-in master declares its own); <paramref name="footerPattern"/> the text of
+    /// the footer placeholder instead of <paramref name="footerText"/>, with the fields of <paramref name="deckTitle"/> and
+    /// <paramref name="author"/>; <paramref name="templateName"/> how errors name the template.
     /// </remarks>
     public DeckWriter(
         PresentationDocument package,
@@ -118,8 +132,17 @@ internal sealed partial class DeckWriter
         bool listBullets = false,
         GenerationNotes? notes = null,
         string language = "en",
-        GeneratedTexts? texts = null)
+        GeneratedTexts? texts = null,
+        PptxTemplateRoles? roles = null,
+        string? footerPattern = null,
+        string? deckTitle = null,
+        string? author = null,
+        string templateName = "the template")
     {
+        this.footerPattern = footerPattern;
+        this.deckTitle = deckTitle;
+        this.author = author;
+        this.templateName = templateName;
         this.notes = notes ?? new GenerationNotes();
         this.language = language;
         this.texts = texts ?? GeneratedTexts.English;
@@ -153,8 +176,18 @@ internal sealed partial class DeckWriter
             ?? layouts.FirstOrDefault(l => Placeholders(l).Any(IsTitle) && !Placeholders(l).Any(IsBody)) ?? this.contentLayout;
         this.sectionLayout = ByName(layouts, names?.SectionHeader, nameof(names.SectionHeader))
             ?? ByType(layouts, P.SlideLayoutValues.SectionHeader) ?? this.titleLayout;
-        this.darkLayout = layouts.FirstOrDefault(l => string.Equals(LayoutName(l), TemplateBuilder.DarkLayoutName, StringComparison.Ordinal));
-        this.bodySize = ReadBodySize(this.contentLayout);
+        this.roles = TemplateRoles.Resolve(layouts, builtIn ? TemplateBuilder.Roles : roles);
+        this.darkLayout = this.roles.Layout(LayoutRole.Dark);
+        this.bodySize = this.ReadBodySize(this.contentLayout);
+        this.levelSizes = this.roles.Declared.TextLevels is null ? null : this.ReadLevelSizes(this.contentLayout);
+        if (this.roles.Declared.ContentArea == PptxContentArea.Guides)
+        {
+            foreach (var master in layouts.Select(l => l.SlideMasterPart).OfType<SlideMasterPart>().Distinct())
+            {
+                this.Guides(master);
+            }
+        }
+
         this.closingLayout = ByName(layouts, names?.Closing, nameof(names.Closing))
             ?? layouts.FirstOrDefault(l => LayoutName(l) is { } name && ClosingNamePattern().IsMatch(name))
             ?? (builtIn ? this.sectionLayout : this.titleLayout);
@@ -175,6 +208,11 @@ internal sealed partial class DeckWriter
         {
             this.current = slide;
             this.footnotes = slide.Footnotes;
+            if (slide is TitleSlide { IsSection: true, Closing: false })
+            {
+                this.chapter = Plain(slide.Title);
+            }
+
             var canvas = slide switch
             {
                 TitleSlide title => this.WriteTitleSlide(title),
@@ -227,7 +265,7 @@ internal sealed partial class DeckWriter
     {
         var layout = slide.Closing ? this.closingLayout : this.LayoutOf(slide, slide.IsSection ? this.sectionLayout : this.titleLayout);
         var canvas = this.NewSlide(layout);
-        var bodies = Placeholders(layout).Where(IsBody).ToList();
+        var bodies = this.Bodies(layout).ToList();
         var titleInBody = FindPlaceholder(layout, IsTitle) is null && bodies.Count > 0;
         if (slide.Closing && FindPlaceholder(layout, IsTitle) is null && bodies.Count == 0)
         {
@@ -240,7 +278,7 @@ internal sealed partial class DeckWriter
             return canvas;
         }
 
-        var subtitle = FindPlaceholder(layout, p => p.Type?.Value == P.PlaceholderValues.SubTitle) ?? bodies.Skip(titleInBody ? 1 : 0).FirstOrDefault();
+        var subtitle = FindPlaceholder(layout, p => p.Type?.Value == P.PlaceholderValues.SubTitle && !this.roles.IsExcluded(layout, p)) ?? bodies.Skip(titleInBody ? 1 : 0).FirstOrDefault();
         if (subtitle is not null)
         {
             canvas.AddText(Placeholder(canvas, subtitle, "Subtitle", slide.Subtitle.Select(p => this.Paragraph(canvas, p, explicitBullets: false, null))), slide.Subtitle);
@@ -267,11 +305,12 @@ internal sealed partial class DeckWriter
             return canvas;
         }
 
-        if (FindPlaceholder(layout, IsBody) is { } body)
+        if (this.Bodies(layout).FirstOrDefault() is { } body)
         {
             var properties = step == 0 ? null : new A.BodyProperties(new A.NormalAutoFit { FontScale = (int)(this.BodySize(step) * 100000L / this.bodySize) });
             var box = this.footnotes.Count > 0 ? this.ContentArea(layout) : (Rect?)null; // shortened for the footnotes
-            canvas.AddText(Placeholder(canvas, body, "Content", slide.Body.Select(p => this.Paragraph(canvas, p, explicitBullets: this.listBullets, null)), box, properties), slide.Body);
+            var levels = this.roles.Declared.TextLevels;
+            canvas.AddText(Placeholder(canvas, body, "Content", slide.Body.Select(p => this.Paragraph(canvas, p, explicitBullets: this.listBullets, null, levels: levels)), box, properties), slide.Body);
         }
         else
         {
@@ -455,7 +494,8 @@ internal sealed partial class DeckWriter
     // On a template whose slides are all dark, a dark slide keeps the template's background.
     private bool PaintsDark(Slide slide) => slide is FlowSlide { Dark: true } && this.darkLayout is null && !this.palette.DarkSlides;
 
-    // Slide number and date, where the layout has placeholders for them; their position and style come from there.
+    // Slide number and date, where the layout has placeholders for them; their position and style come from there. The
+    // footer text, or the footer pattern filled in, goes into the footer placeholder.
     private void Footer(Canvas canvas, int number, SlideColor? color = null)
     {
         var layout = canvas.Part.SlideLayoutPart!;
@@ -475,7 +515,16 @@ internal sealed partial class DeckWriter
             canvas.Add(Placeholder(canvas, date, "Date", [new A.Paragraph(new A.Run(Properties(), new A.Text(text)), new A.EndParagraphRunProperties())]));
         }
 
-        if (this.footerText is { } footer && FindPlaceholder(layout, p => p.Type?.Value == P.PlaceholderValues.Footer) is { } placeholder)
+        var footer = this.footerPattern is { } pattern
+            ? PptxTemplateRoles.FormatFooter(pattern, field => field switch
+            {
+                "footer" => this.footerText,
+                "title" => this.deckTitle,
+                "chapter" => this.chapter,
+                _ => this.author,
+            }) is { Length: > 0 } filled ? filled : null
+            : this.footerText;
+        if (footer is not null && FindPlaceholder(layout, p => p.Type?.Value == P.PlaceholderValues.Footer) is { } placeholder)
         {
             canvas.Add(Placeholder(canvas, placeholder, "Footer", [new A.Paragraph(new A.Run(Properties(), new A.Text(XmlSafe(footer))), new A.EndParagraphRunProperties())]));
         }
@@ -997,13 +1046,20 @@ internal sealed partial class DeckWriter
     // In placeholders the template's levels supply indents and bullets; in text boxes and cells they are explicit.
     // `font` is the family of all but code runs; null leaves them in the theme font. `color` is that of every run
     // without a colour of its own; null leaves them in the theme's.
-    private A.Paragraph Paragraph(Canvas canvas, TextParagraph paragraph, bool explicitBullets, int? size, CellAlignment alignment = CellAlignment.Default, string? font = null, SlideColor? color = null)
+    // With `levels` (a template's text levels, in placeholders) the paragraph goes to its mapped level, a heading in that
+    // level's style without the bold; bullets and indents come from the level, `explicitBullets` adds only the bullet.
+    private A.Paragraph Paragraph(Canvas canvas, TextParagraph paragraph, bool explicitBullets, int? size, CellAlignment alignment = CellAlignment.Default, string? font = null, SlideColor? color = null, PptxTextLevels? levels = null)
     {
-        var level = Math.Min(paragraph.Level, 8);
+        var level = levels is null ? Math.Min(paragraph.Level, 8) : MappedLevel(paragraph, levels);
         var properties = new A.ParagraphProperties();
         if (level > 0)
         {
             properties.Level = level;
+        }
+
+        if (levels is not null)
+        {
+            return this.LevelParagraph(canvas, paragraph, properties, explicitBullets, levels);
         }
 
         switch (paragraph.Kind)
@@ -1075,6 +1131,53 @@ internal sealed partial class DeckWriter
         result.Append(end);
         return result;
     }
+
+    // A paragraph at a template's text level: plain text without a bullet, a heading in the level's own style, list
+    // items with the level's bullets (or Markdown's with `explicitBullets`), numbered and task items as always.
+    private A.Paragraph LevelParagraph(Canvas canvas, TextParagraph paragraph, A.ParagraphProperties properties, bool explicitBullets, PptxTextLevels levels)
+    {
+        switch (paragraph.Kind)
+        {
+            case ParagraphKind.Plain when !paragraph.Heading:
+                properties.Indent = 0;
+                properties.Append(new A.NoBullet());
+                break;
+            case ParagraphKind.Bullet when explicitBullets:
+                properties.Append(new A.BulletFont { Typeface = "Arial" }, new A.CharacterBullet { Char = (MappedLevel(paragraph, levels) - (levels.Bullet - 1)) % 2 == 0 ? "\u2022" : "\u2013" });
+                break;
+            case ParagraphKind.Numbered:
+                var numbering = new A.AutoNumberedBullet { Type = A.TextAutoNumberSchemeValues.ArabicPeriod };
+                if (paragraph.NumberStart != 1)
+                {
+                    numbering.StartAt = paragraph.NumberStart;
+                }
+
+                properties.Append(new A.BulletFont { Typeface = "+mj-lt" }, numbering);
+                break;
+            case ParagraphKind.Task or ParagraphKind.TaskDone:
+                properties.Append(new A.BulletFont { Typeface = TaskFont, PitchFamily = 2, CharacterSet = 2 }, new A.CharacterBullet { Char = paragraph.Kind == ParagraphKind.TaskDone ? TickedBox : EmptyBox });
+                break;
+        }
+
+        var result = new A.Paragraph(properties);
+        // A heading's bold is the parser's; coloured words keep theirs.
+        foreach (var run in paragraph.Heading ? paragraph.Runs.Select(r => r.Colour is null ? r with { Style = r.Style & ~RunStyle.Bold } : r) : paragraph.Runs)
+        {
+            result.Append(run.IsBreak ? new A.Break() : this.Run(canvas, run, null));
+        }
+
+        result.Append(new A.EndParagraphRunProperties());
+        return result;
+    }
+
+    // The 0-based outline level of a paragraph under a template's 1-based text levels: a heading at its level, a
+    // paragraph at its level (inside a nested list item: the item's level), a list item at the bullet level plus its depth.
+    private static int MappedLevel(TextParagraph paragraph, PptxTextLevels levels) =>
+        Math.Min(
+            paragraph.Heading ? levels.Heading - 1
+                : paragraph.Kind == ParagraphKind.Plain && paragraph.Level == 0 ? levels.Paragraph - 1
+                : levels.Bullet - 1 + paragraph.Level,
+            8);
 
     // Labels and marked text are bold; marked text gets the light highlight behind it, like a highlighter pen.
     private A.Run Run(Canvas canvas, TextRun run, int? size, string? font = null, SlideColor? color = null)
@@ -1420,7 +1523,12 @@ internal sealed partial class DeckWriter
 
     private Rect FullContentArea(SlideLayoutPart layout)
     {
-        if (Bounds(layout.SlideLayout?.CommonSlideData?.ShapeTree, IsBody) is { } own)
+        if (this.roles.Declared.ContentArea == PptxContentArea.Guides && layout.SlideMasterPart is { } guided)
+        {
+            return this.GuideArea(layout, guided);
+        }
+
+        if (Bounds(layout.SlideLayout?.CommonSlideData?.ShapeTree, p => IsBody(p) && !this.roles.IsExcluded(layout, p)) is { } own)
         {
             return own;
         }
@@ -1433,6 +1541,58 @@ internal sealed partial class DeckWriter
         var top = this.TitleArea(layout).Bottom + (this.slideHeight / 50);
         return new Rect(this.slideWidth / 20, top, this.slideWidth * 9 / 10, Math.Max((this.slideHeight * 23 / 25) - top, this.slideHeight / 4));
     }
+
+    // The content grid of `contentArea: guides`: between the outermost vertical guides of the master, and from the first
+    // horizontal guide below the layout's title area to the last one above the master's footer placeholders.
+    private Rect GuideArea(SlideLayoutPart layout, SlideMasterPart master)
+    {
+        var (vertical, horizontal) = this.Guides(master);
+        var titleBottom = this.TitleArea(layout).Bottom;
+        var footerTop = (master.SlideMaster?.CommonSlideData?.ShapeTree?.Descendants<P.Shape>() ?? [])
+            .Where(s => s.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape?.Type?.Value is { } type
+                && (type == P.PlaceholderValues.Footer || type == P.PlaceholderValues.DateAndTime || type == P.PlaceholderValues.SlideNumber))
+            .Select(s => s.ShapeProperties?.Transform2D?.Offset?.Y?.Value)
+            .OfType<long>()
+            .DefaultIfEmpty(this.slideHeight)
+            .Min();
+        var top = horizontal.Where(y => y >= titleBottom).Cast<long?>().FirstOrDefault();
+        var bottom = horizontal.Where(y => y <= footerTop).Cast<long?>().LastOrDefault();
+        if (top is not { } y0 || bottom is not { } y1 || y1 <= y0)
+        {
+            throw new DocumentConversionException(
+                Format.Pptx,
+                $"The content area of {this.templateName} is set to its guides, but the master has no horizontal guide below the title of the layout '{LayoutName(layout)}' and another above the footer.");
+        }
+
+        return new Rect(vertical[0], y0, vertical[^1] - vertical[0], y1 - y0);
+    }
+
+    // The drawing guides of a master (p15:sldGuideLst in its extensions), in EMU and sorted: positions are in eighths of a
+    // point, and a guide without `orient` is horizontal. At least two of each, else the template cannot give a grid.
+    private (List<long> Vertical, List<long> Horizontal) Guides(SlideMasterPart master)
+    {
+        const string P15 = "http://schemas.microsoft.com/office/powerpoint/2012/main";
+        var guides = master.SlideMaster?.Descendants<DocumentFormat.OpenXml.OpenXmlElement>()
+            .Where(e => e.LocalName == "guide" && e.NamespaceUri == P15)
+            .Select(e => (
+                Vertical: e.GetAttributes().Any(a => a.LocalName == "orient" && a.Value == "vert"),
+                Position: e.GetAttributes().Where(a => a.LocalName == "pos").Select(a => long.TryParse(a.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v) ? v : 0).FirstOrDefault() * EmuPerPoint / 8))
+            .ToList() ?? [];
+        var vertical = guides.Where(g => g.Vertical).Select(g => g.Position).Order().ToList();
+        var horizontal = guides.Where(g => !g.Vertical).Select(g => g.Position).Order().ToList();
+        if (vertical.Count < 2 || horizontal.Count < 2)
+        {
+            throw new DocumentConversionException(
+                Format.Pptx,
+                $"The content area of {this.templateName} is set to its guides, but its slide master has {vertical.Count} vertical and {horizontal.Count} horizontal drawing guides; it needs at least two of each.");
+        }
+
+        return (vertical, horizontal);
+    }
+
+    // The placeholders of a layout that take body text, in tree order: not those declared decorative or with another role.
+    private IEnumerable<P.PlaceholderShape> Bodies(SlideLayoutPart layout) =>
+        Placeholders(layout).Where(p => IsBody(p) && !this.roles.IsExcluded(layout, p));
 
     private static Rect? Bounds(P.ShapeTree? tree, Func<P.PlaceholderShape, bool> match)
     {
@@ -1539,8 +1699,7 @@ internal sealed partial class DeckWriter
     private static bool IsTitle(P.PlaceholderShape placeholder) =>
         placeholder.Type?.Value == P.PlaceholderValues.Title || placeholder.Type?.Value == P.PlaceholderValues.CenteredTitle;
 
-    private static bool IsBody(P.PlaceholderShape placeholder) =>
-        placeholder.Type is null || placeholder.Type.Value == P.PlaceholderValues.Body || placeholder.Type.Value == P.PlaceholderValues.Object;
+    private static bool IsBody(P.PlaceholderShape placeholder) => TemplateRoles.IsBody(placeholder);
 
     private static long EstimateHeight(IEnumerable<TextParagraph> paragraphs, int size, long width) =>
         paragraphs.Sum(p => EstimateLines(p.Runs, size, width - ((p.Level + (p.Kind == ParagraphKind.Plain ? 0 : 1)) * BulletIndent))

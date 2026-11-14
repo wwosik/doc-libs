@@ -98,6 +98,9 @@ public class TemplateTests
         {
             var section = master.SlideLayoutParts.Single(l => l.SlideLayout!.Type!.Value == P.SlideLayoutValues.SectionHeader).SlideLayout!;
             section.Descendants<P.Shape>().Single(s => s.Descendants<P.PlaceholderShape>().Any(p => p.Type?.Value == P.PlaceholderValues.Title)).Remove();
+
+            // A caller's template knows nothing of the built-in chapter-number role: without it, it would be the second body.
+            section.Descendants<P.Shape>().Single(s => s.NonVisualShapeProperties!.NonVisualDrawingProperties!.Name == "Chapter Number").Remove();
         });
 
         var pptx = Samples.Generate(Samples.Markdown(Sections), new PptxOptions { Template = new CustomTemplateOptions(new MemoryStream(edited)) });

@@ -68,6 +68,13 @@ updating, breaking changes first.
   `DocumentConversionException` listing the markers; so does a marker that builds nothing or stands
   inside a list, a quote or speaker notes. Other
   braces (`{"a": 1}`, `{x}`) stay text. Write `\{` where such a paragraph is meant as text.
+- **Decks on the built-in master carry eight more layouts:** *Two Content*, *Picture with
+  Caption*, *Picture*, *Agenda*, *Quote*, *Statement*, *Contact* and *Chart*, after the existing
+  five, and the *Section Header* layout has a chapter-number placeholder. The file grows by a few
+  kilobytes and PowerPoint's layout gallery lists the new layouts; the slides, their parts and the
+  relationship ids of the existing layouts do not change. A caller that uses a deck of the built-in
+  master as its own template, with a section layout that has no title placeholder, now gets the
+  subtitle in the chapter-number placeholder: delete that placeholder, or declare its role.
 
 ### New
 
@@ -146,6 +153,18 @@ updating, breaking changes first.
   `WeekFormat`** for those dates, English ("15 Mar 2026", "W12") and German ("15. März 2026",
   "KW 12"). A host's own `GeneratedTexts` built from `English` with `with { … }` gets the English
   month names.
+- **Template roles for decks** (`PptxTemplateRoles`, on `PptxBrandTemplate.Roles` and
+  `CustomTemplateOptions.Roles`, and under `pptx` in `brand.json`): layout roles (two content,
+  text and picture, picture, agenda, quote, statement, contact, chart, two charts, dark) found by
+  declared name, else by OOXML type where there is one; placeholder roles by shape name (subtitle,
+  byline, chapter number, body, picture, chart title, unit and source, decorative), with
+  decorative placeholders never filled; text levels that put `###`, paragraphs and list items on
+  the template's outline levels; a footer pattern with `{footer}`, `{title}`, `{chapter}` and
+  `{author}`; and `ContentArea = Guides`, which places content inside the master's drawing guides.
+  Front matter `layouts.twoContent` … `layouts.dark` names the layout roles of caller templates. A
+  declared dark layout takes `{.dark}` slides. Templates that declare nothing are used as before.
+- **The deck authoring guide** lists the new front-matter keys for caller templates and, for a
+  brand's own template, the layouts of its roles and what text levels make of `###`.
 
 ## 2610.28.22
 

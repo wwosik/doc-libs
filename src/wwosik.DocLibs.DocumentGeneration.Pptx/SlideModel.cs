@@ -62,6 +62,12 @@ internal sealed record TextParagraph(IReadOnlyList<TextRun> Runs, ParagraphKind 
 {
     /// <summary>The build marker of the block the paragraph comes from, if any, with the number of its list item.</summary>
     public BuildMark? Build { get; init; }
+
+    /// <summary>
+    /// Whether it comes from a <c>###</c> (or deeper) heading, set bold by the parser: with a template's text levels it
+    /// goes to the heading level instead, in that level's style.
+    /// </summary>
+    public bool Heading { get; init; }
 }
 
 /// <summary>

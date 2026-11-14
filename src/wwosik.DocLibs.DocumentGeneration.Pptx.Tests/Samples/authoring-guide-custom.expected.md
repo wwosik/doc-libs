@@ -212,6 +212,16 @@ author: Planning team
 | `layouts.titleOnly` | The name of the template's layout for table, image and layout slides. |
 | `layouts.sectionHeader` | The name of the template's layout for section dividers. |
 | `layouts.closing` | The name of the template's layout for the closing slide. |
+| `layouts.twoContent` | The name of the template's layout with two columns. |
+| `layouts.textAndPicture` | The name of the template's layout for text beside a picture. |
+| `layouts.picture` | The name of the template's layout for one picture. |
+| `layouts.agenda` | The name of the template's layout for the agenda. |
+| `layouts.quote` | The name of the template's layout for a quote. |
+| `layouts.statement` | The name of the template's layout for one large statement. |
+| `layouts.contact` | The name of the template's layout for contact people. |
+| `layouts.chart` | The name of the template's layout for one chart. |
+| `layouts.twoCharts` | The name of the template's layout for two charts. |
+| `layouts.dark` | The name of the template's layout for `{.dark}` slides. |
 | `listBullets` | `always` to show bullets on every list level, also where the design's first level has none; `template` (the default) leaves it to the design. |
 | `transition` | How every slide is brought on when presented: `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut`, `morph`. Default `none`. A heading's `transition="…"` wins; see [Presenting](#presenting). |
 | `build` | `lists` builds every top-level list item by item; `none` (the default) only what has a marker. See [Presenting](#presenting). |

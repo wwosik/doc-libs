@@ -36,6 +36,15 @@ public abstract record PptxTemplateOptions
     /// <summary>Whether this is the built-in master, which picks its layouts itself.</summary>
     internal virtual bool IsBuiltIn => false;
 
+    /// <summary>The roles the template declares; <see langword="null"/>: none (the built-in master declares its own).</summary>
+    internal virtual PptxTemplateRoles? TemplateRoles => null;
+
+    /// <summary>The footer pattern for the template's footer placeholder; <see langword="null"/>: <see cref="FooterText"/>.</summary>
+    internal virtual string? FooterPattern => null;
+
+    /// <summary>How error messages name the template.</summary>
+    internal abstract string Description { get; }
+
     /// <summary>Front matter <c>listBullets</c>, which wins over <see cref="PptxOptions.ListBullets"/>.</summary>
     internal ListBullets? ListBulletsOverride { get; init; }
 
@@ -128,6 +137,12 @@ public sealed record BrandTemplateOptions : PptxTemplateOptions
 
     internal override string? FooterText => this.Brand.Pptx is not null && this.ShowFooter ? this.Brand.FooterText : null;
 
+    internal override PptxTemplateRoles? TemplateRoles => this.Brand.Pptx?.Roles;
+
+    internal override string? FooterPattern => this.Brand.Pptx is { } pptx && this.ShowFooter ? pptx.Roles?.FooterPattern : null;
+
+    internal override string Description => $"the template of the brand '{this.Brand.Name}'";
+
     internal override bool IsBuiltIn => this.Brand.Pptx is null;
 
     internal override bool ShowsDate => this.ShowDate && this.Brand.Pptx is null;
@@ -178,9 +193,40 @@ public sealed record CustomTemplateOptions(Stream Template) : PptxTemplateOption
     /// </summary>
     public PptxLayoutNames? Layouts { get; init; }
 
+    /// <summary>
+    /// What the template's further layouts and its placeholders are for, its text levels, footer pattern and content
+    /// grid. Default: none declared. Invalid roles throw <see cref="ArgumentException"/> when the deck is generated.
+    /// </summary>
+    public PptxTemplateRoles Roles { get; init; } = new();
+
     internal override string Name => "custom";
 
-    private static readonly string[] FrontMatterKeys = ["layouts.title", "layouts.content", "layouts.titleOnly", "layouts.sectionHeader", "layouts.closing", ListBulletsKey, TransitionKey, BuildKey];
+    internal override PptxTemplateRoles? TemplateRoles => this.Roles;
+
+    internal override string? FooterPattern => this.Roles?.FooterPattern;
+
+    internal override string Description => "the caller's template";
+
+    // The layout roles front matter can name, by key.
+    private static readonly Dictionary<string, Func<PptxLayoutRoles, string, PptxLayoutRoles>> RoleKeys = new(StringComparer.Ordinal)
+    {
+        ["layouts.twoContent"] = (roles, value) => roles with { TwoContent = value },
+        ["layouts.textAndPicture"] = (roles, value) => roles with { TextAndPicture = value },
+        ["layouts.picture"] = (roles, value) => roles with { Picture = value },
+        ["layouts.agenda"] = (roles, value) => roles with { Agenda = value },
+        ["layouts.quote"] = (roles, value) => roles with { Quote = value },
+        ["layouts.statement"] = (roles, value) => roles with { Statement = value },
+        ["layouts.contact"] = (roles, value) => roles with { Contact = value },
+        ["layouts.chart"] = (roles, value) => roles with { Chart = value },
+        ["layouts.twoCharts"] = (roles, value) => roles with { TwoCharts = value },
+        ["layouts.dark"] = (roles, value) => roles with { Dark = value },
+    };
+
+    private static readonly string[] FrontMatterKeys =
+    [
+        "layouts.title", "layouts.content", "layouts.titleOnly", "layouts.sectionHeader", "layouts.closing",
+        .. RoleKeys.Keys, ListBulletsKey, TransitionKey, BuildKey,
+    ];
 
     internal override IReadOnlyList<string> Keys => FrontMatterKeys;
 
@@ -201,6 +247,12 @@ public sealed record CustomTemplateOptions(Stream Template) : PptxTemplateOption
         if (key == BuildKey)
         {
             return this.WithBuild(source, key, value);
+        }
+
+        if (RoleKeys.TryGetValue(key, out var role))
+        {
+            var roles = this.Roles ?? new PptxTemplateRoles();
+            return this with { Roles = roles with { Layouts = role(roles.Layouts ?? new PptxLayoutRoles(), value) } };
         }
 
         var layouts = this.Layouts ?? new PptxLayoutNames();

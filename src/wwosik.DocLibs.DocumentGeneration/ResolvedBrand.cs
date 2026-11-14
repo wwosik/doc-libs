@@ -171,7 +171,10 @@ internal sealed partial record ResolvedBrand(
             Image(brand, nameof(Brand.CoverArtwork), brand.CoverArtwork),
             Image(brand, nameof(Brand.Tagline), brand.Tagline),
             brand.Fonts is null ? null : ResolveFonts(brand, brand.Fonts),
-            brand.Pptx is { Content.IsEmpty: true } ? throw Invalid(brand, nameof(Brand.Pptx), "is empty") : brand.Pptx,
+            brand.Pptx is { Content.IsEmpty: true } ? throw Invalid(brand, nameof(Brand.Pptx), "is empty")
+                : brand.Pptx is { } pptx && (pptx.Roles ?? throw Invalid(brand, "Pptx.Roles", "is missing")).Problem() is { } problem
+                    ? throw Invalid(brand, "Pptx.Roles." + problem.Property, problem.Reason)
+                    : brand.Pptx,
             resolvedDiagram,
             highlight,
             resolvedLabels,

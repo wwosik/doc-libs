@@ -28,7 +28,10 @@ public static class PptxGenerator
     /// An image is not among the document's resources or not a PNG, JPEG or GIF, the front matter is invalid or names
     /// an unknown brand, a named layout does not exist, the language is not a language tag, or the template is damaged.
     /// </exception>
-    /// <exception cref="ArgumentException">The brand is invalid, or two of <see cref="PptxOptions.Brands"/> share a name.</exception>
+    /// <exception cref="ArgumentException">
+    /// The brand is invalid, two of <see cref="PptxOptions.Brands"/> share a name, or the roles of a
+    /// <see cref="CustomTemplateOptions"/> are invalid.
+    /// </exception>
     public static GenerationResult Generate(MarkdownDocument document, Stream output, PptxOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -38,6 +41,11 @@ public static class PptxGenerator
         var frontMatter = FrontMatter.Read(document.Markdown, Format.Pptx);
         var template = PptxTemplateOptions.Apply(frontMatter, options.Template ?? PptxOptions.Default.Template, options.Brands);
         var labels = frontMatter.Labels();
+        if (template is CustomTemplateOptions custom && CustomRolesProblem(custom.Roles) is { } problem)
+        {
+            throw new ArgumentException($"{nameof(CustomTemplateOptions)}.{problem}.", nameof(options));
+        }
+
         var date = template.ShowsDate
             ? options.TimeProvider.GetLocalNow().ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)
             : null;
@@ -73,6 +81,8 @@ public static class PptxGenerator
             var resolved = brand is null ? null : ResolvedBrand.ForSlides(brand);
             var palette = resolved is null ? SlidePalette.Scheme : dark ? SlidePalette.ForDark(resolved) : SlidePalette.From(resolved);
             var codeFont = options.CodeFont ?? resolved?.CodeFontFamily ?? PptxOptions.DefaultCodeFont;
+            var title = frontMatter.Title ?? Title(document, slides);
+            var author = frontMatter.Author ?? document.Metadata.GetValueOrDefault(MetadataKeys.Author);
             count = new DeckWriter(
                 package,
                 options,
@@ -87,17 +97,18 @@ public static class PptxGenerator
                 (template.ListBulletsOverride ?? options.ListBullets) == ListBullets.Always,
                 notes,
                 language.Tag,
-                language.Texts).Write(slides);
+                language.Texts,
+                template.TemplateRoles,
+                template.FooterPattern,
+                title,
+                author,
+                template.Description).Write(slides);
             if (template.EmbedsFonts && resolved?.Fonts is { } fonts)
             {
                 FontEmbedding.Embed(package.PresentationPart!, fonts, codeFont);
             }
 
-            WriteCoreProperties(
-                package,
-                frontMatter.Title ?? Title(document, slides),
-                frontMatter.Author ?? document.Metadata.GetValueOrDefault(MetadataKeys.Author),
-                language.Tag);
+            WriteCoreProperties(package, title, author, language.Tag);
         }
         catch (Exception ex) when (ex is OpenXmlPackageException or InvalidDataException or XmlException or FormatException)
         {
@@ -131,7 +142,7 @@ public static class PptxGenerator
                 ["diagrams"] = AuthoringGuides.Renderers(options.CodeBlockRenderers),
                 ["frontMatter"] = AuthoringGuides.FrontMatter(registry.Expected, options.Language, [.. template.Keys.Select(k => (k, KeyMeanings[k])), Labels]),
                 ["characters"] = Characters(brand?.Fonts, codeFont),
-                ["templateLayouts"] = TemplateLayouts(brand?.Pptx),
+                ["templateLayouts"] = TemplateLayouts(brand?.Pptx, (template as CustomTemplateOptions)?.Roles),
                 ["icons"] = AuthoringGuides.Icons(
                     options.Icons,
                     "Slides show it only alone after a card's `###` (as its figure) and at the start of every item of a list "
@@ -140,25 +151,79 @@ public static class PptxGenerator
             });
     }
 
-    // A brand's own template: its layouts by name, for `layout="…"`.
-    private static string TemplateLayouts(PptxBrandTemplate? template)
+    // "Roles.<property> <reason>" for invalid roles of a caller's template, else null.
+    private static string? CustomRolesProblem(PptxTemplateRoles? roles) =>
+        roles is null ? "Roles is missing"
+        : roles.Problem() is { } problem ? $"Roles.{problem.Property} {problem.Reason}"
+        : null;
+
+    // A brand's own template: its layouts by name, for `layout="…"`, and the layouts of its roles; a caller's template:
+    // the layouts its roles name. With text levels, what `###` becomes.
+    private static string TemplateLayouts(PptxBrandTemplate? template, PptxTemplateRoles? custom)
     {
-        if (template is null)
+        var parts = new List<string>();
+        var roles = new List<(LayoutRole Role, string Name)>();
+        if (template is not null)
         {
-            return string.Empty;
+            using var package = PresentationDocument.Open(new MemoryStream(template.Content.ToArray()), isEditable: false);
+            var layouts = package.PresentationPart?.SlideMasterParts.SelectMany(m => m.SlideLayoutParts).ToList() ?? [];
+            var names = layouts
+                .Select(l => l.SlideLayout?.CommonSlideData?.Name?.Value)
+                .OfType<string>()
+                .Order(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (names.Count > 0)
+            {
+                parts.Add("**Layouts of this design.** `layout=\"Name\"` after a `#` or `##` heading puts that slide on one of these: "
+                    + string.Join(", ", names.Select(n => $"`{n}`")) + ". Use them where a slide needs it, such as a layout for long titles.");
+            }
+
+            try
+            {
+                var found = TemplateRoles.Resolve(layouts, template.Roles);
+                roles.AddRange(Enum.GetValues<LayoutRole>()
+                    .Select(r => (Role: r, Name: found.Layout(r)?.SlideLayout?.CommonSlideData?.Name?.Value))
+                    .Where(r => r.Name is not null)
+                    .Select(r => (r.Role, r.Name!)));
+            }
+            catch (DocumentConversionException)
+            {
+                // A role naming a layout the template lacks is reported when a deck is generated.
+            }
+        }
+        else if (custom?.Layouts is { } declared)
+        {
+            roles.AddRange(new (LayoutRole, string?)[]
+            {
+                (LayoutRole.TwoContent, declared.TwoContent), (LayoutRole.TextAndPicture, declared.TextAndPicture),
+                (LayoutRole.Picture, declared.Picture), (LayoutRole.Agenda, declared.Agenda), (LayoutRole.Quote, declared.Quote),
+                (LayoutRole.Statement, declared.Statement), (LayoutRole.Contact, declared.Contact), (LayoutRole.Chart, declared.Chart),
+                (LayoutRole.TwoCharts, declared.TwoCharts), (LayoutRole.Dark, declared.Dark),
+            }.Where(r => r.Item2 is not null).Select(r => (r.Item1, r.Item2!)));
         }
 
-        using var package = PresentationDocument.Open(new MemoryStream(template.Content.ToArray()), isEditable: false);
-        var names = package.PresentationPart?.SlideMasterParts
-            .SelectMany(m => m.SlideLayoutParts)
-            .Select(l => l.SlideLayout?.CommonSlideData?.Name?.Value)
-            .OfType<string>()
-            .Order(StringComparer.OrdinalIgnoreCase)
-            .ToList() ?? [];
-        return names.Count == 0 ? string.Empty
-            : "**Layouts of this design.** `layout=\"Name\"` after a `#` or `##` heading puts that slide on one of these: "
-                + string.Join(", ", names.Select(n => $"`{n}`")) + ". Use them where a slide needs it, such as a layout for long titles.";
+        if (roles.Count > 0)
+        {
+            parts.Add("**Layouts for kinds of slide**, for `layout=\"Name\"`: "
+                + string.Join(", ", roles.Select(r => $"{RoleText(r.Role)} `{r.Name}`")) + ".");
+        }
+
+        if ((template?.Roles ?? custom)?.TextLevels is not null)
+        {
+            parts.Add("On text slides a `###` heading is a sub-headline in the design's own style, not a bold line.");
+        }
+
+        return string.Join("\n\n", parts);
     }
+
+    private static string RoleText(LayoutRole role) => role switch
+    {
+        LayoutRole.TwoContent => "two columns",
+        LayoutRole.TextAndPicture => "text and picture",
+        LayoutRole.TwoCharts => "two charts",
+        LayoutRole.Dark => "dark slides",
+        _ => role.ToString().ToLowerInvariant(),
+    };
 
     private static readonly Dictionary<string, string> KeyMeanings = new(StringComparer.Ordinal)
     {
@@ -170,6 +235,16 @@ public static class PptxGenerator
         ["layouts.titleOnly"] = "The name of the template's layout for table, image and layout slides.",
         ["layouts.sectionHeader"] = "The name of the template's layout for section dividers.",
         ["layouts.closing"] = "The name of the template's layout for the closing slide.",
+        ["layouts.twoContent"] = "The name of the template's layout with two columns.",
+        ["layouts.textAndPicture"] = "The name of the template's layout for text beside a picture.",
+        ["layouts.picture"] = "The name of the template's layout for one picture.",
+        ["layouts.agenda"] = "The name of the template's layout for the agenda.",
+        ["layouts.quote"] = "The name of the template's layout for a quote.",
+        ["layouts.statement"] = "The name of the template's layout for one large statement.",
+        ["layouts.contact"] = "The name of the template's layout for contact people.",
+        ["layouts.chart"] = "The name of the template's layout for one chart.",
+        ["layouts.twoCharts"] = "The name of the template's layout for two charts.",
+        ["layouts.dark"] = "The name of the template's layout for `{.dark}` slides.",
         ["showFooter"] = "`true` or `false`: the design's footer text on every slide but the cover. Default `true`.",
         ["listBullets"] = "`always` to show bullets on every list level, also where the design's first level has none; `template` (the default) leaves it to the design.",
         ["transition"] = "How every slide is brought on when presented: " + string.Join(", ", LayoutSyntax.Transitions.Select(t => $"`{t}`")) + ". Default `none`. A heading's `transition=\"…\"` wins; see [Presenting](#presenting).",

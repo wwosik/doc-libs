@@ -51,7 +51,7 @@ the same content, and a note.
 - **Palette.** `SlidePalette` gives `Surface`, `Primary`, `Accent`, `Highlight` and their dark
   variants (E01-S04). Everything drawn must stay readable on dark templates.
 - **What this story builds on.**
-  - [E01-S06](E01-S06-template-roles-for-decks.md) gives the layout roles (agenda,
+  - [E01-S06](../../60-verify/E01-S06-template-roles-for-decks.md) gives the layout roles (agenda,
     quote, statement, contact, chart, two charts, two content) and the placeholder roles (body
     order, subtitle, byline, picture, chart title, unit and source). It also gives text levels
     and the built-in master's layouts for each role.

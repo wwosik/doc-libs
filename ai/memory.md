@@ -245,6 +245,19 @@ same change that made it untrue — a stale fact here is worse than a missing on
   `Q`). PDF `.grey` converts pixels in `GreyImages` (SkiaSharp, cached per resource in the parser,
   so the grey copy is one `ImageItem.Key`). Third-party licences of the PDF package are in its
   packed `THIRD-PARTY-NOTICES.txt`; a story that adds a dependency adds its entry there.
+- **Template roles (E01-S06):** `PptxTemplateRoles` (shared package, validated by `Problem()` in
+  `ResolvedBrand.Resolve` and in `PptxGenerator.Generate` for caller templates) is resolved once per
+  deck by `TemplateRoles.Resolve` in the `DeckWriter` constructor: `Layout(LayoutRole)` and
+  `Placeholders(layout)` (`LayoutPlaceholders`: bodies in order, subtitle, byline, chapter number,
+  pictures, charts, chart texts, `Excluded`). The built-in master declares its roles in
+  `TemplateBuilder.Roles`. The old lookups (content, title-only, section, cover) keep their code and
+  only skip `Excluded` placeholders (`DeckWriter.Bodies`), so templates without declarations are
+  untouched. E01-S07 and E02-S05 fill the role placeholders from there. Text levels act only in the
+  content slide's body placeholder (`Paragraph(…, levels:)`, `LevelParagraph`, `MappedLevel`); `###`
+  paragraphs carry `TextParagraph.Heading`, and the writer drops the parser's bold under text levels.
+  Master guides (`p15:guide/@pos`) are in eighths of a point (1587.5 EMU), a guide without `orient`
+  is horizontal, and each guide needs a `p15:clr` child to validate — unit to be confirmed in
+  PowerPoint.
 - **Chart source (E04-S05):** `ChartSpec.Source`; the word before it is `GeneratedTexts.Source`,
   reaching renderers as `CodeBlockRequest.Texts` (set by both parsers) and `DeckWriter` as a
   constructor argument. A chart with a source is 18 px taller in PDFs; in decks the frame gives up
@@ -287,9 +300,14 @@ same change that made it untrue — a stale fact here is worse than a missing on
 ## Traps
 
 - **The built-in master's relationship ids are fixed:** layouts 1–4 are `rId1`–`rId4`, the theme
-  `rId5`, the master logo `rId6`; layout 5 (*Title Only Dark*) is `rId7`
-  (`TemplateBuilder.LayoutRelationship`). It shares the section layout's `LogoOnDark` image part,
-  so the media count and image numbering of existing decks did not change.
+  `rId5`, the master logo `rId6`; layout 5 (*Title Only Dark*) is `rId7`, the role layouts 6–13
+  (E01-S06) `rId8`–`rId15` (`TemplateBuilder.LayoutRelationship`). *Title Only Dark* and
+  *Statement* share the section layout's `LogoOnDark` image part, so the media count and image
+  numbering of existing decks did not change. New layouts go at the end; the section layout's
+  chapter-number placeholder is last in its tree, so "the first body in tree order" stays the same.
+- **`brand-roles` is built at test time** too (`RolesTemplate`): the built-in master with renamed,
+  untyped role layouts, a decorative body first on the content layout, footer placeholders and
+  master guides.
 - **`brand-dark` is built at test time** (`DarkTemplate` in the PPTX tests) from the built-in master:
   gradient background, white text styles, a footer placeholder and two copied layouts. There is no
   binary sample for it.
