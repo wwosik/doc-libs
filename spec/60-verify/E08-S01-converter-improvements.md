@@ -1,7 +1,7 @@
 # E08-S01 Converter improvements
 
-> Status: in progress (doc-3)
-> Epic: [E08 Document converters](../../50-todo/E08-document-converters.md)
+> Status: in verification
+> Epic: [E08 Document converters](../50-todo/E08-document-converters.md)
 
 ## Summary
 
@@ -240,3 +240,97 @@ already done so (question 1).
 ## Notes
 
 <!-- Free space for remarks that are not answers to the questions above. -->
+
+## Implementation notes
+
+### Breaking changes
+
+- **The Markdown from PDFs changes shape.** Ruled tables come out as pipe tables, bullets, task boxes
+  and numbered lines with a hanging indent as nested lists, monospace lines as fenced code, footnotes
+  at the foot of a page as `[^n]` plus `[^n]: …` at the end of the page's section, and images between
+  the paragraphs they stand between (they used to follow the page's text). Raised words stay on their
+  line; rotated text is left out. In `CHANGELOG.md` under *Unreleased*, with the new behaviour under
+  *New*. No public API changed; the PPTX output is untouched (notes are E07-S01's, question 1).
+
+### Decisions
+
+- **Code layout.** `PdfConverter` is split into partial files: `PdfConverter.cs` (convert, render,
+  images, fallback), `.Lines.cs` (tokens, lines, superscripts), `.Tables.cs`, `.Flow.cs` (paragraphs,
+  lists, code, footnotes), and the internal `PageGraphics` (paths → rules, boxes with their ticks,
+  dots, fills). PdfPig only; `GeneratedRegex` only, so the package stays AOT-compatible.
+- **Passes.** Each page runs a structured pass; on any exception the plain pass (the converter's old
+  behaviour: paragraphs, glyph bullets, headings, flat lists) runs, and on another the content-order
+  text, now without rotated letters when there are any. `PdfConverter.AnalysisStarting` (internal,
+  `InternalsVisibleTo` the tests) lets tests break a pass.
+- **Placement.** Every block has its top y. Tables and images are merged into the flow by it, and a
+  paragraph never runs across a table's or image's top (two paragraphs either side of one used to join).
+- **Rules.** Stroked lines and filled rectangles thinner than 1.5 pt; also the four edges of a
+  stroke-only rectangle (cell borders drawn as rectangles). Filled-and-stroked rectangles (what PdfPig's
+  `DrawRectangle(fill: true)` and the PDF generator's backgrounds are) count as fills only, so code and
+  band backgrounds never become rules. Pieces on one line that touch are merged.
+- **Grids** need the outer frame around every row, and horizontal lines that span the whole grid (a
+  partial horizontal line is ignored, so row spans are not detected). A vertical line missing in a row
+  merges cells; the text goes to the first one.
+- **Horizontally ruled tables.** "Each line between two rules is one row" was read as: with three
+  rules (header band plus one body band, booktabs style) each body line is a row; with more rules each
+  band is a row, its lines joined. Columns are word spans separated by gutters of at least 0.8 × the
+  body size. At least two columns, at least two body rows, and at least half of the body rows with two
+  filled cells — that keeps rules around prose from becoming tables.
+- **Nesting** uses where an item's *text* starts rather than the marker's x: the PDF generator
+  right-aligns its markers, so `9.` and `10.`, or `•` and `–`, start at different x on one level.
+  Nested items are indented by the parent's content width (2 for `- `, 3 for `1. `, 4 for `10. `), not
+  always two spaces: CommonMark needs that under ordered items. An item of a different family at the
+  same level (bullet after numbered) is separated by a blank line, as a new list.
+- **Ordered lists.** A line whose first word is `n.` or `n)` (not large, not bold) is an item when a
+  later line at the same text x continues the numbering with nothing outdented in between, or when it
+  sits deeper inside a list (the PDF generator's nested `1.`).
+- **Hard breaks.** A line right below a list item, starting at the item's text and not part of its
+  paragraph (the previous line ended early), joins the item as `\` + newline. The generator's
+  `- Second bullet\` + `with a hard break` now round-trips.
+- **Code.** Lines continue a block when their baselines are at most 2.6 × the size apart (one blank
+  line) or they lie on the same fill. Blank lines come from the baseline steps; Markdown normalising
+  still collapses runs of blank lines into one.
+- **Superscripts.** Besides the plan's row merge, a raised smaller word already grouped into its line's
+  row (close baselines) and a raised tail glued onto a word by the word extractor are marked too. The
+  foot of the page is: below the last body-size line, above the bottom 8 % margin, in a smaller size,
+  starting with the number. Only notes something refers to are moved; others stay text.
+- **Item text** is also guarded with `EscapeLineStart`, so an item starting with `1.` stays one item.
+- **`Classification` text boxes** (step 8, E03-S04) are not done: speaker notes and the PPTX converter
+  belong to E07-S01 (question 1), and E03-S04 is not implemented.
+
+### Deviations
+
+- **Round trip and footnotes.** The PDF generator lists footnotes at the end of the document in the
+  body size, not at the foot of the page, so its references come back as raised numbers on their line
+  (`reference1`), not as `[^n]`. The round-trip test checks that; `structure.pdf` covers the pairing.
+- **Sample PPTX unchanged:** `sample.pptx` gets no notes here (E07-S01).
+
+### Verification
+
+- **Tests.** New `PdfStructureTests` (grids drawn per cell, merged cell with a multi-line cell, ruled
+  table gutters, rules around prose, drawn dots nested on three levels, box/tick/filled/dot, ordered
+  vs single numbered line, monospace by name and by advance, code indentation and blank line, fence
+  length, image in place, superscript and footnote pairing, unreferenced note, rotated text and body
+  size, rotated text in the fallback, structured-pass failure), `structure.pdf` in the sample tests,
+  and `Structure_RoundTripsThroughThePdfConverter` in the PDF generator tests. All pass after rebasing onto E07-S01 and E04-S05: 123, 109,
+  78, 235, 22, 71, 154 and 1, with 6 Windows-only tests skipped. No new build warnings (the five in
+  `ImageAttributeTests` come from E04-S05).
+- **Expected files.** `structure.pdf.expected.md` is new. `sample.pdf.expected.md` did not change.
+  The PDF generator's `*.roundtrip.expected.md` were regenerated; please review the diff: report
+  (nested lists, hard break, ordered list, code fence, table, chart image now above its headings),
+  long (ordered list of 60 items, the long tables as pipe tables per page with their header), layouts
+  (three tables, the tag row `Bookings Schedules …`).
+- **For the human to look at:**
+  - The layouts sample's line of inline code spans (`` `Bookings` `Schedules` … ``) comes out as a
+    one-line code block: a line made only of monospace text is code (question 7 kept inline code in
+    proportional lines plain).
+  - In `structure.pdf` the task boxes follow the bullets as the same list (same `-` family at the same
+    level), although a gap separates them on the page.
+  - Footnote labels are the numbers on the page; two pages with different notes numbered `1` give
+    duplicate labels in one Markdown document.
+
+### Loose ends
+
+- Borderless tables, multi-column pages, horizontal watermarks and inline code or emphasis are not
+  detected (documented as limits).
+- Row spans (a horizontal line missing inside a grid) are not detected.

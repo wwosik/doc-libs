@@ -7,6 +7,7 @@ public class SampleConversionTests
 {
     [Theory]
     [InlineData("sample.pdf")]
+    [InlineData("structure.pdf")]
     [InlineData("sample.docx")]
     [InlineData("sample.pptx")]
     public void Samples_ConvertToTheirExpectedMarkdown(string sample)
@@ -68,6 +69,7 @@ public class SampleConversionTests
 
     [Theory]
     [InlineData("sample.pdf")]
+    [InlineData("structure.pdf")]
     [InlineData("sample.docx")]
     [InlineData("sample.pptx")]
     public void WithoutImages_NothingIsExtractedOrReferenced(string sample)

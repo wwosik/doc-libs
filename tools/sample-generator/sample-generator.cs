@@ -10,11 +10,12 @@ using System.Text;
 using UglyToad.PdfPig.Content;
 using UglyToad.PdfPig.Core;
 using UglyToad.PdfPig.Fonts.Standard14Fonts;
+using UglyToad.PdfPig.Graphics.Operations.TextPositioning;
 using UglyToad.PdfPig.Writer;
 
 // sample-generator: writes the self-made sample documents the test projects compare against.
 //
-//   ./run.sh sample-generator              .pdf, .docx, .pptx, .xlsx, .rtf, .txt, .zip, the images of the sample brand
+//   ./run.sh sample-generator              .pdf (two), .docx, .pptx, .xlsx, .rtf, .txt, .zip, the images of the sample brand
 //   run.ps1 sample-generator --office      additionally .doc and .xls, saved by Word and Excel (Windows only)
 //
 // Everything is built in code, so the samples contain nothing but the text below. After
@@ -34,6 +35,7 @@ Directory.CreateDirectory(main);
 Directory.CreateDirectory(windows);
 
 Write(Path.Combine(main, "sample.pdf"), Samples.Pdf());
+Write(Path.Combine(main, "structure.pdf"), Samples.StructurePdf());
 Write(Path.Combine(main, "sample.docx"), Samples.Docx());
 Write(Path.Combine(main, "sample.pptx"), Samples.Pptx());
 Write(Path.Combine(main, "sample.txt"), Encoding.UTF8.GetBytes("Plain text sample.\nSecond line.\n"));
@@ -171,6 +173,158 @@ internal static class Samples
 
         return builder.Build();
     }
+
+    // Structure drawn the way PDF writers draw it: ruled tables, drawn bullets and boxes, a numbered list, code in
+    // Courier on a grey fill, an image between paragraphs, a footnote at the foot, and a rotated watermark.
+    public static byte[] StructurePdf()
+    {
+        var builder = new PdfDocumentBuilder();
+        builder.DocumentInformation.Title = "Structure sample";
+        builder.DocumentInformation.Author = "DocLibs";
+        builder.DocumentInformation.Producer = "sample-generator";
+        var regular = builder.AddStandard14Font(Standard14Font.Helvetica);
+        var bold = builder.AddStandard14Font(Standard14Font.HelveticaBold);
+        var mono = builder.AddStandard14Font(Standard14Font.Courier);
+
+        // Page 1: tables and a footnote, under a watermark turned by 45 degrees.
+        var page = builder.AddPage(PageSize.A4);
+        page.SetTextAndFillColor(220, 220, 220);
+        var start = page.CurrentStream.Operations.Count;
+        page.AddText("DRAFT", 72, new PdfPoint(170, 330), bold);
+        var operations = page.CurrentStream.Operations;
+        for (var i = start; i < operations.Count; i++)
+        {
+            if (operations[i] is MoveToNextLineWithOffset)
+            {
+                operations[i] = new SetTextMatrix([0.7071, 0.7071, -0.7071, 0.7071, 170, 330]);
+            }
+        }
+
+        page.SetTextAndFillColor(0, 0, 0);
+        page.AddText("Tables and notes", 16, new PdfPoint(72, 760), bold);
+        page.AddText("The converters read the tables below from their rules, and the note at the foot of the page", 11, new PdfPoint(72, 730), regular);
+        var last = "from the raised number that refers to it.";
+        page.AddText(last, 11, new PdfPoint(72, 716), regular);
+        var end = page.MeasureText(last, 11, new PdfPoint(72, 716), regular)[^1].BoundingBox.Right;
+        page.AddText("1", 7, new PdfPoint(end + 0.5, 720), regular);
+
+        // A full grid, drawn cell by cell; the last row's second cell spans two columns.
+        double[] columns = [72, 200, 330, 470];
+        string[][] cells = [["Item", "Count", "Note"], ["Apples", "12", "Fresh"], ["Pears", "7", "Ripe"], ["Plums", "Out of stock", ""]];
+        var top = 690.0;
+        for (var r = 0; r < cells.Length; r++)
+        {
+            var bottom = top - 20;
+            for (var c = 0; c < 3; c++)
+            {
+                page.DrawLine(new PdfPoint(columns[c], top), new PdfPoint(columns[c + 1], top), 0.5);
+                page.DrawLine(new PdfPoint(columns[c], bottom), new PdfPoint(columns[c + 1], bottom), 0.5);
+                if (cells[r][c].Length > 0)
+                {
+                    page.AddText(cells[r][c], 10, new PdfPoint(columns[c] + 4, top - 14), r == 0 ? bold : regular);
+                }
+            }
+
+            foreach (var x in columns.Where(x => r < 3 || x != 330))
+            {
+                page.DrawLine(new PdfPoint(x, top), new PdfPoint(x, bottom), 0.5);
+            }
+
+            top = bottom;
+        }
+
+        page.AddText("Below, a table ruled only above and below its header and at its end.", 11, new PdfPoint(72, 590), regular);
+
+        // Ruled only horizontally: a rule above and below the header, one at the end; one row per line.
+        string[][] months = [["Month", "Visitors", "Change"], ["January", "1,200", "+4 %"], ["February", "1,150", "-4 %"], ["March", "1,380", "+20 %"]];
+        page.DrawLine(new PdfPoint(72, 570), new PdfPoint(523, 570), 1);
+        page.DrawLine(new PdfPoint(72, 550), new PdfPoint(523, 550), 0.5);
+        var y = 556.0;
+        for (var r = 0; r < months.Length; r++)
+        {
+            y = r == 0 ? 556 : y - (r == 1 ? 20 : 16);
+            for (var c = 0; c < 3; c++)
+            {
+                page.AddText(months[r][c], 10, new PdfPoint(72 + (c * 160), y), r == 0 ? bold : regular);
+            }
+        }
+
+        page.DrawLine(new PdfPoint(72, y - 8), new PdfPoint(523, y - 8), 1);
+        page.AddText("Text after the tables ends the body of the page.", 11, new PdfPoint(72, y - 36), regular);
+        page.AddText("1", 9, new PdfPoint(72, 100), regular);
+        page.AddText("The figures are made up for this sample.", 9, new PdfPoint(80, 100), regular);
+
+        // Page 2: lists, code and an image.
+        page = builder.AddPage(PageSize.A4);
+        page.AddText("Lists and code", 16, new PdfPoint(72, 760), bold);
+        y = 730;
+        foreach (var (level, text) in new[] { (0, "Fruit"), (1, "Apples"), (1, "Pears"), (0, "Vegetables") })
+        {
+            var x = 90 + (level * 18);
+            if (level == 0)
+            {
+                page.DrawCircle(new PdfPoint(x - 8, y + 3.5), 4, 0.5, true);
+            }
+            else
+            {
+                page.DrawRectangle(new PdfPoint(x - 10, y + 2), 3.5, 3.5, 0.5, true);
+            }
+
+            page.AddText(text, 11, new PdfPoint(x, y), regular);
+            y -= 16;
+        }
+
+        y -= 10;
+        foreach (var (ticked, text) in new[] { (false, "Buy bread"), (true, "Water the plants") })
+        {
+            page.DrawRectangle(new PdfPoint(78, y), 8, 8, 0.75, false);
+            if (ticked)
+            {
+                page.DrawLine(new PdfPoint(79.5, y + 4), new PdfPoint(81.5, y + 1.5), 1);
+                page.DrawLine(new PdfPoint(81.5, y + 1.5), new PdfPoint(85, y + 7), 1);
+            }
+
+            page.AddText(text, 11, new PdfPoint(90, y), regular);
+            y -= 16;
+        }
+
+        y -= 10;
+        string[][] steps = [["First step."], ["Second step, long enough to wrap: its second line starts under the", "text of the first, not under the number."], ["Third step."]];
+        for (var s = 0; s < steps.Length; s++)
+        {
+            page.AddText($"{s + 1}.", 11, new PdfPoint(76, y), regular);
+            foreach (var line in steps[s])
+            {
+                page.AddText(line, 11, new PdfPoint(90, y), regular);
+                y -= 14;
+            }
+
+            y -= 2;
+        }
+
+        y -= 12;
+        page.AddText("The code below keeps its indentation and its blank line:", 11, new PdfPoint(72, y), regular);
+        y -= 12;
+        string[] code = ["if (ready)", "{", "    Start();", "", "}"];
+        page.SetTextAndFillColor(240, 240, 240);
+        page.DrawRectangle(new PdfPoint(72, y - (code.Length * 12) - 6), 451, (code.Length * 12) + 6, 0.1, true);
+        page.SetTextAndFillColor(0, 0, 0);
+        foreach (var line in code)
+        {
+            y -= 12;
+            if (line.Length > 0)
+            {
+                page.AddText(line, 10, new PdfPoint(78, y), mono);
+            }
+        }
+
+        y -= 30;
+        page.AddText("Before the image.", 11, new PdfPoint(72, y), regular);
+        page.AddPng(Chart, new PdfRectangle(72, y - 130, 282, y - 10));
+        page.AddText("After the image.", 11, new PdfPoint(72, y - 150), regular);
+        return builder.Build();
+    }
+
 
     private static List<string> Wrap(PdfPageBuilder page, string text, double size, PdfDocumentBuilder.AddedFont font, double width)
     {

@@ -242,6 +242,15 @@ same change that made it untrue — a stale fact here is worse than a missing on
   one line for a text box under it. A layout's chart-source placeholder (E01-S06) would go in
   `DeckWriter.Chart`.
 
+- **PDF structure (E08-S01):** `PdfConverter` runs a structured pass per page (`PageGraphics.Read` sorts
+  `page.Paths` into rules, boxes, dots, fills; tables first, their words leave the flow; then lines with
+  superscripts, footnotes, markers, code) and falls back to a plain pass (the converter before E08-S01:
+  paragraphs, glyph bullets, headings), then to the content-order text. `PdfConverter.AnalysisStarting`
+  (internal) lets tests break a pass. Every block carries its top y; tables and images are merged into
+  the flow by it. A footnote reference is a private-use placeholder (`\uE000n\uE001`) in the line text until
+  the Markdown is escaped. PdfPig's `DrawRectangle(fill: true)` also strokes: filled-and-stroked
+  rectangles are fills, only stroke-only rectangles give rules.
+
 ## Traps
 
 - **The built-in master's relationship ids are fixed:** layouts 1–4 are `rId1`–`rId4`, the theme

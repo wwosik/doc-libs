@@ -146,6 +146,52 @@ public partial class MarkdownFoundationTests
     }
 
     [Fact]
+    public void Structure_RoundTripsThroughThePdfConverter()
+    {
+        const string markdown = """
+            # Report
+
+            Intro with a reference[^a] in it.
+
+            | Name | Size |
+            | ---- | ---: |
+            | Alpha | 12 |
+            | Beta | 7 |
+
+            - Fruit
+              - Apples
+            - Vegetables
+
+            Tasks:
+
+            - [ ] open item
+            - [x] done item
+
+            1. First step
+            2. Second step
+
+            ```
+            if (ready)
+                Start();
+            ```
+
+            [^a]: The note.
+            """;
+        var (_, pdf) = Generate(markdown);
+
+        var back = new wwosik.DocLibs.DocumentConversions.Pdf.PdfConverter().Convert(new MemoryStream(pdf), ConversionOptions.Default).Markdown;
+
+        Assert.Contains("| Name | Size |\n| --- | --- |\n| Alpha | 12 |\n| Beta | 7 |", back, StringComparison.Ordinal);
+        Assert.Contains("- Fruit\n  - Apples\n- Vegetables", back, StringComparison.Ordinal);
+        Assert.Contains("- [ ] open item\n- [x] done item", back, StringComparison.Ordinal);
+        Assert.Contains("1. First step\n2. Second step", back, StringComparison.Ordinal);
+        Assert.Contains("```\nif (ready)\n    Start();\n```", back, StringComparison.Ordinal);
+
+        // The generator lists notes at the end in the body size, so the reference stays a raised number on its line.
+        Assert.Contains("Intro with a reference1 in it.", back, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void EvenOdd_FillsWithTheEvenOddOperator_AndAnInvalidDrawingThrows()
     {
         Drawing Ring(DrawingFillRule rule, string fill) => new(20, 20, [new DrawingShape(

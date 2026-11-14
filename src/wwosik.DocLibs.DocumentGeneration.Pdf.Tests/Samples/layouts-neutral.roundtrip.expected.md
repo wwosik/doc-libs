@@ -26,9 +26,15 @@ Fixed along the way
 
 ### Our data are documents
 
-Once created, the data hardly change: they are read, extended and recalculated. What Today Harbour
+Once created, the data hardly change: they are read, extended and recalculated.
 
-Booking Booking tables, row by row One document per revision Calculation Result tables One document per version, write-once Rules 26 tables One document with formulas Note
+| What | Today | Harbour |
+| --- | --- | --- |
+| Booking | Booking tables, row by row | One document per revision |
+| Calculation | Result tables | One document per version, write-once |
+| Rules | 26 tables | One document with formulas |
+
+Note
 
 To be fair: bookings are still edited after intake – hence revisions rather than strict immutability.
 
@@ -55,7 +61,9 @@ Blob storage is the only external dependency.
 
 ### Tables for status and lists
 
+```
 Bookings Schedules WorkQueue RuleVersions Hosts Audit
+```
 
 ### Every result has a manifest
 
@@ -63,15 +71,12 @@ Booking revision, rule version, parameter revision, and a revision per reference
 
 ### Status model
 
-Status Moved on by
-
-Created System
-
-WaitingForApproval Human
-
-Calculated System
-
-Failed Human
+| Status | Moved on by |
+| --- | --- |
+| Created | System |
+| WaitingForApproval | Human |
+| Calculated | System |
+| Failed | Human |
 
 Rows in the highlight colour need a human.
 
@@ -86,11 +91,12 @@ The race in the old system happened with a broker.
 
 ### Status and next steps
 
-Part Status Host, storage, identifiers Done
-
-Intake and validation Done
-
-Work queue and detail pages In review Engine and results Next
+| Part | Status |
+| --- | --- |
+| Host, storage, identifiers | Done |
+| Intake and validation | Done |
+| Work queue and detail pages | In review |
+| Engine and results | Next |
 
 Important
 

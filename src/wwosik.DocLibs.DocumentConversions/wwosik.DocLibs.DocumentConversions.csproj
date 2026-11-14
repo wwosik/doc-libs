@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <PackageReference Include="PdfPig" />
+    <InternalsVisibleTo Include="wwosik.DocLibs.DocumentConversions.Tests" />
   </ItemGroup>
 
 </Project>

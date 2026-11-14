@@ -11,6 +11,12 @@ updating, breaking changes first.
 
 ### Breaking changes
 
+- **The Markdown from PDFs changes shape** (`PdfConverter`). Ruled tables come out as pipe tables,
+  drawn and glyph bullets, task boxes and numbered lines with a hanging indent as (nested) lists,
+  monospace lines as fenced code blocks, footnotes at the foot of a page as `[^n]` with their
+  definitions at the end of the page's section, and images between the paragraphs they stand
+  between instead of after the page's text. Raised numbers stay on their line, and rotated text
+  (watermarks) is left out. A consumer that parses the output should check it against the new shapes.
 - **`PptxGenerator.Generate` and `PdfGenerator.Generate` return a `GenerationResult`** instead of
   `void`. Source that calls them as a statement compiles unchanged, but the change is
   binary-breaking: rebuild everything compiled against an earlier version, and a method group
@@ -45,6 +51,10 @@ updating, breaking changes first.
   their document language are no longer equal.
 
 ### New
+
+- **The PDF converter reads a page's drawn shapes** with PdfPig: table rules (full grids, merged
+  cells, tables ruled only horizontally), drawn bullets and task boxes, code backgrounds. A page whose
+  analysis fails falls back to plain paragraphs. The documentation lists what it reads and its limits.
 
 - **Generation notes:** `GenerationResult` has the number of slides or pages written and
   `Notes`: `GenerationNote(Code, Line, Message)` for what the generator did to the Markdown that its
