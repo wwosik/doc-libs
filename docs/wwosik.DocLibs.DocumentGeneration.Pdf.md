@@ -2,7 +2,9 @@
 
 Generates PDF/A-2b documents from Markdown, in the built-in design in a brand's colours, fonts and
 images, with embedded fonts (Liberation by default). Cross-platform, AOT-compatible, no Office or browser needed. Depends on Markdig,
-PdfPig and [wwosik.DocLibs.DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md).
+PdfPig, SkiaSharp (only loaded for `.grey` images, see [Image attributes](#image-attributes)) and
+[wwosik.DocLibs.DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md). Third-party licences are
+in `THIRD-PARTY-NOTICES.txt` in the package.
 
 ```csharp
 using wwosik.DocLibs.DocumentConversions;
@@ -130,6 +132,27 @@ The shared syntax and rules are in
 | `**bold**`, `*italic*`, `~~strike~~`, `` `code` `` | Font face; strike as a line through. |
 | Links | Brand link colour, underlined, with a link annotation. Absolute URLs open; `#id` jumps to the heading; anything else stays text. |
 | Raw HTML | Written out as text. HTML comments are dropped. |
+
+## Image attributes
+
+`![Team](team.jpg){.round .grey}` (the syntax is in
+[DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md#slide-layouts-in-markdown)):
+
+| Attribute | In PDFs |
+| --------- | ------- |
+| `fit=cover` | Only in a row of images: the image fills its cell at the row's height — that of its tallest other image, or 3/4 of the cell's width when every image in the row covers — and is cropped by a clipping path. An image of its own has no box to fill: it is placed as before and the note `attribute-ignored` says so. `scale` has no effect with it. |
+| `focus=top`, `bottom`, `left`, `right`, `center` | Which part stays when the image is cropped (default `center`); without `fit=cover` or `.round` it has no effect. |
+| `.round` | Cropped to a square by `focus`, at the size of its shorter side, then to a circle: a clipping path of four Bézier curves around the whole image, inside `q … Q`. The pixels are not touched. |
+| `.grey` | The pixels are made grey: SkiaSharp decodes the PNG or JPEG, turns each pixel into its luminance (Rec. 709) keeping its alpha, and encodes a PNG again as PNG, a JPEG as JPEG at quality 90. An image used several times in grey is converted and embedded once. |
+| `.caption` | No effect (PDFs show no captions); the note `attribute-ignored`. |
+| `scale=N.N` | The same as `"scale=N.N"` in the title: a factor on the natural size. |
+
+**SkiaSharp's native library.** `.grey` needs it; documents without `.grey` never load it. On
+Windows and macOS it comes with SkiaSharp. On Linux the application adds
+`SkiaSharp.NativeAssets.Linux` (with fontconfig, most distributions) or
+`SkiaSharp.NativeAssets.Linux.NoDependencies` (minimal containers), at the version of SkiaSharp this
+package references. Without it, a `.grey` image fails the generation with a
+`DocumentConversionException` that names the package.
 
 ## Page breaks
 

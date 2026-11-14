@@ -31,6 +31,12 @@ a title that states the point, then a few short lines.
   **Several images in one paragraph** (`![Orders](orders.png) ![Sales](sales.png)`) stand side by
   side on one slide, equally wide: the way to show two charts together. `"caption"` in an image's
   title (`![Orders by month](orders.png "caption")`) puts its alt text under it.
+- **Image attributes** in braces right after an image, without a space:
+  `![Team](team.jpg){fit=cover focus=top .round .grey}`. `fit=cover` fills the image's box (the
+  slide's room, or its cell in a row) and crops what sticks out; `focus=top`, `bottom`, `left`,
+  `right` or `center` (the default) says which part stays. `.round` crops it to a circle, `.grey`
+  shows it in grey, `.caption` is the same as `"caption"`, and `scale=1` as `"scale=1"`. An unknown
+  attribute is an error.
 - `==text==` marks text like a highlighter pen.
 - `[words]{.success}` sets a few words bold in a status colour: `.success`, `.info`, `.warning`,
   `.danger` or `.neutral` — for a verdict inside a sentence, such as `[on schedule]{.success}`.

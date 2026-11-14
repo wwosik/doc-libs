@@ -514,7 +514,7 @@ internal sealed class LayoutEngine
         }
 
         this.Ensure(height);
-        this.page.Items.Add(new ImageItem(image.Resource, image.Resource.Content, image.Info.Format, frame.Left + ((frame.Width - width) / 2), this.y, width, height));
+        this.page.Items.Add(Placed(image, frame.Left + ((frame.Width - width) / 2), this.y, width, height));
         this.Advance(height, frame);
         this.Gap(ParagraphGap, frame);
     }
@@ -532,24 +532,63 @@ internal sealed class LayoutEngine
         {
             var (width, imageHeight) = (sizes[i].Width * shrink, sizes[i].Height * shrink);
             var image = row.Images[i];
-            this.page.Items.Add(new ImageItem(image.Resource, image.Resource.Content, image.Info.Format, frame.Left + (i * (cell + RowGap)) + ((cell - width) / 2), this.y, width, imageHeight));
+            this.page.Items.Add(Placed(image, frame.Left + (i * (cell + RowGap)) + ((cell - width) / 2), this.y, width, imageHeight));
         }
 
         this.Advance(height, frame);
         this.Gap(ParagraphGap, frame);
     }
 
+    // Images with `fit=cover` fill their cell at the row's height: that of its tallest other image, or 3/4 of the cell's
+    // width when all of them cover; round ones are the largest circle in that box.
     private List<(double Width, double Height)> RowSizes(ImageRowBlock row, Frame frame)
     {
         var cell = frame with { Width = (frame.Width - ((row.Images.Count - 1) * RowGap)) / row.Images.Count };
-        return row.Images.Select(image => this.ImageSize(image, cell)).ToList();
+        var sizes = row.Images.Select(image => this.ImageSize(image, cell)).ToList();
+        bool Covers(int i) => row.Images[i].Attributes.Fit == ImageFit.Cover;
+        if (!Enumerable.Range(0, sizes.Count).Any(Covers))
+        {
+            return sizes;
+        }
+
+        var others = Enumerable.Range(0, sizes.Count).Where(i => !Covers(i)).Select(i => sizes[i].Height).ToList();
+        var height = Math.Min(others.Count > 0 ? others.Max() : cell.Width * 0.75, this.geometry.Bottom - this.geometry.Top);
+        var side = Math.Min(cell.Width, height);
+        return [.. sizes.Select((size, i) => !Covers(i) ? size : row.Images[i].Attributes.Round ? (side, side) : (cell.Width, height))];
     }
 
-    // 96 DPI: a pixel is 0.75 pt. Scaled down to the content width and the page height, never up.
+    // The image at its place; a cropped or round one is drawn whole, larger, and shows only through its box.
+    private static ImageItem Placed(ImageBlock image, double x, double y, double width, double height)
+    {
+        var item = new ImageItem(image.Resource, image.Resource.Content, image.Info.Format, x, y, width, height);
+        var attributes = image.Attributes;
+        var crop = width > 0 && height > 0 ? attributes.Crop(image.Info.Width, image.Info.Height, width / height) : default;
+        if (crop.IsNone && !attributes.Round)
+        {
+            return item;
+        }
+
+        var (visibleWidth, visibleHeight) = crop.Visible;
+        var (wholeWidth, wholeHeight) = (width / visibleWidth, height / visibleHeight);
+        return item with
+        {
+            X = x - (crop.Left * wholeWidth),
+            Y = y - (crop.Top * wholeHeight),
+            Width = wholeWidth,
+            Height = wholeHeight,
+            Clip = new ImageClip(x, y, width, height, attributes.Round),
+        };
+    }
+
+    // 96 DPI: a pixel is 0.75 pt. Scaled down to the content width and the page height, never up. A round image is
+    // the square in it.
     private (double Width, double Height) ImageSize(ImageBlock image, Frame frame)
     {
-        var width = image.Info.Width * PointsPerPixel * image.Scale;
-        var height = image.Info.Height * PointsPerPixel * image.Scale;
+        var (pixelWidth, pixelHeight) = image.Attributes.Round
+            ? (Math.Min(image.Info.Width, image.Info.Height), Math.Min(image.Info.Width, image.Info.Height))
+            : (image.Info.Width, image.Info.Height);
+        var width = pixelWidth * PointsPerPixel * image.Scale;
+        var height = pixelHeight * PointsPerPixel * image.Scale;
         var fit = Math.Min(1.0, Math.Min(frame.Width / width, (this.geometry.Bottom - this.geometry.Top) / height));
         return (width * fit, height * fit);
     }

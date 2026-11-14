@@ -26,6 +26,9 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
 {
     private static readonly MarkdownPipeline Pipeline = BuildPipeline();
 
+    // Images in grey, by the image they were made from, so an image used twice is converted and embedded once.
+    private readonly Dictionary<DocumentResource, DocumentResource> greyImages = new(ReferenceEqualityComparer.Instance);
+
     /// <remarks>
     /// <paramref name="brand"/> is the brand code-block renderers draw in; <paramref name="lineOffset"/> the lines of
     /// front matter cut off the Markdown, so renderers get the block's line in the original; <paramref name="notes"/>
@@ -219,6 +222,7 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
             {
                 Line = this.LineOf(fenced),
                 Report = (code, message) => notes.Add(code, this.LineOf(fenced), message),
+                Texts = texts,
             },
             DocumentFormat.Pdf);
 
@@ -242,6 +246,11 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         if (collector.Pieces.OfType<ImageBlock>().ToList() is { Count: >= 2 } images
             && collector.Pieces.OfType<List<TextRun>>().All(runs => Trim(runs).Count == 0))
         {
+            foreach (var image in images.Where(i => i.Attributes is { Fit: ImageFit.Cover, Scale: not null }))
+            {
+                this.Ignored(image.Line, image.Attributes, "scale", "in a row, fit=cover gives the image the row's height");
+            }
+
             target.Add(new ImageRowBlock(images));
             return;
         }
@@ -250,6 +259,11 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         {
             if (piece is ImageBlock image)
             {
+                if (image.Attributes.Fit == ImageFit.Cover)
+                {
+                    this.Ignored(image.Line, image.Attributes, "fit=cover", "an image of its own in a PDF has no box to fill, so it is never cropped; put it in a row of images");
+                }
+
                 target.Add(image);
             }
             else if (piece is List<TextRun> runs && Trim(Colour(runs)) is { Count: > 0 } trimmed)
@@ -361,11 +375,56 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         var url = link.GetDynamicUrl?.Invoke() ?? link.Url ?? string.Empty;
         var resource = document.FindResource(url)
             ?? throw new DocumentConversionException(DocumentFormat.Pdf, $"The image '{url}' is not among the document's resources.");
-        var scale = link.Title is { } title && ScalePattern().Match(title) is { Success: true } match
+        var attributes = ImageAttributes.Take(link, this.LineOf(link), DocumentFormat.Pdf);
+        double? titleScale = link.Title is { } title && ScalePattern().Match(title) is { Success: true } match
             && double.TryParse(match.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && value > 0
             ? value
-            : 1.0;
-        return this.Image(resource, scale);
+            : null;
+        if (titleScale is not null && attributes.Scale is not null)
+        {
+            throw new DocumentConversionException(
+                DocumentFormat.Pdf,
+                $"The image '{url}' at line {this.LineOf(link)} has scale both in its title and in its attributes '{attributes.Text}'; keep one.");
+        }
+
+        var line = this.LineOf(link);
+        if (attributes.Caption)
+        {
+            this.Ignored(line, attributes, ".caption", "PDFs show no captions under images");
+        }
+
+        if (attributes is { Focus: not null, Fit: ImageFit.Contain, Round: false })
+        {
+            this.Ignored(line, attributes, "focus", "the image is not cropped; add .round, or fit=cover in a row of images");
+        }
+
+        var image = this.Image(resource, titleScale ?? attributes.Scale ?? 1.0) with { Attributes = attributes, Line = line };
+        return attributes.Grey ? this.Grey(image) : image;
+    }
+
+    // `.grey`: the pixels in grey, once per image however often it is used.
+    private ImageBlock Grey(ImageBlock image)
+    {
+        if (!this.greyImages.TryGetValue(image.Resource, out var grey))
+        {
+            grey = GreyImages.Convert(image.Resource, image.Info.Format);
+            this.greyImages[image.Resource] = grey;
+        }
+
+        return image with { Resource = grey };
+    }
+
+    // An image attribute that does nothing where it is.
+    private void Ignored(int line, ImageAttributes attributes, string name, string reason) =>
+        notes.Add(NoteCodes.AttributeIgnored, line, $"The image attribute {name} in '{attributes.Text}' has no effect: {reason}.");
+
+    // In a heading or a table cell an image is its alt text, so its attributes do nothing.
+    private void AsText(LinkInline link)
+    {
+        if (ImageAttributes.Take(link, this.LineOf(link), DocumentFormat.Pdf) is { IsEmpty: false } attributes)
+        {
+            notes.Add(NoteCodes.AttributeIgnored, this.LineOf(link), $"The image attributes '{attributes.Text}' have no effect: the image is shown as its alt text here.");
+        }
     }
 
     // An image in another format, such as SVG, goes through the image converters: drawn at twice the size it is placed
@@ -431,6 +490,7 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
                         this.Add(emphasis, style | added, link);
                         break;
                     case LinkInline { IsImage: true } image when imagesAsText:
+                        parser.AsText(image);
                         this.Text(AltText(image), style, link);
                         break;
                     case LinkInline { IsImage: true } image:

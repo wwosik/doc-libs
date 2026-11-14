@@ -68,7 +68,8 @@ public static class PptxGenerator
                 template.TransitionOverride is { } transition ? options with { Transition = transition } : options,
                 brand is null ? null : dark ? ResolvedBrand.DarkSlideBrand(brand) : ResolvedBrand.SlideBrand(brand),
                 frontMatter.BodyLine,
-                notes);
+                notes,
+                language.Texts);
             var resolved = brand is null ? null : ResolvedBrand.ForSlides(brand);
             var palette = resolved is null ? SlidePalette.Scheme : dark ? SlidePalette.ForDark(resolved) : SlidePalette.From(resolved);
             var codeFont = options.CodeFont ?? resolved?.CodeFontFamily ?? PptxOptions.DefaultCodeFont;
@@ -85,7 +86,8 @@ public static class PptxGenerator
                 template.IsBuiltIn,
                 (template.ListBulletsOverride ?? options.ListBullets) == ListBullets.Always,
                 notes,
-                language.Tag).Write(slides);
+                language.Tag,
+                language.Texts).Write(slides);
             if (template.EmbedsFonts && resolved?.Fonts is { } fonts)
             {
                 FontEmbedding.Embed(package.PresentationPart!, fonts, codeFont);

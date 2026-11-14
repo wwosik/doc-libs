@@ -5,7 +5,7 @@ namespace wwosik.DocLibs.DocumentGeneration.Charts;
 /// <summary>
 /// A chart as a vector <see cref="Drawing"/>, for generators that draw rather than write native charts (PDFs): the
 /// title on top, the value axis on the left with gridlines at round steps, the categories below, the legend at the
-/// bottom. Text and lines in the brand's diagram colours, series in its diagram palette.
+/// bottom, and the source, if there is one, in a line of its own under the legend. Text and lines in the brand's diagram colours, series in its diagram palette.
 /// </summary>
 internal static class ChartDrawing
 {
@@ -13,8 +13,13 @@ internal static class ChartDrawing
     private const double Height = 380;
     private const double LabelSize = 11;
     private const double TitleSize = 15;
+    private const double SourceSize = 10;
 
-    public static Drawing Draw(ChartSpec chart, ResolvedDiagramColors colors)
+    // The line the source adds under the legend; charts without a source keep their height.
+    private const double SourceLine = 18;
+
+    /// <remarks><paramref name="sourceLabel"/> is the word before the source, in the document language ("Source").</remarks>
+    public static Drawing Draw(ChartSpec chart, ResolvedDiagramColors colors, string sourceLabel = "Source")
     {
         var items = new List<DrawingItem>();
         var top = 12.0;
@@ -66,7 +71,13 @@ internal static class ChartDrawing
         }
 
         Legend(chart, items, Colour, legendTop, colors.Text);
-        return new Drawing(Width, Height, items);
+        if (chart.Source is not { } source)
+        {
+            return new Drawing(Width, Height, items);
+        }
+
+        items.Add(new DrawingText(8, Height + SourceSize + 2, [new DrawingSpan($"{sourceLabel}: {source}")], SourceSize, colors.Text) { MaxWidth = Width - 16 });
+        return new Drawing(Width, Height + SourceLine, items);
     }
 
     // The value axis: from 0 (or the lowest value, if below) to the highest, in about six round steps.

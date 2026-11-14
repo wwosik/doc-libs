@@ -20,7 +20,7 @@ namespace wwosik.DocLibs.DocumentGeneration.Pptx;
 /// Turns Markdown into slides: the cover from the first <c>#</c>, a section divider per later <c>#</c>, one slide per
 /// <c>##</c>, and a slide per table or image. A <c>##</c> section that uses layouts becomes one <see cref="FlowSlide"/>.
 /// </summary>
-internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions options, Brand brand, int lineOffset, GenerationNotes notes)
+internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions options, Brand brand, int lineOffset, GenerationNotes notes, GeneratedTexts texts)
 {
     private static readonly MarkdownPipeline Pipeline = BuildPipeline();
 
@@ -33,12 +33,13 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
     /// <remarks>
     /// <paramref name="brand"/> is the brand code-block renderers draw in; <paramref name="lineOffset"/> the lines of
     /// front matter cut off the Markdown, so renderers get the block's line in the original; <paramref name="notes"/>
-    /// collects what the writer should know, such as HTML shown as text.
+    /// collects what the writer should know, such as HTML shown as text; <paramref name="texts"/> are the texts of the
+    /// document language, for code-block renderers.
     /// </remarks>
     public static IReadOnlyList<Slide> Parse(
-        MarkdownDocument document, PptxOptions options, Brand? brand = null, int lineOffset = 0, GenerationNotes? notes = null)
+        MarkdownDocument document, PptxOptions options, Brand? brand = null, int lineOffset = 0, GenerationNotes? notes = null, GeneratedTexts? texts = null)
     {
-        var parser = new DeckParser(document, options, brand ?? Brand.Neutral, lineOffset, notes ?? new GenerationNotes());
+        var parser = new DeckParser(document, options, brand ?? Brand.Neutral, lineOffset, notes ?? new GenerationNotes(), texts ?? GeneratedTexts.English);
         HeadingBlock? heading = null;
         var blocks = new List<Block>();
         var markdown = Markdown.Parse(document.Markdown, Pipeline);
@@ -396,6 +397,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             {
                 Line = this.LineOf(fenced),
                 Report = (code, message) => notes.Add(code, this.LineOf(fenced), message),
+                Texts = texts,
             },
             Format.Pptx);
 
@@ -898,13 +900,40 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
     private SlideImage Image(LinkInline link)
     {
         var url = link.GetDynamicUrl?.Invoke() ?? link.Url ?? string.Empty;
+        var attributes = ImageAttributes.Take(link, this.LineOf(link), Format.Pptx);
         var resource = document.FindResource(url)
             ?? throw new DocumentConversionException(Format.Pptx, $"The image '{url}' is not among the document's resources.");
         double? scale = link.Title is { } title && ScalePattern().Match(title) is { Success: true } match
             && double.TryParse(match.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && value > 0
             ? value
             : null;
-        return this.Placeable(new SlideImage(resource, AltText(link), scale, link.Title is { } words && CaptionPattern().IsMatch(words)));
+        if (scale is not null && attributes.Scale is not null)
+        {
+            throw Error($"The image '{url}' at line {this.LineOf(link)} has scale both in its title and in its attributes '{attributes.Text}'; keep one.");
+        }
+
+        this.Ignored(link, attributes, attributes.Focus is not null && attributes.Fit == ImageFit.Contain && !attributes.Round, "focus", "it is not cropped; add fit=cover or .round");
+        this.Ignored(link, attributes, attributes.Scale is not null && attributes.Fit == ImageFit.Cover, "scale", "with fit=cover it fills its box");
+        var caption = (link.Title is { } words && CaptionPattern().IsMatch(words)) || attributes.Caption;
+        return this.Placeable(new SlideImage(resource, AltText(link), scale ?? attributes.Scale, caption) { Attributes = attributes });
+    }
+
+    // An image attribute that does nothing where it is.
+    private void Ignored(LinkInline link, ImageAttributes attributes, bool ignored, string name, string reason)
+    {
+        if (ignored)
+        {
+            notes.Add(NoteCodes.AttributeIgnored, this.LineOf(link), $"The image attribute {name} in '{attributes.Text}' has no effect: {reason}.");
+        }
+    }
+
+    // In a heading or a table cell an image is its alt text, so its attributes do nothing.
+    private void AsText(LinkInline link)
+    {
+        if (ImageAttributes.Take(link, this.LineOf(link), Format.Pptx) is { IsEmpty: false } attributes)
+        {
+            notes.Add(NoteCodes.AttributeIgnored, this.LineOf(link), $"The image attributes '{attributes.Text}' have no effect: the image is shown as its alt text here.");
+        }
     }
 
     // An image in a format slides cannot hold, such as SVG, through the image converters: a PNG at twice its natural
@@ -992,6 +1021,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
                         this.Add(emphasis, style | added, link);
                         break;
                     case LinkInline { IsImage: true } image when imagesAsText:
+                        parser.AsText(image);
                         this.Text(AltText(image), style, link);
                         break;
                     case LinkInline { IsImage: true } image:

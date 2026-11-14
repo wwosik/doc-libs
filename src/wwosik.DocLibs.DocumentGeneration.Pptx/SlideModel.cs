@@ -75,6 +75,9 @@ internal sealed record SlideImage(DocumentResource Resource, string AltText, dou
 
     /// <summary>The SVG an image was converted from: PowerPoint draws it, and the PNG is for other viewers.</summary>
     public DocumentResource? Vector { get; init; }
+
+    /// <summary>The attributes after the image (<c>{fit=cover .round .grey}</c>): how it is cropped and coloured.</summary>
+    public ImageAttributes Attributes { get; init; } = ImageAttributes.None;
 }
 
 internal abstract record Slide(IReadOnlyList<TextRun> Title)

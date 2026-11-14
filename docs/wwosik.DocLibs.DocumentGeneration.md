@@ -257,6 +257,7 @@ if (result.HasNotes)
 | `language-unknown` | PPTX, PDF | The document language has no `GeneratedTexts` of its own, built in or from the options; the texts are English, the tag is kept; without a line |
 | `notes-dropped` | PPTX | A `::: notes` stands before the first heading, so it belongs to no slide and was left out |
 | `notes-simplified` | PPTX | Speaker notes held a table, code block, image, quote, alert, heading or other container, written as plain text; one note per block |
+| `attribute-ignored` | PPTX, PDF | An image attribute has no effect where it is: `fit=cover` on an image of its own in a PDF, `focus` on an image that is not cropped, `scale` with `fit=cover`, `.caption` in a PDF, or any attribute on an image shown as its alt text (in a heading or a table cell) |
 
 ## Drawings and code-block renderers
 
@@ -273,7 +274,9 @@ public interface ICodeBlockRenderer
 
 - **`CodeBlockRequest`**: `Language` (the info string), `Code`, `Brand` (the brand the document is
   generated in, after front matter) and `Line` (of the opening fence, from 1, front matter
-  included). `Report(code, message)`, set by the generators, passes a note for the writer into
+  included). `Texts` are the `GeneratedTexts` of the document language (default
+  `GeneratedTexts.English`), for words a renderer writes itself, such as the "Source" under a
+  chart; they are part of the request's equality. `Report(code, message)`, set by the generators, passes a note for the writer into
   their `GenerationResult`: a renderer that declines a block in its own language calls it with
   `NoteCodes.CodeNotDrawn` and the reason before it returns `null`. It may be `null` when a request
   is made by hand, and it is not part of the request's equality.
@@ -286,7 +289,7 @@ public interface ICodeBlockRenderer
   renderer is passed on as it is.
 - **`CodeBlockGraphic`** is a `DrawingGraphic(Drawing)`, an `ImageGraphic(DocumentResource)` or a
   `ChartGraphic(ChartSpec, Drawing)`: a bar, line or area chart (`ChartSpec`: `Kind`, `Categories`,
-  `Series` of `ChartSeries(Name, Values)`, `Stacked`, `Title`, `Unit`, `Colors`) that decks write as
+  `Series` of `ChartSeries(Name, Values)`, `Stacked`, `Title`, `Unit`, `Source`, `Colors`) that decks write as
   a native chart and PDFs draw as its `Drawing`. The renderers are asked in order and the first
   graphic wins.
 - **`Drawing(Width, Height, Items)`** is a vector drawing in CSS pixels (0.75 pt each) from the top
@@ -338,6 +341,18 @@ heading attributes (`## Title {.dark kicker="Label" layout="Name"}`, `# Thank yo
 `:::` containers (`cards`, `rows`, `panel`, `statement`, `columns`), GitHub alerts (`> [!NOTE]`),
 tag lists of code spans, `==marked==` text, `[words]{.success}` in a status colour, and paragraphs of
 only images, side by side.
+
+**Image attributes** follow an image directly, without a space:
+`![Team](team.jpg){focus=top fit=cover scale=0.8 .round .grey}`. Both generators read them the same
+way (internally `ImageAttributes`): a `{…}` of classes and `key=value` pairs (the value quoted or
+not) right after the image is taken off the text; any other braces stay text. Known are
+`focus=top|bottom|left|right|center`, `fit=contain|cover`, `scale=<number>` (the same meaning as
+`scale=` in the title, which differs between decks and PDFs), `.round`, `.grey` and `.caption` (as
+`caption` in the title). An unknown name or value, a name given twice, or `scale` both in the title
+and the attributes throws `DocumentConversionException` listing the valid ones. What each does is
+on the [PPTX](wwosik.DocLibs.DocumentGeneration.Pptx.md#image-attributes) and
+[PDF](wwosik.DocLibs.DocumentGeneration.Pdf.md#image-attributes) pages; where one has no effect, the note
+`attribute-ignored` says so.
 The PDF generator accepts the same Markdown, so one source serves both, and shows it plainly: see
 [its documentation](wwosik.DocLibs.DocumentGeneration.Pdf.md#slide-layouts). Both reject the same
 mistakes — unknown heading attributes, containers and alerts — with a `DocumentConversionException`
@@ -397,8 +412,9 @@ title: Network expansion 2027
 is a BCP 47 tag such as `en`, `de`, `de-CH` or `en-GB`. Anything else is an error.
 
 - **Texts.** It picks the `GeneratedTexts`: the texts a generator writes itself, today the alert
-  titles (`Note`, `Tip`, `Important`, `Warning`, `Caution`) and the heading of the footnotes in a
-  PDF (`Notes`). `GeneratedTexts.English` and `GeneratedTexts.German` are built in; a host adds or
+  titles (`Note`, `Tip`, `Important`, `Warning`, `Caution`), the heading of the footnotes in a
+  PDF (`Notes`) and the word before a chart's source (`Source`; German `Quelle`). Code-block
+  renderers get them as `CodeBlockRequest.Texts`. `GeneratedTexts.English` and `GeneratedTexts.German` are built in; a host adds or
   replaces languages with the options' `Texts`, by tag. Every property defaults to English, so a
   new language starts from `GeneratedTexts.English with { Warning = "…" }` and stays complete when
   later versions add texts.

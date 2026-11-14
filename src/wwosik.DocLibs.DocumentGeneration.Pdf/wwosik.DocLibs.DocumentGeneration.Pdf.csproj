@@ -8,6 +8,7 @@
   <ItemGroup>
     <PackageReference Include="Markdig" />
     <PackageReference Include="PdfPig" />
+    <PackageReference Include="SkiaSharp" />
   </ItemGroup>
 
   <ItemGroup>
@@ -17,6 +18,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Fonts\*.ttf" LogicalName="Fonts.%(Filename)%(Extension)" />
     <None Include="Fonts\OFL.txt" Pack="true" PackagePath="Fonts\OFL.txt" />
+    <None Include="THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="THIRD-PARTY-NOTICES.txt" />
     <EmbeddedResource Include="AuthoringGuide\*.md" LogicalName="AuthoringGuide.%(Filename)%(Extension)" />
   </ItemGroup>
 

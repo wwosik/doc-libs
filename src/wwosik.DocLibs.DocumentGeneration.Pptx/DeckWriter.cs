@@ -89,6 +89,7 @@ internal sealed partial class DeckWriter
     private readonly IReadOnlyDictionary<string, LabelCategory> labels;
     private readonly GenerationNotes notes;
     private readonly string language;
+    private readonly GeneratedTexts texts;
     private Slide? current;
 
     // The footnotes of the slide being fitted or written; the content area leaves room for them at its foot.
@@ -101,7 +102,8 @@ internal sealed partial class DeckWriter
     /// <paramref name="tableFont"/> the family of table text, or <see langword="null"/> for the theme font;
     /// <paramref name="codeFont"/> the family of code, by default <see cref="PptxOptions.CodeFont"/> or Consolas;
     /// <paramref name="palette"/> the colours of flow slides, by default the template's theme colours;
-    /// <paramref name="labels"/> the categories of status labels, from front matter.
+    /// <paramref name="labels"/> the categories of status labels, from front matter; <paramref name="texts"/> the texts of
+    /// the document language, such as the word before a chart's source.
     /// </remarks>
     public DeckWriter(
         PresentationDocument package,
@@ -116,10 +118,12 @@ internal sealed partial class DeckWriter
         bool builtIn = false,
         bool listBullets = false,
         GenerationNotes? notes = null,
-        string language = "en")
+        string language = "en",
+        GeneratedTexts? texts = null)
     {
         this.notes = notes ?? new GenerationNotes();
         this.language = language;
+        this.texts = texts ?? GeneratedTexts.English;
         this.footerText = footerText;
         this.builtIn = builtIn;
         this.listBullets = listBullets;
@@ -1071,19 +1075,35 @@ internal sealed partial class DeckWriter
         return new A.Run(properties, new A.Text(XmlSafe(run.Text)));
     }
 
-    // Without a canvas, only where it would go.
+    // Without a canvas, only where it would go. `fit=cover` fills the box and `.round` makes it a square, both cropped
+    // by `a:srcRect` around the attributes' focus; `.round` is then an ellipse, `.grey` a greyscale effect on the blip.
     private Rect Picture(Canvas? canvas, SlideImage image, Rect box)
     {
         var info = ImageInfo.Read(image.Resource.Content.Span)
             ?? throw new DocumentConversionException(Format.Pptx, $"The image '{image.Resource.Path}' is not a PNG, JPEG or GIF.");
         var (naturalWidth, naturalHeight) = image.Natural ?? (info.Width, info.Height);
-        var width = naturalWidth * EmuPerPixel;
-        var height = naturalHeight * EmuPerPixel;
+        var attributes = image.Attributes;
+        var (shownWidth, shownHeight) = attributes.Round ? (Math.Min(naturalWidth, naturalHeight), Math.Min(naturalWidth, naturalHeight)) : (naturalWidth, naturalHeight);
+        var width = shownWidth * EmuPerPixel;
+        var height = shownHeight * EmuPerPixel;
         var fit = Math.Min(image.Scale ?? this.options.MaxImageUpscale, Math.Min(box.W / width, box.H / height));
-        var placed = new Rect(box.X + (long)((box.W - (width * fit)) / 2), box.Y, (long)(width * fit), (long)(height * fit));
+        var cover = attributes.Fit == ImageFit.Cover;
+        var side = Math.Min(box.W, box.H);
+        var placed = !cover ? new Rect(box.X + (long)((box.W - (width * fit)) / 2), box.Y, (long)(width * fit), (long)(height * fit))
+            : attributes.Round ? new Rect(box.X + ((box.W - side) / 2), box.Y, side, side)
+            : box;
         if (canvas is null)
         {
             return placed;
+        }
+
+        var crop = cover || attributes.Round
+            ? attributes.Crop(naturalWidth, naturalHeight, placed.H > 0 ? placed.W / (double)placed.H : 1)
+            : default;
+        if (cover)
+        {
+            var (visibleWidth, visibleHeight) = crop.Visible;
+            fit = Math.Max(placed.W / (naturalWidth * EmuPerPixel * visibleWidth), placed.H / (naturalHeight * EmuPerPixel * visibleHeight));
         }
 
         // A converted SVG is drawn as a vector by PowerPoint, so only its PNG would blur.
@@ -1116,15 +1136,38 @@ internal sealed partial class DeckWriter
                 new P.NonVisualDrawingProperties { Id = id, Name = "Picture " + id, Description = XmlSafe(image.AltText) },
                 new P.NonVisualPictureDrawingProperties(new A.PictureLocks { NoChangeAspect = true }),
                 new P.ApplicationNonVisualDrawingProperties()),
-            new P.BlipFill(this.Blip(canvas, image, relationshipId), new A.Stretch(new A.FillRectangle())),
-            new P.ShapeProperties(placed.Transform(), new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle })));
+            BlipFill(this.Blip(canvas, image, relationshipId), crop),
+            new P.ShapeProperties(
+                placed.Transform(),
+                new A.PresetGeometry(new A.AdjustValueList()) { Preset = attributes.Round ? A.ShapeTypeValues.Ellipse : A.ShapeTypeValues.Rectangle })));
         return placed;
+    }
+
+    // The crop as `a:srcRect`, in thousandths of a percent of each side; none when nothing is cut off.
+    private static P.BlipFill BlipFill(A.Blip blip, ImageCrop crop)
+    {
+        var fill = new P.BlipFill(blip);
+        if (!crop.IsNone)
+        {
+            static int Share(double share) => (int)Math.Round(share * 100000);
+            fill.Append(new A.SourceRectangle { Left = Share(crop.Left), Top = Share(crop.Top), Right = Share(crop.Right), Bottom = Share(crop.Bottom) });
+        }
+
+        fill.Append(new A.Stretch(new A.FillRectangle()));
+        return fill;
     }
 
     // The picture's PNG, JPEG or GIF; for a converted SVG also the SVG, which PowerPoint 2016 and later draw instead.
     private A.Blip Blip(Canvas canvas, SlideImage image, string relationshipId)
     {
         var blip = new A.Blip { Embed = relationshipId };
+
+        // PowerPoint's "Grayscale" colour; whether it also greys the SVG drawn instead is an Office check (E04-S05).
+        if (image.Attributes.Grey)
+        {
+            blip.Append(new A.Grayscale());
+        }
+
         if (image.Vector is not { } vector)
         {
             return blip;
@@ -1144,13 +1187,16 @@ internal sealed partial class DeckWriter
         return blip;
     }
 
-    // A native chart filling the box's width, at most about 16:10 tall, so that it neither stretches nor squashes.
+    // A native chart filling the box's width, at most about 16:10 tall, so that it neither stretches nor squashes. Its
+    // source takes a line off that height, in a text box under it in the table font at the smallest table size.
     private Rect Chart(Canvas? canvas, ChartSpec chart, Rect box)
     {
-        var placed = box with { H = Math.Min(box.H, box.W * 5 / 8) };
+        var source = chart.Source is { } text ? new TextParagraph([new TextRun($"{this.texts.Source}: {text}", RunStyle.None)]) : null;
+        var sourceHeight = source is null ? 0 : EstimateHeight([source], MinTableSize, box.W);
+        var placed = box with { H = Math.Max(Math.Min(box.H - sourceHeight, box.W * 5 / 8), 0) };
         if (canvas is null)
         {
-            return placed;
+            return placed with { H = placed.H + sourceHeight };
         }
 
         var relationshipId = ChartWriter.Add(canvas.Part, chart, this.palette.Text, this.palette.DarkSlides ? SlideColor.White.Translucent(30) : new SlideColor("D9D9D9"), this.tableFont);
@@ -1162,7 +1208,18 @@ internal sealed partial class DeckWriter
                 new P.ApplicationNonVisualDrawingProperties()),
             new P.Transform(new A.Offset { X = placed.X, Y = placed.Y }, new A.Extents { Cx = placed.W, Cy = placed.H }),
             new A.Graphic(new A.GraphicData(new DocumentFormat.OpenXml.Drawing.Charts.ChartReference { Id = relationshipId }) { Uri = ChartGraphicUri })));
-        return placed;
+
+        // A layout's own chart-source placeholder (E01-S06) would take the text here instead of a text box.
+        if (source is not null)
+        {
+            var color = this.current is { } slide && this.PaintsDark(slide) ? SlideColor.White : this.palette.Text;
+            canvas.Add(TextBoxShape(
+                canvas,
+                new Rect(placed.X, placed.Bottom, placed.W, sourceHeight),
+                [this.Paragraph(canvas, source, explicitBullets: true, MinTableSize, font: this.tableFont, color: color)]));
+        }
+
+        return placed with { H = placed.H + sourceHeight };
     }
 
     // Fitted into the box like a picture: centred, enlarged at most by half, so that its text keeps a sensible size.

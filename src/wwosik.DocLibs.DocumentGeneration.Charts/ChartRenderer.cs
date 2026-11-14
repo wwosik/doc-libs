@@ -13,6 +13,7 @@ namespace wwosik.DocLibs.DocumentGeneration.Charts;
 /// type: bar
 /// title: Orders by month
 /// unit: k
+/// source: Sales report
 /// ---
 /// month, plan, actual
 /// Jan, 120, 132
@@ -57,6 +58,6 @@ public sealed class ChartRenderer : ICodeBlockRenderer
 
         var brand = ResolvedBrand.Resolve(request.Brand);
         var chart = ChartParser.Parse(request.Code, request.Line) with { Colors = brand.Diagram.Palette };
-        return new ChartGraphic(chart, ChartDrawing.Draw(chart, brand.Diagram));
+        return new ChartGraphic(chart, ChartDrawing.Draw(chart, brand.Diagram, request.Texts.Source));
     }
 }

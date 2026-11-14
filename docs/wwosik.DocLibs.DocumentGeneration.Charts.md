@@ -33,6 +33,7 @@ Settings first, one `key: value` per line (a ` # comment` after a value is ignor
 type: bar
 title: Orders by month
 unit: k
+source: Sales report
 ---
 month, plan, actual
 Jan, 120, 132
@@ -47,10 +48,17 @@ Mar, 125,
 | `stacked` | `true`, `false` — bars or areas on top of each other; lines never stack | `false` |
 | `title` | text above the chart | none |
 | `unit` | text at the value axis (`k`, `%`, `EUR`) | none |
+| `source` | where the data comes from, shown under the chart as "Source: …", the word from the document language's `GeneratedTexts.Source` (`Quelle` with `lang: de`) | none |
+| `decimal` | `comma`, `point` — the decimal mark of the values | `comma` with `;`, else `point` |
 
 - **Data:** the header row names the category column, then one series per column; each further row
   is a category. Values are numbers with a decimal point and no thousands separator; an empty cell
-  is a gap. A cell in double quotes may hold commas.
+  is a gap. A cell in double quotes may hold the separator.
+- **Semicolons:** the header row decides the separator. With a `;` outside quotes, every row is
+  split at `;` and the values have a decimal comma (`1234,5`, `-0,25`), as a spreadsheet in a German
+  locale exports CSV; a `.` in such a value is an error that says to remove the thousands
+  separator, so `1.234` is never guessed to be 1.234 or 1234. Otherwise rows are split at `,`, as
+  before. `decimal:` overrides the decimal mark for either separator.
 - **Colours:** the series take the brand's diagram palette (`Colors.Diagram.Palette`, by default the
   theme accents), in order, repeating. In decks the brand's slide colours apply.
 - **Errors:** an unknown setting or type, a value that is not a number, a row with more cells than
@@ -65,13 +73,16 @@ PowerPoint's *Edit Data* opens the numbers. It fills the width it has, at most 5
 slides it gets a slide of its own like an image, on layout slides it shares the height with the other
 blocks, and `::: columns` puts two side by side. Text is set in the brand's table font, else the
 theme font; on dark slides it is white and the gridlines translucent white. Bars and areas start at
-zero. See the [PPTX documentation](wwosik.DocLibs.DocumentGeneration.Pptx.md#diagrams-and-charts).
+zero. The source is a text box right under the chart, in the table font at 10 pt, taking its line
+off the chart's height. See the [PPTX documentation](wwosik.DocLibs.DocumentGeneration.Pptx.md#diagrams-and-charts).
 
 ## In PDFs
 
 The same chart drawn as vectors (640 × 380 px, scaled to the text width): the title, the value axis
 with gridlines at about six round steps from zero (or below, for negative values), the categories,
-the legend at the bottom; text in the brand's table font and diagram text colour.
+the legend at the bottom; text in the brand's table font and diagram text colour. A source adds one
+line (10 px, left-aligned) under the legend and 18 px to the drawing's height; charts without one
+keep 640 × 380.
 
 ## Financial charts
 

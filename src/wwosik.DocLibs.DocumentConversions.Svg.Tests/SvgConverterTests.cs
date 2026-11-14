@@ -146,6 +146,37 @@ public class SvgConverterTests
     }
 
     [Fact]
+    public void ImageAttributes_OnPhotosAndASvg_InADeckAndAPdf()
+    {
+        // For the Office check of E04-S05: fit=cover, .round and .grey, the last also on a converted SVG, and a chart's source.
+        using var bitmap = new SKBitmap(300, 600);
+        using (var canvas = new SKCanvas(bitmap))
+        {
+            canvas.Clear(new SKColor(220, 30, 30));
+            using var band = new SKPaint { Color = new SKColor(20, 160, 40) };
+            canvas.DrawRect(0, 0, 300, 120, band);
+        }
+
+        using var png = bitmap.Encode(SKEncodedImageFormat.Png, 100);
+        var markdown = "## Cover\n\n![Portrait](portrait.png){fit=cover focus=top}\n\n## Round and grey\n\n![a](portrait.png){.round} ![b](portrait.png){.grey} ![c](plan.svg){.grey}\n\n## Orders\n\n```chart\nsource: Annual report\n---\nmonth, plan, actual\nJan, 120, 132\nFeb, 118, 121\n```\n";
+        var document = new MarkdownDocument(
+            markdown,
+            [new DocumentResource("portrait.png", "image/png", png.ToArray()), new DocumentResource("plan.svg", "image/svg+xml", System.Text.Encoding.UTF8.GetBytes(Squares))],
+            new Dictionary<string, string>());
+        using var deck = new MemoryStream();
+        PptxGenerator.Generate(document, deck, new PptxOptions { ImageConverters = [new SvgImageConverter()], CodeBlockRenderers = [new DocumentGeneration.Charts.ChartRenderer()] });
+        using var pdf = new MemoryStream();
+        PdfGenerator.Generate(document, pdf, new PdfOptions { ImageConverters = [new SvgImageConverter()], CodeBlockRenderers = [new DocumentGeneration.Charts.ChartRenderer()] });
+
+        WriteForReview("image-attributes.pptx", deck.ToArray());
+        WriteForReview("image-attributes-svg.pdf", pdf.ToArray());
+        using var package = PresentationDocument.Open(new MemoryStream(deck.ToArray()), false);
+        Assert.Empty(new OpenXmlValidator().Validate(package));
+        var svg = package.PresentationPart!.SlideParts.SelectMany(p => p.Slide!.Descendants<A.Blip>()).Single(b => b.Descendants<SVGBlip>().Any());
+        Assert.NotNull(svg.GetFirstChild<A.Grayscale>());
+    }
+
+    [Fact]
     public void AChartSvg_InADeck_KeepsItsTooltipsOutOfThePicture()
     {
         var svg = wwosik.DocLibs.DocumentGeneration.Charts.FinancialCharts.ToSvg(wwosik.DocLibs.DocumentGeneration.Charts.Tests.FinancialSamples.TwoYear(), wwosik.DocLibs.DocumentGeneration.Charts.Tests.FinancialSamples.Options);

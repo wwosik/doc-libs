@@ -29,7 +29,7 @@ same change that made it untrue — a stale fact here is worse than a missing on
     CSV) → `ChartGraphic(ChartSpec, Drawing)`. Depends only on the shared package.
   - `wwosik.DocLibs.DocumentGeneration.Pptx` — Markdown → `.pptx`; Markdig and the Open XML SDK.
   - `wwosik.DocLibs.DocumentGeneration.Pdf` — Markdown → PDF/A-2b; Markdig and PdfPig, own
-    layout engine, bundled Liberation fonts.
+    layout engine, bundled Liberation fonts; SkiaSharp only for `.grey` images (E04-S05).
 - Public on GitHub as `wwosik/doc-libs`, MIT, published to nuget.org by tag (see
   `standards.md`, *Build and deployment*).
 
@@ -81,7 +81,7 @@ same change that made it untrue — a stale fact here is worse than a missing on
   (`SectionBuilder`, `FlowCollector`). The writer measures by calling the same layout methods with
   a `null` canvas.
 - Heading attributes are parsed by us (`HeadingAttributes`), not by Markdig's generic attributes,
-  so `{…}` elsewhere stays literal. Container names and alert kinds are checked by `LayoutSyntax`,
+  so `{…}` elsewhere stays literal — except right after an image (E04-S05, below). Container names and alert kinds are checked by `LayoutSyntax`,
   so PDF and PPTX reject the same mistakes. Both pipelines add only `CustomContainerParser`
   (block), not `UseCustomContainers()`, whose inline `::x::` form would split `std::vector::size`.
 - Flow-slide colours are a `SlidePalette`: from the brand (`SlidePalette.From`), or theme-colour
@@ -226,6 +226,22 @@ same change that made it untrue — a stale fact here is worse than a missing on
   `.pptx` bytes; compare decks part by part with those ids masked (`PresentingTests.Parts`). PDFs have
   a random `/ID` in the trailer.
 
+- **Image attributes (E04-S05):** `ImageAttributes.Take(link, line, format)` (shared) reads a `{…}`
+  at the start of the literal text after an image, takes it off those literals (Markdig splits that
+  text: a lone `=` is a literal of its own) and caches the result on the `LinkInline` (`SetData`), so
+  asking twice is safe. Both parsers call it where their `RunCollector` meets an image; as alt text
+  (headings, cells) the attributes only give `attribute-ignored`. `ImageAttributes.Crop` is the one
+  crop computation: decks write it as `a:srcRect` (plus `ellipse` for `.round`, `a:grayscl` for
+  `.grey`), PDFs draw the whole image larger inside an `ImageItem.Clip` (`q`, path, `W n`, image,
+  `Q`). PDF `.grey` converts pixels in `GreyImages` (SkiaSharp, cached per resource in the parser,
+  so the grey copy is one `ImageItem.Key`). Third-party licences of the PDF package are in its
+  packed `THIRD-PARTY-NOTICES.txt`; a story that adds a dependency adds its entry there.
+- **Chart source (E04-S05):** `ChartSpec.Source`; the word before it is `GeneratedTexts.Source`,
+  reaching renderers as `CodeBlockRequest.Texts` (set by both parsers) and `DeckWriter` as a
+  constructor argument. A chart with a source is 18 px taller in PDFs; in decks the frame gives up
+  one line for a text box under it. A layout's chart-source placeholder (E01-S06) would go in
+  `DeckWriter.Chart`.
+
 ## Traps
 
 - **The built-in master's relationship ids are fixed:** layouts 1–4 are `rId1`–`rId4`, the theme
@@ -269,6 +285,10 @@ same change that made it untrue — a stale fact here is worse than a missing on
   `java.exe -cp ".tmp\verapdf\bin\*" org.verapdf.apps.GreenfieldCliWrapper --flavour 2b <pdf>`.
   The installer is `https://software.verapdf.org/releases/verapdf-installer.zip` (no `unzip` in
   WSL: extract with Python's `zipfile`); pass the target as a Windows path (`wslpath -w`).
+- **Looking at a generated PDF on Linux:** `python3 -m venv .tmp/venv && .tmp/venv/bin/pip install
+  pypdfium2 pillow` gives a renderer (`PdfDocument(path)[i].render(scale=1).to_pil().save(...)`).
+  PdfPig's PDFs are not byte-identical between runs, so "unchanged output" is checked on rendered
+  pages, and decks on their XML with the SDK's random `R…` relationship ids masked.
 - **Looking at a generated PDF from WSL:** there is no PDF renderer in WSL; Windows'
   `Windows.Data.Pdf` renders pages to PNG from PowerShell (a throwaway PowerShell script in `.tmp/` does it).
 - **Excel cannot overwrite an existing `.xls` on a `\\wsl.localhost\...` path** ("read-only

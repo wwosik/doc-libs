@@ -66,7 +66,14 @@ internal sealed record QuoteBlock(IReadOnlyList<Block> Blocks) : Block;
 internal sealed record TableBlock(IReadOnlyList<IReadOnlyList<IReadOnlyList<TextRun>>> Rows, IReadOnlyList<CellAlignment> Alignments, bool HasHeader) : Block;
 
 /// <summary>A PNG or JPEG; <see cref="Scale"/> multiplies its natural size.</summary>
-internal sealed record ImageBlock(DocumentResource Resource, ImageInfo Info, double Scale) : Block;
+internal sealed record ImageBlock(DocumentResource Resource, ImageInfo Info, double Scale) : Block
+{
+    /// <summary>The attributes after the image (<c>{.round fit=cover}</c>): how it is cropped. <c>.grey</c> is in the pixels already.</summary>
+    public ImageAttributes Attributes { get; init; } = ImageAttributes.None;
+
+    /// <summary>The image's line in the Markdown, from 1, for notes; 0 if unknown.</summary>
+    public int Line { get; init; }
+}
 
 /// <summary>A paragraph of nothing but images: side by side across the text width, in cells of equal width.</summary>
 internal sealed record ImageRowBlock(IReadOnlyList<ImageBlock> Images) : Block;

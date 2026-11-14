@@ -29,6 +29,11 @@ headings that say what a section is about, lists where items really are parallel
   scaled down to fit; `![Chart](chart.png "scale=0.5")` halves the size. They are never split and
   move to the next page if needed. Several images in one paragraph stand side by side, equally
   wide.
+- **Image attributes** in braces right after an image, without a space:
+  `![Team](team.jpg){.round .grey}`. `.round` crops it to a circle, `.grey` shows it in grey,
+  `scale=0.5` is the same as `"scale=0.5"`. In a row of images, `fit=cover` fills the row's height
+  and crops what sticks out, and `focus=top`, `bottom`, `left`, `right` or `center` (the default)
+  says which part stays; an image of its own is never cropped. An unknown attribute is an error.
 - **Footnotes:** `[^1]` in the text and `[^1]: The note.` on a line of its own anywhere below.
   The reference becomes a small raised number; the notes are listed at the end of the document,
   numbered in the order they are referenced. A reference without its definition stays as written.
@@ -153,6 +158,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `html-as-text`: HTML is not interpreted: it is shown as text. Write Markdown instead.
 - `footnote-missing`: a footnote reference such as `[^1]` has no definition `[^1]: text`, so it is shown as written. Add the definition, or remove the reference.
 - `language-unknown`: the language in `lang` has no texts of its own, so alert titles and similar texts are in English. Use `en` or `de`.
+- `attribute-ignored`: an image attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `focus` on an image that is not cropped. Remove it, or use it where it works.
 
 ## Example
 

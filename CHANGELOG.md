@@ -31,6 +31,18 @@ updating, breaking changes first.
   `::: notes`, the notes' paragraphs and `:::` in the Markdown, by default and with no option to turn
   it off. Code that compares or parses the converter's output sees the new lines; strip the
   `::: notes` blocks if they are not wanted.
+- **Braces right after an image are read as image attributes** in both generators:
+  `![a](x.png){.round}` no longer shows `{.round}` as text. A `{…}` of classes and `key=value`
+  pairs directly after an image that names anything but `focus`, `fit`, `scale`, `.round`, `.grey`
+  or `.caption` now throws `DocumentConversionException`; put a space before braces meant as text.
+  Other braces stay text.
+- **`wwosik.DocLibs.DocumentGeneration.Pdf` depends on SkiaSharp**, used only for `.grey` images.
+  On Linux, an application that greys images adds `SkiaSharp.NativeAssets.Linux` (or
+  `.NoDependencies`) at the same version; without it, a `.grey` image fails with a
+  `DocumentConversionException` naming the package. Documents without `.grey` never load it. Its
+  licence is in the package's `THIRD-PARTY-NOTICES.txt`.
+- **`CodeBlockRequest` has `Texts`,** which is part of its equality: requests that differ only in
+  their document language are no longer equal.
 
 ### New
 
@@ -62,6 +74,20 @@ updating, breaking changes first.
   `zoom`, `cut` and `morph` (with a fade for viewers without Morph). PDFs accept and ignore them.
 - **New notes:** `notes-dropped` (speaker notes before the first heading) and `notes-simplified`
   (a table, code block, image or quote in speaker notes, written as plain text).
+- **Chart source:** `source: Annual report` in a `chart` block is shown under the chart as
+  "Source: Annual report" ("Quelle: …" with `lang: de`): a text box under the native chart in decks,
+  a line under the legend in PDFs. `ChartSpec.Source`, `GeneratedTexts.Source`, and
+  `CodeBlockRequest.Texts` for renderers that write words of their own. Charts without a source are
+  unchanged.
+- **CSV with semicolons:** a `chart` block whose header row is separated by `;` is split at `;`
+  throughout and reads numbers with a decimal comma (`12,5`), as spreadsheets in German locales
+  export them; `1.234,5` is an error asking to remove the thousands separator. `decimal: comma|point`
+  overrides the mark. CSV with commas reads as before.
+- **Image attributes:** `![Team](team.jpg){fit=cover focus=top scale=0.8 .round .grey .caption}`.
+  Decks crop with `a:srcRect` (`fit=cover` fills the image's box), draw `.round` as an ellipse and
+  `.grey` as PowerPoint's greyscale effect; PDFs crop with clipping paths (`fit=cover` only in rows
+  of images), draw `.round` as a circular clip and make `.grey` pixels grey.
+- **New note:** `attribute-ignored`, for an image attribute that has no effect where it is.
 
 ## 2610.28.22
 

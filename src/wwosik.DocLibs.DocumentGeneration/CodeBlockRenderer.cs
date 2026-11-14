@@ -35,12 +35,19 @@ public sealed record CodeBlockRequest(string Language, string Code, Brand Brand)
     /// </summary>
     public Action<string, string>? Report { get; init; }
 
-    /// <inheritdoc/>
-    public bool Equals(CodeBlockRequest? other) =>
-        other is not null && this.Language == other.Language && this.Code == other.Code && Equals(this.Brand, other.Brand) && this.Line == other.Line;
+    /// <summary>
+    /// The texts of the document language (front matter <c>lang</c> or the generator's options), for words a renderer
+    /// writes itself, such as <see cref="GeneratedTexts.Source"/>; <see cref="GeneratedTexts.English"/> by default.
+    /// </summary>
+    public GeneratedTexts Texts { get; init; } = GeneratedTexts.English;
 
     /// <inheritdoc/>
-    public override int GetHashCode() => HashCode.Combine(this.Language, this.Code, this.Brand, this.Line);
+    public bool Equals(CodeBlockRequest? other) =>
+        other is not null && this.Language == other.Language && this.Code == other.Code && Equals(this.Brand, other.Brand) && this.Line == other.Line
+        && Equals(this.Texts, other.Texts);
+
+    /// <inheritdoc/>
+    public override int GetHashCode() => HashCode.Combine(this.Language, this.Code, this.Brand, this.Line, this.Texts);
 }
 
 /// <summary>
@@ -85,13 +92,19 @@ public sealed record ChartSpec(ChartKind Kind, IReadOnlyList<string> Categories,
     /// <summary>The unit of the values, shown with the value axis (<c>k</c>, <c>%</c>, <c>EUR</c>); <see langword="null"/>: none.</summary>
     public string? Unit { get; init; }
 
+    /// <summary>
+    /// Where the data comes from (<c>source:</c>), shown under the chart after the document language's
+    /// <see cref="GeneratedTexts.Source"/>: "Source: Annual report"; <see langword="null"/>: none.
+    /// </summary>
+    public string? Source { get; init; }
+
     /// <summary>The colours of the series, upper-case RGB hex without <c>#</c>, in order; they repeat when there are more series.</summary>
     public IReadOnlyList<string> Colors { get; init; } = [];
 
     /// <inheritdoc/>
     public bool Equals(ChartSpec? other) =>
         other is not null && this.Kind == other.Kind && this.Stacked == other.Stacked && this.Title == other.Title && this.Unit == other.Unit
-        && this.Categories.SequenceEqual(other.Categories) && this.Series.SequenceEqual(other.Series) && this.Colors.SequenceEqual(other.Colors);
+        && this.Source == other.Source && this.Categories.SequenceEqual(other.Categories) && this.Series.SequenceEqual(other.Series) && this.Colors.SequenceEqual(other.Colors);
 
     /// <inheritdoc/>
     public override int GetHashCode() => HashCode.Combine(this.Kind, this.Title, this.Categories.Count, this.Series.Count);

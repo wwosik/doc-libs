@@ -9,6 +9,7 @@ row (the name of the category column, then one name per series) and one row per 
 type: bar
 title: Orders by month
 unit: k
+source: Sales report 2026
 ---
 month, plan, actual
 Jan, 120, 132
@@ -18,9 +19,25 @@ Mar, 125, 140
 ````
 
 - **Settings:** `type` is `bar` (the default), `line` or `area`; `stacked: true` stacks bars or areas;
-  `title` and `unit` are optional.
+  `title` and `unit` are optional. `source` names where the data comes from: it is shown under the
+  chart as "Source: …", the word in the document's language (`lang`).
 - **Values** are plain numbers with a decimal point and no thousands separator (`1250.5`); an empty
   cell leaves a gap. Up to about twelve categories and five series stay readable.
+- **Semicolons:** CSV whose header row is separated by `;`, as a spreadsheet in a German locale
+  exports it, is split at `;` throughout, and its numbers have a decimal comma (`1250,5`). A `.` in
+  such a number is an error: remove the thousands separator. `decimal: point` (or `decimal: comma`)
+  overrides the decimal mark for either separator.
+
+  ````markdown
+  ```chart
+  source: Controlling
+  ---
+  Monat; Plan; Ist
+  Jan; 120,5; 132
+  Feb; 118; 121,25
+  ```
+  ````
+
 - A chart is placed like an image: it fills the room it has. Two charts side by side: `::: columns`
   with a chart in each column.
 - A mistake in the settings or the data is an error naming the line of its block.

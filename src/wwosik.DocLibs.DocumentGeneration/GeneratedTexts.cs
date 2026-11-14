@@ -4,7 +4,7 @@ using wwosik.DocLibs.DocumentConversions;
 namespace wwosik.DocLibs.DocumentGeneration;
 
 /// <summary>
-/// The texts a generator writes itself, in one language: the titles of alerts and the heading of the footnotes, and
+/// The texts a generator writes itself, in one language: the titles of alerts, the heading of the footnotes and the word before a chart's source, and
 /// more as generators gain them. Every property defaults to English, so a language of a host's own starts from
 /// <see cref="English"/> with <c>with { … }</c> and stays complete when a later version adds a text.
 /// </summary>
@@ -22,6 +22,7 @@ public sealed record GeneratedTexts
         Warning = "Warnung",
         Caution = "Vorsicht",
         Footnotes = "Anmerkungen",
+        Source = "Quelle",
     };
 
     /// <summary>The title of <c>> [!NOTE]</c>.</summary>
@@ -41,6 +42,9 @@ public sealed record GeneratedTexts
 
     /// <summary>The heading above the footnotes at the end of a PDF.</summary>
     public string Footnotes { get; init; } = "Notes";
+
+    /// <summary>The word before the source under a chart (<c>source:</c>): "Source: Annual report".</summary>
+    public string Source { get; init; } = "Source";
 
     /// <summary>The title of an alert of the kind <paramref name="kind"/> (<c>NOTE</c>, <c>TIP</c>, …).</summary>
     internal string Alert(string kind) => kind.ToUpperInvariant() switch

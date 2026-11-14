@@ -12,7 +12,14 @@ internal sealed record LineItem(double X1, double Y1, double X2, double Y2, doub
 internal sealed record RectItem(double X, double Y, double Width, double Height, string Color) : PageItem;
 
 /// <summary>A PNG or JPEG; <see cref="Key"/> identifies the image so it is embedded once however often it is used.</summary>
-internal sealed record ImageItem(object Key, ReadOnlyMemory<byte> Content, ImageFormat Format, double X, double Y, double Width, double Height) : PageItem;
+internal sealed record ImageItem(object Key, ReadOnlyMemory<byte> Content, ImageFormat Format, double X, double Y, double Width, double Height) : PageItem
+{
+    /// <summary>The part of the page the image shows through, for a cropped or round image; <see langword="null"/>: all of it.</summary>
+    public ImageClip? Clip { get; init; }
+}
+
+/// <summary>A clipping area in page coordinates: a rectangle, or the ellipse inside it.</summary>
+internal sealed record ImageClip(double X, double Y, double Width, double Height, bool Round);
 
 /// <summary>
 /// An outline in page coordinates, filled and stroked; <see cref="Dash"/> alternates dash and gap lengths in points.

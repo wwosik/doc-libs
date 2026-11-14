@@ -31,6 +31,12 @@ a title that states the point, then a few short lines.
   **Several images in one paragraph** (`![Orders](orders.png) ![Sales](sales.png)`) stand side by
   side on one slide, equally wide: the way to show two charts together. `"caption"` in an image's
   title (`![Orders by month](orders.png "caption")`) puts its alt text under it.
+- **Image attributes** in braces right after an image, without a space:
+  `![Team](team.jpg){fit=cover focus=top .round .grey}`. `fit=cover` fills the image's box (the
+  slide's room, or its cell in a row) and crops what sticks out; `focus=top`, `bottom`, `left`,
+  `right` or `center` (the default) says which part stays. `.round` crops it to a circle, `.grey`
+  shows it in grey, `.caption` is the same as `"caption"`, and `scale=1` as `"scale=1"`. An unknown
+  attribute is an error.
 - `==text==` marks text like a highlighter pen.
 - `[words]{.success}` sets a few words bold in a status colour: `.success`, `.info`, `.warning`,
   `.danger` or `.neutral` — for a verdict inside a sentence, such as `[on schedule]{.success}`.
@@ -183,6 +189,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `language-unknown`: the language in `lang` has no texts of its own, so alert titles and similar texts are in English. Use `en` or `de`.
 - `notes-dropped`: a `::: notes` stands before the first heading, so it belongs to no slide and was left out. Move it under the heading of the slide it is for.
 - `notes-simplified`: speaker notes hold only paragraphs and lists; a table, code block, image or quote in `::: notes` was written as plain text. Keep speaker notes to text and lists.
+- `attribute-ignored`: an image attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `focus` on an image that is not cropped. Remove it, or use it where it works.
 
 ## Example
 

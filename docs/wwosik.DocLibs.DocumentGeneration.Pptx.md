@@ -104,6 +104,7 @@ string guide = PptxGenerator.AuthoringGuide(options);   // starts at "##"
   is one visual: the images in cells of equal width across the content width, each fitted into its
   cell; more than four wrap into further rows. `"caption"` in an image's title puts its alt text
   under it (14 pt, centred).
+- **Image attributes** after an image crop and colour it; see [below](#image-attributes).
 - **Tables** span the content width. Every column is at least as wide as its longest word (numbers
   never break), measured by character class and bold; the rest of the width goes to the columns by
   the length of their text. A table whose words do not fit steps its font down from 16 pt (14 pt
@@ -119,6 +120,22 @@ string guide = PptxGenerator.AuthoringGuide(options);   // starts at "##"
   layout's slide number placeholder, if it has one, and — with `ShowDate` — its date placeholder
   with the date of generation (`dd.MM.yyyy`, from `PptxOptions.TimeProvider`). On a brand's own
   template, `Brand.FooterText` goes into the layout's footer placeholder (`ShowFooter`, default on).
+
+### Image attributes
+
+`![Team](team.jpg){fit=cover focus=top .round .grey}` (the syntax is in
+[DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md#slide-layouts-in-markdown)). The picture
+stays a picture PowerPoint can edit: every crop is `a:srcRect`, every shape a preset.
+
+| Attribute | On slides |
+| --------- | --------- |
+| `fit=contain` | The default: the whole image, fitted into its box as above. |
+| `fit=cover` | The picture takes its whole box — the visual's room on an image slide, its cell in a row, its place on a layout slide or in a card — and what sticks out is cropped (`a:srcRect`). `scale` has no effect with it. |
+| `focus=top`, `bottom`, `left`, `right`, `center` | Which part stays when the image is cropped (default `center`); without `fit=cover` or `.round` it has no effect. |
+| `.round` | Cropped to a square by `focus`, then drawn as the preset `ellipse`. With `fit=cover` the circle is as large as the box's shorter side. |
+| `.grey` | `a:grayscl` on the picture's blip, PowerPoint's *Grayscale* colour; the image itself is unchanged. A converted SVG keeps its SVG beside the PNG. |
+| `.caption` | The same as `"caption"` in the title. |
+| `scale=N.N` | The same as `"scale=N.N"` in the title: an upper bound on the enlargement. |
 
 ## Presenting
 

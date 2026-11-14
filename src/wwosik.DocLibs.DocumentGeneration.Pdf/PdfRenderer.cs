@@ -4,6 +4,7 @@ using System.Xml.Linq;
 using UglyToad.PdfPig.Core;
 using UglyToad.PdfPig.Graphics.Core;
 using UglyToad.PdfPig.Graphics.Operations;
+using UglyToad.PdfPig.Graphics.Operations.ClippingPaths;
 using UglyToad.PdfPig.Graphics.Operations.General;
 using UglyToad.PdfPig.Graphics.Operations.PathConstruction;
 using UglyToad.PdfPig.Graphics.Operations.PathPainting;
@@ -230,6 +231,11 @@ internal sealed class PdfRenderer
                 break;
             case ImageItem image:
                 var area = new PdfRectangle(image.X, height - image.Y - image.Height, image.X + image.Width, height - image.Y);
+                if (image.Clip is { } clip)
+                {
+                    Clip(page, clip, height);
+                }
+
                 if (this.images.TryGetValue(image.Key, out var added))
                 {
                     page.AddImage(added, area);
@@ -246,6 +252,11 @@ internal sealed class PdfRenderer
                         var name = image.Key is DocumentResource resource ? resource.Path : "a built-in image";
                         throw new DocumentConversionException(DocumentFormat.Pdf, $"The image '{name}' could not be read: {ex.Message}", ex);
                     }
+                }
+
+                if (image.Clip is not null)
+                {
+                    page.CurrentStream.Operations.Add(Pop.Value);
                 }
 
                 break;
@@ -268,6 +279,34 @@ internal sealed class PdfRenderer
 
                 break;
         }
+    }
+
+    // Opens q and narrows what is drawn next to the rectangle, or the ellipse in it (four curves, as shapes draw it);
+    // the image is drawn into it and Q follows.
+    private static void Clip(PdfPageBuilder page, ImageClip clip, double pageHeight)
+    {
+        var operations = page.CurrentStream.Operations;
+        operations.Add(Push.Value);
+        var (left, bottom) = (clip.X, pageHeight - clip.Y - clip.Height);
+        if (clip.Round)
+        {
+            var (rx, ry) = (clip.Width / 2, clip.Height / 2);
+            var (cx, cy) = (left + rx, bottom + ry);
+            var (kx, ky) = (rx * 0.5523, ry * 0.5523);
+            operations.Add(new BeginNewSubpath(cx + rx, cy));
+            operations.Add(new AppendDualControlPointBezierCurve(cx + rx, cy + ky, cx + kx, cy + ry, cx, cy + ry));
+            operations.Add(new AppendDualControlPointBezierCurve(cx - kx, cy + ry, cx - rx, cy + ky, cx - rx, cy));
+            operations.Add(new AppendDualControlPointBezierCurve(cx - rx, cy - ky, cx - kx, cy - ry, cx, cy - ry));
+            operations.Add(new AppendDualControlPointBezierCurve(cx + kx, cy - ry, cx + rx, cy - ky, cx + rx, cy));
+            operations.Add(CloseSubpath.Value);
+        }
+        else
+        {
+            operations.Add(new AppendRectangle(left, bottom, clip.Width, clip.Height));
+        }
+
+        operations.Add(ModifyClippingByNonZeroWindingIntersect.Value);
+        operations.Add(EndPath.Value);
     }
 
     // PdfPig has no API for curves, so the path operators go straight into the page's content stream, inside q … Q
