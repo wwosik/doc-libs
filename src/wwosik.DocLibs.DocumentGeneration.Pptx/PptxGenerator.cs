@@ -65,7 +65,7 @@ public static class PptxGenerator
             var dark = tone == SlideTone.Dark;
             var slides = DeckParser.Parse(
                 document with { Markdown = frontMatter.Body },
-                options,
+                template.TransitionOverride is { } transition ? options with { Transition = transition } : options,
                 brand is null ? null : dark ? ResolvedBrand.DarkSlideBrand(brand) : ResolvedBrand.SlideBrand(brand),
                 frontMatter.BodyLine,
                 notes);
@@ -166,6 +166,7 @@ public static class PptxGenerator
         ["layouts.closing"] = "The name of the template's layout for the closing slide.",
         ["showFooter"] = "`true` or `false`: the design's footer text on every slide but the cover. Default `true`.",
         ["listBullets"] = "`always` to show bullets on every list level, also where the design's first level has none; `template` (the default) leaves it to the design.",
+        ["transition"] = "How every slide is brought on when presented: " + string.Join(", ", LayoutSyntax.Transitions.Select(t => $"`{t}`")) + ". Default `none`. A heading's `transition=\"…\"` wins; see [Presenting](#presenting).",
     };
 
     private static readonly (string, string) Labels = (

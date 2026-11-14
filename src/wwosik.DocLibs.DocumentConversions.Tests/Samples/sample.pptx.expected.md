@@ -12,6 +12,12 @@ Costs stayed flat
 
 ![Team photo](images/image1.png)
 
+::: notes
+Thank the regional teams first.
+
+Costs are on the next slide
+:::
+
 ## Slide 3
 
 A slide without a title

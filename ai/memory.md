@@ -213,6 +213,18 @@ same change that made it untrue — a stale fact here is worse than a missing on
   every `a:rPr`/`a:endParaRPr` in `DeckWriter.Tag` after each slide; PDFs splice `/Lang` into the
   catalog and grow the XMP through `PdfRenderer.Splice`, which shifts the xref offsets.
   `Drawing.Validate()` runs in every drawing writer.
+- **Speaker notes and transitions (E07-S01):** `DeckParser.Section` takes top-level `::: notes` out
+  of a section before the slide kind is decided and sets `Slide.SpeakerNotes` and `Slide.Transition`
+  on every slide of the section; `Fit` copies both to every part. A new per-slide property must be
+  copied in both places. `DeckWriter.Write` adds `p:transition` after each slide (`Transitions`, Morph
+  as `mc:AlternateContent` with a fade fallback) and writes the notes pages **after** the loop, with the
+  notes master (the template's, else `NotesMasterBuilder` on a copy of the deck's theme) added only
+  then — so decks without notes keep their parts. `Canvas` takes the part hyperlinks go on (the notes
+  page). PDFs skip top-level `::: notes` in `MarkdownParser.Parse` and accept front matter
+  `transition`. `PptxConverter` reads the notes page's body placeholder as `::: notes`.
+- **The SDK's relationship ids are random** (`R` + 16 hex digits), so two runs never give the same
+  `.pptx` bytes; compare decks part by part with those ids masked (`PresentingTests.Parts`). PDFs have
+  a random `/ID` in the trailer.
 
 ## Traps
 

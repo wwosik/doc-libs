@@ -21,7 +21,7 @@ internal static class FontEmbedding
     {
         var presentation = presentationPart.Presentation ?? throw new InvalidDataException("ppt/presentation.xml is empty.");
         var used = presentationPart.SlideParts
-            .SelectMany(s => s.Slide?.Descendants<A.LatinFont>() ?? [])
+            .SelectMany(s => (s.Slide?.Descendants<A.LatinFont>() ?? []).Concat(s.NotesSlidePart?.NotesSlide?.Descendants<A.LatinFont>() ?? []))
             .Select(f => f.Typeface?.Value)
             .OfType<string>()
             .ToHashSet(StringComparer.Ordinal);

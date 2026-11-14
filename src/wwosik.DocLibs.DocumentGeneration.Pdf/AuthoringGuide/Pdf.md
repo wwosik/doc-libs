@@ -44,9 +44,11 @@ Markdown written for decks works here too and is shown plainly, so one text can 
 `## Title {kicker="…"}` drops the attributes, `::: cards`, `rows`, `panel`, `statement` and
 `columns` show their content as normal text, one part after the other, `==marked==` text is bold, and an alert (`> [!NOTE]`, `[!TIP]`,
 `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`) is a quote that starts with its title in bold, in the
-document's language (`lang`). For a
+document's language (`lang`). Speaker notes (`::: notes` … `:::`) and transitions (`transition:`
+in the front matter, `transition="…"` on a heading) are left out. For a
 PDF alone, write plain Markdown; alerts are fine for notes and warnings. Unknown containers,
-attributes and alerts are errors, as in decks.
+attributes, alerts and transitions are errors, as in decks, and so is a `::: notes` inside another
+block.
 
 {{diagrams}}
 

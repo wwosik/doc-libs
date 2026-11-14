@@ -86,13 +86,47 @@ of memory per plan.
 
 - **Nesting:** a longer fence holds a shorter one, `:::: panel` around `::: cards` … `:::` and
   `::::`.
-- **Rules:** attributes `{…}` on `##` headings, and on `#` only `.closing` and `layout`; in `::: cards`
+- **Rules:** attributes `{…}` on `##` headings, and on `#` only `.closing`, `layout` and `transition`; in `::: cards`
   nothing before the first `###`;
   `::: rows` holds exactly one list; every item of a `cards` or `rows` list starts with
   `**bold**`.
 - Layout slides that do not fit are set smaller, then continued on a further slide between their
   blocks; cards, a panel or columns stay together. Three or four cards with one or two lines each
   fill a slide.
+
+## Presenting
+
+**Speaker notes:** `::: notes` … `:::` under a heading holds what the presenter says. It is not
+shown on the slide but in PowerPoint's notes pane and on the notes pages. It goes on every slide
+the section produces, also on the further slides of a slide that did not fit, and it never changes
+the slide's layout.
+
+````markdown
+## Where we stand
+
+- 14 of 20 substations upgraded
+- Two delays, both in permitting
+
+::: notes
+Start with the **good news**, then the delays:
+
+- both are in permitting
+- neither moves the end date
+:::
+````
+
+- Speaker notes hold paragraphs and lists, with bold, italic, code and links. A table, code block,
+  image or quote in them is written as plain text.
+- Put `::: notes` at the top level of a section, after its heading: not inside another container,
+  a list or a quote. Several of them in one section are joined in order.
+
+**Transitions:** how a slide is brought on when the deck is presented. `transition: fade` in the
+front matter sets it for every slide; `transition="…"` on a heading (`## Results {transition="push"}`,
+also with other attributes) for that slide alone, and `transition="none"` turns it off there. The
+transitions: `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut` and
+`morph`, each in PowerPoint's default direction and speed. `morph` moves the shapes that two
+slides share from one to the other; viewers without it fade. Use one transition for the whole
+deck, and a different one only where it means something.
 
 ## Front matter
 
@@ -118,6 +152,7 @@ author: Planning team
 | `layouts.sectionHeader` | The name of the template's layout for section dividers. |
 | `layouts.closing` | The name of the template's layout for the closing slide. |
 | `listBullets` | `always` to show bullets on every list level, also where the design's first level has none; `template` (the default) leaves it to the design. |
+| `transition` | How every slide is brought on when presented: `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut`, `morph`. Default `none`. A heading's `transition="…"` wins; see [Presenting](#presenting). |
 | `labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral` | The [status labels](#layouts) in that category, separated by `;`: `labels.success: Done; Delivered`. |
 
 An unknown key, a key given twice or an invalid value is an error that lists the valid keys.
@@ -129,7 +164,8 @@ Each character is shown in the deck's font, or in a substitute where that font l
 ## When something is wrong
 
 Generation stops with a message that says what to fix: an unknown container (`::: grid`), heading
-attribute (`{.wide}`) or alert (`[!INFO]`), a `cards` or `rows` item without a bold start, an
+attribute (`{.wide}`), alert (`[!INFO]`) or transition, a `::: notes` inside another block, a
+`cards` or `rows` item without a bold start, an
 image that is not among the files, a front matter key that does not exist, or a broken diagram
 with its line. Fix the Markdown and generate again.
 
@@ -145,6 +181,8 @@ The document is still written, but whoever passes it to you may also pass on not
 - `html-as-text`: HTML is not interpreted: it is shown as text. Write Markdown instead.
 - `footnote-missing`: a footnote reference such as `[^1]` has no definition `[^1]: text`, so it is shown as written. Add the definition, or remove the reference.
 - `language-unknown`: the language in `lang` has no texts of its own, so alert titles and similar texts are in English. Use `en` or `de`.
+- `notes-dropped`: a `::: notes` stands before the first heading, so it belongs to no slide and was left out. Move it under the heading of the slide it is for.
+- `notes-simplified`: speaker notes hold only paragraphs and lists; a table, code block, image or quote in `::: notes` was written as plain text. Keep speaker notes to text and lists.
 
 ## Example
 

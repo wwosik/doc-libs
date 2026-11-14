@@ -46,13 +46,30 @@ internal sealed class OpenXmlPackage : IDisposable
     /// <summary>The relationships of <paramref name="partName"/>: id → target, internal targets resolved to part names.</summary>
     public Dictionary<string, string> Relationships(string partName)
     {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (id, _, target) in this.RelationshipEntries(partName))
+        {
+            map[id] = target;
+        }
+
+        return map;
+    }
+
+    /// <summary>
+    /// The target of the first relationship of <paramref name="partName"/> whose type is <paramref name="type"/> (the
+    /// full relationship type URI), resolved to a part name; <see langword="null"/> if there is none.
+    /// </summary>
+    public string? RelatedPart(string partName, string type) =>
+        this.RelationshipEntries(partName).Where(r => string.Equals(r.Type, type, StringComparison.Ordinal)).Select(r => r.Target).FirstOrDefault();
+
+    private IEnumerable<(string Id, string? Type, string Target)> RelationshipEntries(string partName)
+    {
         var folder = partName.Contains('/') ? partName[..partName.LastIndexOf('/')] : string.Empty;
         var relsName = (folder.Length == 0 ? string.Empty : folder + "/") + "_rels/" + partName[(partName.LastIndexOf('/') + 1)..] + ".rels";
-        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var rels = this.ReadXml(relsName);
         if (rels?.Root is null)
         {
-            return map;
+            yield break;
         }
 
         foreach (var rel in rels.Root.Elements())
@@ -65,10 +82,8 @@ internal sealed class OpenXmlPackage : IDisposable
             }
 
             var external = string.Equals((string?)rel.Attribute("TargetMode"), "External", StringComparison.OrdinalIgnoreCase);
-            map[id] = external ? target : Resolve(folder, target);
+            yield return (id, (string?)rel.Attribute("Type"), external ? target : Resolve(folder, target));
         }
-
-        return map;
     }
 
     /// <summary>Title and author from <c>docProps/core.xml</c>, when present.</summary>

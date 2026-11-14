@@ -255,6 +255,8 @@ if (result.HasNotes)
 | `character-replaced` | PDF | `PdfOptions.ReplaceUnsupported` replaced a character the fonts lack; once per character, without a line |
 | `footnote-missing` | PPTX, PDF | A footnote reference such as `[^1]` has no definition, so it is shown as written |
 | `language-unknown` | PPTX, PDF | The document language has no `GeneratedTexts` of its own, built in or from the options; the texts are English, the tag is kept; without a line |
+| `notes-dropped` | PPTX | A `::: notes` stands before the first heading, so it belongs to no slide and was left out |
+| `notes-simplified` | PPTX | Speaker notes held a table, code block, image, quote, alert, heading or other container, written as plain text; one note per block |
 
 ## Drawings and code-block renderers
 

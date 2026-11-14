@@ -14,6 +14,9 @@ public static class PdfGenerator
     private const string PageSizeKey = "pageSize";
     private const string OrientationKey = "orientation";
 
+    // A deck's key, accepted so that one Markdown serves both formats: its value is checked, then ignored.
+    private const string TransitionKey = "transition";
+
     /// <summary>
     /// Writes <paramref name="document"/> as a PDF to <paramref name="output"/>. Returns the number of pages and the
     /// notes for the writer: diagrams left as code, HTML shown as text, characters replaced.
@@ -73,6 +76,9 @@ public static class PdfGenerator
         (string, string) labels = (
             "labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral",
             "Status labels for decks, separated by `;`. A PDF accepts them and shows the labels as code.");
+        (string, string) transition = (
+            TransitionKey,
+            "The transition between slides in a deck: " + string.Join(", ", LayoutSyntax.Transitions.Select(t => $"`{t}`")) + ". A PDF accepts it and ignores it.");
         return AuthoringGuides.Fill(
             AuthoringGuides.Template(typeof(PdfGenerator).Assembly, "Pdf"),
             new Dictionary<string, string>
@@ -81,7 +87,7 @@ public static class PdfGenerator
                 ["frontMatter"] = AuthoringGuides.FrontMatter(
                     registry.Expected,
                     options.Language,
-                    [.. options.Template.Keys.Concat([PageSizeKey, OrientationKey]).Select(k => (k, meanings[k])), labels]),
+                    [.. options.Template.Keys.Concat([PageSizeKey, OrientationKey]).Select(k => (k, meanings[k])), transition, labels]),
                 ["characters"] = Characters(FontSet.For(ResolvedBrand.Resolve(options.Template.BrandValue)), options.ReplaceUnsupported is not null),
                 ["notes"] = options.ReplaceUnsupported is null
                     ? AuthoringGuides.Notes(DocumentFormat.Pdf, NoteCodes.CharacterReplaced)
@@ -114,7 +120,7 @@ public static class PdfGenerator
                 : current with { Template = new BrandPdfTemplateOptions { Brand = brand } },
             brands.Expected,
             current => current.Template.Name,
-            current => [.. current.Template.Keys, PageSizeKey, OrientationKey],
+            current => [.. current.Template.Keys, PageSizeKey, OrientationKey, TransitionKey],
             (current, key, value) => key switch
             {
                 PageSizeKey => current with
@@ -125,6 +131,7 @@ public static class PdfGenerator
                 {
                     Orientation = frontMatter.OneOf(key, value, ("portrait", PdfOrientation.Portrait), ("landscape", PdfOrientation.Landscape)),
                 },
+                TransitionKey => frontMatter.OneOf(key, value, [.. LayoutSyntax.Transitions.Select(t => (t, current))]),
                 _ => current with { Template = current.Template.With(frontMatter, key, value) },
             });
     }

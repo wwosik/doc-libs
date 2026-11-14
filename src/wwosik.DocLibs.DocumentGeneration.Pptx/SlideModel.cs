@@ -88,6 +88,12 @@ internal abstract record Slide(IReadOnlyList<TextRun> Title)
     /// <summary>The footnotes the slide references, by number: in small text at the foot of its content area.</summary>
     public IReadOnlyList<SlideFootnote> Footnotes { get; init; } = [];
 
+    /// <summary>The speaker notes, from the section's <c>::: notes</c>: on every slide the section produces.</summary>
+    public IReadOnlyList<TextParagraph> SpeakerNotes { get; init; } = [];
+
+    /// <summary>How the slide is brought on when presented: its heading's <c>transition="…"</c>, else the deck's.</summary>
+    public SlideTransition Transition { get; init; }
+
     /// <summary>Every run of the slide: its title and all its text, tables, cards and rows included.</summary>
     public IEnumerable<TextRun> AllRuns() => this.Title.Concat(this switch
     {

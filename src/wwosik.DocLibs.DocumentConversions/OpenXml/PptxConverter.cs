@@ -6,7 +6,8 @@ namespace wwosik.DocLibs.DocumentConversions.OpenXml;
 
 /// <summary>
 /// Converts PowerPoint presentations (<c>.pptx</c>) into Markdown: one section per slide with the
-/// slide title as its heading, then text, tables and pictures in shape order.
+/// slide title as its heading, then text, tables and pictures in shape order, and the slide's speaker notes as
+/// <c>::: notes</c>.
 /// </summary>
 public sealed class PptxConverter : IDocumentConverter
 {
@@ -16,6 +17,7 @@ public sealed class PptxConverter : IDocumentConverter
     private static readonly XNamespace MC = "http://schemas.openxmlformats.org/markup-compatibility/2006";
 
     private const string PresentationPart = "ppt/presentation.xml";
+    private const string NotesSlideType = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide";
 
     /// <inheritdoc/>
     public bool CanConvert(DocumentFormat format) => format == DocumentFormat.Pptx;
@@ -106,7 +108,27 @@ public sealed class PptxConverter : IDocumentConverter
             }
         }
 
-        return content;
+        return SpeakerNotes(package, part, builder) || content;
+    }
+
+    // The text of the notes page's body placeholder, after the slide's content; returns whether there was any.
+    private static bool SpeakerNotes(OpenXmlPackage package, string slidePart, StringBuilder builder)
+    {
+        if (package.RelatedPart(slidePart, NotesSlideType) is not { } notesPart)
+        {
+            return false;
+        }
+
+        var body = package.ReadXml(notesPart)?.Root?.Element(P + "cSld")?.Element(P + "spTree")?.Descendants(P + "sp")
+            .FirstOrDefault(s => PlaceholderType(s) is "body");
+        var lines = body?.Element(P + "txBody") is { } text ? Paragraphs(text).ToList() : [];
+        if (lines.Count == 0)
+        {
+            return false;
+        }
+
+        builder.Append("::: notes\n").Append(string.Join("\n\n", lines)).Append("\n:::\n\n");
+        return true;
     }
 
     private static bool IsTitle(XElement shape) => PlaceholderType(shape) is "title" or "ctrTitle";

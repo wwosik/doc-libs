@@ -319,6 +319,16 @@ internal static class Samples
             + """<a:tr h="0"><a:tc><a:txBody><a:bodyPr/><a:p><a:r><a:t>North</a:t></a:r></a:p></a:txBody></a:tc><a:tc><a:txBody><a:bodyPr/><a:p><a:r><a:t>4 %</a:t></a:r></a:p></a:txBody></a:tc></a:tr>"""
             + """</a:tbl></a:graphicData></a:graphic></p:graphicFrame>""");
 
+        // Speaker notes as PowerPoint writes them: the slide image, the notes in the body placeholder, a slide number.
+        var notes = $"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:notes {ns}><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>"""
+            + """<p:sp><p:nvSpPr><p:cNvPr id="2" name="Slide Image Placeholder 1"/><p:cNvSpPr><a:spLocks noGrp="1" noRot="1" noChangeAspect="1"/></p:cNvSpPr><p:nvPr><p:ph type="sldImg"/></p:nvPr></p:nvSpPr><p:spPr/></p:sp>"""
+            + """<p:sp><p:nvSpPr><p:cNvPr id="3" name="Notes Placeholder 2"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="body" idx="1"/></p:nvPr></p:nvSpPr><p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/>"""
+            + """<a:p><a:r><a:rPr lang="en-US" dirty="0"/><a:t>Thank the regional </a:t></a:r><a:r><a:rPr lang="en-US" b="1" dirty="0"/><a:t>teams</a:t></a:r><a:r><a:rPr lang="en-US" dirty="0"/><a:t> first.</a:t></a:r></a:p>"""
+            + """<a:p><a:pPr marL="171450" indent="-171450"><a:buFont typeface="Arial"/><a:buChar char="&#8226;"/></a:pPr><a:r><a:rPr lang="en-US" dirty="0"/><a:t>Costs are on the next slide</a:t></a:r></a:p>"""
+            + """<a:p><a:endParaRPr lang="en-US" dirty="0"/></a:p></p:txBody></p:sp>"""
+            + """<p:sp><p:nvSpPr><p:cNvPr id="4" name="Slide Number Placeholder 3"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="sldNum" sz="quarter" idx="5"/></p:nvPr></p:nvSpPr><p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:fld id="{B6F15528-21DE-4FAA-801E-634DDDAF4B2B}" type="slidenum"><a:rPr lang="en-US"/><a:t>2</a:t></a:fld><a:endParaRPr lang="en-US"/></a:p></p:txBody></p:sp>"""
+            + """</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:notes>""";
+
         var presentation = $"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:presentation {ns}><p:sldIdLst><p:sldId id="256" r:id="rId1"/><p:sldId id="257" r:id="rId2"/><p:sldId id="258" r:id="rId3"/></p:sldIdLst><p:sldSz cx="12192000" cy="6858000"/><p:notesSz cx="6858000" cy="9144000"/></p:presentation>""";
         const string slideType = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide";
 
@@ -329,6 +339,7 @@ internal static class Samples
                 ("/ppt/slides/slide1.xml", "application/vnd.openxmlformats-officedocument.presentationml.slide+xml"),
                 ("/ppt/slides/slide2.xml", "application/vnd.openxmlformats-officedocument.presentationml.slide+xml"),
                 ("/ppt/slides/slide3.xml", "application/vnd.openxmlformats-officedocument.presentationml.slide+xml"),
+                ("/ppt/notesSlides/notesSlide1.xml", "application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml"),
                 ("/docProps/core.xml", "application/vnd.openxmlformats-package.core-properties+xml"))),
             ["_rels/.rels"] = Text(Relationships(
                 ("rId1", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument", "ppt/presentation.xml", false),
@@ -341,7 +352,11 @@ internal static class Samples
             ["ppt/slides/slide1.xml"] = Text(slide1),
             ["ppt/slides/slide2.xml"] = Text(slide2),
             ["ppt/slides/_rels/slide2.xml.rels"] = Text(Relationships(
-                ("rIdPhoto", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image", "../media/image1.png", false))),
+                ("rIdPhoto", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image", "../media/image1.png", false),
+                ("rIdNotes", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide", "../notesSlides/notesSlide1.xml", false))),
+            ["ppt/notesSlides/notesSlide1.xml"] = Text(notes),
+            ["ppt/notesSlides/_rels/notesSlide1.xml.rels"] = Text(Relationships(
+                ("rId1", slideType, "../slides/slide2.xml", false))),
             ["ppt/slides/slide3.xml"] = Text(slide3),
             ["ppt/media/image1.png"] = Photo,
             ["docProps/core.xml"] = Text(CoreProperties("Quarterly review", "DocLibs")),

@@ -61,6 +61,12 @@ public sealed record PptxOptions
     public ListBullets ListBullets { get; init; }
 
     /// <summary>
+    /// How every slide is brought on when the deck is presented, unless the front matter sets <c>transition</c> or a
+    /// heading <c>transition="…"</c>. Default <see cref="SlideTransition.None"/>: no transition.
+    /// </summary>
+    public SlideTransition Transition { get; init; }
+
+    /// <summary>
     /// The document language, a BCP 47 tag such as <c>en</c>, <c>de</c> or <c>de-CH</c>, unless the front matter sets
     /// <c>lang</c>. It picks the texts the generator writes itself (see <see cref="Texts"/>) and tags the text, for
     /// spell checking in PowerPoint. Default <c>en</c>.
@@ -86,4 +92,44 @@ public enum ListBullets
 
     /// <summary>Markdown's bullets on every level, whatever the template's styles say.</summary>
     Always,
+}
+
+/// <summary>
+/// How a slide is brought on when the deck is presented, each with PowerPoint's default direction and speed. Front
+/// matter <c>transition</c> and a heading's <c>transition="…"</c> name them in lower case.
+/// </summary>
+public enum SlideTransition
+{
+    /// <summary>No transition: the slide simply replaces the one before.</summary>
+    None,
+
+    /// <summary>The slide fades in.</summary>
+    Fade,
+
+    /// <summary>The slide pushes the one before off the screen.</summary>
+    Push,
+
+    /// <summary>The slide is wiped in over the one before.</summary>
+    Wipe,
+
+    /// <summary>The slide opens from the middle.</summary>
+    Split,
+
+    /// <summary>The slide slides in over the one before.</summary>
+    Cover,
+
+    /// <summary>The slide before slides away and uncovers it.</summary>
+    Uncover,
+
+    /// <summary>The slide zooms in.</summary>
+    Zoom,
+
+    /// <summary>A cut: the slide replaces the one before at once, as a transition of its own.</summary>
+    Cut,
+
+    /// <summary>
+    /// PowerPoint's Morph: shapes that are on both slides move and change from one to the other. Viewers without Morph
+    /// show a fade instead.
+    /// </summary>
+    Morph,
 }

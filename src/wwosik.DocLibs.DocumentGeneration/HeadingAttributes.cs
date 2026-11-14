@@ -6,16 +6,19 @@ namespace wwosik.DocLibs.DocumentGeneration;
 /// <summary>
 /// Slide settings at the end of a heading, Pandoc style: <c>## Title {.dark kicker="Label" layout="Name"}</c>, and
 /// <c># Thank you {.closing}</c>. Only a trailing <c>{…}</c> made of classes and quoted <c>key="value"</c> pairs counts;
-/// any other braces stay text. Of those, only <c>.dark</c>, <c>kicker</c>, <c>layout</c> and <c>.closing</c> are known,
-/// anything else throws <see cref="DocumentConversionException"/>.
+/// any other braces stay text. Of those, only <c>.dark</c>, <c>kicker</c>, <c>layout</c>, <c>transition</c> and
+/// <c>.closing</c> are known, anything else throws <see cref="DocumentConversionException"/>.
 /// </summary>
 internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
 {
     /// <summary>The attributes, as they are written, for error messages.</summary>
-    public const string Valid = ".dark, kicker=\"…\", layout=\"…\", .closing";
+    public const string Valid = ".dark, kicker=\"…\", layout=\"…\", transition=\"…\", .closing";
 
     /// <summary>The template's layout to put the slide on, by its name; <see langword="null"/>: chosen by the kind of slide.</summary>
     public string? Layout { get; init; }
+
+    /// <summary>The transition to the slide, one of <see cref="LayoutSyntax.Transitions"/>; <see langword="null"/>: the deck's.</summary>
+    public string? Transition { get; init; }
 
     /// <summary>On a <c>#</c> heading: the closing slide, on the template's closing layout.</summary>
     public bool Closing { get; init; }
@@ -37,6 +40,7 @@ internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
         var closing = false;
         string? kicker = null;
         string? layout = null;
+        string? transition = null;
         foreach (Match token in TokenPattern().Matches(match.Groups[1].Value))
         {
             switch (token.Groups["class"].Success ? "." + token.Groups["class"].Value : token.Groups["key"].Value)
@@ -53,7 +57,10 @@ internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
                 case "layout" when layout is null:
                     layout = token.Groups["value"].Value;
                     break;
-                case "kicker" or "layout":
+                case "transition" when transition is null:
+                    transition = LayoutSyntax.Transition(token.Groups["value"].Value, format);
+                    break;
+                case "kicker" or "layout" or "transition":
                     throw new DocumentConversionException(format, $"The heading attributes '{match.Value.Trim()}' name {token.Groups["key"].Value} twice.");
                 case var unknown:
                     throw new DocumentConversionException(
@@ -62,7 +69,7 @@ internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
             }
         }
 
-        return (text[..match.Index].TrimEnd(), new HeadingAttributes(dark, kicker) { Layout = layout, Closing = closing });
+        return (text[..match.Index].TrimEnd(), new HeadingAttributes(dark, kicker) { Layout = layout, Transition = transition, Closing = closing });
     }
 
     [GeneratedRegex(@"\s*\{((?:\s*(?:\.[A-Za-z][\w-]*|[A-Za-z][\w-]*=""[^""]*""))+)\s*\}\s*$", RegexOptions.CultureInvariant)]

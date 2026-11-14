@@ -82,6 +82,12 @@ public static class NoteCodes
     /// <summary>The document language has no texts of its own; the generated texts are in English.</summary>
     public const string LanguageUnknown = "language-unknown";
 
+    /// <summary>A <c>::: notes</c> before the first heading belongs to no slide and was left out.</summary>
+    public const string NotesDropped = "notes-dropped";
+
+    /// <summary>Speaker notes held a table, code block, image, quote or other block, which was written as plain text.</summary>
+    public const string NotesSimplified = "notes-simplified";
+
     /// <summary>Every code, with the formats it occurs in and what a writer changes about it, for the authoring guides.</summary>
     internal static readonly IReadOnlyList<(string Code, DocumentFormat[] Formats, string Advice)> All =
     [
@@ -94,6 +100,8 @@ public static class NoteCodes
         (CharacterReplaced, [DocumentFormat.Pdf], "a character the fonts lack was replaced. Write it as one of the replacements under *Characters*."),
         (FootnoteMissing, [DocumentFormat.Pptx, DocumentFormat.Pdf], "a footnote reference such as `[^1]` has no definition `[^1]: text`, so it is shown as written. Add the definition, or remove the reference."),
         (LanguageUnknown, [DocumentFormat.Pptx, DocumentFormat.Pdf], "the language in `lang` has no texts of its own, so alert titles and similar texts are in English. Use `en` or `de`."),
+        (NotesDropped, [DocumentFormat.Pptx], "a `::: notes` stands before the first heading, so it belongs to no slide and was left out. Move it under the heading of the slide it is for."),
+        (NotesSimplified, [DocumentFormat.Pptx], "speaker notes hold only paragraphs and lists; a table, code block, image or quote in `::: notes` was written as plain text. Keep speaker notes to text and lists."),
     ];
 }
 

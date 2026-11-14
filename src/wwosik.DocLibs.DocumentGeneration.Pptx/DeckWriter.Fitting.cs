@@ -1,4 +1,4 @@
-using DocumentFormat.OpenXml.Packaging;
+﻿using DocumentFormat.OpenXml.Packaging;
 
 namespace wwosik.DocLibs.DocumentGeneration.Pptx;
 
@@ -54,7 +54,14 @@ internal sealed partial class DeckWriter
                 $"The slide '{title}' runs past the content area even at the smallest size: one item does not fit on a slide of its own. Shorten it.");
         }
 
-        return [.. parts.Select(p => (p.Slide.Footnotes.Count == 0 && slide.Footnotes.Count > 0 ? WithFootnotes(p.Slide, slide.Footnotes) : p.Slide, p.Step))];
+        // Every part keeps the slide's speaker notes and transition.
+        return [.. parts.Select(p => (
+            (p.Slide.Footnotes.Count == 0 && slide.Footnotes.Count > 0 ? WithFootnotes(p.Slide, slide.Footnotes) : p.Slide) with
+            {
+                SpeakerNotes = slide.SpeakerNotes,
+                Transition = slide.Transition,
+            },
+            p.Step))];
     }
 
     private static Slide WithFootnotes(Slide part, IReadOnlyList<SlideFootnote> footnotes)

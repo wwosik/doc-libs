@@ -163,10 +163,11 @@ internal sealed partial class DeckWriter
             : BuiltInTableStyleId;
     }
 
-    /// <summary>Writes the slides, fitted; returns how many were written.</summary>
+    /// <summary>Writes the slides, fitted, with their speaker notes and transitions; returns how many were written.</summary>
     public int Write(IReadOnlyList<Slide> slides)
     {
         var number = 0;
+        var speakerNotes = new List<(SlidePart Slide, IReadOnlyList<TextParagraph> Notes)>();
         foreach (var (slide, step) in slides.SelectMany(this.Fit))
         {
             this.current = slide;
@@ -188,9 +189,24 @@ internal sealed partial class DeckWriter
             }
 
             this.Tag(canvas);
+            Transitions.Write(canvas.Part.Slide!, slide.Transition);
+            if (slide.SpeakerNotes.Count > 0)
+            {
+                speakerNotes.Add((canvas.Part, slide.SpeakerNotes));
+            }
         }
 
         this.footnotes = [];
+
+        // The notes master only for a deck with speaker notes, after the slides: a deck without them keeps its parts and ids.
+        if (speakerNotes.Count > 0)
+        {
+            var master = this.NotesMaster();
+            foreach (var (part, paragraphs) in speakerNotes)
+            {
+                this.WriteSpeakerNotes(part, master, paragraphs);
+            }
+        }
 
         if (this.presentation.SlideIdList is { HasChildren: false } empty)
         {
@@ -327,6 +343,68 @@ internal sealed partial class DeckWriter
         var area = this.ContentArea(layout);
         this.Stack(canvas, slide.Blocks, area, this.FlowStyleOf(slide, step));
         return canvas;
+    }
+
+    // The template's own notes master, else the built-in one on a copy of the deck's theme: the brand's fonts and
+    // colours on the built-in master, the template's theme fonts on a caller's template.
+    private NotesMasterPart NotesMaster()
+    {
+        if (this.presentationPart.NotesMasterPart is { } own)
+        {
+            return own;
+        }
+
+        var part = this.presentationPart.AddNewPart<NotesMasterPart>();
+        var theme = part.AddNewPart<ThemePart>();
+        if ((this.presentationPart.ThemePart ?? this.presentationPart.SlideMasterParts.FirstOrDefault()?.ThemePart) is { } source)
+        {
+            using var stream = source.GetStream(FileMode.Open, FileAccess.Read);
+            theme.FeedData(stream);
+        }
+        else
+        {
+            throw Damaged("it has no theme.");
+        }
+
+        NotesMasterBuilder.Write(part, this.slideWidth, this.slideHeight);
+        this.presentation.NotesMasterIdList = new P.NotesMasterIdList(new P.NotesMasterId { Id = this.presentationPart.GetIdOfPart(part) });
+        return part;
+    }
+
+    // A notes page: the slide image and the speaker notes in the body placeholder, lists with their own bullets, links
+    // on the notes part, every run in the document's language.
+    private void WriteSpeakerNotes(SlidePart slide, NotesMasterPart master, IReadOnlyList<TextParagraph> paragraphs)
+    {
+        var part = slide.AddNewPart<NotesSlidePart>();
+        part.AddPart(master);
+        part.AddPart(slide);
+        var tree = new P.ShapeTree(
+            new P.NonVisualGroupShapeProperties(
+                new P.NonVisualDrawingProperties { Id = 1U, Name = string.Empty },
+                new P.NonVisualGroupShapeDrawingProperties(),
+                new P.ApplicationNonVisualDrawingProperties()),
+            new P.GroupShapeProperties());
+        var canvas = new Canvas(slide, tree, part);
+        var id = canvas.NextId();
+        canvas.Add(new P.Shape(
+            new P.NonVisualShapeProperties(
+                new P.NonVisualDrawingProperties { Id = id, Name = "Slide Image " + id },
+                new P.NonVisualShapeDrawingProperties(new A.ShapeLocks { NoGrouping = true, NoRotation = true, NoChangeAspect = true }),
+                new P.ApplicationNonVisualDrawingProperties(new P.PlaceholderShape { Type = P.PlaceholderValues.SlideImage })),
+            new P.ShapeProperties()));
+        canvas.Add(Placeholder(
+            canvas,
+            new P.PlaceholderShape { Type = P.PlaceholderValues.Body, Index = 1U },
+            "Notes",
+            paragraphs.Select(p => this.Paragraph(canvas, p, explicitBullets: true, null))));
+        part.NotesSlide = new P.NotesSlide(new P.CommonSlideData(tree), new P.ColorMapOverride(new A.MasterColorMapping()));
+        foreach (var properties in part.NotesSlide.Descendants<A.TextCharacterPropertiesType>())
+        {
+            if (properties is A.RunProperties or A.EndParagraphRunProperties)
+            {
+                properties.Language = this.language;
+            }
+        }
     }
 
     // Below the content area, which leaves room for them: each footnote with its number raised before it.
@@ -1398,8 +1476,11 @@ internal sealed partial class DeckWriter
         public A.Transform2D Transform() => new(new A.Offset { X = this.X, Y = this.Y }, new A.Extents { Cx = this.W, Cy = this.H });
     }
 
-    /// <summary>The slide being written: its part, its shape tree, and the ids used on it.</summary>
-    private sealed class Canvas(SlidePart part, P.ShapeTree tree)
+    /// <summary>
+    /// The slide being written: its part, its shape tree, and the ids used on it. <paramref name="links"/> is the part
+    /// hyperlinks go on, when it is not the slide's: the notes page of its speaker notes.
+    /// </summary>
+    private sealed class Canvas(SlidePart part, P.ShapeTree tree, OpenXmlPart? links = null)
     {
         private readonly Dictionary<string, string?> hyperlinks = new(StringComparer.Ordinal);
         private uint nextId = 2;
@@ -1414,7 +1495,7 @@ internal sealed partial class DeckWriter
         {
             if (!this.hyperlinks.TryGetValue(url, out var id))
             {
-                id = Uri.TryCreate(url, UriKind.Absolute, out var uri) ? part.AddHyperlinkRelationship(uri, isExternal: true).Id : null;
+                id = Uri.TryCreate(url, UriKind.Absolute, out var uri) ? (links ?? part).AddHyperlinkRelationship(uri, isExternal: true).Id : null;
                 this.hyperlinks[url] = id;
             }
 

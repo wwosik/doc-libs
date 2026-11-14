@@ -120,6 +120,43 @@ string guide = PptxGenerator.AuthoringGuide(options);   // starts at "##"
   with the date of generation (`dd.MM.yyyy`, from `PptxOptions.TimeProvider`). On a brand's own
   template, `Brand.FooterText` goes into the layout's footer placeholder (`ShowFooter`, default on).
 
+## Presenting
+
+- **Speaker notes:** `::: notes` … `:::` at the top level of a `#` or `##` section is taken out of
+  the section before the kind of slide is decided, so it never turns a text slide into a flow slide.
+  Its paragraphs and lists (bullets, numbers, levels, task boxes; bold, italic, code, links, line
+  breaks) go on the notes page of **every slide the section produces**: the cover or divider, each
+  visual slide, and every part of a slide split by [fitting](#fitting). Several in one section are
+  joined in order. Tables become lines with their cells separated by ` | `, code blocks and HTML
+  their lines, quotes, alerts, headings and other containers their text, an image its alt text;
+  each is reported as `notes-simplified`. A `::: notes` before the first heading is dropped with
+  `notes-dropped`; one inside another container, a list, a quote or another `::: notes` throws.
+- **Notes pages** have the slide image and a body placeholder (`type="body" idx="1"`) with the
+  speaker notes, lists with explicit bullets and numbers, code in the deck's code font, links as
+  hyperlinks of the notes page, every run in the document language. They use the template's notes
+  master; a template without one (the built-in master included) gets a built-in notes master — see
+  [Templates](#templates). A deck without speaker notes gets neither, so it stays as before.
+- **Transitions:** front matter `transition:` (else `PptxOptions.Transition`, default
+  `SlideTransition.None`) sets every slide's; `transition="…"` on a `#` or `##` heading sets that
+  heading's slides', `transition="none"` included, and keeps a plain slide plain, as `layout="…"`
+  does. Split parts keep their slide's. The names, each written as `p:transition` with PowerPoint's
+  default direction:
+
+  | Name | Written as | Speed |
+  | ---- | ---------- | ----- |
+  | `none` | nothing | |
+  | `fade` | `p:fade` | medium |
+  | `push` | `p:push` | slow |
+  | `wipe` | `p:wipe` | slow |
+  | `split` | `p:split` | slow |
+  | `cover` | `p:cover` | slow |
+  | `uncover` | `p:pull` | slow |
+  | `zoom` | `p:zoom` | medium |
+  | `cut` | `p:cut` | fast |
+  | `morph` | `mc:AlternateContent`: `p159:morph` (`option="byObject"`, PowerPoint 2019 and Microsoft 365), with `p:fade` as the fallback | slow |
+
+  An unknown name throws in both generators.
+
 ## Layouts
 
 A `##` section can ask for more than bullets or one visual. It then becomes a **flow slide**: its
@@ -216,7 +253,17 @@ template.
 
 Every template takes `PptxOptions.ListBullets`: `Template` (default) leaves the bullets of text slides
 to the template's styles, `Always` writes Markdown's bullets on every level — for templates whose
-level-1 style has none.
+level-1 style has none. Every template also takes `PptxOptions.Transition`, see
+[Presenting](#presenting).
+
+**Notes master.** A deck with [speaker notes](#presenting) uses the template's notes master as it
+is. A template without one — the built-in master, a brand's own template or a caller's template —
+gets a built-in notes master (`NotesMasterBuilder`), added after the slides with the next free
+relationship id and listed in `p:notesMasterIdLst`: on the portrait notes page (6858000 × 9144000),
+header and date at the top, the slide image in the deck's proportions, the speaker notes in 12 pt
+below it (each level indented by half an inch, no bullets of its own), footer and slide number at
+the foot. Its theme is a copy of the deck's theme, so on the built-in master it has the brand's
+font and colours, on other templates their theme fonts.
 
 Brands — colours, fonts, images, brand packs, and how front matter picks one from
 `PptxOptions.Brands` — are described in
@@ -294,6 +341,7 @@ author: Team Docs
 | `embedFonts` | `true`, `false` | brands on the built-in master or their own `Pptx` template |
 | `showFooter` | `true`, `false` | brands with their own `Pptx` template |
 | `listBullets` | `template`, `always` | all |
+| `transition` | `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut`, `morph` | all — see [Presenting](#presenting) |
 | `layouts.title`, `layouts.content`, `layouts.titleOnly`, `layouts.sectionHeader`, `layouts.closing` | layout name | custom |
 | `title`, `author` | text | all — the core properties |
 | `lang` | a language tag such as `en`, `de`, `de-CH`; default `PptxOptions.Language` (`en`), with `PptxOptions.Texts` for further languages | all — see [Document language](wwosik.DocLibs.DocumentGeneration.md#document-language) |
@@ -346,7 +394,7 @@ Drawings are enlarged at most by half, so that their text keeps a sensible size.
 - The footer text sits in a box of fixed width without wrapping; a long one runs into the date.
 - A caller template's own body style is used as it is; one made for hand-written slides (level 1
   bold, no bullets on levels 1–2) suits Markdown less well than the built-in template.
-- No speaker notes, no merged table cells. SVG images only through an image converter. Native
+- No merged table cells. SVG images only through an image converter. Native
   charts are bar, line and area only; the financial charts are shapes, not charts PowerPoint can edit
   the data of.
 - Embedded fonts are a PowerPoint feature. Viewers that ignore them — LibreOffice without

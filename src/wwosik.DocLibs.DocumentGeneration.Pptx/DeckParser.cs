@@ -79,22 +79,203 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         return builder.Build();
     }
 
+    // `::: notes` at the top level of a section is taken out before the kind of slide is decided, so speaker notes
+    // never turn a text slide into a flow slide; they go on every slide the section produces.
     private void Section(HeadingBlock? heading, List<Block> blocks)
     {
+        var speakerNotes = blocks.OfType<CustomContainer>().Where(c => c.Info == LayoutSyntax.Notes).ToList();
         if (heading is null)
         {
+            foreach (var dropped in speakerNotes)
+            {
+                notes.Add(
+                    NoteCodes.NotesDropped,
+                    this.LineOf(dropped),
+                    "The speaker notes before the first heading belong to no slide and were left out. Move them under the heading of their slide.");
+            }
+
             return;
+        }
+
+        foreach (var block in blocks.Where(b => !speakerNotes.Contains(b)))
+        {
+            LayoutSyntax.CheckNoNestedNotes(block, Format.Pptx);
         }
 
         // Every slide of the section carries its heading's line, for the notes about it, and the footnotes it references.
         var first = this.slides.Count;
         this.footnotes.Clear();
-        this.Slides(heading, blocks);
+        var transition = this.Slides(heading, speakerNotes.Count == 0 ? blocks : [.. blocks.Where(b => !speakerNotes.Contains(b))]);
         var footnotes = this.footnotes.OrderBy(f => f.Value).Select(f => new SlideFootnote(f.Value, this.FootnoteText(f.Key))).ToList();
+        var paragraphs = new List<TextParagraph>();
+        foreach (var container in speakerNotes)
+        {
+            LayoutSyntax.CheckContainer(LayoutSyntax.Notes, container.Arguments?.Trim() ?? string.Empty, Format.Pptx);
+            this.SpeakerNotes(container, paragraphs, 0);
+        }
+
         for (var i = first; i < this.slides.Count; i++)
         {
             var references = this.slides[i].References();
-            this.slides[i] = this.slides[i] with { Line = this.LineOf(heading), Footnotes = [.. footnotes.Where(f => references.Contains(f.Number))] };
+            this.slides[i] = this.slides[i] with
+            {
+                Line = this.LineOf(heading),
+                Footnotes = [.. footnotes.Where(f => references.Contains(f.Number))],
+                SpeakerNotes = paragraphs,
+                Transition = transition ?? options.Transition,
+            };
+        }
+    }
+
+    // Paragraphs and lists keep their form; every other block is written as plain text, and reported.
+    private void SpeakerNotes(IEnumerable<Block> blocks, List<TextParagraph> into, int level)
+    {
+        foreach (var block in blocks)
+        {
+            switch (block)
+            {
+                case CustomContainer { Info: LayoutSyntax.Notes }:
+                    throw LayoutSyntax.NestedNotes(Format.Pptx);
+                case ParagraphBlock paragraph:
+                    this.NotesParagraph(paragraph, into, ParagraphKind.Plain, level, 1);
+                    break;
+                case ListBlock list:
+                    this.NotesList(list, into, level);
+                    break;
+                case HtmlBlock { Type: HtmlBlockType.Comment }:
+                case ThematicBreakBlock:
+                case LinkReferenceDefinitionGroup:
+                    break;
+                default:
+                    notes.Add(
+                        NoteCodes.NotesSimplified,
+                        this.LineOf(block),
+                        $"The speaker notes hold {Kind(block)}, which is written as plain text. Keep speaker notes to paragraphs and lists.");
+                    this.NotesText(block, into, level);
+                    break;
+            }
+        }
+    }
+
+    private static string Kind(Block block) => block switch
+    {
+        Markdig.Extensions.Tables.Table => "a table",
+        FencedCodeBlock or CodeBlock => "a code block",
+        AlertBlock => "an alert",
+        QuoteBlock => "a quote",
+        HeadingBlock => "a heading",
+        HtmlBlock => "HTML",
+        CustomContainer container => $"a '::: {container.Info}'",
+        _ => "a block other than a paragraph or list",
+    };
+
+    // A paragraph with its styles and links; an image in it becomes its alt text.
+    private void NotesParagraph(ParagraphBlock paragraph, List<TextParagraph> into, ParagraphKind kind, int level, int start)
+    {
+        if (paragraph.Inline?.Descendants<LinkInline>().Any(l => l.IsImage) ?? false)
+        {
+            notes.Add(
+                NoteCodes.NotesSimplified,
+                this.LineOf(paragraph),
+                "The speaker notes hold an image, which is written as its alt text. Keep speaker notes to paragraphs and lists.");
+        }
+
+        var runs = this.Runs(paragraph.Inline, imagesAsText: true);
+        if (runs.Count > 0 || kind != ParagraphKind.Plain)
+        {
+            into.Add(new TextParagraph(runs, kind, level, start));
+        }
+    }
+
+    private void NotesList(ListBlock list, List<TextParagraph> into, int level)
+    {
+        var start = list.IsOrdered && int.TryParse(list.OrderedStart, NumberStyles.None, CultureInfo.InvariantCulture, out var n) ? n : 1;
+        foreach (var item in list.OfType<ListItemBlock>())
+        {
+            var kind = item.FirstOrDefault() is ParagraphBlock { Inline.FirstChild: TaskList task } ? task.Checked ? ParagraphKind.TaskDone : ParagraphKind.Task
+                : list.IsOrdered ? ParagraphKind.Numbered : ParagraphKind.Bullet;
+            var marked = false;
+            foreach (var child in item)
+            {
+                if (!marked && child is ParagraphBlock paragraph)
+                {
+                    this.NotesParagraph(paragraph, into, kind, level, start);
+                    marked = true;
+                }
+                else if (child is ListBlock nested)
+                {
+                    this.NotesList(nested, into, level + 1);
+                }
+                else
+                {
+                    this.SpeakerNotes([child], into, level);
+                }
+            }
+
+            if (!marked)
+            {
+                into.Add(new TextParagraph([], kind, level, start));
+            }
+        }
+    }
+
+    // A block's text as plain paragraphs: a table row by row, its cells separated by " | "; code and HTML line by line.
+    private void NotesText(Block block, List<TextParagraph> into, int level)
+    {
+        switch (block)
+        {
+            case Table table:
+                foreach (var row in table.OfType<TableRow>())
+                {
+                    var runs = new List<TextRun>();
+                    foreach (var cell in row.OfType<TableCell>())
+                    {
+                        if (runs.Count > 0)
+                        {
+                            runs.Add(new TextRun(" | ", RunStyle.None));
+                        }
+
+                        runs.AddRange(this.Cell(cell, labels: false).Select(r => r.IsBreak ? new TextRun(" ", RunStyle.None) : r));
+                    }
+
+                    into.Add(new TextParagraph(runs, Level: level));
+                }
+
+                break;
+            case CodeBlock or HtmlBlock:
+                foreach (var line in ((LeafBlock)block).Lines.ToString().Split('\n').Where(l => l.Trim().Length > 0))
+                {
+                    into.Add(new TextParagraph([new TextRun(line.TrimEnd(), RunStyle.None)], Level: level));
+                }
+
+                break;
+            case LeafBlock { Inline: { } inline }:
+                if (this.Runs(inline, imagesAsText: true) is { Count: > 0 } text)
+                {
+                    into.Add(new TextParagraph(text, Level: level));
+                }
+
+                break;
+            case ContainerBlock container:
+                foreach (var child in container)
+                {
+                    switch (child)
+                    {
+                        case CustomContainer { Info: LayoutSyntax.Notes }:
+                            throw LayoutSyntax.NestedNotes(Format.Pptx);
+                        case ParagraphBlock paragraph:
+                            this.NotesParagraph(paragraph, into, ParagraphKind.Plain, level, 1);
+                            break;
+                        case ListBlock list:
+                            this.NotesList(list, into, level);
+                            break;
+                        default:
+                            this.NotesText(child, into, level);
+                            break;
+                    }
+                }
+
+                break;
         }
     }
 
@@ -136,7 +317,8 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         this.LineOf(html),
         $"The HTML '{GenerationNotes.Quote(text)}' is shown as text. Write Markdown instead.");
 
-    private void Slides(HeadingBlock heading, List<Block> blocks)
+    // Returns the transition the heading asks for, if any.
+    private SlideTransition? Slides(HeadingBlock heading, List<Block> blocks)
     {
         var title = this.Runs(heading.Inline, imagesAsText: true);
         var isTitle = heading.Level == 1;
@@ -163,7 +345,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             }
 
             section.Finish();
-            return;
+            return Transition(attributes);
         }
 
         var flow = new FlowCollector(inContainer: false);
@@ -173,7 +355,11 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         }
 
         this.slides.Add(new FlowSlide(title, attributes?.Kicker, attributes?.Dark ?? false, flow.Finish()) { Layout = attributes?.Layout });
+        return Transition(attributes);
     }
+
+    private static SlideTransition? Transition(HeadingAttributes? attributes) =>
+        attributes?.Transition is { } name ? Transitions.Parse(name) : null;
 
     // Takes the attributes off the end of the title, which is then shorter by them.
     private static HeadingAttributes? Attributes(List<TextRun> title)
@@ -414,6 +600,8 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             case "columns":
                 target.Add(this.Columns(container, arguments));
                 break;
+            case LayoutSyntax.Notes:
+                throw LayoutSyntax.NestedNotes(Format.Pptx);
             case "statement":
                 if (container.FirstOrDefault() is not ParagraphBlock lead)
                 {

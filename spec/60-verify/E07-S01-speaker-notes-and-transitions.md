@@ -1,7 +1,7 @@
 # E07-S01 Speaker notes and transitions
 
-> Status: in progress (doc-3)
-> Epic: [E07 Presenting](../../50-todo/E07-presenting.md)
+> Status: in verification
+> Epic: [E07 Presenting](../50-todo/E07-presenting.md)
 
 ## Summary
 
@@ -281,3 +281,110 @@ back as `::: notes`. PDFs accept the same Markdown and leave the presenting part
 - Questions 1–5 and 6–8 were numbered 1–5 and 8–10 before the split; the build questions 6 and 7
   moved to E07-S05 as its questions 1 and 2. Question 1's step numbers refer to the plan before
   the split. Question 5 covers both keys: `transition` here, `build` in E07-S05.
+
+## Implementation notes
+
+### Breaking changes
+
+- `PptxConverter` output now includes `::: notes` … `:::` after the content of every slide with
+  speaker notes, by default (question 7). In `CHANGELOG.md` under *Unreleased*.
+- Nothing else: Markdown that used `::: notes`, `transition="…"` or front matter `transition` threw
+  before. Decks without the new syntax are unchanged, and so are all PDFs (see *Verification*).
+
+### Decisions
+
+- **Shared syntax.** `LayoutSyntax` has `Notes`, `Transitions`, `Transition(name)` (case is
+  ignored, as front-matter values are), `CheckNoNestedNotes` and the shared `NestedNotes` error, so
+  both formats throw the same message. `HeadingAttributes` gained `Transition`.
+- **Nested `::: notes`** is checked once per section, over every block that is not a top-level
+  `::: notes` (`CheckNoNestedNotes`), so it throws also on cover and divider sections, which never
+  walk containers as containers. Notes inside notes throw too.
+- **Speaker notes are read after the slides** of their section, so a footnote reference in them
+  cannot change the slide's footnote numbers. Such a reference becomes a raised number in the
+  notes, without a footnote text (a loose end, see below).
+- **Other blocks in speaker notes** (question 3): tables become one line per row, cells joined by
+  ` | `; code blocks and HTML their non-empty lines; quotes, alerts, headings and other containers
+  their paragraphs and lists; an image in a paragraph its alt text. Each block gives one
+  `notes-simplified` note with its line. Container names inside notes are not checked.
+- **Transitions** are written as `p:transition` with an `spd` from PowerPoint's default duration of
+  each effect (fade and zoom medium, cut fast, the others slow) and no direction attribute, so the
+  schema's default direction applies. Morph: `mc:AlternateContent`, choice `p159:morph
+  option="byObject"` (`Requires="p159"`), fallback `p:fade`, both `spd="slow"`; `p14:dur` is left
+  out, so no `p14` namespace or `mc:Ignorable` is needed. The Open XML SDK has no Morph type, so the
+  element is built from XML (`Transitions.cs`).
+- **Front matter `transition`** is taken by every template kind like `listBullets`
+  (`PptxTemplateOptions.TransitionOverride`); `PptxGenerator` passes it to the parser as
+  `PptxOptions.Transition`. The PDF accepts the key, checks it with the same names and ignores it,
+  and lists it in its guide's front-matter table, like the `labels.*` keys.
+- **Notes master** (deviation in detail): its theme is a **copy of the deck's theme** rather than
+  one built from the brand. On the built-in master that is the brand's font and colours, on other
+  templates their theme fonts, which is what the plan asks for, with one code path. Its placeholders
+  follow PowerPoint's own notes master: `hdr`, `dt` idx 1, `sldImg` idx 2, `body` idx 3, `ftr` idx 4,
+  `sldNum` idx 5; the notes pages use `body idx="1"` as PowerPoint writes them, matched by type. The
+  slide image takes the deck's proportions. The notes style indents each level by half an inch
+  without bullets of its own, as PowerPoint's does; lists bring explicit bullets and numbers
+  (`explicitBullets: true`), so they look the same on any notes master.
+- **Notes pages are written after all slides**, then the notes master is added (next free
+  relationship id, `p:notesMasterIdLst`), so a deck without speaker notes never sees any of it.
+  `Canvas` takes an optional part for hyperlinks, the notes page.
+- **Font embedding** now also looks at the notes pages, so code in speaker notes embeds the brand's
+  mono face as code on a slide does. Decks without notes are unaffected.
+- **Converter:** `OpenXmlPackage.RelatedPart(part, type)` finds a relationship by type
+  (`Relationships` shares the reading). The notes are the notes page's `body` placeholder, written
+  like other slide text (one escaped paragraph per line, bullets not kept); an empty body writes
+  nothing. A slide's speaker notes count as content.
+- **Sample:** `sample.pptx` from `sample-generator` has a notes page on slide 2 as PowerPoint writes
+  it (slide image, body with a run split by formatting, a bulleted paragraph, an empty paragraph, a
+  slide-number placeholder). Only that sample was committed.
+
+### Verification
+
+- **Tests.** All pass: 109, 104, 67, 21, 215, 71, 141 and 1 (729), with 6 Windows-only tests
+  skipped. The build has 0 warnings. New tests: `PresentingTests` in Pptx.Tests (20) and Pdf.Tests
+  (6); the converter's `sample.pptx` expectation; updated expected messages in `FrontMatterTests`
+  and `SlideLayoutTests`.
+- **Open XML validator** (`Microsoft365`): the `presenting.md` sample on both built-in brands, Morph,
+  speaker notes with lists and links, a caller template with and without its own notes master, and a
+  brand's own template (`brand-dark`) all pass.
+- **Unchanged decks.** `deck.md` and `layouts.md` were generated with the claim commit's code and
+  with this change, on the neutral and the sample brand without a date: every part is identical once
+  the SDK's random relationship ids are masked (a scratch script in `.tmp/baseline/`). A test checks
+  that `deck.md` has no notes master, notes pages or transitions, and that `transition: none` writes
+  the same parts.
+- **Unchanged PDFs.** A test checks that Markdown with speaker notes, heading transitions and front
+  matter `transition` gives the same PDF as without them, but for the random `/ID`.
+- **Expected files** regenerated with `DOCLIBS_UPDATE_EXPECTED=1` and reviewed: the four authoring
+  guides, `sample.pptx.expected.md`, and the new `presenting-neutral/-sample.roundtrip.expected.md`.
+
+### To verify by hand (no PowerPoint on this machine)
+
+The decks are written by the tests to `.tmp/review/presenting-neutral.pptx` and
+`presenting-sample.pptx`.
+
+1. **No repair prompt** when opening both presenting decks, and a deck generated on a caller
+   template that has its own notes master (generate one deck with notes, use it as
+   `CustomTemplateOptions`, as `ACallerTemplatesOwnNotesMaster_IsUsedAsItIs` does).
+2. **Notes pane and Notes Page view** (View → Notes Page) on the built-in notes master: slide image
+   in the right proportions, speaker notes below in 12 pt in the brand font, numbered list, nested
+   bullet, link clickable, `planner.json` in the code font; header, date, footer and slide number
+   placeholders where PowerPoint puts them. The same on the caller template's own notes master.
+   Check that the split slide *Every stop on the route* and both *The numbers* slides show the same
+   notes.
+3. **Every transition plays** in slide show: fade (cover and closing slide), push, wipe, split,
+   cover, uncover, zoom, cut, morph, and none on *No transition here*. Check that the speeds and the
+   default directions look like PowerPoint's own defaults (Transitions tab → Effect Options and
+   Duration); adjust `Transitions.Speed` or add a direction if not.
+4. **Morph** between two slides with matching shapes: the sample's Morph slide only has title and
+   text, so make a second deck, or check in PowerPoint that the title moves from *Straight to the
+   demo* to *The same shapes, moved*. The **fallback** (a fade) in a viewer without Morph:
+   PowerPoint 2016 or older, or LibreOffice Impress.
+5. **Language** of the notes runs: spell checking in the notes pane uses the document language.
+
+### Loose ends
+
+- A footnote reference inside `::: notes` becomes a raised number with no footnote text on the notes
+  page. Not worth handling until someone writes one.
+- The converter reads transitions not at all, as planned; it also flattens list levels in notes, as
+  it does on slides.
+- E07-S05 (builds) inserts `p:timing` before `p:transition`: `Transitions.Write` inserts after
+  `p:clrMapOvr`, so builds have to go between the two.

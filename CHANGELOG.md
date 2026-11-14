@@ -27,6 +27,10 @@ updating, breaking changes first.
   coordinate or size that is not finite, a negative size or width, or a colour that is not six hex
   digits. They used to produce broken files.
 - `wwosik.DocLibs.DocumentGeneration` depends on Markdig (as the generators already did).
+- **`PptxConverter` reads speaker notes:** a slide with speaker notes is now followed by
+  `::: notes`, the notes' paragraphs and `:::` in the Markdown, by default and with no option to turn
+  it off. Code that compares or parses the converter's output sees the new lines; strip the
+  `::: notes` blocks if they are not wanted.
 
 ### New
 
@@ -49,6 +53,15 @@ updating, breaking changes first.
 - **New notes:** `footnote-missing` and `language-unknown`.
 - **`DrawingShape.FillRule`**: `NonZero` (default) or `EvenOdd`, written to SVG and PDF; the
   Mermaid reader takes `fill-rule` from the SVG.
+- **Speaker notes in decks:** `::: notes` … `:::` under a heading puts its paragraphs and lists on
+  the notes page of every slide the section produces, split parts included, without changing the
+  slide. Templates without a notes master get a built-in one; decks without speaker notes are
+  unchanged. PDFs leave speaker notes out.
+- **Transitions in decks:** front matter `transition`, `PptxOptions.Transition` (`SlideTransition`)
+  and a heading's `transition="…"`: `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`,
+  `zoom`, `cut` and `morph` (with a fade for viewers without Morph). PDFs accept and ignore them.
+- **New notes:** `notes-dropped` (speaker notes before the first heading) and `notes-simplified`
+  (a table, code block, image or quote in speaker notes, written as plain text).
 
 ## 2610.28.22
 

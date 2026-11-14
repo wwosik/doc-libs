@@ -60,6 +60,14 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         var result = new List<Block>();
         foreach (var block in blocks.Skip(start))
         {
+            // Speaker notes are for decks: checked like there, then left out.
+            if (block is CustomContainer { Info: LayoutSyntax.Notes } speakerNotes)
+            {
+                LayoutSyntax.CheckContainer(LayoutSyntax.Notes, speakerNotes.Arguments?.Trim() ?? string.Empty, DocumentFormat.Pdf);
+                LayoutSyntax.CheckNoNestedNotes(speakerNotes, DocumentFormat.Pdf);
+                continue;
+            }
+
             parser.Add(block, result);
         }
 
@@ -96,6 +104,8 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
                 var runs = this.Runs(heading.Inline);
                 target.Add(new HeadingBlock(heading.Level, heading.Level <= 2 ? WithoutAttributes(runs) : runs, Anchor(heading)));
                 break;
+            case CustomContainer { Info: LayoutSyntax.Notes }:
+                throw LayoutSyntax.NestedNotes(DocumentFormat.Pdf);
             case CustomContainer container:
                 LayoutSyntax.CheckContainer(container.Info ?? string.Empty, container.Arguments?.Trim() ?? string.Empty, DocumentFormat.Pdf);
                 foreach (var child in container)
