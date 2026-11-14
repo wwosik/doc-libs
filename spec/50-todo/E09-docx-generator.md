@@ -14,10 +14,10 @@ Word is the format most reports and proposals still have to be delivered in; the
 
 | Story | Title | State |
 | ----- | ----- | ----- |
-| [E09-S01](E09-S01-docx-package-and-templates.md) | DOCX package and templates | todo |
-| [E09-S02](E09-S02-deck-syntax-in-word.md) | Deck syntax in Word | todo |
-| [E09-S03](E09-S03-charts-drawings-and-guide.md) | Charts, drawings and the DOCX authoring guide | todo |
-| [E09-S04](E09-S04-docx-content.md) | DOCX content | todo |
+| [E09-S01](../55-in-progress/doc-3/E09-S01-docx-package-and-templates.md) | DOCX package and templates | in progress (doc-3) |
+| [E09-S02](../55-in-progress/doc-3/E09-S02-deck-syntax-in-word.md) | Deck syntax in Word | in progress (doc-3) |
+| [E09-S03](../55-in-progress/doc-3/E09-S03-charts-drawings-and-guide.md) | Charts, drawings and the DOCX authoring guide | in progress (doc-3) |
+| [E09-S04](../55-in-progress/doc-3/E09-S04-docx-content.md) | DOCX content | in progress (doc-3) |
 
 Stories marked *to plan* come from the
 [Python fork analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed

@@ -1,7 +1,7 @@
 # E09-S02 Deck syntax in Word
 
-> Status: todo
-> Epic: [E09 DOCX generator](E09-docx-generator.md)
+> Status: in progress (doc-3)
+> Epic: [E09 DOCX generator](../../50-todo/E09-docx-generator.md)
 
 ## Summary
 

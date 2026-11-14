@@ -1,7 +1,7 @@
 # E09-S03 Charts, drawings and the DOCX authoring guide
 
-> Status: todo
-> Epic: [E09 DOCX generator](E09-docx-generator.md)
+> Status: in progress (doc-3)
+> Epic: [E09 DOCX generator](../../50-todo/E09-docx-generator.md)
 
 ## Summary
 
@@ -107,7 +107,7 @@ generator understands.
    - **Fonts in the PNG** are the converter's (`SvgImageConverter.Fonts`). The docs tell hosts to
      pass the brand's fonts there, so the PNG matches the SVG (question 5).
 3. **SVG images in the Markdown.**
-   - `![…](x.svg)` gets the same treatment: the converter's PNG plus the original SVG in
+   - `![…](../../50-todo/x.svg)` gets the same treatment: the converter's PNG plus the original SVG in
      `asvg:svgBlip`, as on decks.
    - The SVG is written as it came. It was sanitized for the PNG by `SvgSanitizer`, and Word
      itself loads nothing external from it (question 4).
