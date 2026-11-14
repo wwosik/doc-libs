@@ -15,6 +15,23 @@ public class SlideLayoutTests
 
     private static MarkdownDocument Layouts() => Samples.Markdown(File.ReadAllText(Samples.Path("layouts.md")).ReplaceLineEndings("\n"));
 
+    [Fact]
+    public void PageBreaks_AndTheMarking_AreAcceptedAndIgnored_WithoutMakingFlowSlides()
+    {
+        static List<string> Read(byte[] pptx)
+        {
+            using var package = Samples.Open(pptx);
+            return [.. Samples.Slides(package).Select(s => System.Text.RegularExpressions.Regex.Replace(s.Slide!.OuterXml, "r:(id|embed)=\"[^\"]*\"", string.Empty))];
+        }
+
+        var plain = Samples.Generate(Samples.Markdown("# Cover\n\n## One\n\n- Text\n\n## Two\n\nMore.\n\nLast.\n"));
+        var marked = Samples.Generate(Samples.Markdown(
+            "---\nclassification: internal\ndraft: true\n---\n# Cover\n\n## One\n\n- Text\n\n::: pagebreak\n:::\n\n## Two {.newpage}\n\n::: pagebreak\nMore.\n:::\n\n::: pagebreak\n\nLast.\n"));
+
+        Assert.Equal(Read(plain), Read(marked));
+        Samples.AssertValid(marked);
+    }
+
     [Theory]
     [MemberData(nameof(Samples.BuiltInTemplates), MemberType = typeof(Samples))]
     public void Sample_RoundTripsThroughThePptxConverter(string template)
@@ -78,7 +95,7 @@ public class SlideLayoutTests
     [Theory]
     [InlineData("## T {.wide}\n", "Unknown heading attribute '.wide'")]
     [InlineData("## T {kicker=\"a\" kicker=\"b\"}\n", "name kicker twice")]
-    [InlineData("## T\n\n::: card\n- **a** b\n:::\n", "Unknown container '::: card'. Valid containers: cards, rows, panel, statement, columns, conclusion, comment, notes, timeline, gantt, steps, riskmatrix.")]
+    [InlineData("## T\n\n::: card\n- **a** b\n:::\n", "Unknown container '::: card'. Valid containers: cards, rows, panel, statement, columns, pagebreak, conclusion, comment, notes, timeline, gantt, steps, riskmatrix.")]
     [InlineData("## T\n\n::: cards dark\n- **a** b\n:::\n", "takes no arguments")]
     [InlineData("## T\n\n::: cards\nText first\n\n### Card\n:::\n", "each card starts with a ### heading")]
     [InlineData("## T\n\n::: rows\n- plain item\n:::\n", "starts with **bold** text")]

@@ -47,6 +47,7 @@ internal sealed partial class DocxBody
     private readonly Dictionary<CaptionKind, int> captions = [];
     private readonly int[] headingCounters = new int[3];
     private readonly List<TocEntry> headings = [];
+    private readonly List<int> breaks = [];
     private DocxNumbering numbering = null!;
     private DocxFootnotes footnotes = null!;
     private DocxRuns runs = null!;
@@ -144,15 +145,55 @@ internal sealed partial class DocxBody
         this.CheckSections(blocks);
         this.Bookmarks(blocks);
 
-        // The highest level used after the cover becomes Heading 1.
-        var levels = blocks.SelectMany(b => b is HeadingBlock h ? [h] : b is ContainerBlock c ? c.Descendants<HeadingBlock>() : []).Select(h => h.Level).ToList();
+        // The highest level used after the cover becomes Heading 1; headings inside slide-layout containers are no chapters.
+        var levels = blocks.SelectMany(b => b is HeadingBlock h ? [h] : b is ContainerBlock c ? c.Descendants<HeadingBlock>() : [])
+            .Where(h => !InLayoutContainer(h))
+            .Select(h => h.Level)
+            .ToList();
         this.shift = levels.Count == 0 ? 0 : levels.Min() - 1;
 
         var elements = new List<OpenXmlElement>();
         this.Blocks(blocks, new Frame(DocxRoles.Normal, this.MainPart), elements);
+        this.PageBreaksBefore(elements);
         this.numbering.Save();
         this.footnotes.Save();
         return (elements, this.headings);
+    }
+
+    private static bool InLayoutContainer(Block block)
+    {
+        for (var parent = block.Parent; parent is not null; parent = parent.Parent)
+        {
+            if (parent is CustomContainer)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // `::: pagebreak`: where the block it comes before begins in the body, that element starts a page. Not the first
+    // element: the cover and the table of contents already end their pages, so that would give an empty page.
+    private void MarkBreak(Block block, Frame frame, List<OpenXmlElement> target)
+    {
+        if (frame.Part == this.MainPart && this.Context.PageBreaks.Contains(block))
+        {
+            this.breaks.Add(target.Count);
+        }
+    }
+
+    private void PageBreaksBefore(List<OpenXmlElement> elements)
+    {
+        foreach (var index in this.breaks.Where(i => i > 0 && i < elements.Count).Distinct())
+        {
+            var paragraph = elements[index] as Paragraph ?? elements[index].Descendants<Paragraph>().FirstOrDefault();
+            if (paragraph is not null)
+            {
+                var properties = paragraph.ParagraphProperties ??= new ParagraphProperties();
+                properties.PageBreakBefore ??= new PageBreakBefore();
+            }
+        }
     }
 
     // The checks of slide kinds and of `::: conclusion` and `::: comment` are the deck's, per `#` or `##` section.
@@ -225,6 +266,7 @@ internal sealed partial class DocxBody
         for (var i = 0; i < blocks.Count; i++)
         {
             var block = blocks[i];
+            this.MarkBreak(block, frame, target);
             if (block is ParagraphBlock title && IsTableTitle(title) && i + 1 < blocks.Count && blocks[i + 1] is MarkdigTable)
             {
                 var table = (MarkdigTable)blocks[i + 1];
@@ -268,23 +310,28 @@ internal sealed partial class DocxBody
     {
         switch (block)
         {
+            case HeadingBlock heading when frame.Container is not null:
+                this.ContainerHeading(heading, frame, target);
+                break;
             case HeadingBlock heading:
                 this.Heading(heading, target);
                 break;
             case CustomContainer { Info: LayoutSyntax.Notes }:
                 throw LayoutSyntax.NestedNotes(Format.Docx);
             case CustomContainer container:
-                // Slide layouts are shown plainly, their content in sequence; the `---` between columns only separates them.
                 LayoutSyntax.CheckContainer(container.Info ?? string.Empty, container.Arguments?.Trim() ?? string.Empty, Format.Docx);
-                this.Blocks([.. container.Where(c => c is not ThematicBreakBlock || container.Info != "columns")], frame, target);
+                this.Container(container, frame, target);
                 break;
             case AlertBlock alert:
-                LayoutSyntax.IsImportant(alert.Kind.ToString(), Format.Docx);
-                var quote = frame with { Style = DocxRoles.Quote, Indent = null };
-                target.Add(this.Paragraph(quote, [new DocxRun(this.Context.Texts.Alert(alert.Kind.ToString()), RunFlags.Bold, null)]));
-                this.Blocks([.. alert], quote, target);
+                this.Alert(alert, frame, target);
                 break;
             case ParagraphBlock marker when BuildMarker.IsMarker(marker):
+                break;
+            case ParagraphBlock paragraph when Tags(paragraph) is { } tags:
+                // Code spans and nothing else: chips, separated by spaces.
+                target.Add(this.Paragraph(frame, [.. tags.SelectMany((t, i) => i == 0
+                    ? new[] { new DocxRun(t, RunFlags.Tag, null) }
+                    : [new DocxRun(" ", RunFlags.None, null), new DocxRun(t, RunFlags.Tag, null)])]));
                 break;
             case ParagraphBlock paragraph:
                 this.Paragraph(paragraph.Inline, frame, target);
@@ -362,8 +409,8 @@ internal sealed partial class DocxBody
         var unnumbered = attributes?.Unnumbered == true;
         var properties = new ParagraphProperties(new ParagraphStyleId { Val = this.Context.Styles.Id(DocxRoles.Headings[level - 1]) });
 
-        // A later `#` starts a page, as in the PDF; the first content already does.
-        if (heading.Level == 1 && target.Count > 0)
+        // A later `#` starts a page, as in the PDF, and so does `{.newpage}`; the first content already does.
+        if ((heading.Level == 1 || attributes?.NewPage == true) && target.Count > 0)
         {
             properties.Append(new PageBreakBefore());
         }
@@ -374,6 +421,14 @@ internal sealed partial class DocxBody
         }
 
         var paragraph = new Paragraph(properties);
+        var bookmark = this.Bookmarked(paragraph, heading, runs);
+        target.Add(paragraph);
+        this.headings.Add(new TocEntry(level, DocxRuns.Text(runs).Trim()) { Number = unnumbered ? null : this.Number(level), Bookmark = bookmark });
+    }
+
+    // The heading's runs inside its bookmark, if it has one; returns the bookmark.
+    private string? Bookmarked(Paragraph paragraph, HeadingBlock heading, IReadOnlyList<DocxRun> runs)
+    {
         var bookmark = this.bookmarks.GetValueOrDefault(heading);
         var id = (this.bookmarkId++).ToString(CultureInfo.InvariantCulture);
         if (bookmark is not null)
@@ -387,8 +442,231 @@ internal sealed partial class DocxBody
             paragraph.Append(new BookmarkEnd { Id = id });
         }
 
+        return bookmark;
+    }
+
+    // A heading inside a slide-layout container, such as a card's `###`: no chapter, so not numbered and not in the table
+    // of contents. In a panel it is a bold paragraph of the panel, so that the box stays one.
+    private void ContainerHeading(HeadingBlock heading, Frame frame, List<OpenXmlElement> target)
+    {
+        var (runs, attributes) = this.HeadingParts(heading);
+        if (runs.Count == 0)
+        {
+            return;
+        }
+
+        if (frame.Style == DocxRoles.Panel || frame.Style == DocxRoles.PanelDark)
+        {
+            target.Add(this.Paragraph(frame, [.. runs.Select(r => r with { Flags = r.Flags | RunFlags.Bold })]));
+            return;
+        }
+
+        var paragraph = this.Paragraph(DocxRoles.ContainerHeading);
+        if (attributes?.NewPage == true && target.Count > 0)
+        {
+            paragraph.ParagraphProperties!.PageBreakBefore = new PageBreakBefore();
+        }
+
+        this.Bookmarked(paragraph, heading, runs);
         target.Add(paragraph);
-        this.headings.Add(new TocEntry(level, DocxRuns.Text(runs).Trim()) { Number = unnumbered ? null : this.Number(level), Bookmark = bookmark });
+    }
+
+    // The layouts of slides in Word, written in sequence (E09-S02): cards as container headings with their figures, or
+    // as terms and descriptions; rows as terms and descriptions; panels as shaded boxes; a statement's first paragraph
+    // large; columns one after the other. Other containers (`conclusion`, `comment`, drawn ones) show their content.
+    private void Container(CustomContainer container, Frame frame, List<OpenXmlElement> target)
+    {
+        var name = container.Info ?? string.Empty;
+        var inner = frame with { Container = name };
+        switch (name)
+        {
+            case "cards":
+                if (!this.TermList(container, inner, target))
+                {
+                    this.Cards(container, inner, target);
+                }
+
+                break;
+            case "rows":
+                if (!this.TermList(container, inner, target))
+                {
+                    this.Blocks([.. container], inner, target);
+                }
+
+                break;
+            case "panel":
+                var panel = container.Arguments?.Trim() == "dark" ? DocxRoles.PanelDark : DocxRoles.Panel;
+                this.Blocks([.. container], inner with { Style = panel, Indent = null, SuppressNumbering = false }, target);
+                break;
+            case "statement" when container.FirstOrDefault() is ParagraphBlock lead:
+                this.MarkBreak(lead, inner, target);
+                this.Paragraph(lead.Inline, inner with { Style = DocxRoles.Statement, Indent = null, SuppressNumbering = false }, target);
+                this.Blocks([.. container.Skip(1)], inner, target);
+                break;
+            case "columns":
+                // The `---` between the columns only separates them.
+                this.Blocks([.. container.Where(c => c is not ThematicBreakBlock)], inner, target);
+                break;
+            default:
+                this.Blocks([.. container], inner, target);
+                break;
+        }
+    }
+
+    // `### Title` before each card's blocks: a container heading, and a paragraph of only bold text right after it, the
+    // card's figure, in the statement style.
+    private void Cards(CustomContainer container, Frame frame, List<OpenXmlElement> target)
+    {
+        var pending = new List<Block>();
+        var children = container.ToList();
+        for (var i = 0; i < children.Count; i++)
+        {
+            if (children[i] is not HeadingBlock heading)
+            {
+                pending.Add(children[i]);
+                continue;
+            }
+
+            this.Blocks(pending, frame, target);
+            pending.Clear();
+            this.MarkBreak(heading, frame, target);
+            this.ContainerHeading(heading, frame, target);
+            if (i + 1 < children.Count && children[i + 1] is ParagraphBlock figure && IsTableTitle(figure))
+            {
+                this.MarkBreak(figure, frame, target);
+                var runs = this.runs.Runs(figure.Inline).Select(r => r with { Flags = r.Flags & ~RunFlags.Bold }).ToList();
+                target.Add(this.Paragraph(frame with { Style = DocxRoles.Statement, Indent = null, SuppressNumbering = false }, runs));
+                i++;
+            }
+        }
+
+        this.Blocks(pending, frame, target);
+    }
+
+    // A container that holds one list of `- **Title** – text` items, as the short form of cards and as rows: each item a
+    // term, the rest of the item its description. False, writing nothing, when the container is not that list.
+    private bool TermList(CustomContainer container, Frame frame, List<OpenXmlElement> target)
+    {
+        if (container.Count != 1 || container[0] is not ListBlock list)
+        {
+            return false;
+        }
+
+        var items = list.OfType<ListItemBlock>().Select(item => (Item: item, Parts: this.TermOf(item))).ToList();
+        if (items.Count == 0 || items.Any(i => i.Parts is null))
+        {
+            return false;
+        }
+
+        this.MarkBreak(list, frame, target);
+        var term = frame with { Style = DocxRoles.DefinitionTerm, Indent = null, SuppressNumbering = false };
+        var description = frame with { Style = DocxRoles.Definition, Indent = null, SuppressNumbering = false };
+        foreach (var (item, parts) in items)
+        {
+            this.MarkBreak(item, frame, target);
+            target.Add(this.Paragraph(term, parts!.Value.Term));
+            if (parts.Value.Text.Count > 0)
+            {
+                target.Add(this.Paragraph(description, parts.Value.Text));
+            }
+
+            this.Blocks([.. item.Skip(1)], description, target);
+        }
+
+        return true;
+    }
+
+    // The bold start of an item's first paragraph, without the bold (the term style is bold) and a trailing colon, and the
+    // rest of that paragraph without its separator (`–`, `—`, `-` or `:`); null when the item does not start bold.
+    private (List<DocxRun> Term, List<DocxRun> Text)? TermOf(ListItemBlock item)
+    {
+        if (item.FirstOrDefault() is not ParagraphBlock paragraph)
+        {
+            return null;
+        }
+
+        var runs = this.runs.Runs(paragraph.Inline);
+        var bold = runs.TakeWhile(r => r is { IsBreak: false, Footnote: null } && r.Flags.HasFlag(RunFlags.Bold)).ToList();
+        if (bold.Count == 0)
+        {
+            return null;
+        }
+
+        var term = bold.Select(r => r with { Flags = r.Flags & ~RunFlags.Bold }).ToList();
+        term[^1] = term[^1] with { Text = term[^1].Text.TrimEnd().TrimEnd(':').TrimEnd() };
+        var rest = runs.Skip(bold.Count).ToList();
+        if (rest.Count > 0 && rest[0] is { IsBreak: false, Footnote: null, Flags: RunFlags.None })
+        {
+            rest[0] = rest[0] with { Text = SeparatorPattern().Replace(rest[0].Text, string.Empty) };
+        }
+
+        return (DocxRuns.Trim(term), DocxRuns.Trim(rest));
+    }
+
+    // An alert: every paragraph in the kind's style, so that the bar on the left runs through; the first paragraph starts
+    // with the title in the document language, in Word's Strong. Lists inside keep their style and get the bar directly.
+    private void Alert(AlertBlock alert, Frame frame, List<OpenXmlElement> target)
+    {
+        var kind = alert.Kind.ToString();
+        LayoutSyntax.IsImportant(kind, Format.Docx);
+        var style = DocxRoles.Alerts[kind];
+        var inner = frame with { Style = style, Indent = null, SuppressNumbering = false, Box = style };
+        List<DocxRun> title = [new DocxRun(this.Context.Texts.Alert(kind), RunFlags.Strong, null)];
+        var children = alert.ToList();
+        if (children.FirstOrDefault() is ParagraphBlock first && Tags(first) is null && !BuildMarker.IsMarker(first))
+        {
+            this.MarkBreak(first, inner, target);
+            this.Paragraph(first.Inline, inner, target, [.. title, new DocxRun(" ", RunFlags.None, null)]);
+            children.RemoveAt(0);
+        }
+        else
+        {
+            target.Add(this.Paragraph(inner, title));
+        }
+
+        this.Blocks(children, inner, target);
+    }
+
+    // Two or more code spans and nothing but spaces between them: a paragraph of tags, as on slides.
+    private static List<string>? Tags(ParagraphBlock paragraph)
+    {
+        var tags = new List<string>();
+        foreach (var inline in paragraph.Inline ?? [])
+        {
+            switch (inline)
+            {
+                case CodeInline code:
+                    tags.Add(code.Content);
+                    break;
+                case LiteralInline literal when literal.Content.ToString().Trim().Length == 0:
+                case LineBreakInline:
+                    break;
+                default:
+                    return null;
+            }
+        }
+
+        return tags.Count >= 2 ? tags : null;
+    }
+
+    // Paragraphs of other styles inside an alert (list items) take its bar and shading directly.
+    private void Boxed(Paragraph paragraph, Frame frame)
+    {
+        if (frame.Box is not { } box || frame.Style == box || this.Context.Styles.Style(box).StyleParagraphProperties is not { } style)
+        {
+            return;
+        }
+
+        var properties = paragraph.ParagraphProperties ??= new ParagraphProperties();
+        if (style.ParagraphBorders is { } borders)
+        {
+            properties.ParagraphBorders = (ParagraphBorders)borders.CloneNode(true);
+        }
+
+        if (style.Shading is { } shading)
+        {
+            properties.Shading = (Shading)shading.CloneNode(true);
+        }
     }
 
     // The number Word shows for a heading of Heading 1–3 through the multilevel list, as it counts: a level skipped shows 0.
@@ -408,20 +686,51 @@ internal sealed partial class DocxBody
         return string.Join(".", this.headingCounters.Take(level).Select(n => n.ToString(CultureInfo.InvariantCulture)));
     }
 
-    // Text before and after images becomes paragraphs of their own style; each image is a centred paragraph.
-    private void Paragraph(ContainerInline? inline, Frame frame, List<OpenXmlElement> target)
+    // Text before and after images becomes paragraphs of their own style; each image is a centred paragraph. A paragraph
+    // of nothing but two or more images is a row of them. `prefix` goes before the first text (an alert's title).
+    private void Paragraph(ContainerInline? inline, Frame frame, List<OpenXmlElement> target, IReadOnlyList<DocxRun>? prefix = null)
     {
-        foreach (var piece in this.runs.Pieces(inline))
+        var pieces = this.runs.Pieces(inline);
+        if (prefix is null && ImageRowOf(pieces) is { } row)
+        {
+            this.ImageRow(row, frame, target);
+            return;
+        }
+
+        foreach (var piece in pieces)
         {
             if (piece is LinkInline image)
             {
+                if (prefix is not null)
+                {
+                    target.Add(this.Paragraph(frame, DocxRuns.Trim([.. prefix])));
+                    prefix = null;
+                }
+
                 this.Image(image, frame, target);
             }
-            else if (piece is List<DocxRun> runs && DocxRuns.Trim(runs) is { Count: > 0 } trimmed)
+            else if (piece is List<DocxRun> runs && DocxRuns.Trim(prefix is null ? runs : [.. prefix, .. runs]) is { Count: > 0 } trimmed)
             {
+                prefix = null;
                 target.Add(this.Paragraph(frame, trimmed));
             }
         }
+
+        if (prefix is not null)
+        {
+            target.Add(this.Paragraph(frame, DocxRuns.Trim([.. prefix])));
+        }
+    }
+
+    // Two or more images and only spaces between them; `qr:` images are not pictures yet, so they break a row.
+    private static List<LinkInline>? ImageRowOf(List<object> pieces)
+    {
+        var images = pieces.OfType<LinkInline>().ToList();
+        return images.Count >= 2
+            && images.All(i => !QrDrawing.IsQr(i.GetDynamicUrl?.Invoke() ?? i.Url ?? string.Empty))
+            && pieces.OfType<List<DocxRun>>().All(r => DocxRuns.Trim(r).Count == 0)
+            ? images
+            : null;
     }
 
     private Paragraph Paragraph(Frame frame, IReadOnlyList<DocxRun> runs)
@@ -439,6 +748,7 @@ internal sealed partial class DocxBody
             properties.Append(new Indentation { Left = indent.ToString(CultureInfo.InvariantCulture) });
         }
 
+        this.Boxed(paragraph, frame);
         paragraph.Append(this.runs.Elements(runs, frame.Part));
         return paragraph;
     }
@@ -463,6 +773,7 @@ internal sealed partial class DocxBody
         var indent = this.numbering.Indent(numId, level);
         foreach (var item in list.OfType<ListItemBlock>())
         {
+            this.MarkBreak(item, frame, target);
             var children = item.ToList();
             var task = Task(item);
             var itemStyle = task is null ? style : DocxRoles.ListTask;
@@ -472,6 +783,13 @@ internal sealed partial class DocxBody
             var first = children.FirstOrDefault() as ParagraphBlock;
             var pieces = first is null ? [new List<DocxRun>()] : this.runs.Pieces(first.Inline);
             var lead = pieces.FirstOrDefault() as List<DocxRun> ?? [];
+
+            // In a container, an item that starts with a code span starts with it as a tag, as on slides.
+            if (frame.Container is not null && first?.Inline?.FirstChild is CodeInline && lead is [{ Flags: var flags } span, ..] && flags.HasFlag(RunFlags.Code))
+            {
+                lead[0] = span with { Flags = (flags & ~RunFlags.Code) | RunFlags.Tag };
+            }
+
             var marker = this.Paragraph(itemStyle);
             var properties = marker.ParagraphProperties!;
             if (task is { } done)
@@ -483,6 +801,8 @@ internal sealed partial class DocxBody
             {
                 properties.Append(new NumberingProperties(new NumberingLevelReference { Val = level }, new NumberingId { Val = numId }));
             }
+
+            this.Boxed(marker, continuation);
 
             marker.Append(this.runs.Elements(DocxRuns.Trim(lead), frame.Part));
             target.Add(marker);
@@ -535,6 +855,7 @@ internal sealed partial class DocxBody
     {
         foreach (var item in list.OfType<DefinitionItem>())
         {
+            this.MarkBreak(item, frame, target);
             foreach (var child in item)
             {
                 if (child is DefinitionTerm term)
@@ -607,8 +928,13 @@ internal sealed partial class DocxBody
 
         var header = rows[0].IsHeader;
         var cells = rows.Select(row => Enumerable.Range(0, columns)
-            .Select(c => c < row.Count ? this.Cell((MarkdigTableCell)row[c]) : [])
+            .Select(c => c < row.Count ? this.Cell((MarkdigTableCell)row[c], labels: !row.IsHeader) : [])
             .ToList()).ToList();
+
+        // A row whose first cell is all `==…==` is highlighted: its cells shaded in the mark's tint, the one direct
+        // formatting of a table, since a cell's shading cannot come from a character or paragraph style.
+        var highlighted = cells.Select((row, r) => !rows[r].IsHeader && row.Count > 0 && row[0].Any(x => !x.IsBreak)
+            && row[0].All(x => x.IsBreak || x.Flags.HasFlag(RunFlags.Mark))).ToList();
         var widths = ColumnWidths(cells, header, this.Context.Page.TextWidth);
         var alignments = Enumerable.Range(0, columns)
             .Select(c => c < table.ColumnDefinitions.Count ? table.ColumnDefinitions[c].Alignment : null)
@@ -662,9 +988,13 @@ internal sealed partial class DocxBody
 
                 var paragraph = new Paragraph(properties);
                 paragraph.Append(this.runs.Elements(cells[r][c], frame.Part));
-                row.Append(new TableCell(
-                    new TableCellProperties(new TableCellWidth { Width = widths[c].ToString(CultureInfo.InvariantCulture), Type = TableWidthUnitValues.Dxa }),
-                    paragraph));
+                var cellProperties = new TableCellProperties(new TableCellWidth { Width = widths[c].ToString(CultureInfo.InvariantCulture), Type = TableWidthUnitValues.Dxa });
+                if (highlighted[r])
+                {
+                    cellProperties.Shading = this.HighlightShading();
+                }
+
+                row.Append(new TableCell(cellProperties, paragraph));
             }
 
             result.Append(row);
@@ -673,11 +1003,33 @@ internal sealed partial class DocxBody
         target.Add(result);
     }
 
-    // A cell's paragraphs as one run list, separated by breaks; images as their alt text.
-    private List<DocxRun> Cell(MarkdigTableCell cell)
+    private Shading HighlightShading()
     {
+        var tint = (this.Context.Design ?? new StyleDesign(ResolvedBrand.Neutral, 0, 0)).HighlightTint;
+        var shading = new Shading { Val = ShadingPatternValues.Clear, Color = "auto", Fill = tint.Hex };
+        if (tint.Theme is { } theme)
+        {
+            shading.ThemeFill = new ThemeColorValues(theme);
+            shading.ThemeFillTint = tint.Tint;
+        }
+
+        return shading;
+    }
+
+    // A cell's paragraphs as one run list, separated by breaks; images as their alt text. A body cell that is one code
+    // span which front matter `labels.*` names is a status label; any other code stays code.
+    private List<DocxRun> Cell(MarkdigTableCell cell, bool labels)
+    {
+        var leaves = cell.Descendants<LeafBlock>().Where(l => l.Inline is not null).ToList();
+        if (labels && leaves is [{ Inline: { } only }]
+            && only.Where(i => i is not LiteralInline literal || literal.Content.ToString().Trim().Length > 0).ToList() is [CodeInline code]
+            && this.Context.Labels.TryGetValue(code.Content, out var category))
+        {
+            return [new DocxRun(code.Content, RunFlags.None, null) { Category = category, IsLabel = true }];
+        }
+
         var runs = new List<DocxRun>();
-        foreach (var leaf in cell.Descendants<LeafBlock>().Where(l => l.Inline is not null))
+        foreach (var leaf in leaves)
         {
             if (runs.Count > 0)
             {
@@ -691,7 +1043,7 @@ internal sealed partial class DocxBody
     }
 
     private static IEnumerable<(string Text, bool Bold)> Measured(IEnumerable<DocxRun> runs, bool bold) =>
-        runs.Select(r => (r.IsBreak ? TextMetrics.LineBreak : r.Text, bold || r.Flags.HasFlag(RunFlags.Bold)));
+        runs.Select(r => (r.IsBreak ? TextMetrics.LineBreak : r.Text, bold || r.LooksBold));
 
     /// <summary>
     /// The PDF's rule, in twentieths of a point: every column gets at least its longest word, and the rest of
@@ -782,16 +1134,85 @@ internal sealed partial class DocxBody
     private void Image(LinkInline link, Frame frame, List<OpenXmlElement> target)
     {
         var url = link.GetDynamicUrl?.Invoke() ?? link.Url ?? string.Empty;
-        var line = this.LineOf(link);
-        var alt = AltText(link);
-        var attributes = ImageAttributes.Take(link, line, Format.Docx);
         if (QrDrawing.IsQr(url))
         {
             // Drawn with the other drawings in a later version; until then its alt text.
-            target.Add(this.Paragraph(frame, [new DocxRun(alt, RunFlags.None, null)]));
+            ImageAttributes.Take(link, this.LineOf(link), Format.Docx);
+            target.Add(this.Paragraph(frame, [new DocxRun(AltText(link), RunFlags.None, null)]));
             return;
         }
 
+        var (picture, caption) = this.Picture(link, this.Context.Page.TextWidth * DocxPage.EmuPerTwip, frame.Part);
+        var paragraph = this.Paragraph(frame.Style);
+        var properties = paragraph.ParagraphProperties!;
+        if (caption is not null)
+        {
+            properties.Append(new KeepNext());
+        }
+
+        if (frame.Indent is { } indent)
+        {
+            if (frame.SuppressNumbering)
+            {
+                properties.Append(new NumberingProperties(new NumberingLevelReference { Val = 0 }, new NumberingId { Val = 0 }));
+            }
+
+            properties.Append(new Indentation { Left = indent.ToString(CultureInfo.InvariantCulture) });
+        }
+
+        properties.Append(new Justification { Val = JustificationValues.Center });
+        paragraph.Append(picture);
+        target.Add(paragraph);
+        if (caption is not null)
+        {
+            target.Add(this.Caption(CaptionKind.Figure, [new DocxRun(caption, RunFlags.None, null)], frame.Part));
+        }
+    }
+
+    // A paragraph of only images: a borderless table of one row that does not split, a cell of equal width per image,
+    // each image fitted to its cell and its caption under it in the same cell.
+    private void ImageRow(List<LinkInline> images, Frame frame, List<OpenXmlElement> target)
+    {
+        const int Margin = 60;
+        var available = this.Context.Page.TextWidth;
+        var widths = Enumerable.Repeat(available / images.Count, images.Count).ToArray();
+        widths[^1] += available - widths.Sum();
+        var table = new Table(
+            new TableProperties(
+                new TableStyle { Val = this.Context.Styles.Id(DocxRoles.ImageRow) },
+                new TableWidth { Width = "5000", Type = TableWidthUnitValues.Pct },
+                new TableLayout { Type = TableLayoutValues.Fixed },
+                new TableLook { Val = "0000", FirstRow = false, LastRow = false, FirstColumn = false, LastColumn = false, NoHorizontalBand = true, NoVerticalBand = true }),
+            new TableGrid(widths.Select(w => new GridColumn { Width = w.ToString(CultureInfo.InvariantCulture) })));
+        var row = new TableRow(new TableRowProperties(new CantSplit()));
+        for (var i = 0; i < images.Count; i++)
+        {
+            var (picture, caption) = this.Picture(images[i], (widths[i] - (2 * Margin)) * DocxPage.EmuPerTwip, frame.Part);
+            var paragraph = this.Paragraph(DocxRoles.Normal);
+            paragraph.ParagraphProperties!.Append(new Justification { Val = JustificationValues.Center });
+            paragraph.Append(picture);
+            var cell = new TableCell(
+                new TableCellProperties(new TableCellWidth { Width = widths[i].ToString(CultureInfo.InvariantCulture), Type = TableWidthUnitValues.Dxa }),
+                paragraph);
+            if (caption is not null)
+            {
+                cell.Append(this.Caption(CaptionKind.Figure, [new DocxRun(caption, RunFlags.None, null)], frame.Part));
+            }
+
+            row.Append(cell);
+        }
+
+        table.Append(row);
+        target.Add(table);
+    }
+
+    // The picture of an image, fitted to `maxWidth` (EMU) and 80 % of the text height, and its caption, if it has one.
+    private (Run Picture, string? Caption) Picture(LinkInline link, double maxWidth, OpenXmlPart part)
+    {
+        var url = link.GetDynamicUrl?.Invoke() ?? link.Url ?? string.Empty;
+        var line = this.LineOf(link);
+        var alt = AltText(link);
+        var attributes = ImageAttributes.Take(link, line, Format.Docx);
         var resource = this.Context.Document?.FindResource(url)
             ?? throw new DocumentConversionException(Format.Docx, $"The image '{url}' is not among the document's resources.");
         double? titleScale = link.Title is { } title && ScalePattern().Match(title) is { Success: true } match
@@ -814,41 +1235,16 @@ internal sealed partial class DocxBody
         }
 
         var scale = titleScale ?? attributes.Scale ?? 1.0;
-        var (id, info) = this.ImagePart(resource, scale, frame.Part);
+        var (id, info) = this.ImagePart(resource, scale, part);
 
-        // The natural size at 96 DPI times the scale, fitted to the text width and 80 % of the text height, never enlarged.
+        // The natural size at 96 DPI times the scale, fitted to the width and 80 % of the text height, never enlarged.
         var page = this.Context.Page;
         var width = info.Width * EmuPerPixel * scale;
         var height = info.Height * EmuPerPixel * scale;
-        var fit = Math.Min(1.0, Math.Min(page.TextWidth * DocxPage.EmuPerTwip / width, (page.Height - page.Top - page.Bottom) * DocxPage.EmuPerTwip * 0.8 / height));
+        var fit = Math.Min(1.0, Math.Min(maxWidth / width, (page.Height - page.Top - page.Bottom) * DocxPage.EmuPerTwip * 0.8 / height));
         var cx = Math.Max(1, (long)(width * fit));
         var cy = Math.Max(1, (long)(height * fit));
-        var caption = Captions.OfImage(link.Title, attributes.Caption, alt);
-
-        var paragraph = this.Paragraph(frame.Style);
-        var properties = paragraph.ParagraphProperties!;
-        if (caption is not null)
-        {
-            properties.Append(new KeepNext());
-        }
-
-        if (frame.Indent is { } indent)
-        {
-            if (frame.SuppressNumbering)
-            {
-                properties.Append(new NumberingProperties(new NumberingLevelReference { Val = 0 }, new NumberingId { Val = 0 }));
-            }
-
-            properties.Append(new Indentation { Left = indent.ToString(CultureInfo.InvariantCulture) });
-        }
-
-        properties.Append(new Justification { Val = JustificationValues.Center });
-        paragraph.Append(new Run(this.Picture(id, cx, cy, alt)));
-        target.Add(paragraph);
-        if (caption is not null)
-        {
-            target.Add(this.Caption(CaptionKind.Figure, [new DocxRun(caption, RunFlags.None, null)], frame.Part));
-        }
+        return (new Run(this.Picture(id, cx, cy, alt)), Captions.OfImage(link.Title, attributes.Caption, alt));
     }
 
     // PNG, JPEG and GIF as they are; other formats through the image converters at twice the size, as in the PDF. Each
@@ -952,6 +1348,10 @@ internal sealed partial class DocxBody
     [GeneratedRegex(@"<(?:wp:docPr|pic:cNvPr)\b[^>]*\sid=""([0-9]+)""", RegexOptions.CultureInvariant)]
     private static partial Regex DocPrIdPattern();
 
+    // What separates a term from its text in `- **Term** – text`, as on slides.
+    [GeneratedRegex(@"^\s*(?:[–—:]|-(?=\s))?\s*", RegexOptions.CultureInvariant)]
+    private static partial Regex SeparatorPattern();
+
     /// <summary>Where blocks go: the style of plain paragraphs, the indent of a list item they continue, and the part.</summary>
     private sealed record Frame(StyleRole Style, OpenXmlPart Part)
     {
@@ -960,6 +1360,15 @@ internal sealed partial class DocxBody
 
         /// <summary>Whether the style numbers itself, so continuing paragraphs switch it off.</summary>
         public bool SuppressNumbering { get; init; }
+
+        /// <summary>The slide-layout container (<c>cards</c>, <c>panel</c> …) the blocks are in; <see langword="null"/>: none.</summary>
+        public string? Container { get; init; }
+
+        /// <summary>
+        /// The alert whose bar and shading paragraphs of other styles inside it (list items) take as direct formatting, so
+        /// that the bar runs on; <see langword="null"/>: none.
+        /// </summary>
+        public StyleRole? Box { get; init; }
     }
 
     // The body writer keeps per-document state, so the generator gets a new one each time.

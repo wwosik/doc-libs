@@ -196,6 +196,10 @@ In PDFs:
   quotes), at least two lines stay on each side of it. A paragraph of two or three lines moves
   whole. The list marker moves with the first line. Code blocks and table rows follow their own
   rules: code breaks between any lines, and table rows as described above.
+- **Forced breaks** (`::: pagebreak`, `{.newpage}` on a heading, see the
+  [shared syntax](wwosik.DocLibs.DocumentGeneration.md#page-breaks)) are accepted and ignored for
+  now: the content of a `::: pagebreak` is shown as usual, the page does not break. So are the
+  [classification](wwosik.DocLibs.DocumentGeneration.md#classification) keys, whose values are checked.
 
 ## Fonts
 

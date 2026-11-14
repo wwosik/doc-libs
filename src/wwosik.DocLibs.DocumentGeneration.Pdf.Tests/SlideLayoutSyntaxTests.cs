@@ -27,6 +27,22 @@ public class SlideLayoutSyntaxTests
     }
 
     [Fact]
+    public void PageBreaks_AndTheMarking_AreAcceptedAndIgnored_ForNow()
+    {
+        static (int Pages, string Letters) Read(byte[] pdf)
+        {
+            using var document = PdfDocument.Open(pdf);
+            return (document.NumberOfPages, string.Concat(document.GetPages().SelectMany(p => p.Letters).Select(l => l.Value)));
+        }
+
+        var plain = Samples.Generate(Samples.Markdown("# Cover\n\n## One\n\nText.\n\n## Two\n\nMore.\n\nLast.\n"));
+        var marked = Samples.Generate(Samples.Markdown(
+            "---\nclassification: confidential\ndraft: true\n---\n# Cover\n\n## One\n\nText.\n\n::: pagebreak\n:::\n\n## Two {.newpage}\n\n::: pagebreak\nMore.\n:::\n\n::: pagebreak\n\nLast.\n"));
+
+        Assert.Equal(Read(plain), Read(marked));
+    }
+
+    [Fact]
     public void LabelCategories_InFrontMatter_AreAccepted() =>
         Assert.NotEmpty(Samples.Generate(Samples.Markdown("---\nlabels.success: Done; Delivered\n---\n## T\n\n| a |\n| - |\n| `Done` |\n")));
 

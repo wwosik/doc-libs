@@ -60,7 +60,9 @@ out. For a
 PDF alone, write plain Markdown; alerts are fine for notes and warnings. Unknown containers,
 attributes, alerts, transitions and build markers (a paragraph such as `{.note}`) are errors, as in
 decks, and so are a `::: notes` inside another block and a build marker that builds nothing. Write
-`\{` to show braces as text.
+`\{` to show braces as text. Page breaks, `::: pagebreak` … `:::` and `{.newpage}` on a heading,
+and the keys `classification:` and `draft:` are written for Word documents: a PDF shows the content
+as usual and ignores them for now.
 
 The kinds of slide `{.agenda}`, `{.quote}`, `{.statement}`, `{.contact}` and `{.chart}` show their
 content as written; an `{.agenda}` with nothing under it lists the document's `#` chapters.

@@ -13,7 +13,7 @@ public class DocxGeneratorTests
         get
         {
             var data = new TheoryData<string, string>();
-            foreach (var sample in new[] { "report", "long", "layouts" })
+            foreach (var sample in new[] { "report", "long", "layouts", "pages" })
             {
                 foreach (var template in new[] { "neutral", "sample", "custom" })
                 {

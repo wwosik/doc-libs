@@ -8,7 +8,7 @@ namespace wwosik.DocLibs.DocumentGeneration.Docx.Tests;
 /// <c>custom</c>: a caller's <c>.dotx</c> like a localized house template, built from the built-in neutral template at
 /// test time, so it needs no binary sample. Its style ids are German (<c>berschrift1</c>, <c>Titel</c>, …) while the
 /// names stay Word's, the subtitle style has a house name (<see cref="SubtitleName"/>) that the map names, the cover
-/// details and TOC heading styles are missing, and the content header holds a <c>TITLE</c> field and a content control
+/// details, TOC heading and deck-syntax styles are missing, and the content header holds a <c>TITLE</c> field and a content control
 /// bound to the author.
 /// </summary>
 internal static class CustomTemplate
@@ -49,7 +49,8 @@ internal static class CustomTemplate
         {
             var main = package.MainDocumentPart!;
             var styles = main.StyleDefinitionsPart!.Styles!;
-            foreach (var id in new[] { "CoverDetails", "TOCHeading" })
+            // Missing as in a house template: the cover details, the TOC heading and every style of the deck syntax.
+            foreach (var id in new[] { "CoverDetails", "TOCHeading" }.Concat(DocxRoles.All.Skip(DocxRoles.All.ToList().IndexOf(DocxRoles.Hyperlink) + 1).Select(r => r.Id)))
             {
                 styles.Elements<Style>().Single(s => s.StyleId == id).Remove();
             }

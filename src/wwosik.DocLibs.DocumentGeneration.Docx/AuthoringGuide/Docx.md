@@ -76,12 +76,51 @@ it.
 - Images are PNG, JPEG or GIF. `fit=`, `focus`, `.round` and `.grey` have no effect in a Word
   document.
 
-## Slide syntax
+- A paragraph of nothing but two or more images is a row of them, side by side in cells of equal
+  width, each with its caption under it: `![North](north.png "North") ![South](south.png "South")`.
 
-Markdown written for slides (`:::` containers, alerts such as `> [!NOTE]`, `==marks==`,
-`[words]{.success}`, slide settings on headings) is accepted and shown plainly: the content of a
-container in sequence, an alert as a quote under its title, marks and coloured words in bold.
-Diagrams and charts (`mermaid`, `chart` blocks) stay code.
+## Syntax written for slides
+
+Markdown written for slides works here too, so one text can serve a deck and a document. Each piece
+takes a style of its own; the content of a container follows in sequence.
+
+| Markdown | Becomes |
+| -------- | ------- |
+| `> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]` | A block with a bar on the left, starting with its title in bold in the document's language. Important, warning and caution are in the highlight colour. |
+| `::: cards` with a `### Title` before each card | Each title a small bold heading, not numbered and not in the table of contents; a paragraph of only bold text right under it is the card's figure, set large. |
+| `::: cards` or `::: rows` around a list of `- **Title** – text` | Each title in bold, its text indented under it, as a definition list. |
+| `::: panel` … `:::` | Its paragraphs in one shaded box; `::: panel dark` in the primary colour with white text. Lists and tables inside keep their own look. |
+| `::: statement` … `:::` | The first paragraph large and bold; the rest as usual. |
+| `::: columns` … `:::` | The columns one after the other. |
+| `` `tag` `other` `` (a paragraph of only code spans) | Tags: small grey chips in the code font. |
+| `==marked==` | Bold on a light tint of the highlight colour. A table row whose first cell is all `==…==` is shaded. |
+| `[words]{.success}` (`.info`, `.warning`, `.danger`, `.neutral`) | The words bold in that colour. |
+| A table cell that is only `` `Done` ``, with `labels.success: Done` in the front matter | A coloured label. Code in cells no `labels.` key names stays code. |
+| `## Title {kicker="…" layout="…"}`, `{.dark}`, transitions, `::: notes`, build markers | Checked as in decks, then left out. |
+
+Diagrams and charts (`mermaid`, `chart` blocks) stay code, a `qr:` image is its alt text, and icons
+(`:icon-name:`) stay as written. Unknown containers, alerts and heading attributes are errors.
+
+## Page breaks
+
+`::: pagebreak` on a line of its own, closed by `:::`, starts a new page with what follows. It may
+hold content, which then starts the new page, and its closing `:::` may be left out. `{.newpage}` at
+the end of a heading starts a new page with that heading: `## Appendix {.newpage}`. A later `#`
+already starts a page. No break makes an empty page, and the cover heading takes no `{.newpage}`.
+
+```markdown
+::: pagebreak
+:::
+
+## Appendix
+```
+
+## Classification
+
+`classification: internal` or `classification: confidential` in the front matter puts "Internal" or
+"Confidential" (in the document's language) in the header of every page and above the cover title,
+and into the document's properties. `draft: true` adds "Draft" and a watermark on every page. The
+host may already mark the document; the front matter can raise its classification, not lower it.
 
 {{frontMatter}}
 

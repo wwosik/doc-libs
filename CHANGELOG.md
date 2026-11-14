@@ -107,6 +107,12 @@ updating, breaking changes first.
   "Unknown heading attribute" or "Unknown container" for them now generates, and their misuse throws
   `DocumentConversionException` with its own message. The lists of valid attributes and containers
   in those error messages name the new ones; code that matches the messages' text adjusts.
+- **`::: pagebreak`, `{.newpage}`, `classification:` and `draft:` are syntax now,** in every
+  generator: Markdown that failed with "Unknown container", "Unknown heading attribute" or an unknown
+  front-matter key for them now generates. Decks and PDFs accept them and show nothing of them yet:
+  the content of a `::: pagebreak` is shown as before, slides stay as they were. The lists of valid
+  containers, attributes and front-matter keys in error messages name them; code that matches the
+  messages' text adjusts.
 
 ### New
 
@@ -236,8 +242,9 @@ updating, breaking changes first.
 - **The authoring guides** describe the kinds and both containers; the deck guide says which kinds
   have a layout of their own in the design, and which layout two text columns go to.
 - **New package `wwosik.DocLibs.DocumentGeneration.Docx`:** `DocxGenerator.Generate` writes Markdown
-  to Word (`.docx`) and returns a `GenerationResult` (`Pages` is 0: Word lays out the pages). The
-  slide syntax of decks is shown plainly, and diagrams and charts stay code, until later versions.
+  to Word (`.docx`) and returns a `GenerationResult` (`Pages` is 0: Word lays out the pages).
+  Diagrams and charts stay code, QR codes are their alt text and icons stay as typed, until a later
+  version.
   - **Templates:** `BrandDocxTemplateOptions` (the built-in template written from the brand, with
     `ShowDate`, `ShowTagline`, `EmbedFonts`, `PageSize` `A4`/`Letter`/`A3` and `Orientation`) and
     `CustomDocxTemplateOptions(Stream)` for a caller's `.dotx` / `.docx`, whose styles, numbering,
@@ -273,12 +280,32 @@ updating, breaking changes first.
   - **Notes** in Word documents: `code-not-drawn`, `html-as-text`, `footnote-missing`,
     `attribute-ignored`, and the new `caption-ignored` and `list-too-deep` (`NoteCodes.CaptionIgnored`,
     `NoteCodes.ListTooDeep`).
+  - **The slide syntax of decks in Word's own form:** alerts as paragraphs with a bar on the left
+    in a style per kind, their title in `Strong`; a card's `###` as a `Container Heading` outside the
+    table of contents, its figure in `Statement`; short cards and `::: rows` as terms and
+    descriptions; `::: panel` as one shaded box (`Panel`, `Panel Dark`); `::: statement` large;
+    columns in sequence; tags as chips (`Tag`); `==mark==` in `Mark`; highlighted table rows shaded;
+    `[words]{.success}` in `Colour Success` and the others; a table cell that `labels.*` names as a
+    status label (`Label Success` and the others); a paragraph of only images as a borderless row of
+    equal cells (`Image Row`), captions in the cells. Twenty-four new roles with their
+    `styles.<role>` keys and `docx.styles` properties; on a caller's template they take its theme
+    colours.
+  - **Page breaks:** `::: pagebreak` (with or without content, closed or not) and `{.newpage}` on
+    a heading start a new page (`w:pageBreakBefore`), never an empty one.
+  - **Classification marking:** `DocxOptions.Classification` (the new enum `Classification`:
+    `Public`, `Internal`, `Confidential`) and `DocxOptions.Draft`, front matter `classification` and
+    `draft`: the marking in the header of every content page (or in a content control tagged
+    `classification` of a caller's template), above the cover title and in `cp:contentStatus`;
+    a draft gets Word's own watermark. Front matter can raise the host's classification, not lower
+    it: the new note `classification-kept` (`NoteCodes.ClassificationKept`).
   - `DocxGenerator.AuthoringGuide(options)` describes it for the writer of the Markdown.
 - **`Brand.Docx`** (`DocxBrandTemplate` with `Styles`): a brand's own Word template, and the
   `docx` section of `brand.json` (`template`, `styles`). Decks and PDFs ignore it.
 - **`GeneratedTexts.Contents`:** the heading of a table of contents ("Contents", German "Inhalt").
 - **`GeneratedTexts.Figure` and `GeneratedTexts.Table`:** the labels of captions ("Figure", "Table";
   German "Abbildung", "Tabelle").
+- **`GeneratedTexts.Internal`, `Confidential` and `Draft`:** the classification marking ("Intern",
+  "Vertraulich", "Entwurf" in German).
 
 ## 2610.28.22
 

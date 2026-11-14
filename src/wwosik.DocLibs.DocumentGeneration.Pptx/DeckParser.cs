@@ -74,6 +74,9 @@ internal sealed partial class DeckParser(
         HeadingBlock? heading = null;
         var blocks = new List<Block>();
         var markdown = Markdown.Parse(document.Markdown, Pipeline);
+
+        // Slides have no pages to break: a page break's content stays where it is, the break itself is ignored.
+        PageBreaks.Flatten(markdown, Format.Pptx);
         MarkdownSyntax.ReportMissingFootnotes(markdown, parser.LineOf, parser.Notes);
         BuildMarker.Check(markdown, Format.Pptx, parser.LineOf);
         foreach (var block in markdown)

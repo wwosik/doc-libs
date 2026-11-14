@@ -37,6 +37,9 @@ public static class PptxGenerator
         var frontMatter = FrontMatter.Read(document.Markdown, Format.Pptx);
         var template = PptxTemplateOptions.Apply(frontMatter, options.Template ?? PptxOptions.Default.Template, options.Brands);
         var labels = frontMatter.Labels();
+
+        // The marking is checked like in Word documents; decks show it with E03-S04.
+        Marking.Resolve(frontMatter, Classification.Public, false, new GenerationNotes(), Format.Pptx);
         if (template is CustomTemplateOptions custom && CustomRolesProblem(custom.Roles) is { } problem)
         {
             throw new ArgumentException($"{nameof(CustomTemplateOptions)}.{problem}.", nameof(options));

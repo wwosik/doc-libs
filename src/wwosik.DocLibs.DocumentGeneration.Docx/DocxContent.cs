@@ -4,6 +4,7 @@ using Markdig.Extensions.CustomContainers;
 using Markdig.Extensions.TaskLists;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
+using wwosik.DocLibs.DocumentConversions;
 using Format = wwosik.DocLibs.DocumentConversions.DocumentFormat;
 
 namespace wwosik.DocLibs.DocumentGeneration.Docx;
@@ -28,11 +29,17 @@ internal sealed record DocxContent(DocxCover? Cover, IReadOnlyList<Block> Body)
     /// <summary>The whole parsed Markdown, for the checks that look at all of it (footnotes, build markers).</summary>
     public Markdig.Syntax.MarkdownDocument Source { get; init; } = new();
 
+    /// <summary>The blocks a <c>::: pagebreak</c> comes right before (<see cref="DocumentGeneration.PageBreaks"/>).</summary>
+    public IReadOnlySet<Block> PageBreaks { get; init; } = new HashSet<Block>();
+
     private static readonly MarkdownPipeline Pipeline = BuildPipeline();
 
     public static DocxContent Parse(string markdown)
     {
         var document = Markdown.Parse(markdown, Pipeline);
+
+        // `::: pagebreak` is taken apart first, so that a heading an unclosed break holds starts its section as usual.
+        var pageBreaks = DocumentGeneration.PageBreaks.Flatten(document, Format.Docx);
 
         // Speaker notes are for decks: checked like there, then left out.
         foreach (var notes in document.OfType<CustomContainer>().Where(c => c.Info == LayoutSyntax.Notes))
@@ -47,7 +54,12 @@ internal sealed record DocxContent(DocxCover? Cover, IReadOnlyList<Block> Body)
             && b is not Markdig.Extensions.Footnotes.FootnoteGroup).ToList();
         if (blocks.FirstOrDefault() is not HeadingBlock { Level: 1 } first)
         {
-            return new DocxContent(null, blocks) { Source = document };
+            return new DocxContent(null, blocks) { Source = document, PageBreaks = pageBreaks };
+        }
+
+        if (HeadingAttributes.Split(string.Concat(Pieces(first.Inline).Select(p => p.IsBreak ? " " : p.Text)).Trim(), Format.Docx).Attributes is { NewPage: true })
+        {
+            throw new DocumentConversionException(Format.Docx, "{.newpage} cannot go on the cover heading, the first '#': the cover is a page of its own.");
         }
 
         var start = 1;
@@ -58,7 +70,7 @@ internal sealed record DocxContent(DocxCover? Cover, IReadOnlyList<Block> Body)
             start++;
         }
 
-        return new DocxContent(new DocxCover(HeadingText(first), subtitle), blocks[start..]) { Source = document };
+        return new DocxContent(new DocxCover(HeadingText(first), subtitle), blocks[start..]) { Source = document, PageBreaks = pageBreaks };
     }
 
     /// <summary>A heading's text without its slide attributes (<c>{.dark}</c> and the others), which are checked as in the PDF.</summary>

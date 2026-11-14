@@ -59,6 +59,23 @@ internal static class CoreProperties
         xml.Save(output);
     }
 
+    /// <summary>
+    /// Sets <c>cp:contentStatus</c>, which Office and Explorer show as the document's status, to
+    /// <paramref name="status"/>, such as the classification marking; <see langword="null"/> removes it.
+    /// </summary>
+    public static void ContentStatus(CoreFilePropertiesPart part, string? status)
+    {
+        XDocument xml;
+        using (var stream = part.GetStream(FileMode.Open, FileAccess.Read))
+        {
+            xml = XDocument.Load(stream);
+        }
+
+        Replace(xml.Root!, Properties + "contentStatus", status);
+        using var output = part.GetStream(FileMode.Create, FileAccess.Write);
+        xml.Save(output);
+    }
+
     private static void Replace(XElement root, XName name, string? value)
     {
         root.Elements(name).Remove();

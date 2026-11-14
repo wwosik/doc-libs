@@ -18,7 +18,14 @@ internal sealed partial class FrontMatter
     /// <summary>The prefix of the keys that assign status labels to categories: <c>labels.success: Done; Delivered</c>.</summary>
     public const string LabelsPrefix = "labels.";
 
+    /// <summary>The classification marking, <c>public</c>, <c>internal</c> or <c>confidential</c> (<see cref="Marking"/>).</summary>
+    public const string ClassificationKey = "classification";
+
+    /// <summary>The draft marking, <c>true</c> or <c>false</c> (<see cref="Marking"/>).</summary>
+    public const string DraftKey = "draft";
+
     private readonly List<KeyValuePair<string, string>> entries;
+    private readonly Dictionary<string, int> lines = new(StringComparer.OrdinalIgnoreCase);
     private readonly DocumentFormat format;
 
     private FrontMatter(string body, List<KeyValuePair<string, string>> entries, DocumentFormat format, int bodyLine = 0)
@@ -52,12 +59,19 @@ internal sealed partial class FrontMatter
         }
 
         var entries = new List<KeyValuePair<string, string>>();
+        var keyLines = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         for (var i = 1; i < lines.Length; i++)
         {
             var line = Line(lines[i]);
             if (line is "---" or "...")
             {
-                return new FrontMatter(string.Join('\n', lines[(i + 1)..]), entries, format, i + 1);
+                var result = new FrontMatter(string.Join('\n', lines[(i + 1)..]), entries, format, i + 1);
+                foreach (var (name, number) in keyLines)
+                {
+                    result.lines[name] = number;
+                }
+
+                return result;
             }
 
             if (line.Trim().Length == 0 || line.TrimStart().StartsWith('#'))
@@ -84,6 +98,7 @@ internal sealed partial class FrontMatter
             }
 
             entries.Add(new(key, value));
+            keyLines[key] = i + 1;
         }
 
         throw new DocumentConversionException(format, "The front matter that starts on the first line is never closed by '---'.");
@@ -92,7 +107,8 @@ internal sealed partial class FrontMatter
     /// <summary>
     /// Applies the entries to <paramref name="options"/>: <c>template</c> first, through
     /// <paramref name="withTemplate"/> (which returns <see langword="null"/> for an unknown name), then every other
-    /// key but <c>title</c>, <c>author</c> and <c>lang</c>, in any order, through <paramref name="with"/>. A key not in
+    /// key but the shared ones (<c>title</c>, <c>author</c>, <c>lang</c>, <c>classification</c>, <c>draft</c>,
+    /// <c>labels.*</c>), in any order, through <paramref name="with"/>. A key not in
     /// <paramref name="keys"/> of the options at that point throws, listing the valid ones.
     /// </summary>
     /// <param name="options">The caller's options.</param>
@@ -122,6 +138,8 @@ internal sealed partial class FrontMatter
                 || key.Equals(TitleKey, StringComparison.OrdinalIgnoreCase)
                 || key.Equals(AuthorKey, StringComparison.OrdinalIgnoreCase)
                 || key.Equals(DocumentLanguage.Key, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(ClassificationKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(DraftKey, StringComparison.OrdinalIgnoreCase)
                 || key.StartsWith(LabelsPrefix, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
@@ -131,7 +149,7 @@ internal sealed partial class FrontMatter
             var known = supported.FirstOrDefault(k => k.Equals(key, StringComparison.OrdinalIgnoreCase))
                 ?? throw this.Error(
                     $"The front matter key '{key}' is not supported by the template '{templateName(options)}'. "
-                    + $"Valid keys: {string.Join(", ", new[] { TemplateKey, TitleKey, AuthorKey, DocumentLanguage.Key }.Concat(supported))}.");
+                    + $"Valid keys: {string.Join(", ", new[] { TemplateKey, TitleKey, AuthorKey, DocumentLanguage.Key, ClassificationKey, DraftKey }.Concat(supported))}.");
             options = with(options, known, value);
         }
 
@@ -188,9 +206,13 @@ internal sealed partial class FrontMatter
             $"The front matter key '{key}' has the value '{value}'; expected {string.Join(" or ", choices.Select(c => $"'{c.Value}'"))}.");
     }
 
+    /// <summary>The line of <paramref name="key"/> in the Markdown, from 1; 0 if the front matter does not have it.</summary>
+    public int LineOf(string key) => this.lines.GetValueOrDefault(key);
+
     private DocumentConversionException Error(string reason) => new(this.format, reason);
 
-    private string? Value(string key) =>
+    /// <summary>The value of a key, as written; <see langword="null"/> if the front matter does not have it.</summary>
+    public string? Value(string key) =>
         this.entries.Where(e => e.Key.Equals(key, StringComparison.OrdinalIgnoreCase)).Select(e => e.Value).FirstOrDefault();
 
     private static string Line(string line) => line.TrimEnd('\r').TrimEnd();

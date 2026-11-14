@@ -163,6 +163,14 @@ On slides:
 - `PptxOptions.Icons` (default `TablerIcons.Outline`) replaces the set; `null` switches icons off,
   and `:icon-name:` stays text.
 
+## Document syntax on slides
+
+`::: pagebreak` and `{.newpage}` on a heading ([page breaks](wwosik.DocLibs.DocumentGeneration.md#page-breaks))
+are for documents: a deck shows the content of a `::: pagebreak` as usual, without making the slide
+a flow slide, and ignores `{.newpage}`. The keys `classification` and `draft`
+([classification](wwosik.DocLibs.DocumentGeneration.md#classification)) are checked and show
+nothing on slides yet.
+
 ## Presenting
 
 - **Speaker notes:** `::: notes` … `:::` at the top level of a `#` or `##` section is taken out of

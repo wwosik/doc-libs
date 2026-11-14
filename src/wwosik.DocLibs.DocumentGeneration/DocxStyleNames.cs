@@ -86,6 +86,78 @@ public sealed record DocxStyleNames
 
     /// <summary>Links (a character style). Default <c>Hyperlink</c>.</summary>
     public string? Hyperlink { get; init; }
+
+    /// <summary>Alerts of the kind <c>[!NOTE]</c>, with a bar on the left. Default <c>Note</c>.</summary>
+    public string? Note { get; init; }
+
+    /// <summary>Alerts of the kind <c>[!TIP]</c>, with a bar on the left. Default <c>Tip</c>.</summary>
+    public string? Tip { get; init; }
+
+    /// <summary>Alerts of the kind <c>[!IMPORTANT]</c>, with a bar on the left. Default <c>Important</c>.</summary>
+    public string? Important { get; init; }
+
+    /// <summary>Alerts of the kind <c>[!WARNING]</c>, with a bar on the left. Default <c>Warning</c>.</summary>
+    public string? Warning { get; init; }
+
+    /// <summary>Alerts of the kind <c>[!CAUTION]</c>, with a bar on the left. Default <c>Caution</c>.</summary>
+    public string? Caution { get; init; }
+
+    /// <summary><c>==marked==</c> text (a character style). Default <c>Mark</c>.</summary>
+    public string? Mark { get; init; }
+
+    /// <summary>Status labels of the category success (a character style). Default <c>Label Success</c>.</summary>
+    public string? LabelSuccess { get; init; }
+
+    /// <summary>Status labels of the category info (a character style). Default <c>Label Info</c>.</summary>
+    public string? LabelInfo { get; init; }
+
+    /// <summary>Status labels of the category warning (a character style). Default <c>Label Warning</c>.</summary>
+    public string? LabelWarning { get; init; }
+
+    /// <summary>Status labels of the category danger (a character style). Default <c>Label Danger</c>.</summary>
+    public string? LabelDanger { get; init; }
+
+    /// <summary>Status labels of the category neutral (a character style). Default <c>Label Neutral</c>.</summary>
+    public string? LabelNeutral { get; init; }
+
+    /// <summary><c>[words]{.success}</c> (a character style). Default <c>Colour Success</c>.</summary>
+    public string? ColourSuccess { get; init; }
+
+    /// <summary><c>[words]{.info}</c> (a character style). Default <c>Colour Info</c>.</summary>
+    public string? ColourInfo { get; init; }
+
+    /// <summary><c>[words]{.warning}</c> (a character style). Default <c>Colour Warning</c>.</summary>
+    public string? ColourWarning { get; init; }
+
+    /// <summary><c>[words]{.danger}</c>, and a confidential marking (a character style). Default <c>Colour Danger</c>.</summary>
+    public string? ColourDanger { get; init; }
+
+    /// <summary><c>[words]{.neutral}</c> (a character style). Default <c>Colour Neutral</c>.</summary>
+    public string? ColourNeutral { get; init; }
+
+    /// <summary>A heading inside a container, such as a card's <c>###</c>: unnumbered, not in the table of contents. Default <c>Container Heading</c>.</summary>
+    public string? ContainerHeading { get; init; }
+
+    /// <summary>The statement of <c>::: statement</c>, and a card's figure. Default <c>Statement</c>.</summary>
+    public string? Statement { get; init; }
+
+    /// <summary>The paragraphs of <c>::: panel</c>. Default <c>Panel</c>.</summary>
+    public string? Panel { get; init; }
+
+    /// <summary>The paragraphs of <c>::: panel dark</c>. Default <c>Panel Dark</c>.</summary>
+    public string? PanelDark { get; init; }
+
+    /// <summary>Tags, code spans shown as chips (a character style). Default <c>Tag</c>.</summary>
+    public string? Tag { get; init; }
+
+    /// <summary>A row of images side by side (a table style). Default <c>Image Row</c>.</summary>
+    public string? ImageRow { get; init; }
+
+    /// <summary>The classification marking in the header. Default <c>Classification</c>.</summary>
+    public string? Classification { get; init; }
+
+    /// <summary>The classification marking above the cover title. Default <c>Classification Cover</c>.</summary>
+    public string? ClassificationCover { get; init; }
 }
 
 /// <summary>

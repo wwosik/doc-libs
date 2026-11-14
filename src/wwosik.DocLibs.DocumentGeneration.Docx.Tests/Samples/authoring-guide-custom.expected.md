@@ -76,12 +76,51 @@ it.
 - Images are PNG, JPEG or GIF. `fit=`, `focus`, `.round` and `.grey` have no effect in a Word
   document.
 
-## Slide syntax
+- A paragraph of nothing but two or more images is a row of them, side by side in cells of equal
+  width, each with its caption under it: `![North](north.png "North") ![South](south.png "South")`.
 
-Markdown written for slides (`:::` containers, alerts such as `> [!NOTE]`, `==marks==`,
-`[words]{.success}`, slide settings on headings) is accepted and shown plainly: the content of a
-container in sequence, an alert as a quote under its title, marks and coloured words in bold.
-Diagrams and charts (`mermaid`, `chart` blocks) stay code.
+## Syntax written for slides
+
+Markdown written for slides works here too, so one text can serve a deck and a document. Each piece
+takes a style of its own; the content of a container follows in sequence.
+
+| Markdown | Becomes |
+| -------- | ------- |
+| `> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]` | A block with a bar on the left, starting with its title in bold in the document's language. Important, warning and caution are in the highlight colour. |
+| `::: cards` with a `### Title` before each card | Each title a small bold heading, not numbered and not in the table of contents; a paragraph of only bold text right under it is the card's figure, set large. |
+| `::: cards` or `::: rows` around a list of `- **Title** – text` | Each title in bold, its text indented under it, as a definition list. |
+| `::: panel` … `:::` | Its paragraphs in one shaded box; `::: panel dark` in the primary colour with white text. Lists and tables inside keep their own look. |
+| `::: statement` … `:::` | The first paragraph large and bold; the rest as usual. |
+| `::: columns` … `:::` | The columns one after the other. |
+| `` `tag` `other` `` (a paragraph of only code spans) | Tags: small grey chips in the code font. |
+| `==marked==` | Bold on a light tint of the highlight colour. A table row whose first cell is all `==…==` is shaded. |
+| `[words]{.success}` (`.info`, `.warning`, `.danger`, `.neutral`) | The words bold in that colour. |
+| A table cell that is only `` `Done` ``, with `labels.success: Done` in the front matter | A coloured label. Code in cells no `labels.` key names stays code. |
+| `## Title {kicker="…" layout="…"}`, `{.dark}`, transitions, `::: notes`, build markers | Checked as in decks, then left out. |
+
+Diagrams and charts (`mermaid`, `chart` blocks) stay code, a `qr:` image is its alt text, and icons
+(`:icon-name:`) stay as written. Unknown containers, alerts and heading attributes are errors.
+
+## Page breaks
+
+`::: pagebreak` on a line of its own, closed by `:::`, starts a new page with what follows. It may
+hold content, which then starts the new page, and its closing `:::` may be left out. `{.newpage}` at
+the end of a heading starts a new page with that heading: `## Appendix {.newpage}`. A later `#`
+already starts a page. No break makes an empty page, and the cover heading takes no `{.newpage}`.
+
+```markdown
+::: pagebreak
+:::
+
+## Appendix
+```
+
+## Classification
+
+`classification: internal` or `classification: confidential` in the front matter puts "Internal" or
+"Confidential" (in the document's language) in the header of every page and above the cover title,
+and into the document's properties. `draft: true` adds "Draft" and a watermark on every page. The
+host may already mark the document; the front matter can raise its classification, not lower it.
 
 ## Front matter
 
@@ -127,11 +166,37 @@ author: Planning team
 | `styles.footnoteText` | The name of the template's style for the text of footnotes, as Word shows it. |
 | `styles.footnoteReference` | The name of the template's style for footnote references (a character style), as Word shows it. |
 | `styles.hyperlink` | The name of the template's style for links (a character style), as Word shows it. |
+| `styles.note` | The name of the template's style for alerts of the kind `[!NOTE]`, as Word shows it. |
+| `styles.tip` | The name of the template's style for alerts of the kind `[!TIP]`, as Word shows it. |
+| `styles.important` | The name of the template's style for alerts of the kind `[!IMPORTANT]`, as Word shows it. |
+| `styles.warning` | The name of the template's style for alerts of the kind `[!WARNING]`, as Word shows it. |
+| `styles.caution` | The name of the template's style for alerts of the kind `[!CAUTION]`, as Word shows it. |
+| `styles.mark` | The name of the template's style for `==marked==` text (a character style), as Word shows it. |
+| `styles.labelSuccess` | The name of the template's style for status labels of the category success (a character style), as Word shows it. |
+| `styles.labelInfo` | The name of the template's style for status labels of the category info (a character style), as Word shows it. |
+| `styles.labelWarning` | The name of the template's style for status labels of the category warning (a character style), as Word shows it. |
+| `styles.labelDanger` | The name of the template's style for status labels of the category danger (a character style), as Word shows it. |
+| `styles.labelNeutral` | The name of the template's style for status labels of the category neutral (a character style), as Word shows it. |
+| `styles.colourSuccess` | The name of the template's style for `[words]{.success}` (a character style), as Word shows it. |
+| `styles.colourInfo` | The name of the template's style for `[words]{.info}` (a character style), as Word shows it. |
+| `styles.colourWarning` | The name of the template's style for `[words]{.warning}` (a character style), as Word shows it. |
+| `styles.colourDanger` | The name of the template's style for `[words]{.danger}` (a character style), as Word shows it. |
+| `styles.colourNeutral` | The name of the template's style for `[words]{.neutral}` (a character style), as Word shows it. |
+| `styles.containerHeading` | The name of the template's style for headings inside containers, such as a card's `###`: unnumbered and not in the table of contents, as Word shows it. |
+| `styles.statement` | The name of the template's style for the statement of `::: statement` and a card's figure, as Word shows it. |
+| `styles.panel` | The name of the template's style for the paragraphs of `::: panel`, as Word shows it. |
+| `styles.panelDark` | The name of the template's style for the paragraphs of `::: panel dark`, as Word shows it. |
+| `styles.tag` | The name of the template's style for tags, code spans shown as chips (a character style), as Word shows it. |
+| `styles.imageRow` | The name of the template's style for a row of images side by side (a table style), as Word shows it. |
+| `styles.classification` | The name of the template's style for the classification marking in the header, as Word shows it. |
+| `styles.classificationCover` | The name of the template's style for the classification marking above the cover title, as Word shows it. |
 | `toc` | `true` or `false`: a table of contents after the cover. Default `false`. |
 | `tocDepth` | `1`, `2` or `3`: the heading levels the table of contents lists. Default `2`. |
 | `headingNumbers` | `true` or `false`. This template's heading styles decide the numbers, so it has no effect. |
+| `classification` | `public`, `internal` or `confidential`: the marking in the header of every page and above the cover title. Default `public`, which shows nothing. |
+| `draft` | `true` or `false`: `true` adds "Draft" to the marking and a watermark to every page. Default `false`. |
 | `transition`, `build`, `numberChapters` | Settings for decks. A Word document accepts them and ignores them. |
-| `labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral` | Status labels for decks, separated by `;`. A Word document accepts them. |
+| `labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral` | Status labels, separated by `;`: a table cell that is only one of them, as code (`` `Done` ``), is shown as a coloured label. |
 
 An unknown key, a key given twice or an invalid value is an error that lists the valid keys.
 
@@ -156,6 +221,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `attribute-ignored`: an image attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `focus` on an image that is not cropped. Remove it, or use it where it works.
 - `caption-ignored`: a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text.
 - `list-too-deep`: a list is nested deeper than three levels; the deeper items are set at the third level. Flatten the list to three levels.
+- `classification-kept`: the front matter asks for a lower `classification` than the host set, and the host's applies. Leave the key out, or raise it.
 
 ## Example
 

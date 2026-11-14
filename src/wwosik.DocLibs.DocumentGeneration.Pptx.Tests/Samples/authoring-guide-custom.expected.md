@@ -259,6 +259,9 @@ The end date does not move.
   own marker.
 - Other braces alone in a paragraph, such as `{.note}`, are a mistake; `\{` keeps them as text.
 
+Page breaks are for documents: a deck shows the content of `::: pagebreak` … `:::` as usual and
+ignores `{.newpage}` on a heading, as it ignores `classification:` and `draft:` for now.
+
 **Kinds of slide** are drawn as layout slides with the same content, unless the template has a layout of the right type.
 
 **Layouts with several boxes.** On a `layout="…"` slide, lines `---` (each after a blank line) cut the text into parts, which fill the layout's text boxes in order; images fill its picture boxes, cropped to their shape, and charts its chart boxes. What has no box left continues on a further slide. Such a slide takes text, images, charts, tables and diagrams, but no `:::` containers, alerts, `.dark` or `kicker`.

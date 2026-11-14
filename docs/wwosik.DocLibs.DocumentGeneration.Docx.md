@@ -31,9 +31,8 @@ DocxGenerator.Generate(document, output, new DocxOptions
 });
 ```
 
-> **Not yet in Word's own form:** the slide syntax of decks (containers, alerts, labels, coloured
-> words, image rows) is shown plainly, and diagrams and charts stay code. Both follow in later
-> versions.
+> **Not yet in Word's own form:** diagrams and charts stay code, QR codes are their alt text and
+> icons stay as written. They follow in a later version.
 
 - **Stream in, stream out.** Nothing is read from or written to disk.
 - **Errors:** invalid front matter, an unknown brand, a style the options or the front matter name
@@ -46,7 +45,8 @@ DocxGenerator.Generate(document, output, new DocxOptions
 - **Core properties:** the title (front matter `title`, else metadata `title`, else the cover
   title), the author (front matter `author`, else metadata `author`), the
   [document language](wwosik.DocLibs.DocumentGeneration.md#document-language) as `dc:language`, and
-  the created and modified dates from `TimeProvider`.
+  the created and modified dates from `TimeProvider`, and the [classification](#classification) as
+  `cp:contentStatus`.
 
 ## For hosts that let others write the Markdown
 
@@ -72,6 +72,8 @@ under a heading of your own and add what only you know.
 | `Language` | `en` | the document language, unless front matter sets `lang` |
 | `Texts` | none | `GeneratedTexts` for further languages, by tag |
 | `TimeProvider` | `TimeProvider.System` | the date on the cover and in the footer, and the created and modified dates |
+| `Classification` | `Classification.Public` | `Internal` or `Confidential` marks the document, see [Classification](#classification); front matter can raise it, not lower it |
+| `Draft` | `false` | marks the document a draft, with Word's watermark; front matter's `draft: true` also does |
 
 ## Front matter
 
@@ -83,6 +85,8 @@ The shared syntax and rules are in
 | `template` | `neutral`, the brand of `Template`, or a brand in `DocxOptions.Brands` | all |
 | `title`, `author` | text | all |
 | `lang` | a language tag such as `en`, `de`, `de-CH` | all |
+| `classification` | `public`, `internal`, `confidential` | all; see [Classification](#classification) |
+| `draft` | `true`, `false` | all |
 | `toc` | `true`, `false` | all |
 | `tocDepth` | `1`, `2`, `3` | all |
 | `headingNumbers` | `true`, `false` | all; takes effect on the built-in template |
@@ -90,7 +94,7 @@ The shared syntax and rules are in
 | `embedFonts` | `true`, `false` | the built-in template and a brand's own template |
 | `styles.<role>` | a style name as Word shows it, such as `styles.heading1: Chapter` | a caller's template |
 | `transition`, `build`, `numberChapters` | as in decks | all — a deck's keys: checked, then ignored |
-| `labels.<category>` | as in decks | all — checked, then ignored |
+| `labels.<category>` | as in decks | all — a table cell that is only such a label is a [status label](#syntax-written-for-slides) |
 
 ## Templates
 
@@ -131,8 +135,20 @@ shows it; a role left `null` takes its default name.
 | `FootnoteText` | `styles.footnoteText` | `footnote text` | footnote text |
 | `FootnoteReference` | `styles.footnoteReference` | `footnote reference` (character) | footnote references |
 | `Hyperlink` | `styles.hyperlink` | `Hyperlink` (character) | links |
+| `Note`, `Tip`, `Important`, `Warning`, `Caution` | `styles.note` … `styles.caution` | `Note` … `Caution` | the paragraphs of an alert of that kind: a bar on the left, a light shading |
+| `Mark` | `styles.mark` | `Mark` (character) | `==marked==` text |
+| `LabelSuccess` … `LabelNeutral` | `styles.labelSuccess` … `styles.labelNeutral` | `Label Success` … `Label Neutral` (character) | status labels by category |
+| `ColourSuccess` … `ColourNeutral` | `styles.colourSuccess` … `styles.colourNeutral` | `Colour Success` … `Colour Neutral` (character) | `[words]{.success}` by category; `Colour Danger` also for a confidential marking |
+| `ContainerHeading` | `styles.containerHeading` | `Container Heading` | headings inside containers, such as a card's `###` |
+| `Statement` | `styles.statement` | `Statement` | the first paragraph of `::: statement`, a card's figure |
+| `Panel`, `PanelDark` | `styles.panel`, `styles.panelDark` | `Panel`, `Panel Dark` | the paragraphs of `::: panel` and `::: panel dark` |
+| `Tag` | `styles.tag` | `Tag` (character) | tags: code spans shown as chips |
+| `ImageRow` | `styles.imageRow` | `Image Row` (table) | a row of images side by side |
+| `Classification` | `styles.classification` | `Classification` | the marking in the header |
+| `ClassificationCover` | `styles.classificationCover` | `Classification Cover` | the marking above the cover title |
 
-The entries of the table of contents take Word's own `TOC 1` to `TOC 3`.
+The entries of the table of contents take Word's own `TOC 1` to `TOC 3`, and the title of an alert
+Word's own `Strong`; found by name, added when missing, never named by the caller.
 
 - **Styles are found by name** among the styles of their kind, compared case-insensitively,
   **never by id**: localized templates
@@ -141,7 +157,10 @@ The entries of the table of contents take Word's own `TOC 1` to `TOC 3`.
   name.
 - **A style the template lacks** for a role nobody named is added from the built-in definition
   (sizes and colours of the neutral brand, or of the brand for its own template), a paragraph style
-  based on the template's `Normal`, under a free id. Added heading styles are not numbered.
+  based on the template's `Normal`, under a free id. Added heading styles are not numbered. On a
+  caller's template the styles of the slide syntax take the template's theme colours, as decks do:
+  accent 1 for the primary colour, accent 2 for the highlight, background 2 for boxes; the status
+  label colours are the neutral brand's.
 - **A name given in `Styles` or front matter that the template lacks** throws, listing the
   template's styles of that kind.
 
@@ -226,7 +245,7 @@ key, and `w:embedTrueTypeFonts` in the settings.
 | -------- | ---- |
 | `#` … `######` after the cover | `Heading 1` … `Heading 6`, shifted so that the highest level used after the cover is Heading 1; a bookmark from the heading's id (letters, digits, `_`, at most 40 characters, unique). Every `#` but the first content starts a page (`w:pageBreakBefore`). |
 | Paragraph | `Normal`; a hard break is `w:br` |
-| `**bold**`, `*italic*`, `~~strike~~`, `==mark==` | `w:b`, `w:i`, `w:strike` on the run, marks bold: the one run formatting besides code |
+| `**bold**`, `*italic*`, `~~strike~~` | `w:b`, `w:i`, `w:strike` on the run: the one run formatting besides styles |
 | `` `code` `` | `Code Character` |
 | `[text](https://…)`, `mailto:` | `w:hyperlink` with an external relationship, in `Hyperlink` |
 | `[text](#id)` | `w:hyperlink w:anchor` to the heading's bookmark; an unknown id stays text |
@@ -241,8 +260,63 @@ key, and `w:embedTrueTypeFonts` in the settings.
 | `Table: …` after a table | a `Caption` above the table, kept with it |
 | `![alt](a.png "title")` | a centred `Normal` paragraph with the picture inline, at its natural size at 96 DPI times `scale=`, scaled down to the text width and 80 % of the text height, never up; the alt text in `wp:docPr/@descr`. Its caption below it, the picture kept with it. |
 | `Text[^1]`, `[^1]: …` | a Word footnote: `w:footnoteReference` in `footnote reference`, the text in `footnote text` in the footnotes part (made with its separators when the template has none). Each reference gets a footnote of its own. |
+| `![a](a.png) ![b](b.png)`, a paragraph of only images | a row of them, see [Syntax written for slides](#syntax-written-for-slides) |
 | Raw HTML | text, with `html-as-text`; comments are left out |
-| Slide syntax | checked as in decks, shown plainly: containers' content in sequence, alerts as `Quote` under their title in bold, labels as code, coloured words bold |
+| Slide syntax | see [Syntax written for slides](#syntax-written-for-slides) |
+| `::: pagebreak`, `{.newpage}` | see [Page breaks](#page-breaks) |
+
+### Syntax written for slides
+
+The layouts written for decks are drawn with styles, in sequence, so one Markdown serves every format
+(the syntax is on the [shared page](wwosik.DocLibs.DocumentGeneration.md#slide-layouts-in-markdown)).
+Mistakes are checked as in decks.
+
+| Markdown | Word |
+| -------- | ---- |
+| `> [!NOTE]` … `> [!CAUTION]` | every paragraph in the kind's style (`Note` … `Caution`): a bar on the left, in the primary colour on the table band for notes and tips, in the highlight on its tint for the others; the first paragraph starts with the title in the document language (`GeneratedTexts.Alert`) in `Strong`. Lists inside keep their style and take the bar and shading directly |
+| `::: cards` with `###` | each `###` a `Container Heading` (bold, primary, kept with the next, no outline level: unnumbered and not in the table of contents); a paragraph of only bold text right after it, the card's figure, in `Statement` |
+| `::: cards`, `::: rows` of `- **Title** – text` | a `Definition Term` and its `Definition`, as a definition list; other content in sequence |
+| `::: panel`, `::: panel dark` | its paragraphs in `Panel` (shaded in the table band, a border all round, so that Word joins them into one box) or `Panel Dark` (the primary colour, white text); a heading inside is a bold panel paragraph; lists and tables keep their own styles |
+| `::: statement` | the first paragraph in `Statement` (large, bold, primary), the rest as usual |
+| `::: columns` | the columns one after the other, without the `---` |
+| Other containers (`conclusion`, `comment`, drawn ones) | their content in sequence; a heading inside is a `Container Heading` |
+| `` `a` `b` `c` ``, a paragraph of only code spans | one paragraph of `Tag` runs (code font, light grey), separated by spaces; in a container, an item that starts with a code span starts with it as a tag |
+| `==mark==` | `Mark`: bold on a light tint of the highlight, not Word's yellow highlighter |
+| A table row whose first cell is all `==…==` | every cell shaded in that tint (`w:shd` in `w:tcPr`): the one direct cell formatting, since a style cannot shade cells |
+| `[words]{.success}` | `Colour Success` (bold, in the category's colour), and so on |
+| A table cell that is one code span `labels.*` names | `Label Success` … `Label Neutral`: bold in the category's colour on a light tint of it. A code cell no key names stays `Code Character` |
+| A paragraph of two or more images (no `qr:` among them) | a borderless table (`Image Row`) of one row that does not split (`w:cantSplit`), a cell of equal width per image across the text width; each image scaled down to its cell, its caption under it in the same cell |
+| Heading attributes | dropped, checked as in decks; `layout="…"` means nothing in Word |
+
+### Page breaks
+
+`::: pagebreak` (with or without content, closed or not) gives the next paragraph or table
+`w:pageBreakBefore`: its own first block when it holds content, which then follows as usual. A
+heading ending in `{.newpage}`, at any level, gets `w:pageBreakBefore` itself. A break before the
+first element of the body (the cover and the table of contents already end their pages) or at the
+very end does nothing, so no break makes an empty page. `{.newpage}` on the cover heading throws.
+See the [shared syntax](wwosik.DocLibs.DocumentGeneration.md#page-breaks).
+
+### Classification
+
+`classification: internal | confidential` and `draft: true`, or `DocxOptions.Classification` and
+`Draft` (rules and texts on the [shared page](wwosik.DocLibs.DocumentGeneration.md#classification)),
+mark the document "Internal", "Confidential", "Draft" or "Confidential · Draft":
+
+- **Header.** A `Classification` paragraph (right-aligned bold capitals at the footer's size, in the
+  footer colour) at the top of every content page's header (default and even). On the built-in
+  template it ends before the logo. A confidential marking is in `Colour Danger`.
+- **Caller templates.** A content control tagged `classification` in a header or footer gets the
+  text instead, keeping its own formatting; without one, the paragraph goes at the top of each
+  content header, and a template without headers gets one.
+- **Cover.** A `Classification Cover` paragraph above the title; its style takes the space above the
+  title, which then starts right under it (`w:spacing w:before="0"` on the title).
+- **Watermark.** A draft gets Word's own watermark in every header, the cover's included: a VML text
+  path named `PowerPlusWaterMarkObject…` with `GeneratedTexts.Draft` in capitals ("DRAFT",
+  "ENTWURF"), light grey, at 45° and centred on the margins, behind the text. Word lists it under
+  *Design → Watermark* and can remove it there.
+- **Properties.** `cp:contentStatus` holds the marking; a document without one writes none.
+  Sensitivity labels of a tenant are not set.
 
 ### Heading numbers
 
@@ -276,17 +350,18 @@ own styles alone.
 
 `code-not-drawn`, `html-as-text`, `footnote-missing`, `attribute-ignored` (`fit`, `focus`,
 `.round`, `.grey` on an image, or any attribute on an image shown as its alt text in a heading or
-a cell), `caption-ignored`, `list-too-deep` and `language-unknown`. See
+a cell), `caption-ignored`, `list-too-deep`, `classification-kept` and `language-unknown`. See
 [Generation results and notes](wwosik.DocLibs.DocumentGeneration.md#generation-results-and-notes).
 
 ## Known limits
 
-- Slide syntax is shown plainly, and diagrams, charts, QR codes (`qr:` images, shown as their alt
-  text) and icons (`:icon-name:`, left as written) are not drawn.
+- Diagrams, charts, QR codes (`qr:` images, shown as their alt text) and icons (`:icon-name:`, left
+  as written) are not drawn.
 - Images in table cells and headings are their alt text.
 - A footnote referenced twice gets two footnotes with the same text.
-- `DocxConverter` reads the content back without footnotes and code style, and reads the
-  `Table Title` style as a heading, because its name contains "title".
+- `DocxConverter` reads the content back without footnotes, code style and the formatting styles
+  give (marks, labels and statements come back as plain text), and reads the `Table Title` and
+  `Container Heading` styles as headings, because their names contain "title" or "heading".
 - Landscape sections, history, compare, comments, review import, cross-references, abbreviations
   and accessibility checks are out of scope.
 - The table of contents shows page numbers only once Word (or another program that updates fields)

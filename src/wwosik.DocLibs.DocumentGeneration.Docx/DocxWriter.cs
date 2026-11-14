@@ -29,6 +29,18 @@ internal sealed record DocxContext(
 
     /// <summary>Whether Heading 1–3 carry the built-in numbers, so the table of contents shows them too.</summary>
     public bool HeadingNumbers { get; init; }
+
+    /// <summary>The status labels front matter <c>labels.*</c> names, by their text.</summary>
+    public IReadOnlyDictionary<string, LabelCategory> Labels { get; init; } = new Dictionary<string, LabelCategory>();
+
+    /// <summary>The blocks a <c>::: pagebreak</c> comes right before.</summary>
+    public IReadOnlySet<Markdig.Syntax.Block> PageBreaks { get; init; } = new HashSet<Markdig.Syntax.Block>();
+
+    /// <summary>The colours of the built-in styles, for the one direct formatting: the shading of highlighted table rows.</summary>
+    public StyleDesign? Design { get; init; }
+
+    /// <summary>The classification marking; <see cref="DocumentGeneration.Marking.None"/>: none.</summary>
+    public Marking Marking { get; init; } = Marking.None;
 }
 
 /// <summary>
@@ -71,7 +83,7 @@ internal static class DocxWriter
         var blocks = new List<List<OpenXmlElement>>();
         if (content.Cover is { } cover)
         {
-            blocks.Add(Cover(cover, author, date, context.Styles));
+            blocks.Add(Cover(cover, author, date, context));
         }
         else if (section?.GetFirstChild<TitlePage>() is { } titlePage)
         {
@@ -144,10 +156,20 @@ internal static class DocxWriter
     /// <summary>A run of plain text, spaces kept.</summary>
     public static Run Run(string text) => new(new Text(text) { Space = SpaceProcessingModeValues.Preserve });
 
-    // The title, each subtitle paragraph, then the author and the date.
-    private static List<OpenXmlElement> Cover(DocxCover cover, string? author, string? date, DocxStyles styles)
+    // The marking, if any, the title, each subtitle paragraph, then the author and the date. Under a marking the title
+    // starts right away: the marking's style has taken the space above the title, so the title stays where it was.
+    private static List<OpenXmlElement> Cover(DocxCover cover, string? author, string? date, DocxContext context)
     {
-        var elements = new List<OpenXmlElement> { Paragraph(styles.Id(DocxRoles.Title), [new TextPiece(cover.Title)]) };
+        var styles = context.Styles;
+        var elements = new List<OpenXmlElement>();
+        var title = Paragraph(styles.Id(DocxRoles.Title), [new TextPiece(cover.Title)]);
+        if (DocxMarking.Paragraph(context, DocxRoles.ClassificationCover) is { } marking)
+        {
+            elements.Add(marking);
+            title.ParagraphProperties!.SpacingBetweenLines = new SpacingBetweenLines { Before = "0" };
+        }
+
+        elements.Add(title);
         elements.AddRange(cover.Subtitle.Select(s => Paragraph(styles.Id(DocxRoles.Subtitle), s)));
         var details = new[] { author, date }.Where(d => !string.IsNullOrWhiteSpace(d)).Select(d => new TextPiece(d!)).ToList();
         if (details.Count > 0)

@@ -7,13 +7,13 @@ namespace wwosik.DocLibs.DocumentGeneration;
 /// Slide settings at the end of a heading, Pandoc style: <c>## Title {.dark kicker="Label" layout="Name"}</c>, and
 /// <c># Thank you {.closing}</c>. Only a trailing <c>{…}</c> made of classes and quoted <c>key="value"</c> pairs counts;
 /// any other braces stay text. Of those, only <c>.dark</c>, <c>kicker</c>, <c>layout</c>, <c>transition</c>,
-/// <c>.closing</c> and the slide kinds (<see cref="SlideKinds.Names"/>) are known, anything else throws
+/// <c>.closing</c>, <c>.newpage</c> and the slide kinds (<see cref="SlideKinds.Names"/>) are known, anything else throws
 /// <see cref="DocumentConversionException"/>.
 /// </summary>
 internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
 {
     /// <summary>The attributes, as they are written, for error messages.</summary>
-    public const string Valid = ".dark, kicker=\"…\", layout=\"…\", transition=\"…\", .closing, .agenda, .quote, .statement, .contact, .chart";
+    public const string Valid = ".dark, kicker=\"…\", layout=\"…\", transition=\"…\", .closing, .newpage, .agenda, .quote, .statement, .contact, .chart";
 
     /// <summary>The template's layout to put the slide on, by its name; <see langword="null"/>: chosen by the kind of slide.</summary>
     public string? Layout { get; init; }
@@ -34,6 +34,13 @@ internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
     public bool Unnumbered { get; init; }
 
     /// <summary>
+    /// <c>.newpage</c>: the heading starts a new page in documents (E03-S03's syntax). Known to every format on <c>#</c>
+    /// and <c>##</c>: Word documents start the page, decks and PDFs ignore it for now. On <c>###</c> to <c>######</c>
+    /// only Word documents know it until E03-S03.
+    /// </summary>
+    public bool NewPage { get; init; }
+
+    /// <summary>
     /// Splits the end of a heading of level 3 to 6, where slide settings do not apply: a trailing <c>{…}</c> is taken
     /// off only when every token in it is one that applies at that level (<c>.unnumbered</c>, in
     /// <paramref name="format"/>s that know it); any other braces stay text, without an error.
@@ -47,8 +54,12 @@ internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
         }
 
         var tokens = TokenPattern().Matches(match.Groups[1].Value);
-        return tokens.All(t => t.Groups["class"].Success && t.Groups["class"].Value == "unnumbered")
-            ? (text[..match.Index].TrimEnd(), new HeadingAttributes(false, null) { Unnumbered = true })
+        return tokens.All(t => t.Groups["class"].Success && t.Groups["class"].Value is "unnumbered" or "newpage")
+            ? (text[..match.Index].TrimEnd(), new HeadingAttributes(false, null)
+            {
+                Unnumbered = tokens.Any(t => t.Groups["class"].Value == "unnumbered"),
+                NewPage = tokens.Any(t => t.Groups["class"].Value == "newpage"),
+            })
             : (text, null);
     }
 
@@ -72,6 +83,7 @@ internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
         string? transition = null;
         string? kind = null;
         var unnumbered = false;
+        var newPage = false;
         foreach (Match token in TokenPattern().Matches(match.Groups[1].Value))
         {
             switch (token.Groups["class"].Success ? "." + token.Groups["class"].Value : token.Groups["key"].Value)
@@ -84,6 +96,9 @@ internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
                     break;
                 case ".unnumbered" when KnowsUnnumbered(format):
                     unnumbered = true;
+                    break;
+                case ".newpage":
+                    newPage = true;
                     break;
                 case var name when name.Length > 1 && name[0] == '.' && SlideKinds.Names.Contains(name[1..]):
                     if (kind is not null && kind != name[1..])
@@ -116,7 +131,7 @@ internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
             throw new DocumentConversionException(format, $"The heading attributes '{match.Value.Trim()}' combine .{kind} with .dark; a kind of slide has its own layout, so leave out .dark.");
         }
 
-        return (text[..match.Index].TrimEnd(), new HeadingAttributes(dark, kicker) { Layout = layout, Transition = transition, Closing = closing, Kind = kind, Unnumbered = unnumbered });
+        return (text[..match.Index].TrimEnd(), new HeadingAttributes(dark, kicker) { Layout = layout, Transition = transition, Closing = closing, Kind = kind, Unnumbered = unnumbered, NewPage = newPage });
     }
 
     // `.unnumbered` comes with heading numbers: in Word documents now, in PDFs and decks with E03-S02.

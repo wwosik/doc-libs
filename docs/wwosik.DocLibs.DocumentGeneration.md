@@ -298,6 +298,7 @@ if (result.HasNotes)
 | `icon-not-drawn` | PPTX, PDF | An icon (`:icon-name:`) stands where the format cannot draw it and was left out of the text: in decks anywhere but a card's figure or an icon list (inside text, a heading, a table cell, speaker notes, a list where not every item starts with an icon); in PDFs in a heading, a table cell or on the cover |
 | `caption-ignored` | DOCX | A `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text |
 | `list-too-deep` | DOCX | A list is nested deeper than three levels; the deeper items are set at the third level, once per list |
+| `classification-kept` | DOCX | The front matter's `classification` is lower than the host's (`DocxOptions.Classification`); the host's applies. Decks and PDFs join with E03-S04 |
 
 ## Drawings and code-block renderers
 
@@ -379,7 +380,8 @@ provides `MermaidRenderer`. Any other diagram language can plug in the same way.
 The PPTX generator draws [layouts](wwosik.DocLibs.DocumentGeneration.Pptx.md#layouts) from Markdown:
 heading attributes (`## Title {.dark kicker="Label" layout="Name"}`, `# Thank you {.closing}`),
 slide kinds (`## Agenda {.agenda}`, `{.quote}`, `{.statement}`, `{.contact}`, `{.chart}`),
-`:::` containers (`cards`, `rows`, `panel`, `statement`, `columns`, `conclusion`, `comment`, and the drawn
+`:::` containers (`cards`, `rows`, `panel`, `statement`, `columns`, `conclusion`, `comment`, `pagebreak`
+(see [Page breaks](#page-breaks)), and the drawn
 [`timeline` and `gantt`](#timelines-and-gantt-charts),
 [`steps` and `riskmatrix`](#steps-harvey-balls-and-risk-matrices)), GitHub alerts (`> [!NOTE]`),
 tag lists of code spans, `==marked==` text, `[words]{.success}` in a status colour, and paragraphs of
@@ -401,6 +403,8 @@ The PDF generator accepts the same Markdown, so one source serves both, and show
 mistakes — unknown heading attributes, containers and alerts, a kind of slide with content it does
 not take, a misplaced `::: conclusion` or `::: comment` (internally `SlideKinds`) — with a
 `DocumentConversionException` in their format. Custom containers are block-level only in both: `::text::` stays text.
+Word documents draw the same syntax with styles: see
+[the DOCX page](wwosik.DocLibs.DocumentGeneration.Docx.md#syntax-written-for-slides).
 
 Front matter can assign status labels — table cells that are one code span — to categories, one key
 per category with its labels separated by `;`:
@@ -417,11 +421,64 @@ labels.neutral: Later
 The categories are `success`, `info`, `warning`, `danger` and `neutral`; decks tint a label's cell
 in the brand's colour for it (`Colors.Labels`), and a label no key names is neutral. Labels match
 exactly. An unknown category or a label in two categories throws, in both generators; PDFs show the
-labels as code.
+labels as code. Word documents show a cell that is only a label some key names as a coloured label,
+and every other code cell as code.
 
 `[words]{.success}` — a bracketed span with exactly one category class — sets the words bold in that
-category's colour, in decks and PDFs; on dark slides the colour is lightened halfway to white. Code
+category's colour, in decks, PDFs and Word documents; on dark slides the colour is lightened halfway to white. Code
 is never read for it, and any other brackets and braces stay text. An unknown category throws.
+
+## Page breaks
+
+`::: pagebreak` starts a new page in documents; `{.newpage}` at the end of a heading starts one with
+that heading. Every generator accepts both (internally `LayoutSyntax.PageBreak`,
+`HeadingAttributes.NewPage`, `PageBreaks`):
+
+```markdown
+::: pagebreak
+:::
+
+## Appendix {.newpage}
+```
+
+- `::: pagebreak` takes no arguments. It may hold content, which follows the break, and its closing
+  `:::` is optional: an unclosed one runs to the end of the document and gives the same pages. Each
+  generator takes the containers apart right after parsing, so a heading an unclosed break holds
+  starts its section as usual.
+- `{.newpage}` is a heading attribute like `{.dark}` on `#` and `##` in every format. On `###` to
+  `######` only Word documents read it (with `{.unnumbered}`); elsewhere such braces stay text.
+- **Word documents** give the next paragraph or table `w:pageBreakBefore`; a break at the very start
+  or end of the body does nothing, so it never makes an empty page. `{.newpage}` on the cover heading
+  throws.
+- **Decks and PDFs** accept both and ignore them for now: a deck has no pages to break, and the PDF
+  side is E03-S03's. Their output is the same as without them.
+
+## Classification
+
+Two front-matter keys mark how confidential a document is (E03-S04's keys):
+
+```markdown
+---
+classification: confidential
+draft: true
+---
+```
+
+- `classification` is `public` (the default, which shows nothing), `internal` or `confidential`;
+  `draft` is `true` or `false`. A host sets them as `DocxOptions.Classification` (the public enum
+  `Classification`) and `DocxOptions.Draft`.
+- **Precedence.** Front matter can raise the host's classification but not lower it: a host that sets
+  `Confidential` keeps it when the Markdown says `internal`, with the note `classification-kept`.
+  `draft: true` from either side makes a draft; front matter cannot undo the host's.
+- **Texts.** `GeneratedTexts.Internal`, `Confidential` and `Draft` ("Intern", "Vertraulich",
+  "Entwurf" in German), joined with " · ": "Confidential · Draft". A host with its own scheme renames
+  them through `Texts`; the levels stay three.
+- **Colour:** `Labels.Danger` for confidential, the footer colour for internal and draft.
+- **Word documents** show the marking in the header of every content page, above the cover title,
+  and in `cp:contentStatus`, and give a draft Word's own watermark: see
+  [the DOCX page](wwosik.DocLibs.DocumentGeneration.Docx.md#classification).
+- **Decks and PDFs** check the values and show nothing yet (E03-S04); an unknown value throws in
+  every format.
 
 ## Front matter
 
@@ -441,7 +498,8 @@ title: Network expansion 2027
   looks like YAML but is only this flat subset — no nesting, no lists.
 - An opening `---` followed by a blank line is a thematic break, not front matter.
 - **Shared keys:** `template` (applied first, whatever its position), `title`, `author`, `lang` (see
-  [Document language](#document-language)), and `labels.<category>` (see
+  [Document language](#document-language)), `classification` and `draft` (see
+  [Classification](#classification)), and `labels.<category>` (see
   [Slide layouts in Markdown](#slide-layouts-in-markdown)). The rest are the generator's.
 - `template` naming the template the caller chose keeps the caller's values; naming another one
   starts from that template's defaults.
@@ -464,7 +522,8 @@ is a BCP 47 tag such as `en`, `de`, `de-CH` or `en-GB`. Anything else is an erro
   [risk matrices](#steps-harvey-balls-and-risk-matrices) (`Likelihood`, `Impact`; German
   `Eintrittswahrscheinlichkeit`, `Auswirkung`) and the heading of a Word document's table of contents
   (`Contents`; German `Inhalt`) and the labels of its captions (`Figure`, `Table`; German
-  `Abbildung`, `Tabelle`). Code-block
+  `Abbildung`, `Tabelle`) and the [classification marking](#classification) (`Internal`,
+  `Confidential`, `Draft`; German `Intern`, `Vertraulich`, `Entwurf`). Code-block
   renderers get them as `CodeBlockRequest.Texts`. `GeneratedTexts.English` and `GeneratedTexts.German` are built in; a host adds or
   replaces languages with the options' `Texts`, by tag. Every property defaults to English, so a
   new language starts from `GeneratedTexts.English with { Warning = "…" }` and stays complete when

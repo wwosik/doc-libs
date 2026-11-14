@@ -1,7 +1,7 @@
 # E09-S02 Deck syntax in Word
 
-> Status: in progress (doc-3)
-> Epic: [E09 DOCX generator](../../50-todo/E09-docx-generator.md)
+> Status: in verification
+> Epic: [E09 DOCX generator](../50-todo/E09-docx-generator.md)
 
 ## Summary
 
@@ -34,8 +34,8 @@ It also adds the Word side of two features whose syntax other stories own: page 
   stay code.
 - **What E09-S04 does with it:** the same as the PDF, so every sample generates. This story
   replaces that with Word styles.
-- **Order.** This story comes after [E09-S01](../../60-verify/E09-S01-docx-package-and-templates.md) (package,
-  templates, styles by role) and [E09-S04](../../60-verify/E09-S04-docx-content.md) (content: headings, lists,
+- **Order.** This story comes after [E09-S01](E09-S01-docx-package-and-templates.md) (package,
+  templates, styles by role) and [E09-S04](E09-S04-docx-content.md) (content: headings, lists,
   definition lists, captions, image fitting), which is implemented before it despite its number.
 - **Colours come from the brand:**
   - `ResolvedBrand.Highlight` for marks and important alerts;
@@ -316,3 +316,169 @@ It also adds the Word side of two features whose syntax other stories own: page 
     PPTX on them.
 - **Not taken from the fork:** its client's look (yellow marks, status dots, sizes), audience
   versions and consulting containers.
+
+## Implementation notes
+
+### Breaking changes
+
+None for released output. Decks and PDFs are unchanged (verified below); the DOCX package is
+unreleased. What a consumer can notice, all listed in `CHANGELOG.md`:
+
+- `::: pagebreak`, `{.newpage}`, `classification:` and `draft:` used to throw in every generator and
+  now generate; decks and PDFs accept them and show nothing of them yet (not breaking, as the plan
+  says). Because they are valid now, the lists of valid containers, heading attributes and
+  front-matter keys in error messages name them, in every format: code that matches those messages'
+  text adjusts (recorded under *Breaking changes*, as E02-S05 did for its names).
+- Added: the public enum `Classification`, `DocxOptions.Classification` and `Draft`,
+  `GeneratedTexts.Internal`, `Confidential`, `Draft`, `NoteCodes.ClassificationKept`, twenty-four
+  `DocxStyleNames` properties and their `docx.styles` properties in `brand.json`.
+- Inside the unreleased DOCX package: `==mark==` is the `Mark` style instead of `w:b`, coloured words
+  their `Colour …` styles instead of bold, alerts their own styles instead of `Quote` under a bold
+  title paragraph, card headings `Container Heading` instead of numbered headings (so they left the
+  table of contents and the heading shift), short cards and `::: rows` terms and descriptions, and a
+  paragraph of two or more images a table.
+
+### Decisions and deviations
+
+- **Roles.** The 24 roles of the plan, with default names `Note`, `Tip`, `Important`, `Warning`,
+  `Caution`, `Mark`, `Label Success` … `Label Neutral`, `Colour Success` … `Colour Neutral`,
+  `Container Heading`, `Statement`, `Panel`, `Panel Dark`, `Tag`, `Image Row`, `Classification`,
+  `Classification Cover`, and keys `styles.note` … `styles.classificationCover`. One more role without
+  a key: Word's own `Strong` (character), which the plan names for the alert title; like the TOC
+  levels it is found by name and added when missing, never mapped. All in `DocxRoles.All`, so the
+  built-in `styles.xml`, the lookup, the keys and the guide follow.
+- **Colours on a caller's template** (`StyleDesign.Theme`, `WordColor`): `w:themeColor`/`w:themeFill`
+  accent 1 for the primary colour, accent 2 for the highlight (tint `26` = 15 % for marks, important
+  alerts and highlighted rows), background 2 for the band, with the neutral brand's hex as the value
+  Word falls back to; label colours and the table line are the neutral brand's hex, as the plan says.
+  A brand's own template uses the brand's colours.
+- **Direct formatting**, besides the plan's highlighted-row shading: the bar and shading of an alert
+  copied onto its list items (the plan: "lists inside get the bar through the same border"), the
+  cover title's `w:spacing w:before="0"` under a cover marking (the marking's style takes the space
+  above the title, so the title stays at 28 % of the page), and a right indent on the header marking
+  of the built-in template beside its logo (18 pt high at the right margin; 6 pt gap).
+- **Containers.** Headings inside any `:::` container are `Container Heading` (no outline level, not
+  numbered, not in the TOC, left out of the heading shift, bookmark kept), except in a panel, where a
+  heading is a bold `Panel` paragraph so the box stays one (the layouts sample's `::: panel dark` has a
+  `###`). Cards and rows that are not one list of `**bold**`-first items show their content in
+  sequence, like the PDF, rather than throwing as decks do. `conclusion`, `comment` and the drawn
+  containers show their content in sequence (E09-S03 draws the drawn ones). A panel's lists, tables
+  and definition lists keep their own styles, as agreed (question 3), so a box with a list is broken
+  there.
+- **Tags** are written for any paragraph of two or more code spans, not only inside containers (decks
+  read a top-level tag paragraph too); a list item that starts with a code span gets it as a tag only
+  inside a container, as on slides.
+- **Labels and highlighted rows** never apply to the header row, as in decks. A label run is the
+  code span's text in `Label <Category>`.
+- **Image rows:** `ImageRow` table style with `nil` borders and 3 pt cell margins left and right;
+  each picture fitted to its cell width less the margins and 80 % of the text height (E09-S04's rule);
+  the cells' picture paragraphs are `Normal`, centred directly as E09-S04's images are. A `qr:` image
+  in the paragraph keeps the paragraph out of a row (QR codes are still alt text).
+- **Page breaks** (`PageBreaks.Flatten`, shared): every `::: pagebreak` is replaced by its content
+  right after Markdig parses, in all three generators, before sections are cut, so a heading that an
+  unclosed break swallowed starts its section as usual; it returns the blocks a break comes before.
+  Word: the first body element written for that block gets `w:pageBreakBefore` (a table: its first
+  cell's paragraph); not when it is the first element of the body (the cover and the TOC already end
+  their pages), and a break at the end does nothing, so no empty page. `{.newpage}` on any level in
+  Word (`SplitDeep` takes `.newpage` with `.unnumbered`); on the cover heading it throws, as E03-S03
+  decided for PDFs. Decks and PDFs drop the set: their output is identical (tested and compared).
+- **Shared keys** (`classification`, `draft`) are skipped by `FrontMatter.Apply` like `lang`;
+  `Marking.Resolve` applies them; PDF and PPTX call it to check the values only. `classification-kept`
+  carries the front-matter key's line (`FrontMatter.LineOf`, new). Its formats are DOCX only for now;
+  E03-S04 adds PDF and PPTX.
+- **Marking in Word** (`DocxMarking`): content controls tagged `classification` are searched in every
+  header and footer (the template's body is replaced, so "on the first page" can only mean the first
+  page's header); they get the text in the control's own formatting, and then no paragraph is added.
+  Otherwise a `Classification` paragraph goes at the top of the default and even headers; a template
+  without a default header gets one. The cover marking is always written when there is a cover. The
+  watermark run goes into the first paragraph of every header, the cover's included (a first-page
+  header is added when the template has `w:titlePg` without one); shape `PowerPlusWaterMarkObject<n>`,
+  `_x0000_t136` text path, 90 % of the text width, rotation 315, `#D9D9D9`, opaque, in the brand's font.
+  `cp:contentStatus` through the new `CoreProperties.ContentStatus` (linked into PPTX too, unused there).
+- **Guides.** `Docx.md` gets *Syntax written for slides*, *Page breaks*, *Classification*, image rows
+  and the two keys in the front-matter table. The PDF and deck guides each get one sentence that page
+  breaks and the marking keys are accepted and ignored (their tests require every container to be
+  named); their expected guides changed accordingly (guides only, no output).
+- **Test template.** `CustomTemplate` now also lacks every deck-syntax style, so the caller's-template
+  tests show them added in theme colours.
+- **QR codes and icons** are not in this plan, so they stay as E09-S04 left them (alt text, typed
+  text) and go to E09-S03.
+
+### Verification
+
+- `./run.sh build`: 0 warnings, 0 errors. `./run.sh test` all green: 1 + 123 + 276 + 78 + 71 + 22 +
+  109 + 208 + 372 = 1,260 passed, 6 Windows-only skipped.
+- **New tests.** `Docx.Tests/DeckSyntaxTests.cs` (28 with theory rows): each alert kind's style and
+  `Strong` title in English and German, lists inside with the bar; alert style colours; card headings
+  without outline level or numbering and not in the TOC, the figure in `Statement`; short cards and
+  rows as terms; panels, dark panels, statements, columns, tag paragraphs and tag items; marks,
+  coloured words and highlighted rows; a named label and an unnamed code cell; the image row
+  (style, `cantSplit`, equal widths, pictures and captions in the cells, `nil` borders); page breaks
+  closed, holding content, unclosed, after a table, and `{.newpage}` on `##` and `###`; no break at the
+  start or end; mistakes (`::: pagebreak now`, `{.newpage}` on the cover, unknown container and alert,
+  bad `classification` and `draft`); confidential in the content header (with the logo indent, not in
+  the cover header), on the cover and in `cp:contentStatus`; a German internal draft with the
+  watermark in every header; precedence with `classification-kept` and its line; a tagged content
+  control filled on a caller's template, else a header paragraph; the deck styles in theme colours on a
+  caller's template; each classification valid on every template. `ContentTests` checks the layouts
+  sample's styles. The new sample `pages.md` (page breaks closed, with content and unclosed, an image
+  row, a warning with a list, labels, `classification: confidential`, `draft: true`) is generated with
+  neutral, sample and custom, validated and compared through `DocxConverter`
+  (`pages-<template>.roundtrip.expected.md`). `DocumentGeneration.Tests/DocumentSyntaxTests.cs`:
+  `PageBreaks.Flatten` (order, the blocks after breaks, at the end, inside a container, arguments in
+  every format), `.newpage` in every format and on deep headings for Word only, `Marking.Resolve` and
+  its texts, the keys skipped by `Apply`. PDF and PPTX: a document with page breaks, `{.newpage}` and
+  the marking keys gives the same pages' text (PDF) and the same slide XML (PPTX, relationship ids
+  masked) as the one without.
+- **Validator.** Every `.docx` the tests write passes `OpenXmlValidator(Microsoft365)`, VML watermark
+  included.
+- **Round trip.** The `layouts-*` expectations were regenerated: alerts come back as a paragraph
+  starting with the title, card headings as `#` (the converter reads any style whose name contains
+  "heading" as a heading), figures, marks and labels as plain text, short cards and rows as term and
+  description paragraphs; image rows come back as a table of images with their captions. Left to E08.
+- **Unchanged output.** All 50 decks and PDFs the PPTX and PDF tests write to `.tmp/review/`, from
+  E09-S04's commit `020b5aa` (run before any change) and from this change: identical — decks part by
+  part with the SDK's relationship ids masked, embedded workbooks included, PDFs byte for byte with
+  `/ID` and dates masked.
+- **For review** in `.tmp/review/`: `layouts-`, `pages-`, `content-`, `report-`, `long-` ×
+  `neutral`, `sample`, `custom` `.docx`, and `embedded-fonts-sample.docx`.
+
+### To verify by hand (no Word or LibreOffice on this machine)
+
+Open `layouts-*.docx` and `pages-*.docx` in Word (and *File → Export → PDF*), and check:
+
+1. **No repair prompt** on any file, especially `pages-custom.docx` (styles added in theme colours,
+   the marking paragraph in a caller's header) and every `pages-*` (VML watermark).
+2. **Alerts:** the bar on the left is continuous across the alert's paragraphs and its list
+   (`pages-*`: the warning with two items); record whether the bar jogs at the list's indent.
+3. **Panels** (`layouts-*`, "Fixed along the way", "Every result has a manifest"): consecutive panel
+   paragraphs form one box; the dark panel is the primary colour with white text.
+4. **Labels and marks** look like the decks': the `Done`/`In review`/`Next` chips in "Status and next
+   steps", the marked words, the shaded rows of "Status model".
+5. **Image rows** (`pages-*`, "Daily run"): the two images side by side with their captions under
+   them, no borders, the row not split.
+6. **Page breaks** fall where asked (`pages-*`: "Incidents", "Contacts", "Appendix" each start a page,
+   no empty page).
+7. **Classification:** "CONFIDENTIAL · DRAFT" right-aligned in the header of every content page, left
+   of the logo on `pages-sample.docx`, in the danger colour; above the cover title, the title still
+   about a quarter down; *File → Info* shows the status.
+8. **Watermark:** "DRAFT" diagonally behind the text on every page, the cover included;
+   *Design → Watermark* lists it, *Remove Watermark* removes it.
+9. **Container headings:** the card titles are bold, unnumbered and absent from the table of contents
+   after *Update field*.
+10. **LibreOffice:** not installed here; the watermark and the joining of borders were not checked.
+
+### What E03-S03 and E03-S04 still do
+
+- **E03-S03:** read `PageBreaks.Flatten`'s set in the PDF (a `PageBreakBlock` or the heading's
+  `NewPage`), never an empty page; `{.newpage}` on `###`–`######` in PDFs (`SplitDeep`); `{.newpage}`
+  on the PDF cover heading an error; the guides' page-break sections; and footnotes and `justify`.
+- **E03-S04:** `PdfOptions`/`PptxOptions` `Classification` and `Draft`, passed to `Marking.Resolve`
+  instead of `Public`/`false`; the PDF header and cover marking and the rotated watermark; the deck
+  corner label and `cp:contentStatus` (`CoreProperties.ContentStatus` is ready); `classification-kept`
+  for PDF and PPTX in `NoteCodes.All`; the guides' front-matter rows and docs placement.
+
+### Loose ends
+
+- QR codes (`qr:` images) and icons (`:icon-name:`) are still alt text and typed text in Word: E09-S03.
+- `DocxConverter` reads `Container Heading` as a heading and drops the formatting styles give (E08).

@@ -365,6 +365,22 @@ same change that made it untrue — a stale fact here is worse than a missing on
   A pipe table followed by a line without `|` is no table at all in Markdig: a `Table:` caption needs a
   blank line before it. Drawing ids continue after the highest `docPr`/`cNvPr` id of the template's
   parts; check boxes declare `w14` with `mc:Ignorable` on the root.
+- **Deck syntax in Word (E09-S02):** `DocxBody.Container`/`Alert` write layouts in sequence with styles
+  (`DocxRoles.Alerts`, `Labels`, `Colours`, `ContainerHeading`, `Panel`, …); `Frame.Container` says the
+  blocks are inside one (headings become `Container Heading`, outside the TOC and the heading shift),
+  `Frame.Box` copies an alert's bar onto list items. Runs carry `RunFlags.Mark`/`Tag`/`Strong` and
+  `DocxRun.Category`/`IsLabel`, each mapped to one character style. The only direct formatting besides
+  run bold/italic/strike: highlighted table rows' cell shading, an alert's bar on its list items, the
+  cover title's `w:spacing before=0` under a marking, and the header marking's right indent beside the
+  built-in logo. On a caller's template the new styles take theme colours (`StyleDesign.Theme`,
+  `WordColor`).
+- **Page breaks and the marking are shared syntax E09-S02 added for E03-S03/S04:** `PageBreaks.Flatten`
+  takes every `::: pagebreak` apart right after Markdig parses (all three generators), returning the
+  blocks a break comes before; decks and PDFs ignore that set. `HeadingAttributes.NewPage` on `#`/`##`
+  everywhere, on `###`+ only for Docx (`SplitDeep`). `classification`/`draft` are shared front-matter keys
+  skipped by `FrontMatter.Apply`; `Marking.Resolve` applies them (higher classification wins,
+  `classification-kept`); PDF and PPTX call it only to check the values. `FrontMatter.LineOf(key)` gives a
+  key's line. `CoreProperties.ContentStatus` writes `cp:contentStatus` (Docx only so far).
 
 ## Traps
 
@@ -382,6 +398,10 @@ same change that made it untrue — a stale fact here is worse than a missing on
   binary sample for it.
 - **The PowerPoint export (`.tmp/scripts/export.ps1`) hangs** while another PowerPoint instance has a
   dialog open; with no PowerPoint running it works.
+- **A `:::` closes the outermost open container of three colons,** not the innermost: Markdig checks the
+  parents first. A `::: pagebreak` (or any container) inside a `:::` container needs `::::` on the outer
+  one, as `layouts.md` does; an unclosed `::: pagebreak` is closed by the next bare `:::`, with everything
+  in between flattened in order, so the pages come out the same.
 - **A `---` right after a paragraph line is a setext heading,** not a thematic break: the columns of
   `::: columns` need a blank line before each `---`.
 - **PdfPig's subsetter crashes on some fonts** (`ArgumentOutOfRangeException` in

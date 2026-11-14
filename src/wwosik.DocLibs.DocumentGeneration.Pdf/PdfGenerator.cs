@@ -37,6 +37,9 @@ public static class PdfGenerator
 
         var frontMatter = FrontMatter.Read(document.Markdown, DocumentFormat.Pdf);
         frontMatter.Labels(); // checked like in decks; PDFs show status labels as code
+
+        // The marking is checked like in Word documents; PDFs show it with E03-S04.
+        Marking.Resolve(frontMatter, Classification.Public, false, new GenerationNotes(), DocumentFormat.Pdf);
         options = Apply(frontMatter, options);
         var brand = ResolvedBrand.Resolve(options.Template.BrandValue);
         var fonts = FontSet.For(brand);

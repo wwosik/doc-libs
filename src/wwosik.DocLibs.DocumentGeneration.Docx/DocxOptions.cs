@@ -77,6 +77,21 @@ public sealed record DocxOptions
     /// this is. Default <see langword="true"/>.
     /// </summary>
     public bool HeadingNumbers { get; init; } = true;
+
+    /// <summary>
+    /// How confidential the document is: <see cref="DocumentGeneration.Classification.Internal"/> and
+    /// <see cref="DocumentGeneration.Classification.Confidential"/> put "Internal" or "Confidential" in the header of every
+    /// content page, above the cover title and in the document's properties (<c>cp:contentStatus</c>). The front matter's
+    /// <c>classification</c> can raise it but not lower it. Default <see cref="DocumentGeneration.Classification.Public"/>,
+    /// which shows nothing.
+    /// </summary>
+    public Classification Classification { get; init; } = Classification.Public;
+
+    /// <summary>
+    /// Marks the document a draft: "Draft" joins the marking, and every page gets Word's own draft watermark. The front
+    /// matter's <c>draft: true</c> also does; it cannot undo this. Default <see langword="false"/>.
+    /// </summary>
+    public bool Draft { get; init; }
 }
 
 /// <summary>Paper sizes of the built-in template.</summary>

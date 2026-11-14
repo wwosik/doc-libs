@@ -45,6 +45,9 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         texts ??= GeneratedTexts.English;
         var parser = new MarkdownParser(document, options, brand ?? Brand.Neutral, lineOffset, notes, texts);
         var markdown = Markdown.Parse(document.Markdown, Pipeline);
+
+        // Page breaks are for documents: their content stays, the break itself is ignored here for now (E03-S03).
+        PageBreaks.Flatten(markdown, DocumentFormat.Pdf);
         MarkdownSyntax.ReportMissingFootnotes(markdown, parser.LineOf, notes);
 
         // Build markers are for decks: checked like there, then left out wherever they are.

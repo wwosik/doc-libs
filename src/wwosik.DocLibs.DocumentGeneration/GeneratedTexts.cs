@@ -5,7 +5,7 @@ namespace wwosik.DocLibs.DocumentGeneration;
 
 /// <summary>
 /// The texts a generator writes itself, in one language: the titles of alerts, the heading of the footnotes, the word before a chart's source, the
-/// month names and date formats of timelines and Gantt charts, the axis titles of risk matrices, the heading of a table of contents, the labels of captions, and more as generators gain them. Every property defaults to English, so a language of a host's own starts from
+/// month names and date formats of timelines and Gantt charts, the axis titles of risk matrices, the heading of a table of contents, the labels of captions, the classification marking, and more as generators gain them. Every property defaults to English, so a language of a host's own starts from
 /// <see cref="English"/> with <c>with { … }</c> and stays complete when a later version adds a text.
 /// </summary>
 public sealed record GeneratedTexts
@@ -35,6 +35,9 @@ public sealed record GeneratedTexts
         Contents = "Inhalt",
         Figure = "Abbildung",
         Table = "Tabelle",
+        Internal = "Intern",
+        Confidential = "Vertraulich",
+        Draft = "Entwurf",
     };
 
     /// <summary>The title of <c>> [!NOTE]</c>.</summary>
@@ -90,6 +93,15 @@ public sealed record GeneratedTexts
 
     /// <summary>The label of a table's caption, before its number: "Table 2: …"; German "Tabelle".</summary>
     public string Table { get; init; } = "Table";
+
+    /// <summary>The marking of an internal document (<c>classification: internal</c>): "Internal"; German "Intern".</summary>
+    public string Internal { get; init; } = "Internal";
+
+    /// <summary>The marking of a confidential document (<c>classification: confidential</c>): "Confidential"; German "Vertraulich".</summary>
+    public string Confidential { get; init; } = "Confidential";
+
+    /// <summary>The marking of a draft (<c>draft: true</c>), and the text of its watermark: "Draft"; German "Entwurf".</summary>
+    public string Draft { get; init; } = "Draft";
 
     /// <summary>The title of an alert of the kind <paramref name="kind"/> (<c>NOTE</c>, <c>TIP</c>, …).</summary>
     internal string Alert(string kind) => kind.ToUpperInvariant() switch

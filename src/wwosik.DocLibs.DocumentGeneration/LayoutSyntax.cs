@@ -9,11 +9,20 @@ namespace wwosik.DocLibs.DocumentGeneration;
 /// </summary>
 internal static class LayoutSyntax
 {
-    /// <summary>The containers, for error messages: the layouts, <c>notes</c>, then the drawn ones (<see cref="VisualContainers"/>).</summary>
-    public static readonly string Containers = string.Join(", ", ["cards", "rows", "panel", "statement", "columns", SlideKinds.Conclusion, SlideKinds.Comment, Notes, .. VisualContainers.Names]);
+    /// <summary>
+    /// The containers, for error messages: the layouts, <c>pagebreak</c>, <c>notes</c>, then the drawn ones
+    /// (<see cref="VisualContainers"/>).
+    /// </summary>
+    public static readonly string Containers = string.Join(", ", ["cards", "rows", "panel", "statement", "columns", PageBreak, SlideKinds.Conclusion, SlideKinds.Comment, Notes, .. VisualContainers.Names]);
 
     /// <summary>The alerts, for error messages.</summary>
     public const string Alerts = "NOTE, TIP, IMPORTANT, WARNING, CAUTION";
+
+    /// <summary>
+    /// A forced page break in documents, <c>::: pagebreak</c> (<see cref="PageBreaks"/>): no arguments, its content
+    /// follows the break, its closing <c>:::</c> is optional. Slides have no pages to break.
+    /// </summary>
+    public const string PageBreak = "pagebreak";
 
     /// <summary>The container of a slide's speaker notes, <c>::: notes</c>.</summary>
     public const string Notes = "notes";
@@ -23,7 +32,8 @@ internal static class LayoutSyntax
 
     /// <summary>
     /// Checks a container's name and arguments: <c>panel</c> takes <c>dark</c>, <c>columns</c> a ratio of two or three
-    /// widths (<c>1:2</c>), the drawn containers their <c>key=value</c> arguments; the others take none.
+    /// widths (<c>1:2</c>), the drawn containers their <c>key=value</c> arguments; the others, <c>pagebreak</c> among
+    /// them, take none.
     /// </summary>
     /// <exception cref="DocumentConversionException">The name is unknown or the arguments are not allowed.</exception>
     public static void CheckContainer(string name, string arguments, DocumentFormat format)
@@ -34,7 +44,7 @@ internal static class LayoutSyntax
             return;
         }
 
-        if (name is not ("cards" or "rows" or "panel" or "statement" or "columns" or SlideKinds.Conclusion or SlideKinds.Comment or Notes))
+        if (name is not ("cards" or "rows" or "panel" or "statement" or "columns" or PageBreak or SlideKinds.Conclusion or SlideKinds.Comment or Notes))
         {
             throw new DocumentConversionException(format, $"Unknown container '::: {name}'. Valid containers: {Containers}.");
         }

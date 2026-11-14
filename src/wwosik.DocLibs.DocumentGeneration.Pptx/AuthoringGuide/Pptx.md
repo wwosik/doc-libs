@@ -259,6 +259,9 @@ The end date does not move.
   own marker.
 - Other braces alone in a paragraph, such as `{.note}`, are a mistake; `\{` keeps them as text.
 
+Page breaks are for documents: a deck shows the content of `::: pagebreak` … `:::` as usual and
+ignores `{.newpage}` on a heading, as it ignores `classification:` and `draft:` for now.
+
 {{templateLayouts}}
 
 {{icons}}

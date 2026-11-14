@@ -111,6 +111,11 @@ public static class NoteCodes
     /// <summary>A list is nested deeper than three levels; the deeper items are set at the third level.</summary>
     public const string ListTooDeep = "list-too-deep";
 
+    /// <summary>
+    /// Front matter asked for a lower classification (<c>classification:</c>) than the host set; the host's applies.
+    /// </summary>
+    public const string ClassificationKept = "classification-kept";
+
     /// <summary>Every code, with the formats it occurs in and what a writer changes about it, for the authoring guides.</summary>
     internal static readonly IReadOnlyList<(string Code, DocumentFormat[] Formats, string Advice)> All =
     [
@@ -132,6 +137,7 @@ public static class NoteCodes
         (AgendaEmpty, [DocumentFormat.Pptx, DocumentFormat.Pdf], "an empty `{.agenda}` found no `#` chapters to list. Add the chapters, or write the agenda as a list."),
         (CaptionIgnored, [DocumentFormat.Docx], "a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text."),
         (ListTooDeep, [DocumentFormat.Docx], "a list is nested deeper than three levels; the deeper items are set at the third level. Flatten the list to three levels."),
+        (ClassificationKept, [DocumentFormat.Docx], "the front matter asks for a lower `classification` than the host set, and the host's applies. Leave the key out, or raise it."),
     ];
 }
 

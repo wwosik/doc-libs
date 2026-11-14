@@ -8,21 +8,11 @@ Contents
 
 Why rebuild the planner?
 
-Configuration is too complicated
-
-Large schedules are too slow
-
 Our data are documents
 
 What it brings
 
 Storage without a database
-
-Documents in blob storage
-
-Tables for status and lists
-
-Every result has a manifest
 
 Status model
 
@@ -44,23 +34,31 @@ Shadow run\
 
 # Why rebuild the planner?
 
-## Configuration is too complicated
+# Configuration is too complicated
 
-**26 tables**
+26 tables
 
 for 12 kinds of rule; the formula hides in the structure.
 
-## Large schedules are too slow
+# Large schedules are too slow
 
-**3.2 GB**
+3.2 GB
 
 of memory per schedule at 5,000 stops, mostly object overhead.
 
 **Fixed along the way**
 
-- **Locking** – the join counts again without a lock
-- **Duplicates** – the export guard filters out every row
-- **Provenance** – results do not record their inputs
+Locking
+
+the join counts again without a lock
+
+Duplicates
+
+the export guard filters out every row
+
+Provenance
+
+results do not record their inputs
 
 # Our data are documents
 
@@ -72,32 +70,41 @@ Once created, the data hardly change: they are read, extended and recalculated.
 | Calculation | Result tables | One document per version, write-once |
 | Rules | 26 tables | One document with formulas |
 
-**Note**
-
-**To be fair:** bookings are still edited after intake – hence revisions rather than strict immutability.
+Note **To be fair:** bookings are still edited after intake – hence revisions rather than strict immutability.
 
 # What it brings
 
-- **Really large schedules** – documents are written in pages and streamed
-- **More flexibility for less effort** – new pricing logic is a formula, not a table and a migration
-- **Reproducible results** – every calculation records its inputs
-- **Simpler infrastructure** – storage only, no database, no message broker
+Really large schedules
+
+documents are written in pages and streamed
+
+More flexibility for less effort
+
+new pricing logic is a formula, not a table and a migration
+
+Reproducible results
+
+every calculation records its inputs
+
+Simpler infrastructure
+
+storage only, no database, no message broker
 
 # Storage without a database
 
 Blob storage is the only external dependency.
 
-## Documents in blob storage
+# Documents in blob storage
 
 - write-once results, rule versions
 - revisions bookings, reference data
 - latest-wins only the rule header
 
-## Tables for status and lists
+# Tables for status and lists
 
 Bookings Schedules WorkQueue RuleVersions Hosts Audit
 
-## Every result has a manifest
+**Every result has a manifest**
 
 Booking revision, rule version, parameter revision, and a revision per reference source.
 
@@ -106,11 +113,11 @@ Booking revision, rule version, parameter revision, and a revision per reference
 | Status | Moved on by |
 | --- | --- |
 | Created | System |
-| **WaitingForApproval** | Human |
+| WaitingForApproval | Human |
 | Calculated | System |
-| **Failed** | Human |
+| Failed | Human |
 
-Rows in the **highlight colour** need a human.
+Rows in the highlight colour need a human.
 
 # Processing without a broker
 
@@ -118,8 +125,13 @@ A broker guarantees delivery at least once – not processing at most once.
 
 The race in the old system happened with a broker.
 
-- **The queue is a table** – claimed by compare-and-swap, with leases
-- **A broker means twice the machinery** – we need compare-and-swap anyway
+The queue is a table
+
+claimed by compare-and-swap, with leases
+
+A broker means twice the machinery
+
+we need compare-and-swap anyway
 
 # Status and next steps
 
@@ -130,9 +142,7 @@ The race in the old system happened with a broker.
 | Work queue and detail pages | In review |
 | Engine and results | Next |
 
-**Important**
-
-**Then a shadow run:** Harbour calculates the same bookings, and the results are compared.
+Important **Then a shadow run:** Harbour calculates the same bookings, and the results are compared.
 
 # Two views
 

@@ -72,7 +72,7 @@ internal static class DocxPlaceholders
         instruction?.Trim().Split(' ', 2)[0].ToUpperInvariant();
 
     // The content's first text gets the value, every other text is emptied; runs keep their formatting.
-    private static bool SetText(SdtElement control, string value)
+    public static bool SetText(SdtElement control, string value)
     {
         var content = control.ChildElements.FirstOrDefault(e => e.LocalName == "sdtContent");
         if (content is null)

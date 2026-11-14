@@ -56,6 +56,55 @@ internal sealed record StyleDesign(ResolvedBrand Brand, int CoverTitleSpace, int
     /// on the built-in template with heading numbers on, never for a style added to a caller's template.
     /// </summary>
     public bool HeadingNumbers { get; init; }
+
+    /// <summary>
+    /// Whether the styles are for a caller's template, which has no brand: the deck-syntax styles then take the template's
+    /// theme colours (accent 1 for the primary colour, accent 2 for the highlight, background 2 for boxes), as decks do on
+    /// a caller's template, with the neutral brand's colours as the fallback Word ignores.
+    /// </summary>
+    public bool Theme { get; init; }
+
+    /// <summary>Card titles, statements, the bar of notes and tips, dark panels.</summary>
+    public WordColor Primary => new(this.Brand.Primary, this.Theme ? "accent1" : null);
+
+    /// <summary>The bar of important alerts, warnings and cautions.</summary>
+    public WordColor Highlight => new(this.Brand.Highlight, this.Theme ? "accent2" : null);
+
+    /// <summary>Marks, highlighted table rows and the shading of important alerts: the highlight at 15 % on white.</summary>
+    public WordColor HighlightTint => new(ResolvedBrand.Mix(this.Brand.Highlight, 0.15), this.Theme ? "accent2" : null, this.Theme ? "26" : null);
+
+    /// <summary>Panels and the shading of notes and tips.</summary>
+    public WordColor Band => new(this.Brand.TableBand, this.Theme ? "background2" : null);
+
+    /// <summary>The colour of a status label category, from the brand (the neutral brand's on a caller's template).</summary>
+    public WordColor Label(LabelCategory category) => new(category switch
+    {
+        LabelCategory.Success => this.Brand.Labels.Success,
+        LabelCategory.Info => this.Brand.Labels.Info,
+        LabelCategory.Warning => this.Brand.Labels.Warning,
+        LabelCategory.Danger => this.Brand.Labels.Danger,
+        _ => this.Brand.Labels.Neutral,
+    });
+}
+
+/// <summary>
+/// A colour of a built-in style: RGB hex, and on a caller's template the theme colour it stands for
+/// (<c>w:themeColor</c>), lightened by <see cref="Tint"/> (hex, <c>26</c> for 15 %), which Word uses instead.
+/// </summary>
+internal readonly record struct WordColor(string Hex, string? Theme = null, string? Tint = null)
+{
+    /// <summary>As the colour of text, <c>w:color</c>.</summary>
+    public string Color => $"<w:color w:val=\"{this.Hex}\"{this.ThemeAttributes("themeColor", "themeTint")}/>";
+
+    /// <summary>As shading, <c>w:shd</c>.</summary>
+    public string Fill => $"<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"{this.Hex}\"{this.ThemeAttributes("themeFill", "themeFillTint")}/>";
+
+    /// <summary>As a single line border on <paramref name="side"/>, <paramref name="size"/> in eighths of a point.</summary>
+    public string Border(string side, int size, int space) =>
+        string.Create(CultureInfo.InvariantCulture, $"<w:{side} w:val=\"single\" w:sz=\"{size}\" w:space=\"{space}\" w:color=\"{this.Hex}\"{this.ThemeAttributes("themeColor", "themeTint")}/>");
+
+    private string ThemeAttributes(string color, string tint) =>
+        this.Theme is null ? string.Empty : $" w:{color}=\"{this.Theme}\"" + (this.Tint is null ? string.Empty : $" w:{tint}=\"{this.Tint}\"");
 }
 
 /// <summary>
@@ -207,12 +256,115 @@ internal static class DocxRoles
         d => $"<w:rPr><w:color w:val=\"{d.Brand.Link}\"/><w:u w:val=\"single\"/></w:rPr>")
     { Kind = StyleKind.Character, Description = "links (a character style)" };
 
+    // The deck syntax in Word (E09-S02): alerts, marks, labels and coloured words, containers, image rows, the marking.
+
+    /// <summary>The alerts by kind (<c>NOTE</c> … <c>CAUTION</c>): a bar on the left, a light shading.</summary>
+    public static readonly IReadOnlyDictionary<string, StyleRole> Alerts = new Dictionary<string, StyleRole>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["NOTE"] = Alert("note", "Note", n => n.Note, (n, v) => n with { Note = v }, important: false),
+        ["TIP"] = Alert("tip", "Tip", n => n.Tip, (n, v) => n with { Tip = v }, important: false),
+        ["IMPORTANT"] = Alert("important", "Important", n => n.Important, (n, v) => n with { Important = v }, important: true),
+        ["WARNING"] = Alert("warning", "Warning", n => n.Warning, (n, v) => n with { Warning = v }, important: true),
+        ["CAUTION"] = Alert("caution", "Caution", n => n.Caution, (n, v) => n with { Caution = v }, important: true),
+    };
+
+    /// <summary>Word's own <c>Strong</c>, for the title of an alert; found by name, added when missing, never mapped.</summary>
+    public static readonly StyleRole Strong = new(
+        null, "Strong", "Strong", _ => null, null, _ => "<w:rPr><w:b/><w:bCs/></w:rPr>")
+    { Kind = StyleKind.Character, Description = "the title of an alert (a character style)" };
+
+    // Bold on the highlight's tint, as decks mark text; not Word's yellow highlighter.
+    public static readonly StyleRole Mark = new(
+        "mark", "Mark", "Mark", n => n.Mark, (n, v) => n with { Mark = v },
+        d => $"<w:rPr><w:b/><w:bCs/>{d.HighlightTint.Fill}</w:rPr>")
+    { Kind = StyleKind.Character, Description = "`==marked==` text (a character style)" };
+
+    /// <summary>Status labels by category: bold in the category's colour, on a light tint of it, like a chip.</summary>
+    public static readonly IReadOnlyDictionary<LabelCategory, StyleRole> Labels = new Dictionary<LabelCategory, StyleRole>
+    {
+        [LabelCategory.Success] = Label(LabelCategory.Success, n => n.LabelSuccess, (n, v) => n with { LabelSuccess = v }),
+        [LabelCategory.Info] = Label(LabelCategory.Info, n => n.LabelInfo, (n, v) => n with { LabelInfo = v }),
+        [LabelCategory.Warning] = Label(LabelCategory.Warning, n => n.LabelWarning, (n, v) => n with { LabelWarning = v }),
+        [LabelCategory.Danger] = Label(LabelCategory.Danger, n => n.LabelDanger, (n, v) => n with { LabelDanger = v }),
+        [LabelCategory.Neutral] = Label(LabelCategory.Neutral, n => n.LabelNeutral, (n, v) => n with { LabelNeutral = v }),
+    };
+
+    /// <summary>Coloured words (<c>[words]{.success}</c>) by category: bold in the category's colour.</summary>
+    public static readonly IReadOnlyDictionary<LabelCategory, StyleRole> Colours = new Dictionary<LabelCategory, StyleRole>
+    {
+        [LabelCategory.Success] = Colour(LabelCategory.Success, n => n.ColourSuccess, (n, v) => n with { ColourSuccess = v }),
+        [LabelCategory.Info] = Colour(LabelCategory.Info, n => n.ColourInfo, (n, v) => n with { ColourInfo = v }),
+        [LabelCategory.Warning] = Colour(LabelCategory.Warning, n => n.ColourWarning, (n, v) => n with { ColourWarning = v }),
+        [LabelCategory.Danger] = Colour(LabelCategory.Danger, n => n.ColourDanger, (n, v) => n with { ColourDanger = v }),
+        [LabelCategory.Neutral] = Colour(LabelCategory.Neutral, n => n.ColourNeutral, (n, v) => n with { ColourNeutral = v }),
+    };
+
+    // No outline level, so it is no chapter and not in the table of contents; never numbered.
+    public static readonly StyleRole ContainerHeading = new(
+        "containerHeading", "Container Heading", "ContainerHeading", n => n.ContainerHeading, (n, v) => n with { ContainerHeading = v },
+        d => "<w:pPr><w:keepNext/><w:spacing w:before=\"200\" w:after=\"60\"/></w:pPr>"
+            + $"<w:rPr><w:b/><w:bCs/>{d.Primary.Color}<w:sz w:val=\"24\"/><w:szCs w:val=\"24\"/></w:rPr>")
+    { Description = "headings inside containers, such as a card's `###`: unnumbered and not in the table of contents" };
+
+    public static readonly StyleRole Statement = new(
+        "statement", "Statement", "Statement", n => n.Statement, (n, v) => n with { Statement = v },
+        d => "<w:pPr><w:spacing w:before=\"120\" w:after=\"120\" w:line=\"276\" w:lineRule=\"auto\"/></w:pPr>"
+            + $"<w:rPr>{MajorFont}<w:b/><w:bCs/>{d.Primary.Color}<w:sz w:val=\"32\"/><w:szCs w:val=\"32\"/></w:rPr>")
+    { Description = "the statement of `::: statement` and a card's figure" };
+
+    // Shaded with a border all round: Word joins consecutive paragraphs of the same border into one box.
+    public static readonly StyleRole Panel = new(
+        "panel", "Panel", "Panel", n => n.Panel, (n, v) => n with { Panel = v },
+        d => PanelDefinition(new WordColor(d.Brand.TableLine), d.Band, dark: false))
+    { Description = "the paragraphs of `::: panel`" };
+
+    public static readonly StyleRole PanelDark = new(
+        "panelDark", "Panel Dark", "PanelDark", n => n.PanelDark, (n, v) => n with { PanelDark = v },
+        d => PanelDefinition(d.Primary, d.Primary, dark: true))
+    { Description = "the paragraphs of `::: panel dark`" };
+
+    public static readonly StyleRole Tag = new(
+        "tag", "Tag", "Tag", n => n.Tag, (n, v) => n with { Tag = v },
+        d => $"<w:rPr>{Fonts(d.CodeFont)}<w:noProof/><w:sz w:val=\"18\"/><w:szCs w:val=\"18\"/><w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"{TagBackground}\"/></w:rPr>")
+    { Kind = StyleKind.Character, Description = "tags, code spans shown as chips (a character style)" };
+
+    // No borders, no shading; the cells' paragraphs without spacing.
+    public static readonly StyleRole ImageRow = new(
+        "imageRow", "Image Row", "ImageRow", n => n.ImageRow, (n, v) => n with { ImageRow = v },
+        _ => "<w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/></w:pPr>"
+            + "<w:tblPr><w:tblBorders>"
+            + string.Concat(new[] { "top", "left", "bottom", "right", "insideH", "insideV" }.Select(side => $"<w:{side} w:val=\"nil\"/>"))
+            + "</w:tblBorders><w:tblCellMar><w:top w:w=\"0\" w:type=\"dxa\"/><w:left w:w=\"60\" w:type=\"dxa\"/><w:bottom w:w=\"0\" w:type=\"dxa\"/><w:right w:w=\"60\" w:type=\"dxa\"/></w:tblCellMar></w:tblPr>")
+    { Kind = StyleKind.Table, Description = "a row of images side by side (a table style)" };
+
+    // Right-aligned bold capitals at the footer's size; a confidential marking is in the danger colour (Colour Danger).
+    public static readonly StyleRole Classification = new(
+        "classification", "Classification", "Classification", n => n.Classification, (n, v) => n with { Classification = v },
+        d => "<w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/><w:jc w:val=\"right\"/></w:pPr>"
+            + $"<w:rPr><w:b/><w:bCs/><w:caps/><w:color w:val=\"{d.Brand.Footer}\"/><w:sz w:val=\"16\"/><w:szCs w:val=\"16\"/></w:rPr>")
+    { Description = "the classification marking in the header" };
+
+    // Above the cover title, which then starts right under it: the space above the title moves above the marking.
+    public static readonly StyleRole ClassificationCover = new(
+        "classificationCover", "Classification Cover", "ClassificationCover", n => n.ClassificationCover, (n, v) => n with { ClassificationCover = v },
+        d => $"<w:pPr><w:keepNext/><w:spacing w:before=\"{N(Math.Max(0, d.CoverTitleSpace - CoverMarkingHeight))}\" w:after=\"120\"/><w:ind w:right=\"1440\"/></w:pPr>"
+            + $"<w:rPr><w:b/><w:bCs/><w:caps/><w:color w:val=\"{d.Brand.Footer}\"/><w:sz w:val=\"20\"/><w:szCs w:val=\"20\"/></w:rPr>")
+    { Description = "the classification marking above the cover title" };
+
+    /// <summary>The height of the cover marking with its spacing, in twentieths of a point, taken off the space above it.</summary>
+    public const int CoverMarkingHeight = 400;
+
+    /// <summary>The background of tags: light grey.</summary>
+    public const string TagBackground = "E5E7EB";
+
     /// <summary>Every role, <see cref="Normal"/> first.</summary>
     public static readonly IReadOnlyList<StyleRole> All =
     [
         Normal, Title, Subtitle, CoverDetails, TocHeading, .. Headings, .. TocLevels,
         ListBullet, ListNumber, ListTask, DefinitionTerm, Definition, Quote, Code, CodeCharacter, Rule, Caption, TableTitle, Table,
         FootnoteText, FootnoteReference, Hyperlink,
+        .. Alerts.Values, Strong, Mark, .. Labels.Values, .. Colours.Values, ContainerHeading, Statement, Panel, PanelDark, Tag, ImageRow,
+        Classification, ClassificationCover,
     ];
 
     /// <summary>The front-matter keys of the roles a caller can name, <c>styles.title</c> and on.</summary>
@@ -284,6 +436,36 @@ internal static class DocxRoles
                 + $"<w:spacing w:after=\"{(level == 1 ? "100" : "60")}\"/><w:ind w:left=\"{indent}\"/></w:pPr>"
                 + (level == 1 ? "<w:rPr><w:b/><w:bCs/></w:rPr>" : string.Empty));
     }
+
+    // Notes and tips: the bar in the primary colour on the band; the others in the highlight on its tint.
+    private static StyleRole Alert(string key, string name, Func<DocxStyleNames, string?> mapped, Func<DocxStyleNames, string, DocxStyleNames> with, bool important) => new(
+        key, name, name, mapped, with,
+        d => $"<w:pPr><w:pBdr>{(important ? d.Highlight : d.Primary).Border("left", 24, 8)}</w:pBdr>{(important ? d.HighlightTint : d.Band).Fill}"
+            + "<w:spacing w:before=\"0\" w:after=\"80\"/><w:ind w:left=\"240\" w:right=\"120\"/></w:pPr>")
+    { Description = $"alerts of the kind `[!{name.ToUpperInvariant()}]`" };
+
+    private static StyleRole Label(LabelCategory category, Func<DocxStyleNames, string?> mapped, Func<DocxStyleNames, string, DocxStyleNames> with)
+    {
+        var name = category.ToString();
+        return new StyleRole(
+            "label" + name, "Label " + name, "Label" + name, mapped, with,
+            d => $"<w:rPr><w:b/><w:bCs/>{d.Label(category).Color}{new WordColor(ResolvedBrand.Mix(d.Label(category).Hex, 0.22)).Fill}</w:rPr>")
+        { Kind = StyleKind.Character, Description = $"status labels of the category {name.ToLowerInvariant()} (a character style)" };
+    }
+
+    private static StyleRole Colour(LabelCategory category, Func<DocxStyleNames, string?> mapped, Func<DocxStyleNames, string, DocxStyleNames> with)
+    {
+        var name = category.ToString();
+        return new StyleRole(
+            "colour" + name, "Colour " + name, "Colour" + name, mapped, with,
+            d => $"<w:rPr><w:b/><w:bCs/>{d.Label(category).Color}</w:rPr>")
+        { Kind = StyleKind.Character, Description = $"`[words]{{.{name.ToLowerInvariant()}}}` (a character style)" };
+    }
+
+    private static string PanelDefinition(WordColor line, WordColor fill, bool dark) =>
+        "<w:pPr><w:pBdr>" + string.Concat(new[] { "top", "left", "bottom", "right" }.Select(side => line.Border(side, 4, 6))) + "</w:pBdr>"
+        + fill.Fill + "<w:spacing w:before=\"0\" w:after=\"80\"/><w:ind w:left=\"160\" w:right=\"160\"/></w:pPr>"
+        + (dark ? "<w:rPr><w:color w:val=\"FFFFFF\"/></w:rPr>" : string.Empty);
 
     private static string Fonts(string family)
     {

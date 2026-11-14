@@ -161,7 +161,7 @@ public class ContentTests
         Assert.NotNull(RunOf("bold").RunProperties!.Bold);
         Assert.NotNull(RunOf("italic").RunProperties!.Italic);
         Assert.NotNull(RunOf("strike").RunProperties!.Strike);
-        Assert.NotNull(RunOf("mark").RunProperties!.Bold);
+        Assert.Equal("Mark", RunOf("mark").RunProperties!.RunStyle!.Val!.Value);
         Assert.Equal("CodeCharacter", RunOf("code").RunProperties!.RunStyle!.Val!.Value);
         Assert.Single(paragraph.Descendants<Break>());
     }
@@ -399,17 +399,20 @@ public class ContentTests
     }
 
     [Fact]
-    public void DeckSyntax_IsShownPlainly()
+    public void DeckSyntax_TakesItsStyles_InTheLayoutsSample()
     {
         var (docx, _) = GenerateWithResult(File.ReadAllText(Samples.Path("layouts.md")));
         using var package = Samples.Open(docx);
         var paragraphs = Paragraphs(package);
 
-        var note = paragraphs.Single(p => Texts(p) == "Note");
-        Assert.Equal("Quote", Style(note));
-        Assert.NotNull(note.Descendants<Bold>().SingleOrDefault());
+        var note = paragraphs.Single(p => Texts(p).StartsWith("Note To be fair", StringComparison.Ordinal));
+        Assert.Equal("Note", Style(note));
+        Assert.Equal("Important", Style(paragraphs.Single(p => Texts(p).StartsWith("Important Then a shadow run", StringComparison.Ordinal))));
+        Assert.Equal("ContainerHeading", Style(paragraphs.Single(p => Texts(p) == "Configuration is too complicated")));
+        Assert.Equal("PanelDark", Style(paragraphs.Single(p => Texts(p) == "Every result has a manifest")));
         Assert.DoesNotContain(paragraphs, p => Texts(p).Contains(":::", StringComparison.Ordinal));
         Assert.Contains(paragraphs, p => Texts(p) == "Rows in the highlight colour need a human.");
+        Assert.Equal("LabelSuccess", paragraphs.SelectMany(p => p.Descendants<Run>()).First(r => Texts(r) == "Done").RunProperties!.RunStyle!.Val!.Value);
     }
 
     [Fact]

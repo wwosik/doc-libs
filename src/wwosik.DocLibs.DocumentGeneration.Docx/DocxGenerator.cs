@@ -46,11 +46,12 @@ public static class DocxGenerator
         ArgumentOutOfRangeException.ThrowIfGreaterThan(options.TableOfContentsDepth, 3, nameof(options));
 
         var frontMatter = FrontMatter.Read(document.Markdown, Format.Docx);
-        frontMatter.Labels(); // checked like in decks; status labels are for slides
+        var labels = frontMatter.Labels();
         options = Apply(frontMatter, options);
         var template = options.Template ?? DocxOptions.Default.Template;
         var brand = template.BrandValue is { } value ? ResolvedBrand.Resolve(value) : null;
         var notes = new GenerationNotes();
+        var marking = Marking.Resolve(frontMatter, options.Classification, options.Draft, notes, Format.Docx);
         var language = DocumentLanguage.Resolve(frontMatter.Language, options.Language, options.Texts, notes, Format.Docx);
         var content = DocxContent.Parse(frontMatter.Body);
         int LineOf(Markdig.Syntax.MarkdownObject block) => block.Line + 1 + frontMatter.BodyLine;
@@ -81,7 +82,8 @@ public static class DocxGenerator
                 var section = main.Document?.Body?.Elements<SectionProperties>().LastOrDefault();
                 var page = DocxPage.Of(section);
                 // Styles a template lacks are added unnumbered: a caller's headings keep their own numbering.
-                var design = new StyleDesign(brand ?? ResolvedBrand.Neutral, page.CoverTitleSpace, page.TextWidth) { CodeFont = codeFont };
+                // A caller's template has no brand: the deck-syntax styles added to it take its theme colours.
+                var design = new StyleDesign(brand ?? ResolvedBrand.Neutral, page.CoverTitleSpace, page.TextWidth) { CodeFont = codeFont, Theme = brand is null };
                 var styles = DocxStyles.Resolve(main, template.StyleNames, design, template.Description);
                 DocxLanguage.Set(main, language.Tag);
                 var context = new DocxContext(main, styles, notes, language.Texts, language.Tag, codeFont, options)
@@ -91,8 +93,13 @@ public static class DocxGenerator
                     LineOffset = frontMatter.BodyLine,
                     Brand = template.BrandValue ?? Brand.Neutral,
                     HeadingNumbers = template.IsBuiltIn && options.HeadingNumbers,
+                    Labels = labels,
+                    PageBreaks = content.PageBreaks,
+                    Design = design,
+                    Marking = marking,
                 };
                 DocxWriter.Write(content, context, DocxBody.Instance, author, date, options.TableOfContents, options.TableOfContentsDepth);
+                DocxMarking.Apply(context, template.IsBuiltIn ? LogoIndent(brand) : null, (brand ?? ResolvedBrand.Neutral).FontFamily);
 
                 var fields = DocxPlaceholders.Fill(main, title, author);
                 if (options.TableOfContents || fields)
@@ -105,7 +112,9 @@ public static class DocxGenerator
                     DocxFontEmbedding.Embed(main, fonts, codeFont);
                 }
 
-                CoreProperties.Write(package.CoreFilePropertiesPart ?? package.AddCoreFilePropertiesPart(), title, author, language.Tag, now);
+                var core = package.CoreFilePropertiesPart ?? package.AddCoreFilePropertiesPart();
+                CoreProperties.Write(core, title, author, language.Tag, now);
+                CoreProperties.ContentStatus(core, DocxMarking.Status(context));
             }
         }
         catch (Exception ex) when (ex is OpenXmlPackageException or InvalidDataException or XmlException or FormatException)
@@ -151,9 +160,18 @@ public static class DocxGenerator
         (string, string) deckKeys = (
             "transition`, `build`, `numberChapters",
             "Settings for decks. A Word document accepts them and ignores them.");
+        (string, string) classification = (
+            FrontMatter.ClassificationKey,
+            $"`public`, `internal` or `confidential`: the marking in the header of every page and above the cover title. Default `{options.Classification.ToString().ToLowerInvariant()}`"
+                + (options.Classification == Classification.Public ? ", which shows nothing." : "; a lower value has no effect."));
+        (string, string) draft = (
+            FrontMatter.DraftKey,
+            options.Draft
+                ? "`true` or `false`. The document is a draft whatever this says: \"Draft\" joins the marking, and every page has a watermark."
+                : "`true` or `false`: `true` adds \"Draft\" to the marking and a watermark to every page. Default `false`.");
         (string, string) labels = (
             "labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral",
-            "Status labels for decks, separated by `;`. A Word document accepts them.");
+            "Status labels, separated by `;`: a table cell that is only one of them, as code (`` `Done` ``), is shown as a coloured label.");
         return AuthoringGuides.Fill(
             AuthoringGuides.Template(typeof(DocxGenerator).Assembly, "Docx"),
             new Dictionary<string, string>
@@ -161,7 +179,7 @@ public static class DocxGenerator
                 ["frontMatter"] = AuthoringGuides.FrontMatter(
                     registry.Expected,
                     options.Language,
-                    [.. template.Keys.Concat([TocKey, TocDepthKey, HeadingNumbersKey]).Select(k => (k, meanings[k])), deckKeys, labels]),
+                    [.. template.Keys.Concat([TocKey, TocDepthKey, HeadingNumbersKey]).Select(k => (k, meanings[k])), classification, draft, deckKeys, labels]),
                 ["characters"] = Characters(brand?.Fonts, codeFont),
                 ["headingNumbers"] = !template.IsBuiltIn
                     ? "The template's heading styles decide whether headings are numbered; `headingNumbers` has no effect."
@@ -196,6 +214,11 @@ public static class DocxGenerator
                 _ => current with { Template = current.Template.With(frontMatter, key, value) },
             });
     }
+
+    // The built-in header's logo sits at the right margin, 18 pt high: the marking right-aligned beside it ends 6 pt
+    // before it.
+    private static int? LogoIndent(ResolvedBrand? brand) =>
+        brand?.Logo is { } logo && ImageInfo.Read(logo) is { Width: > 0, Height: > 0 } info ? (18 * 20 * info.Width / info.Height) + 120 : null;
 
     // The characters the brand's fonts lack, which Word shows in a substitute font.
     private static string Characters(ResolvedFonts? fonts, string codeFont)

@@ -9,7 +9,10 @@ using Format = wwosik.DocLibs.DocumentConversions.DocumentFormat;
 
 namespace wwosik.DocLibs.DocumentGeneration.Docx;
 
-/// <summary>What Word sets on a run: Ctrl+B, Ctrl+I and strike-through, and inline code through its character style.</summary>
+/// <summary>
+/// What Word sets on a run: Ctrl+B, Ctrl+I and strike-through; inline code, marks, tags and the title of an alert through
+/// their character styles.
+/// </summary>
 [Flags]
 internal enum RunFlags
 {
@@ -18,6 +21,15 @@ internal enum RunFlags
     Italic = 2,
     Strike = 4,
     Code = 8,
+
+    /// <summary><c>==marked==</c>: the <c>Mark</c> style.</summary>
+    Mark = 16,
+
+    /// <summary>A code span shown as a chip: the <c>Tag</c> style.</summary>
+    Tag = 32,
+
+    /// <summary>The title of an alert: Word's <c>Strong</c>.</summary>
+    Strong = 64,
 }
 
 /// <summary>
@@ -33,12 +45,21 @@ internal sealed record DocxRun(string Text, RunFlags Flags, string? Link)
     /// <summary>The footnote this run refers to; its text is empty.</summary>
     public Footnote? Footnote { get; init; }
 
+    /// <summary>The category of coloured words (<c>[words]{.success}</c>), or of a status label with <see cref="IsLabel"/>.</summary>
+    public LabelCategory? Category { get; init; }
+
+    /// <summary>Whether the run is a status label, a table cell's code span that front matter <c>labels.*</c> names.</summary>
+    public bool IsLabel { get; init; }
+
+    /// <summary>Whether the run is set in bold, by Ctrl+B or by its style, for measuring.</summary>
+    public bool LooksBold => this.Flags.HasFlag(RunFlags.Bold) || this.Flags.HasFlag(RunFlags.Mark) || this.Flags.HasFlag(RunFlags.Strong) || this.Category is not null;
+
     public bool IsBlank => this.Footnote is null && (this.IsBreak || this.Text.Trim().Length == 0);
 }
 
 /// <summary>
-/// Turns Markdown inlines into runs, and runs into Word: emphasis as <c>w:b</c>, <c>w:i</c>, <c>w:strike</c>, marks
-/// (<c>==…==</c>) and coloured words bold, inline code in the code character style, links as <c>w:hyperlink</c> (an
+/// Turns Markdown inlines into runs, and runs into Word: emphasis as <c>w:b</c>, <c>w:i</c>, <c>w:strike</c>; marks
+/// (<c>==…==</c>), coloured words, status labels, tags and inline code in their character styles; links as <c>w:hyperlink</c> (an
 /// external relationship, or an anchor to a heading's bookmark), footnote references as <c>w:footnoteReference</c>.
 /// A paragraph is cut at its images, which the body places as paragraphs of their own.
 /// </summary>
@@ -128,13 +149,9 @@ internal sealed class DocxRuns(DocxBody body)
         }
 
         var properties = new RunProperties();
-        if (run.Flags.HasFlag(RunFlags.Code))
+        if (Style(run, linked) is { } style)
         {
-            properties.Append(new RunStyle { Val = body.Context.Styles.Id(DocxRoles.CodeCharacter) });
-        }
-        else if (linked)
-        {
-            properties.Append(new RunStyle { Val = body.Context.Styles.Id(DocxRoles.Hyperlink) });
+            properties.Append(new RunStyle { Val = body.Context.Styles.Id(style) });
         }
 
         if (run.Flags.HasFlag(RunFlags.Bold))
@@ -162,6 +179,17 @@ internal sealed class DocxRuns(DocxBody body)
         return result;
     }
 
+    // One character style per run: what the run is matters more than where it links.
+    private static StyleRole? Style(DocxRun run, bool linked) =>
+        run.IsLabel && run.Category is { } label ? DocxRoles.Labels[label]
+        : run.Flags.HasFlag(RunFlags.Tag) ? DocxRoles.Tag
+        : run.Flags.HasFlag(RunFlags.Code) ? DocxRoles.CodeCharacter
+        : run.Flags.HasFlag(RunFlags.Strong) ? DocxRoles.Strong
+        : run.Flags.HasFlag(RunFlags.Mark) ? DocxRoles.Mark
+        : run.Category is { } colour ? DocxRoles.Colours[colour]
+        : linked ? DocxRoles.Hyperlink
+        : null;
+
     private string Relationship(OpenXmlPart part, string url)
     {
         if (!this.relationships.TryGetValue((part, url), out var id))
@@ -173,13 +201,13 @@ internal sealed class DocxRuns(DocxBody body)
         return id;
     }
 
-    // `[words]{.success}`: the words bold; the colour comes with E09-S02.
+    // `[words]{.success}`: the words in the category's character style.
     private static List<DocxRun> Colour(List<DocxRun> runs) => ColouredWords.Apply(
         runs,
         r => r.Footnote is null ? r.Text : string.Empty,
         r => r.Flags.HasFlag(RunFlags.Code) || r.IsBreak,
         (r, text) => r with { Text = text },
-        (r, _) => r with { Flags = r.Flags | RunFlags.Bold },
+        (r, category) => r with { Category = category },
         Format.Docx);
 
     /// <summary>Collects runs, cut into pieces at images unless images count as their alt text.</summary>
@@ -213,7 +241,8 @@ internal sealed class DocxRuns(DocxBody body)
                         break;
                     case EmphasisInline emphasis:
                         var added = emphasis.DelimiterChar == '~' ? RunFlags.Strike
-                            : emphasis.DelimiterChar == '=' || emphasis.DelimiterCount >= 2 ? RunFlags.Bold
+                            : emphasis.DelimiterChar == '=' ? RunFlags.Mark
+                            : emphasis.DelimiterCount >= 2 ? RunFlags.Bold
                             : RunFlags.Italic;
                         this.Add(emphasis, flags | added, link);
                         break;
