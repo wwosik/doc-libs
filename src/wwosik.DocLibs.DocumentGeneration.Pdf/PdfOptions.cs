@@ -102,6 +102,15 @@ public sealed record PdfOptions
     public bool HeadingNumbers { get; init; }
 
     /// <summary>
+    /// Justified body text, unless the front matter sets <c>justify</c>: paragraphs, list items, definition descriptions,
+    /// quotes, alerts and footnotes end at the right margin, but for the last line of a paragraph, a line before a hard
+    /// break, a line of one word and a line whose spaces would grow past three times their width. Headings, the cover,
+    /// tables, captions, code and the table of contents stay left-aligned. Line and page breaks are those of
+    /// left-aligned text; there is no hyphenation. Default <see langword="false"/>.
+    /// </summary>
+    public bool Justify { get; init; }
+
+    /// <summary>
     /// The clock for the date of generation in the footer, and for today in timelines and Gantt charts that do not pin it
     /// with <c>today=</c>. Default <see cref="TimeProvider.System"/>.
     /// </summary>

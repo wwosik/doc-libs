@@ -34,16 +34,15 @@ internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
     public bool Unnumbered { get; init; }
 
     /// <summary>
-    /// <c>.newpage</c>: the heading starts a new page in documents (E03-S03's syntax). Known to every format on <c>#</c>
-    /// and <c>##</c>: Word documents start the page, decks and PDFs ignore it for now. On <c>###</c> to <c>######</c>
-    /// only Word documents know it until E03-S03.
+    /// <c>.newpage</c>: the heading starts a new page in documents (E03-S03), unless the page is still empty. Known to
+    /// every format on every heading level: Word documents and PDFs start the page, decks accept it and ignore it.
     /// </summary>
     public bool NewPage { get; init; }
 
     /// <summary>
     /// Splits the end of a heading of level 3 to 6, where slide settings do not apply: a trailing <c>{…}</c> is taken
-    /// off only when every token in it is one that applies at that level (<c>.unnumbered</c>, and <c>.newpage</c> in
-    /// Word documents until E03-S03 brings it to PDFs); any other braces stay text, without an error.
+    /// off only when every token in it is one that applies at that level (<c>.unnumbered</c> and <c>.newpage</c>); any
+    /// other braces stay text, without an error.
     /// </summary>
     public static (string Text, HeadingAttributes? Attributes) SplitDeep(string text, DocumentFormat format)
     {
@@ -54,7 +53,7 @@ internal sealed partial record HeadingAttributes(bool Dark, string? Kicker)
         }
 
         var tokens = TokenPattern().Matches(match.Groups[1].Value);
-        return tokens.All(t => t.Groups["class"].Success && (t.Groups["class"].Value == "unnumbered" || (t.Groups["class"].Value == "newpage" && format == DocumentFormat.Docx)))
+        return tokens.All(t => t.Groups["class"].Success && t.Groups["class"].Value is "unnumbered" or "newpage")
             ? (text[..match.Index].TrimEnd(), new HeadingAttributes(false, null)
             {
                 Unnumbered = tokens.Any(t => t.Groups["class"].Value == "unnumbered"),

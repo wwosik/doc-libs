@@ -9,8 +9,8 @@ namespace wwosik.DocLibs.DocumentGeneration;
 /// content, which follows the break; its closing <c>:::</c> is optional, so an unclosed one runs to the end of the
 /// Markdown and gives the same pages. Every generator takes the containers apart right after parsing, before it looks
 /// at sections: their content moves up into the container's place, so that a heading an unclosed break swallowed
-/// starts its section as usual. Word documents break before the block that then follows; decks and PDFs ignore the
-/// break for now.
+/// starts its section as usual. Word documents and PDFs break before the block that then follows, never giving an empty
+/// page; decks ignore the break.
 /// </summary>
 internal static class PageBreaks
 {

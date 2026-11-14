@@ -23,12 +23,13 @@ public partial class MarkdownFoundationTests
     }
 
     [Fact]
-    public void Footnotes_AreRaisedNumbers_ListedAtTheEnd_InTheOrderOfTheirReferences()
+    public void Footnotes_AreRaisedNumbers_AtTheFootOfTheirPage_InTheOrderOfTheirReferences()
     {
         var (result, pdf) = Generate("# Report\n\nIntro.\n\n# Costs\n\nRaised[^b] and lowered[^a].\n\n[^a]: Second note.\n[^b]: First note.\n");
 
         Assert.False(result.HasNotes, result.ToString());
         using var document = PdfDocument.Open(pdf);
+        Assert.Equal(2, document.NumberOfPages);
         var page = document.GetPages().Last();
         var words = page.GetWords().ToList();
         var raised = words.Single(w => w.Text.StartsWith("Raised", StringComparison.Ordinal));
@@ -37,9 +38,11 @@ public partial class MarkdownFoundationTests
         Assert.True(one.PointSize < raised.Letters[0].PointSize, "the reference is smaller");
 
         var text = page.Text;
-        Assert.Contains("Notes", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Notes", text, StringComparison.Ordinal);
         Assert.True(text.IndexOf("First note.", StringComparison.Ordinal) < text.IndexOf("Second note.", StringComparison.Ordinal));
-        Assert.True(text.IndexOf("lowered", StringComparison.Ordinal) < text.IndexOf("Notes", StringComparison.Ordinal));
+        var first = words.First(w => w.Text == "First");
+        Assert.True(first.BoundingBox.Bottom < 100, "the note is at the foot of the page");
+        Assert.True(first.Letters[0].PointSize < raised.Letters[0].PointSize, "the note is smaller than the text");
     }
 
     [Fact]
@@ -97,7 +100,10 @@ public partial class MarkdownFoundationTests
         Assert.False(result.HasNotes, result.ToString());
         var text = Text(pdf);
         Assert.Contains(alert, text, StringComparison.Ordinal);
-        Assert.Contains(footnotes, text, StringComparison.Ordinal);
+        Assert.Contains("A note.", text, StringComparison.Ordinal);
+
+        // At the foot of the page, footnotes have no heading.
+        Assert.DoesNotContain(footnotes, text, StringComparison.Ordinal);
     }
 
     [Fact]

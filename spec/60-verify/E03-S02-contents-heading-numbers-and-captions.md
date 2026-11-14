@@ -16,7 +16,7 @@ for these features, so the DOCX generator (E09) reads the same source the same w
   stories (question 1):
   - E03-S02, this story: contents, heading numbers, captions. All three number or list headings
     and visuals.
-  - [E03-S03](../55-in-progress/doc-3/E03-S03-footnotes-justification-and-page-breaks.md): footnotes at the page foot,
+  - [E03-S03](E03-S03-footnotes-justification-and-page-breaks.md): footnotes at the page foot,
     justified text, page breaks. All three change how lines and pages are filled.
   - [E03-S04](../55-in-progress/doc-3/E03-S04-classification-marking.md): classification marking in PDFs and decks. It
     touches the page furniture of every format, not the flow.

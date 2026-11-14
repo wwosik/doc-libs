@@ -113,7 +113,7 @@ Unknown containers, alerts and heading attributes are errors.
 
 `::: pagebreak` on a line of its own, closed by `:::`, starts a new page with what follows. It may
 hold content, which then starts the new page, and its closing `:::` may be left out. `{.newpage}` at
-the end of a heading starts a new page with that heading: `## Appendix {.newpage}`. A later `#`
+the end of any heading starts a new page with that heading: `## Appendix {.newpage}`. A later `#`
 already starts a page. No break makes an empty page, and the cover heading takes no `{.newpage}`.
 
 ```markdown

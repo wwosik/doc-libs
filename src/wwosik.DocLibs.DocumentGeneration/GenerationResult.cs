@@ -88,6 +88,9 @@ public static class NoteCodes
     /// <summary>A footnote reference (<c>[^1]</c>) has no definition, so it stays text.</summary>
     public const string FootnoteMissing = "footnote-missing";
 
+    /// <summary>A footnote was too long for the foot of its page and continues at the foot of the next (PDF).</summary>
+    public const string FootnoteSplit = "footnote-split";
+
     /// <summary>The document language has no texts of its own; the generated texts are in English.</summary>
     public const string LanguageUnknown = "language-unknown";
 
@@ -170,6 +173,7 @@ public static class NoteCodes
         (HtmlAsText, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "HTML is not interpreted: it is shown as text. Write Markdown instead."),
         (CharacterReplaced, [DocumentFormat.Pdf], "a character the fonts lack was replaced. Write it as one of the replacements under *Characters*."),
         (FootnoteMissing, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "a footnote reference such as `[^1]` has no definition `[^1]: text`, so it is shown as written. Add the definition, or remove the reference."),
+        (FootnoteSplit, [DocumentFormat.Pdf], "a footnote was too long for the foot of its page and continues at the foot of the next. Shorten it, or move the detail into the text."),
         (LanguageUnknown, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "the language in `lang` has no texts of its own, so alert titles and similar texts are in English. Use `en` or `de`."),
         (NotesDropped, [DocumentFormat.Pptx], "a `::: notes` stands before the first heading, so it belongs to no slide and was left out. Move it under the heading of the slide it is for."),
         (NotesSimplified, [DocumentFormat.Pptx], "speaker notes hold only paragraphs and lists; a table, code block, image or quote in `::: notes` was written as plain text. Keep speaker notes to text and lists."),

@@ -1,12 +1,17 @@
 ---
 toc: true
 headingNumbers: true
+justify: true
 ---
 # Long document
 
 Many items and a long table.
 
 ## A long list
+
+The list below is long enough to run over several pages, and this paragraph is long enough to be
+justified: every line but its last ends at the right margin, and its spaces grow a little to get
+there[^list], and notes go to the foot of the page that refers to them.
 
 1. Item number 1 with some words so that it is not too short
 2. Item number 2 with some words so that it is not too short
@@ -37,7 +42,7 @@ Many items and a long table.
 27. Item number 27 with some words so that it is not too short
 28. Item number 28 with some words so that it is not too short
 29. Item number 29 with some words so that it is not too short
-30. Item number 30 with some words so that it is not too short
+30. Item number 30 with some words so that it is not too short[^item]
 31. Item number 31 with some words so that it is not too short
 32. Item number 32 with some words so that it is not too short
 33. Item number 33 with some words so that it is not too short
@@ -112,7 +117,7 @@ Many items and a long table.
 | 37 | Row 37 | A description that is long enough to wrap inside its cell now and then, row 37 |
 | 38 | Row 38 | A description that is long enough to wrap inside its cell now and then, row 38 |
 | 39 | Row 39 | A description that is long enough to wrap inside its cell now and then, row 39 |
-| 40 | Row 40 | A description that is long enough to wrap inside its cell now and then, row 40 |
+| 40 | Row 40 | A description that is long enough to wrap inside its cell now and then, row 40[^row] |
 | 41 | Row 41 | A description that is long enough to wrap inside its cell now and then, row 41 |
 | 42 | Row 42 | A description that is long enough to wrap inside its cell now and then, row 42 |
 | 43 | Row 43 | A description that is long enough to wrap inside its cell now and then, row 43 |
@@ -171,3 +176,15 @@ graph TD; A-->B;
 ```
 
 Figure: A diagram with a caption under it
+
+[^list]: A note at the foot of the page of its reference, numbered through the whole document.
+[^item]: A note from a list item.
+[^row]: A note from a table cell, at the foot of the page that holds the row.
+[^break]: The last note.
+
+::: pagebreak
+
+## Notes on notes
+
+A page break comes before this section[^break], and its closing line is left out, so it runs to
+the end of the document.

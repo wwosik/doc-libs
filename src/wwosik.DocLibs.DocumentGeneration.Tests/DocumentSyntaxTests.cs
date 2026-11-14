@@ -59,15 +59,24 @@ public class DocumentSyntaxTests
         Assert.Equal("End", attributes.Kicker);
     }
 
-    [Fact]
-    public void NewPage_OnDeepHeadings_IsKnownToWordDocumentsOnly()
+    [Theory]
+    [InlineData(DocumentFormat.Docx)]
+    [InlineData(DocumentFormat.Pdf)]
+    [InlineData(DocumentFormat.Pptx)]
+    public void NewPage_OnDeepHeadings_IsKnownToEveryFormat(DocumentFormat format)
     {
-        var (text, attributes) = HeadingAttributes.SplitDeep("Detail {.newpage .unnumbered}", DocumentFormat.Docx);
+        var (text, attributes) = HeadingAttributes.SplitDeep("Detail {.newpage .unnumbered}", format);
 
         Assert.Equal("Detail", text);
         Assert.True(attributes!.NewPage);
         Assert.True(attributes.Unnumbered);
-        Assert.Equal(("Detail {.newpage}", null), HeadingAttributes.SplitDeep("Detail {.newpage}", DocumentFormat.Pdf));
+        Assert.Equal(("Detail {.newpage .dark}", null), HeadingAttributes.SplitDeep("Detail {.newpage .dark}", format));
+    }
+
+    [Fact]
+    public void Justify_IsADocumentKey()
+    {
+        Assert.Contains(FrontMatter.JustifyKey, FrontMatter.DocumentKeys);
     }
 
     [Theory]

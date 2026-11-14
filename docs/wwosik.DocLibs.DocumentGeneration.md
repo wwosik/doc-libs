@@ -292,6 +292,7 @@ if (result.HasNotes)
 | `html-as-text` | PPTX, DOCX, PDF | Raw HTML, a block or inline, was written as text; HTML comments are left out silently |
 | `character-replaced` | PDF | `PdfOptions.ReplaceUnsupported` replaced a character the fonts lack; once per character, without a line |
 | `footnote-missing` | PPTX, DOCX, PDF | A footnote reference such as `[^1]` has no definition, so it is shown as written |
+| `footnote-split` | PDF | A footnote was too long for the foot of its page and continues at the foot of the next; with the line of its definition |
 | `language-unknown` | PPTX, DOCX, PDF | The document language has no `GeneratedTexts` of its own, built in or from the options; the texts are English, the tag is kept; without a line |
 | `typography-skipped` | PPTX, DOCX, PDF | With [typography](#typography) on, a typographic character (a quote, dash, `…` or the no-break space) was not used because a face the text can be set in lacks it; the character stays as typed. Once per character, with the line of its first paragraph |
 | `notes-dropped` | PPTX | A `::: notes` stands before the first heading, so it belongs to no slide and was left out |
@@ -673,13 +674,17 @@ that heading. Every generator accepts both (internally `LayoutSyntax.PageBreak`,
   generator takes the containers apart right after parsing, so a heading an unclosed break holds
   starts its section as usual.
 - `{.newpage}` is a heading attribute like `{.dark}` on `#` and `##` in every format. On `###` to
-  `######` only Word documents read it (with `{.unnumbered}`, which every format reads there); elsewhere
-  such braces stay text.
+  `######` every format reads it together with `{.unnumbered}`: braces holding only these two come
+  off, any other braces stay text.
 - **Word documents** give the next paragraph or table `w:pageBreakBefore`; a break at the very start
   or end of the body does nothing, so it never makes an empty page. `{.newpage}` on the cover heading
   throws.
-- **Decks and PDFs** accept both and ignore them for now: a deck has no pages to break, and the PDF
-  side is E03-S03's. Their output is the same as without them.
+- **PDFs** start a new page before the block a break comes before (`PageBreakBlock`), and before a
+  heading with `{.newpage}`, unless the page is still empty; a break at the end makes no page.
+  `{.newpage}` on the cover heading throws. See
+  [the PDF's page breaks](wwosik.DocLibs.DocumentGeneration.Pdf.md#page-breaks).
+- **Decks** accept both and ignore them: a deck has no pages to break, and a `::: pagebreak` does
+  not make its section a flow slide. Their output is the same as without them.
 
 ## Classification
 
@@ -730,10 +735,11 @@ title: Network expansion 2027
   `classification` and `draft` (see
   [Classification](#classification)), and `labels.<category>` (see
   [Slide layouts in Markdown](#slide-layouts-in-markdown)). The rest are the generator's.
-- **Document keys** (`FrontMatter.DocumentKeys`): `toc` (`true`/`false`), `tocDepth` (`1`–`3`) and
-  `headingNumbers` (`true`/`false`), read by PDFs and Word documents (see
-  [Contents and heading numbers](#contents-and-heading-numbers)). A deck accepts them, checks their
-  values and ignores them, so one Markdown serves every format.
+- **Document keys** (`FrontMatter.DocumentKeys`): `toc` (`true`/`false`), `tocDepth` (`1`–`3`),
+  `headingNumbers` (`true`/`false`) and `justify` (`true`/`false`, justified body text), read by
+  PDFs and Word documents (see [Contents and heading numbers](#contents-and-heading-numbers) and
+  the generators' own pages). A deck accepts them, checks their values and ignores them, so one
+  Markdown serves every format.
 - `template` naming the template the caller chose keeps the caller's values; naming another one
   starts from that template's defaults.
 - **Mistakes throw** `DocumentConversionException` with the generator's format: a line that is not
@@ -748,8 +754,8 @@ title: Network expansion 2027
 is a BCP 47 tag such as `en`, `de`, `de-CH` or `en-GB`. Anything else is an error.
 
 - **Texts.** It picks the `GeneratedTexts`: the texts a generator writes itself, today the alert
-  titles (`Note`, `Tip`, `Important`, `Warning`, `Caution`), the heading of the footnotes in a
-  PDF (`Notes`), the word before a chart's source (`Source`; German `Quelle`) and the dates of
+  titles (`Note`, `Tip`, `Important`, `Warning`, `Caution`), the word before a chart's source
+  (`Source`; German `Quelle`) and the dates of
   [timelines and Gantt charts](#timelines-and-gantt-charts) (`MonthNames`, `DayFormat`,
   `MonthFormat`, `QuarterFormat`, `WeekFormat`) and the axis titles of
   [risk matrices](#steps-harvey-balls-and-risk-matrices) (`Likelihood`, `Impact`; German
@@ -761,7 +767,8 @@ is a BCP 47 tag such as `en`, `de`, `de-CH` or `en-GB`. Anything else is an erro
   renderers get them as `CodeBlockRequest.Texts`. `GeneratedTexts.English` and `GeneratedTexts.German` are built in; a host adds or
   replaces languages with the options' `Texts`, by tag. Every property defaults to English, so a
   new language starts from `GeneratedTexts.English with { Warning = "…" }` and stays complete when
-  later versions add texts.
+  later versions add texts. `Footnotes` (`Notes`; German `Anmerkungen`), the heading PDFs once gave
+  their footnotes at the end, is no longer used and stays for compatibility.
 - **Matching.** A tag is matched in full, then by its language alone (`de-CH` → `de`), first among
   the host's `Texts`, then among the built-in ones. A tag nothing matches gets the English texts and
   the note `language-unknown`; the tag itself is still written.

@@ -137,8 +137,8 @@ same change that made it untrue — a stale fact here is worse than a missing on
   rule for every format: top = highest level after the cover outside `:::` containers, three levels
   numbered, a number has one part per numbered heading still open above it (a skipped level never
   gives 0, `##` before the first `#` are `1`, `2`, that `#` is `3`). `{.unnumbered}` is known to every
-  format (`SplitDeep` reads it on `###`+; `.newpage` there stays Word's until E03-S03).
-  `FrontMatter.DocumentKeys` (`toc`, `tocDepth`, `headingNumbers`) are checked and skipped by
+  format (`SplitDeep` reads it and `.newpage` on `###`+, in every format since E03-S03).
+  `FrontMatter.DocumentKeys` (`toc`, `tocDepth`, `headingNumbers`, `justify`) are checked and skipped by
   `FrontMatter.Apply` for templates that do not list them (decks). The PDF parser numbers headings
   (`HeadingBlock.Number`), collects `DocumentModel.Contents` (entries point at the `HeadingBlock`s,
   so the layout replaces each heading's text once via `headingRuns`), and attaches `Caption`s to
@@ -149,6 +149,24 @@ same change that made it untrue — a stale fact here is worse than a missing on
   with no caption every sum adds 0, which keeps old PDFs byte-identical. Decks strip the prefix in
   `DeckParser.WalkMarked` (`Caption`), knowing drawn fences from `drawn`. Images' standalone word
   `caption` is a setting, so a title "with a caption under it" loses that word.
+- **PDF footnotes, justification, page breaks (E03-S03):** a reference is a `TextRun` with `Footnote`
+  (its number, Markdig's `Order`), kept a run of its own and a `Piece` of its own (`Merge` compares
+  `Footnote`); `DocumentModel.Footnotes` holds the notes as text paragraphs. The layout keeps a
+  **per-page `bottom`** (`geometry.Bottom` less the current page's notes, `NotesHeight(pageNotes)`):
+  every check of the current page (`Ensure`, `Gap`, `Paragraph`'s room, the table's room, `VisualRoom`
+  under headings) uses `bottom`; checks of a fresh page keep `geometry.Bottom`. A line that advances
+  `Ensure`s its height plus `NotesExtra(NewNotes(line))` and then `PlaceNotes` them; `Row`, `CaptionAt`
+  and the cover place theirs without a check of their own; headings collect the notes of what they keep
+  (`keptNotes`). Paths without notes take the old formulas (or add exactly `0`), so PDFs without
+  footnotes stay byte-identical — keep it that way. A note taller than a third of the page reserves
+  two lines (`Reserve`) and grows into the page's free room in `FinishPage` (called by `NewPage` and at
+  the end), which draws the notes and carries the rest (`carriedNotes`) to the next page. Anchors
+  `footnote:n` / `footnote-reference:n` (':' is in no Markdig id). **Justification never changes line
+  breaks:** `Wrap` is untouched (`TextLine.EndsWithBreak` marks hard breaks and note paragraph ends),
+  `Line(justify: width)` spreads the room over the spaces (`Stretch`, ragged past 3×) and places each
+  word on its own (`Words`). `PageBreakBlock` and `HeadingBlock.NewPage` break unless `AtTop`; a trailing
+  empty page from a break is removed (`brokenPage`). Markdig: a footnote definition inside a `:::`
+  container (an unclosed `::: pagebreak` holds the rest of the document) is no definition.
 - **No PDF layout library** (PDFsharp/MigraDoc went AGPL with 6.5.0, QuestPDF and iText are
   paid or AGPL): the PDF generator has its own layout engine on PdfPig's writer. It works through
   `IFontMetrics`, so its tests use made-up widths.
@@ -251,8 +269,8 @@ same change that made it untrue — a stale fact here is worse than a missing on
   enum there. A change to any guide also changes `tool-guide.expected.md` (PPTX + PDF) in the shared tests.
 - **Markdown foundations (E06-S02):** both pipelines add `UseDocumentSyntax()` (footnotes, task
   lists, definition lists; `MarkdownSyntax` in DocumentGeneration, which therefore references
-  Markdig). `FootnoteGroup` is skipped where blocks are walked and handled apart: PDFs list it at
-  the end under `GeneratedTexts.Footnotes`; decks number references per `##` section
+  Markdig). `FootnoteGroup` is skipped where blocks are walked and handled apart: PDFs print the
+  notes at the foot of their page (E03-S03, above); decks number references per `##` section
   (`DeckParser.footnotes`, reset in `Section`) and give each slide the `SlideFootnote`s its runs refer
   to (`Slide.References()` scans `RunStyle.Superscript` runs, kept unmerged). `DeckWriter.ContentArea`
   subtracts the current slide's footnote room (`footnotes` field, set in `Fit` and before writing),
@@ -430,8 +448,8 @@ same change that made it untrue — a stale fact here is worse than a missing on
   `WordColor`).
 - **Page breaks and the marking are shared syntax E09-S02 added for E03-S03/S04:** `PageBreaks.Flatten`
   takes every `::: pagebreak` apart right after Markdig parses (all three generators), returning the
-  blocks a break comes before; decks and PDFs ignore that set. `HeadingAttributes.NewPage` on `#`/`##`
-  everywhere, on `###`+ only for Docx (`SplitDeep`). `classification`/`draft` are shared front-matter keys
+  blocks a break comes before; decks ignore that set, PDFs put a `PageBreakBlock` before each (E03-S03).
+  `HeadingAttributes.NewPage` on every level in every format. `classification`/`draft` are shared front-matter keys
   skipped by `FrontMatter.Apply`; `Marking.Resolve` applies them (higher classification wins,
   `classification-kept`); PDF and PPTX call it only to check the values. `FrontMatter.LineOf(key)` gives a
   key's line. `CoreProperties.ContentStatus` writes `cp:contentStatus` (Docx only so far).

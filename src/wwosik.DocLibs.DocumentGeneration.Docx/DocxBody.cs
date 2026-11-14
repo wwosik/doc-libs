@@ -743,8 +743,21 @@ internal sealed partial class DocxBody
         }
 
         this.Boxed(paragraph, frame);
+        this.Justify(paragraph, frame.Style);
         paragraph.Append(this.runs.Elements(runs, frame.Part));
         return paragraph;
+    }
+
+    // With `justify: true`, body text is justified: paragraphs, list items, definition descriptions, quotes, alerts and
+    // footnotes.
+    private void Justify(Paragraph paragraph, StyleRole style)
+    {
+        if (this.Context.Options.Justify
+            && (style == DocxRoles.Normal || style == DocxRoles.ListBullet || style == DocxRoles.ListNumber || style == DocxRoles.ListTask
+                || style == DocxRoles.Definition || style == DocxRoles.Quote || style == DocxRoles.FootnoteText || DocxRoles.Alerts.Values.Contains(style)))
+        {
+            paragraph.ParagraphProperties!.Justification = new Justification { Val = JustificationValues.Both };
+        }
     }
 
     private Paragraph Paragraph(StyleRole style) =>
@@ -797,6 +810,7 @@ internal sealed partial class DocxBody
             }
 
             this.Boxed(marker, continuation);
+            this.Justify(marker, itemStyle);
 
             marker.Append(this.runs.Elements(DocxRuns.Trim(lead), frame.Part));
             target.Add(marker);

@@ -18,9 +18,13 @@ Many items and a long table.
 
 4 Figures . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 8
 
+5 Notes on notes . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 9
+
 ## Page 3
 
 ### 1 A long list
+
+The list below is long enough to run over several pages, and this paragraph is long enough to be justified: every line but its last ends at the right margin, and its spaces grow a little to get there[^1] , and notes go to the foot of the page that refers to them.
 
 1. Item number 1 with some words so that it is not too short
 2. Item number 2 with some words so that it is not too short
@@ -51,7 +55,7 @@ Many items and a long table.
 27. Item number 27 with some words so that it is not too short
 28. Item number 28 with some words so that it is not too short
 29. Item number 29 with some words so that it is not too short
-30. Item number 30 with some words so that it is not too short
+30. Item number 30 with some words so that it is not too short2
 31. Item number 31 with some words so that it is not too short
 32. Item number 32 with some words so that it is not too short
 33. Item number 33 with some words so that it is not too short
@@ -59,14 +63,18 @@ Many items and a long table.
 35. Item number 35 with some words so that it is not too short
 36. Item number 36 with some words so that it is not too short
 37. Item number 37 with some words so that it is not too short
+
+2 A note from a list item.
+
+[^1]: A note at the foot of the page of its reference, numbered through the whole document.
+
+## Page 4
+
 38. Item number 38 with some words so that it is not too short
 39. Item number 39 with some words so that it is not too short
 40. Item number 40 with some words so that it is not too short
 41. Item number 41 with some words so that it is not too short
 42. Item number 42 with some words so that it is not too short
-
-## Page 4
-
 43. Item number 43 with some words so that it is not too short
 44. Item number 44 with some words so that it is not too short
 45. Item number 45 with some words so that it is not too short
@@ -104,15 +112,15 @@ Table 1: Eighty rows, the header repeated on every page
 | 10 | Row 10 | A description that is long enough to wrap inside its cell now and then, row 10 |
 | 11 | Row 11 | A description that is long enough to wrap inside its cell now and then, row 11 |
 | 12 | Row 12 | A description that is long enough to wrap inside its cell now and then, row 12 |
-| 13 | Row 13 | A description that is long enough to wrap inside its cell now and then, row 13 |
-| 14 | Row 14 | A description that is long enough to wrap inside its cell now and then, row 14 |
-| 15 | Row 15 | A description that is long enough to wrap inside its cell now and then, row 15 |
-| 16 | Row 16 | A description that is long enough to wrap inside its cell now and then, row 16 |
 
 ## Page 5
 
 | # | Name | Description |
 | --- | --- | --- |
+| 13 | Row 13 | A description that is long enough to wrap inside its cell now and then, row 13 |
+| 14 | Row 14 | A description that is long enough to wrap inside its cell now and then, row 14 |
+| 15 | Row 15 | A description that is long enough to wrap inside its cell now and then, row 15 |
+| 16 | Row 16 | A description that is long enough to wrap inside its cell now and then, row 16 |
 | 17 | Row 17 | A description that is long enough to wrap inside its cell now and then, row 17 |
 | 18 | Row 18 | A description that is long enough to wrap inside its cell now and then, row 18 |
 | 19 | Row 19 | A description that is long enough to wrap inside its cell now and then, row 19 |
@@ -136,21 +144,23 @@ Table 1: Eighty rows, the header repeated on every page
 | 37 | Row 37 | A description that is long enough to wrap inside its cell now and then, row 37 |
 | 38 | Row 38 | A description that is long enough to wrap inside its cell now and then, row 38 |
 | 39 | Row 39 | A description that is long enough to wrap inside its cell now and then, row 39 |
-| 40 | Row 40 | A description that is long enough to wrap inside its cell now and then, row 40 |
+| 40 | Row 40 | A description that is long enough to wrap inside its cell now and then, row 403 |
 | 41 | Row 41 | A description that is long enough to wrap inside its cell now and then, row 41 |
 | 42 | Row 42 | A description that is long enough to wrap inside its cell now and then, row 42 |
 | 43 | Row 43 | A description that is long enough to wrap inside its cell now and then, row 43 |
 | 44 | Row 44 | A description that is long enough to wrap inside its cell now and then, row 44 |
-| 45 | Row 45 | A description that is long enough to wrap inside its cell now and then, row 45 |
-| 46 | Row 46 | A description that is long enough to wrap inside its cell now and then, row 46 |
-| 47 | Row 47 | A description that is long enough to wrap inside its cell now and then, row 47 |
-| 48 | Row 48 | A description that is long enough to wrap inside its cell now and then, row 48 |
-| 49 | Row 49 | A description that is long enough to wrap inside its cell now and then, row 49 |
+
+3 A note from a table cell, at the foot of the page that holds the row.
 
 ## Page 6
 
 | # | Name | Description |
 | --- | --- | --- |
+| 45 | Row 45 | A description that is long enough to wrap inside its cell now and then, row 45 |
+| 46 | Row 46 | A description that is long enough to wrap inside its cell now and then, row 46 |
+| 47 | Row 47 | A description that is long enough to wrap inside its cell now and then, row 47 |
+| 48 | Row 48 | A description that is long enough to wrap inside its cell now and then, row 48 |
+| 49 | Row 49 | A description that is long enough to wrap inside its cell now and then, row 49 |
 | 50 | Row 50 | A description that is long enough to wrap inside its cell now and then, row 50 |
 | 51 | Row 51 | A description that is long enough to wrap inside its cell now and then, row 51 |
 | 52 | Row 52 | A description that is long enough to wrap inside its cell now and then, row 52 |
@@ -179,23 +189,26 @@ Table 1: Eighty rows, the header repeated on every page
 | 75 | Row 75 | A description that is long enough to wrap inside its cell now and then, row 75 |
 | 76 | Row 76 | A description that is long enough to wrap inside its cell now and then, row 76 |
 | 77 | Row 77 | A description that is long enough to wrap inside its cell now and then, row 77 |
+
+## Page 7
+
+| # | Name | Description |
+| --- | --- | --- |
 | 78 | Row 78 | A description that is long enough to wrap inside its cell now and then, row 78 |
 | 79 | Row 79 | A description that is long enough to wrap inside its cell now and then, row 79 |
 | 80 | Row 80 | A description that is long enough to wrap inside its cell now and then, row 80 |
-
-## Page 7
 
 ### 3 A tall row
 
 | Key | Value |
 | --- | --- |
-| tall | word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word |
+| tall | word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word |
 
 ## Page 8
 
 | Key | Value |
 | --- | --- |
-|  | word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word |
+|  | word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word |
 
 ### 4 Figures
 
@@ -206,3 +219,11 @@ Figure 1: A photo, its title under it
 ![](images/page8-image1.png)
 
 Figure 2: A diagram with a caption under it
+
+## Page 9
+
+### 5 Notes on notes
+
+A page break comes before this section4 , and its closing line is left out, so it runs to the end of the document.
+
+4 The last note.

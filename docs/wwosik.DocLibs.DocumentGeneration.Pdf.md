@@ -37,10 +37,8 @@ PdfGenerator.Generate(document, output, new PdfOptions
   the author (front matter `author`, else metadata `author`) go into the document info and the XMP
   metadata. The title also heads every page. The
   [document language](wwosik.DocLibs.DocumentGeneration.md#document-language) is the catalog's
-  `/Lang` and `dc:language`, and picks the alert titles and the footnotes heading.
-- **Footnotes:** a reference is a raised number at 65 % of the text size; the footnotes follow the
-  last chapter under a `##` heading of the language's texts ("Notes", "Anmerkungen"), as a list
-  numbered like the references, through the whole document.
+  `/Lang` and `dc:language`, and picks the alert titles and the labels of captions.
+- **Footnotes** are printed at the foot of their page, see [Footnotes](#footnotes).
 - **Task lists** have a box drawn where the bullet goes, ticked for `[x]`: the fonts have no ☐ or ☒.
 - **Definition lists** set each term in bold and its descriptions indented under it; a term is
   kept on a page with the start of its description.
@@ -91,6 +89,7 @@ string guide = PdfGenerator.AuthoringGuide(options);   // starts at "##"
 | `TableOfContents` | `false` | a table of contents after the cover, see [Contents, numbers and captions](#contents-numbers-and-captions) |
 | `TableOfContentsDepth` | `2` | the heading levels it lists, 1–3; another value throws `ArgumentOutOfRangeException` |
 | `HeadingNumbers` | `false` | numbers on three heading levels |
+| `Justify` | `false` | justified body text, see [Justified text](#justified-text) |
 | `CodeBlockRenderers` | none | see [Diagrams](#diagrams) |
 | `ImageConverters` | none | images in other formats, such as SVG, see [Image converters](wwosik.DocLibs.DocumentGeneration.md#image-converters) |
 | `ReplaceUnsupported` | none (throws) | see [Characters the fonts lack](#characters-the-fonts-lack) |
@@ -117,6 +116,7 @@ The shared syntax and rules are in
 | `toc` | `true`, `false` | all |
 | `tocDepth` | `1`, `2`, `3` | all |
 | `headingNumbers` | `true`, `false` | all |
+| `justify` | `true`, `false` | all |
 | `title`, `author` | text | all |
 | `lang` | a language tag such as `en`, `de`, `de-CH` | all |
 | `typography` | `true`, `false` | all — see [Typography](wwosik.DocLibs.DocumentGeneration.md#typography) |
@@ -143,7 +143,7 @@ The shared syntax and rules are in
 | First `#` (at the very start) | The cover page. |
 | Every other `#` | Starts a new page. |
 | `#`–`######` | Headings, kept on the same page as the start of what follows (see [Page breaks](#page-breaks)); each is a bookmark (nested by level, the cover title on top) and the target of `[x](#heading-id)` links (GitHub-style ids). |
-| Paragraphs | Greedy line breaking at spaces; a word wider than the line is broken by characters; `\` hard breaks kept. Left-aligned, no hyphenation. No single line at the top or bottom of a page (see [Page breaks](#page-breaks)). |
+| Paragraphs | Greedy line breaking at spaces; a word wider than the line is broken by characters; `\` hard breaks kept. Left-aligned unless [justified](#justified-text), no hyphenation. No single line at the top or bottom of a page (see [Page breaks](#page-breaks)). |
 | Lists | Hanging indent of 18 pt per level, `•` / `–` alternating by level, numbers from the list's start value. |
 | Code blocks | The brand's mono face, else Liberation Mono, 9 pt on light grey, wrapped by characters. |
 | Quotes | Indented, grey, with a rule on the left per quote level. |
@@ -171,14 +171,13 @@ The keys and the caption syntax are shared with Word documents:
     on the numbers: the engine lays the document out once and writes the numbers from the headings'
     anchors afterwards, as it writes the footers.
   - Entries: the headings down to `tocDepth` from the highest level after the cover, `{.unnumbered}`
-    ones included, the headings inside `:::` containers not. The end-of-document footnotes heading is
-    listed at the top level. A heading without an anchor gets one (`contents-1`, …), so every entry
-    can link.
+    ones included, the headings inside `:::` containers not. A heading without an anchor gets one
+    (`contents-1`, …), so every entry can link. Footnote references in a heading are left out of its
+    entry and its bookmark.
   - No heading to list: no contents page, and the note `toc-empty`.
 - **Heading numbers** (`headingNumbers: true`). The number is set in the heading's face, size and
   colour in a column as wide as the widest number of that level plus 0.6 em; wrapped lines of the
   heading start at its text (a hanging indent). Bookmarks read "1.2 Title"; anchors do not change.
-  The footnotes heading is never numbered.
 - **Captions** are 9 pt in the text colour, centred, "Figure 1:" / "Table 1:" bold, then the text
   (links in it work).
   - Figures (images, and diagrams or charts a renderer drew) have theirs 4 pt below and stay on the
@@ -231,6 +230,45 @@ In PDFs:
 - `PdfOptions.Icons` replaces the set; `null` switches icons off, and `:icon-name:` stays text. The
   PDF stays PDF/A-2b: icons and codes are plain vector paths.
 
+## Footnotes
+
+- **References** (`[^label]`) are raised numbers at 65 % of the text size, numbered in the order of
+  their first reference through the whole document (Markdig's order). Each links to its note
+  (a link annotation without an underline); a footnote defined but never referenced is not printed.
+  A reference inside a note is its number only.
+- **Notes** are printed once, at the foot of the page that holds their first reference: a 0.5 pt
+  rule a third of the text width long, then each note in 8.5 pt in the text colour, its number
+  raised before it in a 12 pt hanging indent and linking back to the reference. A note's lists and
+  code become lines of text (list markers kept as text), its images and drawings are left out.
+- **Room:** the notes take room from the bottom of their page. A line (or a table row's lines, a
+  heading, a caption) that refers to a note not yet placed fits only with its note, the rule above
+  the first note of a page included; otherwise it moves to the next page with its note. The rule
+  against single lines at a page break, and keeping headings with what follows, measure with the
+  notes. References in headings, table cells, captions and on the cover work alike; the cover's
+  notes are at the foot of the cover.
+- **Long notes:** a note taller than a third of the page needs only its first two lines on the
+  page of its reference. When the page is finished, it takes the room the page left free, line by
+  line; what does not fit continues at the foot of the next page, before that page's own notes
+  (on pages of their own at the end, if need be), and the note `footnote-split` is reported with the
+  line of its definition.
+- `GeneratedTexts.Footnotes` ("Notes") is no longer used: there is no notes heading.
+
+## Justified text
+
+`justify: true` (or `PdfOptions.Justify`) justifies paragraphs, list items, definition
+descriptions, quotes, alerts and footnotes. Headings, the cover, table cells, captions, code and
+the contents stay left-aligned.
+
+- Line breaking does not change: lines are broken as for left-aligned text, so justifying never
+  changes the number of lines, page breaks or the keep rules.
+- The room left on a line is spread evenly over its spaces, so the line ends at the right margin.
+- Left-aligned stay: the last line of a paragraph, a line before a hard break, a line with no
+  space (one word), and a line whose spaces would grow past three times their width.
+- A justified line places each word as a text item of its own (no `Tw` operator: that widens only
+  single-byte space codes, which depends on the font encoding). Underlines of links and the line of
+  struck text run across the gaps between linked or struck words.
+- No hyphenation.
+
 ## Page breaks
 
 - **Headings stay with what follows them.** A heading (levels 2–6; `#` always starts a page)
@@ -248,10 +286,15 @@ In PDFs:
   quotes), at least two lines stay on each side of it. A paragraph of two or three lines moves
   whole. The list marker moves with the first line. Code blocks and table rows follow their own
   rules: code breaks between any lines, and table rows as described above.
-- **Forced breaks** (`::: pagebreak`, `{.newpage}` on a heading, see the
-  [shared syntax](wwosik.DocLibs.DocumentGeneration.md#page-breaks)) are accepted and ignored for
-  now: the content of a `::: pagebreak` is shown as usual, the page does not break. So are the
-  [classification](wwosik.DocLibs.DocumentGeneration.md#classification) keys, whose values are checked.
+- **Footnotes** take room from the bottom of their page, see [Footnotes](#footnotes).
+- **Forced breaks** (see the [shared syntax](wwosik.DocLibs.DocumentGeneration.md#page-breaks)):
+  `::: pagebreak` starts a new page before the block that follows it (its content, if it holds
+  any), and `{.newpage}` on any heading starts a new page with that heading; on `#` it changes
+  nothing, on the cover heading it throws. A forced break on a page that is still empty does
+  nothing, so two in a row make one break, and a break with nothing after it makes no page. A
+  `::: pagebreak` right after the cover heading ends the subtitle.
+- The [classification](wwosik.DocLibs.DocumentGeneration.md#classification) keys are accepted and
+  ignored for now; their values are checked.
 
 ## Fonts
 
@@ -393,7 +436,7 @@ Markdown written for the PPTX generator's
 
 - A `##` heading with attributes keeps them in its automatic anchor (`## Title {.dark}` gets
   `#title-dark`), as Markdig computes the anchor before they are dropped.
-- No hyphenation, justification, kerning, right-to-left or Asian scripts; no footnotes; no merged
+- No hyphenation, kerning, right-to-left or Asian scripts; no merged
   table cells; no GIF images, and SVG only through an image converter; alt text is not shown (an untagged PDF has nowhere to put it).
 - A table wider than the page in minimum widths is squeezed, and its words break by characters.
 - Reading a generated PDF back with `PdfConverter` loses the cover title (it equals the running

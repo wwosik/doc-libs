@@ -9,12 +9,18 @@ internal sealed record Design(ResolvedBrand Brand, bool ShowTagline, string? Dat
 {
     /// <summary>The texts in the document language: the heading of the contents, the labels of captions.</summary>
     public GeneratedTexts Texts { get; init; } = GeneratedTexts.English;
+
+    /// <summary>
+    /// <c>justify: true</c>: paragraphs, list items, definition descriptions, quotes, alerts and footnotes are justified;
+    /// the line breaks stay those of left-aligned text.
+    /// </summary>
+    public bool Justify { get; init; }
 }
 
 /// <summary>
 /// Puts the block model onto pages: greedy line breaking, page breaks, lists, tables with repeated header rows,
-/// images, captions, the cover, the table of contents, and once the page count is known its page numbers, header and
-/// footer. Works only through <see cref="IFontMetrics"/>, never on a PDF.
+/// images, captions, the cover, the table of contents, footnotes at the foot of the page, justified text, and once the
+/// page count is known its page numbers, header and footer. Works only through <see cref="IFontMetrics"/>, never on a PDF.
 /// </summary>
 internal sealed class LayoutEngine
 {
@@ -58,6 +64,18 @@ internal sealed class LayoutEngine
     private const double SuperscriptScale = 0.65;
     private const double SuperscriptRise = 0.33;
 
+    // Footnotes: 8.5 pt, hanging after their number; between the text and the first one a rule a third of the text
+    // width long, in a band of this height; this far apart. A note taller than a third of the page may split, never
+    // before its second line.
+    private const double NoteSize = 8.5;
+    private const double NoteIndent = 12;
+    private const double NoteSeparator = 10;
+    private const double NoteGap = 2;
+    private const int NoteMinLines = 2;
+
+    // Justified text: a line whose spaces would grow past this many times their width stays left-aligned.
+    private const double MaxSpaceStretch = 3;
+
     // The markers of a task list's items, drawn as boxes rather than written: the fonts have no ☐ and ☒.
     private const string EmptyBox = "\u2610";
     private const string TickedBox = "\u2612";
@@ -82,8 +100,24 @@ internal sealed class LayoutEngine
     // are written once every heading has its page.
     private readonly Dictionary<int, double> numberColumns = [];
     private readonly List<ContentsSlot> contentsSlots = [];
-    private LaidOutPage page = null!;
+    // Footnotes: by number, their wrapped lines; the ones already on a page; the parts on the current page; the rests of
+    // notes split at the foot of the last page, which continue on the next; the ones reported as split. While a heading
+    // measures what it is kept with, the notes of those lines.
+    private readonly Dictionary<int, List<TextLine>> noteLines = [];
+    private readonly HashSet<int> placedNotes = [];
+    private readonly List<NotePart> pageNotes = [];
+    private readonly List<NotePart> carriedNotes = [];
+    private readonly HashSet<int> splitNotes = [];
+    private IReadOnlyDictionary<int, FootnoteText> footnotes = new Dictionary<int, FootnoteText>();
+    private List<int>? keptNotes;
+
+    // The page the last `::: pagebreak` started.
+    private LaidOutPage? brokenPage;
+    private LaidOutPage? page;
     private double y;
+
+    // Where the text of the current page ends: the page's bottom less its footnotes.
+    private double bottom;
 
     // Where the headings directly above the current block start, on page chainPage; null after any other block.
     private double? chainTop;
@@ -103,6 +137,7 @@ internal sealed class LayoutEngine
 
     public Layout Run(DocumentModel model)
     {
+        this.footnotes = model.Footnotes;
         if (model.Cover is { } cover)
         {
             this.Cover(cover);
@@ -123,6 +158,22 @@ internal sealed class LayoutEngine
         }
 
         this.Blocks(model.Blocks, frame, 0);
+
+        // A page break with nothing after it leaves no empty page.
+        if (this.page is { Items.Count: 0 } last && last == this.brokenPage && this.pageNotes.Count == 0)
+        {
+            this.pages.RemoveAt(this.pages.Count - 1);
+            this.page = this.pages[^1];
+        }
+
+        // The notes of the last page, and the rest of a note split there on pages of its own.
+        this.FinishPage();
+        while (this.carriedNotes.Count > 0)
+        {
+            this.NewPage();
+            this.FinishPage();
+        }
+
         this.ContentsPages();
 
         // Replaced once, as the header shows it; without a replacement it is checked only where it is drawn.
@@ -133,12 +184,19 @@ internal sealed class LayoutEngine
         return new Layout(this.pages, this.bookmarks, this.anchors, this.geometry, title);
     }
 
+    // The page before gets its footnotes; the new one starts with the rest of a note split there.
     private void NewPage(bool isCover = false)
     {
+        this.FinishPage();
         this.page = new LaidOutPage(isCover);
         this.pages.Add(this.page);
         this.y = this.geometry.Top;
+        this.pageNotes.AddRange(this.carriedNotes);
+        this.carriedNotes.Clear();
+        this.bottom = this.geometry.Bottom - this.NotesHeight(this.pageNotes);
     }
+
+    private LaidOutPage Page => this.page!;
 
     private bool AtTop => this.y <= this.geometry.Top + 0.01;
 
@@ -146,7 +204,7 @@ internal sealed class LayoutEngine
     private void Ensure(double height)
     {
         // A hair of tolerance: content sized to the exact room left (a visual below its headings) must fit.
-        if (this.y + height > this.geometry.Bottom + 1e-6 && !this.AtTop)
+        if (this.y + height > this.bottom + 1e-6 && !this.AtTop)
         {
             this.NewPage();
         }
@@ -156,7 +214,7 @@ internal sealed class LayoutEngine
     {
         foreach (var x in frame.QuoteRules)
         {
-            this.page.Items.Add(new LineItem(x, this.y, x, this.y + height, 2, this.design.Brand.TableLine));
+            this.Page.Items.Add(new LineItem(x, this.y, x, this.y + height, 2, this.design.Brand.TableLine));
         }
 
         this.y += height;
@@ -166,7 +224,7 @@ internal sealed class LayoutEngine
     {
         if (!this.AtTop)
         {
-            this.Advance(Math.Min(height, Math.Max(0, this.geometry.Bottom - this.y)), frame);
+            this.Advance(Math.Min(height, Math.Max(0, this.bottom - this.y)), frame);
         }
     }
 
@@ -187,7 +245,7 @@ internal sealed class LayoutEngine
                 this.Heading(heading, frame, siblings, next);
                 break;
             case ParagraphBlock paragraph:
-                this.Paragraph(paragraph.Runs, frame, null, ParagraphGap);
+                this.Paragraph(paragraph.Runs, frame, null, ParagraphGap, justify: this.design.Justify);
                 break;
             case ListBlock list:
                 this.List(list, frame, listLevel);
@@ -219,9 +277,18 @@ internal sealed class LayoutEngine
             case DefinitionListBlock definitions:
                 this.Definitions(definitions, frame, listLevel);
                 break;
+            case PageBreakBlock:
+                // Never an empty page: on one that is still empty, the break has nothing to do.
+                if (!this.AtTop)
+                {
+                    this.NewPage();
+                    this.brokenPage = this.page;
+                }
+
+                break;
             case RuleBlock:
                 this.Ensure(12);
-                this.page.Items.Add(new LineItem(frame.Left, this.y + 6, frame.Left + frame.Width, this.y + 6, 0.75, this.design.Brand.TableLine));
+                this.Page.Items.Add(new LineItem(frame.Left, this.y + 6, frame.Left + frame.Width, this.y + 6, 0.75, this.design.Brand.TableLine));
                 this.Advance(12, frame);
                 break;
         }
@@ -238,7 +305,7 @@ internal sealed class LayoutEngine
     private void Heading(HeadingBlock heading, Frame frame, IReadOnlyList<Block> siblings, int next)
     {
         var size = HeadingSize(heading);
-        if (heading.Level == 1 && !this.AtTop)
+        if ((heading.Level == 1 || heading.NewPage) && !this.AtTop)
         {
             this.NewPage();
         }
@@ -247,9 +314,13 @@ internal sealed class LayoutEngine
         var (runs, lines) = this.HeadingLines(heading, frame.Width);
         var height = (lines.Count * size * LineFactor) + (size * 0.35);
 
-        // Kept with the start of what follows: further headings and their content included.
+        // Kept with the start of what follows: further headings and their content included, and the footnotes of both.
         var above = this.ChainHeight + height;
-        this.Ensure(height + this.KeepHeight(siblings, next, frame, above));
+        List<int>? kept = this.footnotes.Count > 0 ? [.. lines.SelectMany(this.NewNotes)] : null;
+        this.keptNotes = kept;
+        var keep = this.KeepHeight(siblings, next, frame, above);
+        this.keptNotes = null;
+        this.Ensure(height + keep + this.NotesExtra(kept));
         if (this.chainTop is null || this.chainPage != this.pages.Count)
         {
             this.chainTop = this.y;
@@ -263,8 +334,8 @@ internal sealed class LayoutEngine
             if (i == 0 && heading.Number is { } number)
             {
                 // In a column of its own; the lines of the title hang after it.
-                this.Ensure(size * LineFactor);
-                this.page.Items.Add(new TextItem(frame.Left, this.Baseline(size), this.Supported(number, FontFace.Bold), FontFace.Bold, size, this.design.Brand.Primary));
+                this.Ensure((size * LineFactor) + this.NotesExtra(this.NewNotes(lines[0])));
+                this.Page.Items.Add(new TextItem(frame.Left, this.Baseline(size), this.Supported(number, FontFace.Bold), FontFace.Bold, size, this.design.Brand.Primary));
             }
 
             this.Line(lines[i], frame, frame.Left + indent, size, this.design.Brand.Primary);
@@ -352,7 +423,7 @@ internal sealed class LayoutEngine
             var style = entry.Chapter ? RunStyle.Bold : RunStyle.None;
             var left = frame.Left + ((entry.Level - 1) * ContentsIndent);
             var textLeft = left + (entry.Heading.Number is null ? 0 : columns[entry.Level]);
-            var runs = this.HeadingRuns(entry.Heading).Select(r => r.Link is null ? r : r with { Link = null }).ToList();
+            var runs = this.HeadingRuns(entry.Heading).Where(r => r.Footnote is null).Select(r => r.Link is null ? r : r with { Link = null }).ToList();
             var lines = this.Wrap(runs, right - textLeft, BodySize, style);
             if (entry.Chapter && i > 0)
             {
@@ -363,7 +434,7 @@ internal sealed class LayoutEngine
             var top = this.y;
             if (entry.Heading.Number is { } number)
             {
-                this.page.Items.Add(new TextItem(left, this.Baseline(BodySize), this.Supported(number, EntryFace(entry)), EntryFace(entry), BodySize, this.TextColor));
+                this.Page.Items.Add(new TextItem(left, this.Baseline(BodySize), this.Supported(number, EntryFace(entry)), EntryFace(entry), BodySize, this.TextColor));
             }
 
             var (lastBaseline, lastEnd) = (this.Baseline(BodySize), textLeft);
@@ -373,7 +444,7 @@ internal sealed class LayoutEngine
                 this.Line(line, frame, textLeft, BodySize, this.TextColor, keepOnPage: true);
             }
 
-            this.page.Items.Add(new LinkItem(left, top, frame.Left + frame.Width - left, this.y - top, "#" + entry.Heading.Anchor));
+            this.Page.Items.Add(new LinkItem(left, top, frame.Left + frame.Width - left, this.y - top, "#" + entry.Heading.Anchor));
             this.contentsSlots.Add(new ContentsSlot(this.pages.Count - 1, lastBaseline, lastEnd, entry.Heading.Anchor!, EntryFace(entry)));
             this.Gap(ListItemGap, frame);
         }
@@ -437,6 +508,7 @@ internal sealed class LayoutEngine
         for (var i = 0; i < lines.Count; i++)
         {
             this.y = top + (i * lineHeight);
+            this.PlaceNotes(this.NewNotes(lines[i]));
             this.Line(lines[i], frame, left + Math.Max(0, (width - lines[i].Width) / 2), CaptionSize, frame.Color, advance: false);
         }
 
@@ -455,11 +527,18 @@ internal sealed class LayoutEngine
         this.Advance(this.CaptionHeight(caption, frame.Width), frame);
     }
 
+    // The footnotes a caption adds to the current page.
+    private double CaptionNotes(Caption? caption, double width) =>
+        caption is null || this.footnotes.Count == 0 ? 0 : this.NotesExtra([.. this.CaptionLines(caption, width).SelectMany(this.NewNotes)]);
+
     // The height of the headings directly above, on this page.
     private double ChainHeight => this.chainTop is { } top && this.chainPage == this.pages.Count ? this.y - top : 0;
 
-    // The tallest a visual may be: a page, less the headings it is kept with.
-    private double VisualRoom => this.geometry.Bottom - this.geometry.Top - this.ChainHeight;
+    // The tallest a visual may be: a page, less the headings it is kept with, which then also leave room for this page's
+    // footnotes.
+    private double VisualRoom => this.ChainHeight > 0
+        ? this.bottom - this.geometry.Top - this.ChainHeight
+        : this.geometry.Bottom - this.geometry.Top;
 
     // How much of the blocks from `next` on must share the page with a heading above them. `above` is the height of
     // that heading and the ones before it, which a visual must leave room for.
@@ -472,19 +551,28 @@ internal sealed class LayoutEngine
 
         switch (siblings[next])
         {
-            case HeadingBlock { Level: 1 }:
+            case HeadingBlock { Level: 1 } or HeadingBlock { NewPage: true } or PageBreakBlock:
                 return 0;
             case HeadingBlock heading:
                 var size = HeadingSize(heading);
-                var height = (size * 0.8) + (this.HeadingLines(heading, frame.Width).Lines.Count * size * LineFactor) + (size * 0.35);
+                var headingLines = this.HeadingLines(heading, frame.Width).Lines;
+                this.KeepNotes(headingLines, headingLines.Count);
+                var height = (size * 0.8) + (headingLines.Count * size * LineFactor) + (size * 0.35);
                 return height + this.KeepHeight(siblings, next + 1, frame, above + height);
             case ParagraphBlock paragraph:
-                return KeepLines(this.ParagraphLines(paragraph.Runs, frame.Width).Count) * BodySize * LineFactor;
+                var lines = this.ParagraphLines(paragraph.Runs, frame.Width);
+                this.KeepNotes(lines, KeepLines(lines.Count));
+                return KeepLines(lines.Count) * BodySize * LineFactor;
             case ListBlock { Items.Count: > 0 } list:
                 var inner = frame with { Left = frame.Left + ListIndent, Width = frame.Width - ListIndent };
-                return list.Items[0] is [ParagraphBlock first, ..]
-                    ? KeepLines(this.ParagraphLines(first.Runs, inner.Width).Count) * BodySize * LineFactor
-                    : Math.Max(BodySize * LineFactor, this.KeepHeight(list.Items[0], 0, inner, above));
+                if (list.Items[0] is [ParagraphBlock first, ..])
+                {
+                    var itemLines = this.ParagraphLines(first.Runs, inner.Width);
+                    this.KeepNotes(itemLines, KeepLines(itemLines.Count));
+                    return KeepLines(itemLines.Count) * BodySize * LineFactor;
+                }
+
+                return Math.Max(BodySize * LineFactor, this.KeepHeight(list.Items[0], 0, inner, above));
             case QuoteBlock quote:
                 return this.KeepHeight(quote.Blocks, 0, QuoteFrame(frame), above);
             case CodeBlock code:
@@ -517,10 +605,19 @@ internal sealed class LayoutEngine
     // The lines of a paragraph that must stay together at its start: all of a short one, else two.
     private static int KeepLines(int lines) => lines <= 3 ? Math.Max(1, lines) : 2;
 
+    // While a heading measures what it is kept with: the footnotes of the first `count` of those lines.
+    private void KeepNotes(List<TextLine> lines, int count)
+    {
+        if (this.keptNotes is { } kept)
+        {
+            kept.AddRange(lines.Take(count).SelectMany(this.NewNotes));
+        }
+    }
+
     // A numbered heading's bookmark starts with its number: "1.2 Title".
     private void Mark(IReadOnlyList<TextRun> title, int level, string? anchor, string? number = null)
     {
-        var text = string.Concat(title.Select(r => r.IsBreak ? " " : r.Text)).Trim();
+        var text = string.Concat(title.Where(r => r.Footnote is null).Select(r => r.IsBreak ? " " : r.Text)).Trim();
         if (text.Length > 0)
         {
             this.bookmarks.Add(new Bookmark(number is null ? text : number + " " + text, level, this.pages.Count - 1, this.y));
@@ -533,8 +630,9 @@ internal sealed class LayoutEngine
     }
 
     // A marker (bullet or number) goes right-aligned before the first line. A page break inside the paragraph leaves
-    // at least two lines on either side: no orphan at the bottom, no widow at the top.
-    private void Paragraph(IReadOnlyList<TextRun> runs, Frame frame, string? marker, double gapAfter, Drawing? icon = null)
+    // at least two lines on either side: no orphan at the bottom, no widow at the top. A line with footnotes needs the
+    // room for them too. Justified, every line but the last and those before a hard break reaches the right edge.
+    private void Paragraph(IReadOnlyList<TextRun> runs, Frame frame, string? marker, double gapAfter, Drawing? icon = null, bool justify = false)
     {
         var lines = this.ParagraphLines(runs, frame.Width);
         if (lines.Count == 0 && marker is not null)
@@ -546,7 +644,7 @@ internal sealed class LayoutEngine
         var placed = 0;
         while (placed < lines.Count)
         {
-            var room = (int)Math.Floor((this.geometry.Bottom - this.y) / lineHeight);
+            var room = this.HasNewNotes(lines, placed) ? this.LinesThatFit(lines, placed, lineHeight) : (int)Math.Floor((this.bottom - this.y) / lineHeight);
             var rest = lines.Count - placed;
             var take = rest;
             if (room < rest)
@@ -571,7 +669,7 @@ internal sealed class LayoutEngine
                     this.Marker(marker, frame, icon);
                 }
 
-                this.Line(lines[i], frame, frame.Left, BodySize, frame.Color);
+                this.Line(lines[i], frame, frame.Left, BodySize, frame.Color, justify: justify && i < lines.Count - 1 ? frame.Width : null);
             }
 
             placed += take;
@@ -615,7 +713,7 @@ internal sealed class LayoutEngine
 
         marker = this.Supported(marker, FontFace.Regular);
         var width = this.metrics.Width(marker, FontFace.Regular, BodySize);
-        this.page.Items.Add(new TextItem(frame.Left - MarkerGap - width, this.Baseline(BodySize), marker, FontFace.Regular, BodySize, frame.Color));
+        this.Page.Items.Add(new TextItem(frame.Left - MarkerGap - width, this.Baseline(BodySize), marker, FontFace.Regular, BodySize, frame.Color));
     }
 
     // A task box, the height of a capital letter, sitting on the first line's baseline where a bullet would be.
@@ -624,7 +722,7 @@ internal sealed class LayoutEngine
         var side = BodySize * 0.72;
         var (left, bottom) = (frame.Left - MarkerGap - side, this.Baseline(BodySize));
         var top = bottom - side;
-        this.page.Items.Add(new ShapeItem(
+        this.Page.Items.Add(new ShapeItem(
             [new MoveTo(left, top), new LineTo(left + side, top), new LineTo(left + side, bottom), new LineTo(left, bottom), new ClosePath()],
             null,
             frame.Color,
@@ -633,7 +731,7 @@ internal sealed class LayoutEngine
             false));
         if (ticked)
         {
-            this.page.Items.Add(new ShapeItem(
+            this.Page.Items.Add(new ShapeItem(
                 [new MoveTo(left + (side * 0.2), top + (side * 0.52)), new LineTo(left + (side * 0.42), top + (side * 0.76)), new LineTo(left + (side * 0.82), top + (side * 0.24))],
                 null,
                 frame.Color,
@@ -680,7 +778,7 @@ internal sealed class LayoutEngine
             {
                 if (b == 0 && item[b] is ParagraphBlock paragraph)
                 {
-                    this.Paragraph(paragraph.Runs, inner, marker, ListItemGap, icon);
+                    this.Paragraph(paragraph.Runs, inner, marker, ListItemGap, icon, this.design.Justify);
                 }
                 else
                 {
@@ -712,22 +810,22 @@ internal sealed class LayoutEngine
         }
 
         this.Ensure(CodePadding + lineHeight);
-        this.page.Items.Add(new RectItem(frame.Left, this.y, frame.Width, CodePadding, CodeBackground));
+        this.Page.Items.Add(new RectItem(frame.Left, this.y, frame.Width, CodePadding, CodeBackground));
         this.Advance(CodePadding, frame);
         foreach (var line in lines)
         {
             this.Ensure(lineHeight);
-            this.page.Items.Add(new RectItem(frame.Left, this.y, frame.Width, lineHeight, CodeBackground));
+            this.Page.Items.Add(new RectItem(frame.Left, this.y, frame.Width, lineHeight, CodeBackground));
             if (line.Length > 0)
             {
-                this.page.Items.Add(new TextItem(frame.Left + CodePadding, this.Baseline(CodeSize), line, FontFace.Mono, CodeSize, this.TextColor));
+                this.Page.Items.Add(new TextItem(frame.Left + CodePadding, this.Baseline(CodeSize), line, FontFace.Mono, CodeSize, this.TextColor));
             }
 
             this.Advance(lineHeight, frame);
         }
 
         this.Ensure(CodePadding);
-        this.page.Items.Add(new RectItem(frame.Left, this.y, frame.Width, CodePadding, CodeBackground));
+        this.Page.Items.Add(new RectItem(frame.Left, this.y, frame.Width, CodePadding, CodeBackground));
         this.Advance(CodePadding, frame);
         this.Gap(ParagraphGap, frame);
     }
@@ -745,8 +843,8 @@ internal sealed class LayoutEngine
             height = room;
         }
 
-        this.Ensure(height + caption);
-        this.page.Items.Add(Placed(image, frame.Left + ((frame.Width - width) / 2), this.y, width, height));
+        this.Ensure(height + caption + this.CaptionNotes(image.Caption, frame.Width));
+        this.Page.Items.Add(Placed(image, frame.Left + ((frame.Width - width) / 2), this.y, width, height));
         this.Advance(height, frame);
         this.CaptionHere(image.Caption, frame);
         this.Gap(ParagraphGap, frame);
@@ -762,13 +860,14 @@ internal sealed class LayoutEngine
         var room = this.VisualRoom - captions;
         var shrink = height > room ? room / height : 1.0;
         height *= shrink;
-        this.Ensure(height + captions);
         var cell = (frame.Width - ((row.Images.Count - 1) * RowGap)) / row.Images.Count;
+        this.Ensure(height + captions + (this.footnotes.Count == 0 ? 0
+            : this.NotesExtra([.. row.Images.Where(i => i.Caption is not null).SelectMany(i => this.CaptionLines(i.Caption!, cell).SelectMany(this.NewNotes))])));
         for (var i = 0; i < row.Images.Count; i++)
         {
             var (width, imageHeight) = (sizes[i].Width * shrink, sizes[i].Height * shrink);
             var image = row.Images[i];
-            this.page.Items.Add(Placed(image, frame.Left + (i * (cell + RowGap)) + ((cell - width) / 2), this.y, width, imageHeight));
+            this.Page.Items.Add(Placed(image, frame.Left + (i * (cell + RowGap)) + ((cell - width) / 2), this.y, width, imageHeight));
             if (image.Caption is { } caption)
             {
                 this.CaptionAt(caption, frame, frame.Left + (i * (cell + RowGap)), cell, this.y + height + CaptionGap);
@@ -863,7 +962,7 @@ internal sealed class LayoutEngine
         }
 
         var height = drawing.Height * scale;
-        this.Ensure(height + captionHeight);
+        this.Ensure(height + captionHeight + this.CaptionNotes(caption, frame.Width));
         var left = frame.Left + ((frame.Width - (drawing.Width * scale)) / 2);
         var top = this.y;
         (double X, double Y) Place(double x, double y) => (left + (x * scale), top + (y * scale));
@@ -879,7 +978,7 @@ internal sealed class LayoutEngine
                         CubicTo c => new CubicTo(Place(c.X1, c.Y1).X, Place(c.X1, c.Y1).Y, Place(c.X2, c.Y2).X, Place(c.X2, c.Y2).Y, Place(c.X, c.Y).X, Place(c.X, c.Y).Y),
                         _ => segment,
                     }).ToList();
-                    this.page.Items.Add(new ShapeItem(path, shape.Fill, shape.Stroke, shape.StrokeWidth * scale, shape.Dash?.Select(d => d * scale).ToList(), shape.RoundJoins) { FillRule = shape.FillRule });
+                    this.Page.Items.Add(new ShapeItem(path, shape.Fill, shape.Stroke, shape.StrokeWidth * scale, shape.Dash?.Select(d => d * scale).ToList(), shape.RoundJoins) { FillRule = shape.FillRule });
                     break;
                 case DrawingText text:
                     var (x, baseline) = Place(text.X, text.Baseline);
@@ -908,7 +1007,7 @@ internal sealed class LayoutEngine
                 CubicTo c => new CubicTo(Place(c.X1, c.Y1).X, Place(c.X1, c.Y1).Y, Place(c.X2, c.Y2).X, Place(c.X2, c.Y2).Y, Place(c.X, c.Y).X, Place(c.X, c.Y).Y),
                 _ => segment,
             }).ToList();
-            this.page.Items.Add(new ShapeItem(
+            this.Page.Items.Add(new ShapeItem(
                 path,
                 shape.Fill is null ? null : colour,
                 shape.Stroke is null ? null : colour,
@@ -947,7 +1046,7 @@ internal sealed class LayoutEngine
         };
         foreach (var (spanText, face, color) in spans)
         {
-            this.page.Items.Add(new TextItem(x, baseline, spanText, face, size, color));
+            this.Page.Items.Add(new TextItem(x, baseline, spanText, face, size, color));
             x += this.metrics.Width(spanText, face, size);
         }
     }
@@ -1001,7 +1100,7 @@ internal sealed class LayoutEngine
 
         // The caption goes above, with the header and the start of the first row; continuation pages repeat only the header.
         var caption = this.CaptionHeight(table.Caption, frame.Width);
-        this.Ensure(keepHeight + caption);
+        this.Ensure(keepHeight + caption + this.CaptionNotes(table.Caption, frame.Width) + (header is null ? 0 : this.NotesExtra(this.RowNotes(header, 0, header.Max(c => c.Count)))));
         if (table.Caption is { } tableCaption)
         {
             this.CaptionAt(tableCaption, frame, frame.Left, frame.Width, this.y);
@@ -1014,14 +1113,20 @@ internal sealed class LayoutEngine
             var row = cells[r];
             var start = 0;
             var lineCount = row.Max(c => Math.Max(1, c.Count));
+
+            // Moved once to a new page, the row goes there however little fits: its footnotes may never fit beside it.
+            var moved = false;
             while (start < lineCount)
             {
-                var room = (int)Math.Floor((this.geometry.Bottom - this.y - (2 * CellPadding) + 0.01) / lineHeight);
+                var room = this.footnotes.Count > 0 && this.RowNotes(row, start, lineCount - start).Count > 0
+                    ? this.RowLinesThatFit(row, start, lineCount - start, lineHeight)
+                    : (int)Math.Floor((this.bottom - this.y - (2 * CellPadding) + 0.01) / lineHeight);
                 var fresh = this.geometry.Bottom - this.geometry.Top - headerHeight - (2 * CellPadding);
                 var fitsFresh = (lineCount - start) * lineHeight <= fresh;
-                if (room < lineCount - start && (fitsFresh || room < 1) && !this.AtTop && !isHeader)
+                if (room < lineCount - start && (fitsFresh || room < 1) && !this.AtTop && !isHeader && !moved)
                 {
                     this.NewPage();
+                    moved = true;
                     if (header is not null)
                     {
                         this.Row(header, widths, table.Alignments, frame, 0, header.Max(c => Math.Max(1, c.Count)), this.design.Brand.TableHeader, true);
@@ -1033,6 +1138,7 @@ internal sealed class LayoutEngine
                 var count = Math.Max(1, Math.Min(lineCount - start, room));
                 this.Row(row, widths, table.Alignments, frame, start, count, fill, isHeader);
                 start += count;
+                moved = false;
             }
         }
 
@@ -1046,9 +1152,10 @@ internal sealed class LayoutEngine
         var height = (count * lineHeight) + (2 * CellPadding);
         var top = this.y;
         var total = widths.Sum();
+        this.PlaceNotes(this.RowNotes(row, start, count));
         if (fill is not null)
         {
-            this.page.Items.Add(new RectItem(frame.Left, top, total, height, fill));
+            this.Page.Items.Add(new RectItem(frame.Left, top, total, height, fill));
         }
 
         var x = frame.Left;
@@ -1073,17 +1180,33 @@ internal sealed class LayoutEngine
         }
 
         var grid = this.design.Brand.TableLine;
-        this.page.Items.Add(new LineItem(frame.Left, top, frame.Left + total, top, 0.5, grid));
-        this.page.Items.Add(new LineItem(frame.Left, top + height, frame.Left + total, top + height, 0.5, grid));
+        this.Page.Items.Add(new LineItem(frame.Left, top, frame.Left + total, top, 0.5, grid));
+        this.Page.Items.Add(new LineItem(frame.Left, top + height, frame.Left + total, top + height, 0.5, grid));
         x = frame.Left;
         foreach (var width in widths.Prepend(0))
         {
             x += width;
-            this.page.Items.Add(new LineItem(x, top, x, top + height, 0.5, grid));
+            this.Page.Items.Add(new LineItem(x, top, x, top + height, 0.5, grid));
         }
 
         this.y = top;
         this.Advance(height, frame);
+    }
+
+    // The footnotes not yet on a page in lines [start, start + count) of a row's cells.
+    private List<int> RowNotes(List<List<TextLine>> row, int start, int count) =>
+        this.footnotes.Count == 0 ? [] : [.. row.SelectMany(cell => cell.Skip(start).Take(count)).SelectMany(this.NewNotes).Distinct()];
+
+    // How many lines of a row from `start` fit on this page, with the footnotes they bring.
+    private int RowLinesThatFit(List<List<TextLine>> row, int start, int count, double lineHeight)
+    {
+        var fit = 0;
+        while (fit < count && this.y + (2 * CellPadding) + ((fit + 1) * lineHeight) + this.NotesExtra(this.RowNotes(row, start, fit + 1)) <= this.bottom + 0.01)
+        {
+            fit++;
+        }
+
+        return fit;
     }
 
     // Cells are in the table faces; the header row is bold.
@@ -1172,7 +1295,7 @@ internal sealed class LayoutEngine
                 w = h / ratio;
             }
 
-            this.page.Items.Add(new ImageItem(artwork, artwork, art.Format, width - w, height - h, w, h));
+            this.Page.Items.Add(new ImageItem(artwork, artwork, art.Format, width - w, height - h, w, h));
         }
 
         this.y = height * 0.28;
@@ -1199,14 +1322,14 @@ internal sealed class LayoutEngine
         {
             var w = width * 0.17;
             var h = w * taglineInfo.Height / taglineInfo.Width;
-            this.page.Items.Add(new ImageItem(tagline, tagline, taglineInfo.Format, width - margin - w, height - (margin * 0.6) - h, w, h));
+            this.Page.Items.Add(new ImageItem(tagline, tagline, taglineInfo.Format, width - margin - w, height - (margin * 0.6) - h, w, h));
         }
 
         if (brand.Logo is { } logo && ImageInfo.Read(logo) is { } logoInfo)
         {
             var w = width * 0.16;
             var h = w * logoInfo.Height / logoInfo.Width;
-            this.page.Items.Add(new ImageItem(logo, logo, logoInfo.Format, width - margin - w, margin * 0.7, w, h));
+            this.Page.Items.Add(new ImageItem(logo, logo, logoInfo.Format, width - margin - w, margin * 0.7, w, h));
         }
     }
 
@@ -1282,18 +1405,26 @@ internal sealed class LayoutEngine
         _ => this.design.Brand.Labels.Neutral,
     };
 
-    // Places one line at x; links get their colour, an underline and a link area; struck text a line through it.
-    private void Line(TextLine line, Frame frame, double x, double size, string color, bool advance = true, bool keepOnPage = false)
+    // Places one line at x; links get their colour, an underline and a link area; struck text a line through it. A line
+    // that advances brings its footnotes onto the page: it moves to the next page unless they fit with it. With
+    // `justify`, the line's spaces grow evenly so that it ends at x + justify, unless it has no space, already fills the
+    // width, or its spaces would grow past MaxSpaceStretch times their width; each word is then placed on its own.
+    private void Line(TextLine line, Frame frame, double x, double size, string color, bool advance = true, bool keepOnPage = false, double? justify = null)
     {
         var lineHeight = size * LineFactor;
+        var notes = advance ? this.NewNotes(line) : [];
         if (advance && !keepOnPage)
         {
-            this.Ensure(lineHeight);
+            this.Ensure(lineHeight + this.NotesExtra(notes));
         }
 
+        this.PlaceNotes(notes);
         var baseline = this.Baseline(size);
-        foreach (var piece in Merge(line.Pieces))
+        var stretch = justify is { } target && !line.EndsWithBreak ? Stretch(line, target) : null;
+        var pieces = stretch is { } gap ? Words(line.Pieces, gap) : [.. Merge(line.Pieces)];
+        for (var k = 0; k < pieces.Count; k++)
         {
+            var piece = pieces[k];
             var pieceColor = piece.Colour is { } category ? this.LabelColour(category) : piece.Link is not null ? this.design.Brand.Link : color;
             var raised = piece.Style.HasFlag(RunStyle.Superscript) ? baseline - (size * SuperscriptRise) : baseline;
             if (piece.Icon is { } icon)
@@ -1302,19 +1433,25 @@ internal sealed class LayoutEngine
             }
             else
             {
-                this.page.Items.Add(new TextItem(x, raised, piece.Text, piece.Face, piece.Size, pieceColor));
+                this.Page.Items.Add(new TextItem(x, raised, piece.Text, piece.Face, piece.Size, pieceColor));
             }
 
-            if (piece.Link is { } link && !piece.IsSpace)
+            // Justified, a space is a piece of its own: underlined between linked words, struck between struck ones.
+            if (piece.Link is { } link && (!piece.IsSpace || (stretch is not null && Between(pieces, k, p => p.Link == link))))
             {
-                this.page.Items.Add(new LineItem(x, baseline + 1.2, x + piece.Width, baseline + 1.2, 0.5, pieceColor));
-                this.page.Items.Add(new LinkItem(x, this.y, piece.Width, lineHeight, link));
+                this.Page.Items.Add(new LineItem(x, baseline + 1.2, x + piece.Width, baseline + 1.2, 0.5, pieceColor));
+                this.Page.Items.Add(new LinkItem(x, this.y, piece.Width, lineHeight, link));
+            }
+            else if (piece.Footnote is { } number && this.footnotes.ContainsKey(number))
+            {
+                // A reference links to its note, without the look of a link.
+                this.Page.Items.Add(new LinkItem(x, this.y, piece.Width, lineHeight, "#" + NoteAnchor(number)));
             }
 
-            if (piece.Style.HasFlag(RunStyle.Strike))
+            if (piece.Style.HasFlag(RunStyle.Strike) && (!piece.IsSpace || stretch is null || Between(pieces, k, p => p.Style.HasFlag(RunStyle.Strike))))
             {
                 var middle = baseline - (piece.Size * 0.3);
-                this.page.Items.Add(new LineItem(x, middle, x + piece.Width, middle, 0.6, pieceColor));
+                this.Page.Items.Add(new LineItem(x, middle, x + piece.Width, middle, 0.6, pieceColor));
             }
 
             x += piece.Width;
@@ -1326,7 +1463,49 @@ internal sealed class LayoutEngine
         }
     }
 
-    // Joins neighbouring pieces in the same face, size, link and decoration into one text item.
+    // How much each space of a line grows to end it at `width`; null: the line stays left-aligned.
+    private static double? Stretch(TextLine line, double width)
+    {
+        var spaces = line.Pieces.Where(p => p.IsSpace).ToList();
+        var extra = width - line.Width;
+        var normal = spaces.Sum(p => p.Width);
+        if (spaces.Count == 0 || extra <= 1e-9 || normal <= 0 || normal + extra > MaxSpaceStretch * normal)
+        {
+            return null;
+        }
+
+        return extra / spaces.Count;
+    }
+
+    // A justified line: each word merged on its own, each space a piece of its own, `gap` wider.
+    private static List<Piece> Words(IReadOnlyList<Piece> pieces, double gap)
+    {
+        var result = new List<Piece>();
+        var word = new List<Piece>();
+        foreach (var piece in pieces)
+        {
+            if (piece.IsSpace)
+            {
+                result.AddRange(Merge(word));
+                word.Clear();
+                result.Add(piece with { Width = piece.Width + gap });
+            }
+            else
+            {
+                word.Add(piece);
+            }
+        }
+
+        result.AddRange(Merge(word));
+        return result;
+    }
+
+    // Whether the pieces on both sides of pieces[k] are what `same` asks.
+    private static bool Between(List<Piece> pieces, int k, Func<Piece, bool> same) =>
+        k > 0 && k < pieces.Count - 1 && same(pieces[k - 1]) && same(pieces[k + 1]);
+
+    // Joins neighbouring pieces in the same face, size, link and decoration into one text item; a footnote reference
+    // stays a piece of its own.
     private static IEnumerable<Piece> Merge(IReadOnlyList<Piece> pieces)
     {
         Piece? current = null;
@@ -1334,7 +1513,7 @@ internal sealed class LayoutEngine
         {
             if (current is not null && current.Icon is null && piece.Icon is null && current.Face == piece.Face && current.Size == piece.Size && current.Link == piece.Link
                 && current.Colour == piece.Colour && current.Style.HasFlag(RunStyle.Strike) == piece.Style.HasFlag(RunStyle.Strike)
-                && current.Style.HasFlag(RunStyle.Superscript) == piece.Style.HasFlag(RunStyle.Superscript))
+                && current.Style.HasFlag(RunStyle.Superscript) == piece.Style.HasFlag(RunStyle.Superscript) && current.Footnote == piece.Footnote)
             {
                 current = current with { Text = current.Text + piece.Text, Width = current.Width + piece.Width, IsSpace = current.IsSpace && piece.IsSpace };
             }
@@ -1364,9 +1543,9 @@ internal sealed class LayoutEngine
         Piece? pendingSpace = null;
         var word = new List<Piece>();
 
-        void FinishLine()
+        void FinishLine(bool hardBreak = false)
         {
-            lines.Add(new TextLine(current, current.Sum(p => p.Width)));
+            lines.Add(new TextLine(current, current.Sum(p => p.Width)) { EndsWithBreak = hardBreak });
             current = [];
             currentWidth = 0;
             pendingSpace = null;
@@ -1426,7 +1605,7 @@ internal sealed class LayoutEngine
             if (piece.IsBreak)
             {
                 FlushWord();
-                FinishLine();
+                FinishLine(hardBreak: true);
             }
             else if (piece.IsSpace && word.Count > 0 && word[^1].Icon is not null)
             {
@@ -1487,7 +1666,7 @@ internal sealed class LayoutEngine
                 {
                     var word = text[start..i];
                     this.CheckGlyphs(word, face);
-                    pieces.Add(new Piece(word, style, run.Link, face, pieceSize, this.metrics.Width(word, face, pieceSize), IsSpace: false, IsBreak: false) { Colour = run.Colour });
+                    pieces.Add(new Piece(word, style, run.Link, face, pieceSize, this.metrics.Width(word, face, pieceSize), IsSpace: false, IsBreak: false) { Colour = run.Colour, Footnote = run.Footnote });
                 }
 
                 if (i < text.Length)
@@ -1501,6 +1680,194 @@ internal sealed class LayoutEngine
 
         return pieces;
     }
+
+    // The footnotes a line refers to that are on no page yet, in order.
+    private List<int> NewNotes(TextLine line)
+    {
+        if (this.footnotes.Count == 0)
+        {
+            return [];
+        }
+
+        var numbers = new List<int>();
+        foreach (var piece in line.Pieces)
+        {
+            if (piece.Footnote is { } number && this.footnotes.ContainsKey(number) && !this.placedNotes.Contains(number) && !numbers.Contains(number))
+            {
+                numbers.Add(number);
+            }
+        }
+
+        return numbers;
+    }
+
+    private bool HasNewNotes(List<TextLine> lines, int from) =>
+        this.footnotes.Count > 0 && lines.Skip(from).Any(line => this.NewNotes(line).Count > 0);
+
+    // How many lines from `from` fit on this page, each with the footnotes it brings.
+    private int LinesThatFit(List<TextLine> lines, int from, double lineHeight)
+    {
+        var numbers = new List<int>();
+        var fit = 0;
+        while (from + fit < lines.Count)
+        {
+            numbers.AddRange(this.NewNotes(lines[from + fit]).Where(n => !numbers.Contains(n)));
+            if (this.y + ((fit + 1) * lineHeight) + this.NotesExtra(numbers) > this.bottom + 1e-6)
+            {
+                break;
+            }
+
+            fit++;
+        }
+
+        return fit;
+    }
+
+    // How much higher the footnotes of this page get with these notes, the rule above the first one included.
+    private double NotesExtra(List<int>? numbers)
+    {
+        if (numbers is null || numbers.Count == 0)
+        {
+            return 0;
+        }
+
+        var added = numbers.Where(n => !this.placedNotes.Contains(n)).Distinct().Select(n => this.Reserve(n, 0)).ToList();
+        return added.Count == 0 ? 0 : this.NotesHeight([.. this.pageNotes, .. added]) - this.NotesHeight(this.pageNotes);
+    }
+
+    // Puts the notes on the current page, and marks their references here (at the top of the line about to be drawn).
+    private void PlaceNotes(List<int> numbers)
+    {
+        foreach (var number in numbers)
+        {
+            if (this.placedNotes.Add(number))
+            {
+                this.pageNotes.Add(this.Reserve(number, 0));
+                this.anchors.TryAdd(ReferenceAnchor(number), (this.pages.Count - 1, this.y));
+            }
+        }
+
+        if (numbers.Count > 0)
+        {
+            this.bottom = this.geometry.Bottom - this.NotesHeight(this.pageNotes);
+        }
+    }
+
+    // A note's lines from `from` on, as the room it asks on a page: all of them, or for a note taller than a third of the
+    // page its first lines only, which grow into the room the page leaves (FinishPage).
+    private NotePart Reserve(int number, int from)
+    {
+        var rest = this.NoteLines(number).Count - from;
+        var tall = rest * NoteSize * LineFactor > (this.geometry.Bottom - this.geometry.Top) / 3;
+        return new NotePart(number, from, tall ? Math.Min(NoteMinLines, rest) : rest);
+    }
+
+    private double NotesHeight(IReadOnlyList<NotePart> parts) =>
+        parts.Count == 0 ? 0 : NoteSeparator + (parts.Sum(p => p.Count) * NoteSize * LineFactor) + ((parts.Count - 1) * NoteGap);
+
+    // Wrapped once, across the text width after the number; the last line of each of its paragraphs marked as one,
+    // so it stays left-aligned when justified. A note without text gets one empty line.
+    private List<TextLine> NoteLines(int number)
+    {
+        if (!this.noteLines.TryGetValue(number, out var lines))
+        {
+            lines = [];
+            foreach (var paragraph in this.footnotes[number].Paragraphs)
+            {
+                var wrapped = this.Wrap(this.Supported(paragraph, RunStyle.None), this.geometry.ContentWidth - NoteIndent, NoteSize, RunStyle.None);
+                if (wrapped.Count > 0)
+                {
+                    wrapped[^1] = wrapped[^1] with { EndsWithBreak = true };
+                }
+
+                lines.AddRange(wrapped);
+            }
+
+            if (lines.Count == 0)
+            {
+                lines.Add(new TextLine([], 0) { EndsWithBreak = true });
+            }
+
+            this.noteLines[number] = lines;
+        }
+
+        return lines;
+    }
+
+    // Draws the footnotes of the finished page at its foot, under a short rule: each with its number raised before it,
+    // linking back to its reference; the rest of a split note goes on to the next page. A note that may split first takes
+    // the room the page left above its notes.
+    private void FinishPage()
+    {
+        if (this.page is null || this.pageNotes.Count == 0)
+        {
+            return;
+        }
+
+        var lineHeight = NoteSize * LineFactor;
+        var free = this.bottom - this.y;
+        for (var i = 0; i < this.pageNotes.Count; i++)
+        {
+            var part = this.pageNotes[i];
+            var total = this.NoteLines(part.Number).Count;
+            var grow = Math.Max(0, Math.Min(total - part.From - part.Count, (int)Math.Floor((free + 1e-6) / lineHeight)));
+            this.pageNotes[i] = part with { Count = part.Count + grow };
+            free -= grow * lineHeight;
+        }
+
+        var (y, page) = (this.y, this.pages.Count - 1);
+        var left = this.geometry.Left;
+        var top = this.geometry.Bottom - this.NotesHeight(this.pageNotes);
+        this.Page.Items.Add(new LineItem(left, top + (NoteSeparator / 2), left + (this.geometry.ContentWidth / 3), top + (NoteSeparator / 2), 0.5, this.TextColor));
+        var frame = new Frame(left + NoteIndent, this.geometry.ContentWidth - NoteIndent, this.TextColor, []);
+        this.y = top + NoteSeparator;
+        for (var p = 0; p < this.pageNotes.Count; p++)
+        {
+            var part = this.pageNotes[p];
+            if (p > 0)
+            {
+                this.y += NoteGap;
+            }
+
+            var lines = this.NoteLines(part.Number);
+            if (part.From == 0)
+            {
+                var number = part.Number.ToString(CultureInfo.InvariantCulture);
+                var size = NoteSize * SuperscriptScale;
+                var width = this.metrics.Width(number, FontFace.Regular, size);
+                var x = frame.Left - 3 - width;
+                this.Page.Items.Add(new TextItem(x, this.Baseline(NoteSize) - (NoteSize * SuperscriptRise), number, FontFace.Regular, size, this.TextColor));
+                this.Page.Items.Add(new LinkItem(x, this.y, width, lineHeight, "#" + ReferenceAnchor(part.Number)));
+                this.anchors.TryAdd(NoteAnchor(part.Number), (page, this.y));
+            }
+
+            for (var i = part.From; i < part.From + part.Count; i++)
+            {
+                this.Line(lines[i], frame, frame.Left, NoteSize, this.TextColor, advance: false, justify: this.design.Justify && !lines[i].EndsWithBreak ? frame.Width : null);
+                this.y += lineHeight;
+            }
+
+            if (part.From + part.Count < lines.Count)
+            {
+                this.carriedNotes.Add(this.Reserve(part.Number, part.From + part.Count));
+                if (this.splitNotes.Add(part.Number))
+                {
+                    this.notes.Add(
+                        NoteCodes.FootnoteSplit,
+                        this.footnotes[part.Number].Line,
+                        $"The footnote {part.Number} is too long for the foot of its page and continues at the foot of the next. Shorten it, or move the detail into the text.");
+                }
+            }
+        }
+
+        this.y = y;
+        this.pageNotes.Clear();
+    }
+
+    // The anchors a reference and its note link to; ':' is in no heading's anchor.
+    private static string NoteAnchor(int number) => string.Create(CultureInfo.InvariantCulture, $"footnote:{number}");
+
+    private static string ReferenceAnchor(int number) => string.Create(CultureInfo.InvariantCulture, $"footnote-reference:{number}");
 
     private List<string> BreakByCharacters(string line, FontFace face, double size, double width)
     {
@@ -1619,6 +1986,9 @@ internal sealed class LayoutEngine
     /// </summary>
     private sealed record ContentsSlot(int Page, double Baseline, double End, string Anchor, FontFace Face);
 
+    /// <summary>Lines [From, From + Count) of a footnote, at the foot of one page.</summary>
+    private sealed record NotePart(int Number, int From, int Count);
+
     /// <summary>A table with its text replaced, its column widths, its wrapped cells, and the height its start needs.</summary>
     private sealed record PreparedTable(double[] Widths, List<List<List<TextLine>>> Cells, double KeepHeight);
 
@@ -1634,6 +2004,13 @@ internal sealed record Piece(string Text, RunStyle Style, string? Link, FontFace
 
     /// <summary>An icon, one em and a thin space each side wide, in place of text.</summary>
     public Drawing? Icon { get; init; }
+
+    /// <summary>A footnote reference: the number of its note.</summary>
+    public int? Footnote { get; init; }
 }
 
-internal sealed record TextLine(List<Piece> Pieces, double Width);
+/// <summary>A wrapped line; <see cref="EndsWithBreak"/>: a hard break, or the end of a footnote's paragraph, follows it.</summary>
+internal sealed record TextLine(List<Piece> Pieces, double Width)
+{
+    public bool EndsWithBreak { get; init; }
+}

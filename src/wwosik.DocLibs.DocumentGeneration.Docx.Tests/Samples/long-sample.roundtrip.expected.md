@@ -13,9 +13,13 @@ Contents
 
 3 A tall row
 
-4 Figures\
+4 Figures
+
+5 Notes on notes\
 
 # A long list
+
+The list below is long enough to run over several pages, and this paragraph is long enough to be justified: every line but its last ends at the right margin, and its spaces grow a little to get there, and notes go to the foot of the page that refers to them.
 
 1. Item number 1 with some words so that it is not too short
 1. Item number 2 with some words so that it is not too short
@@ -180,3 +184,7 @@ Contents
 graph TD; A-->B;
 
 Figure: A diagram with a caption under it
+
+# Notes on notes
+
+A page break comes before this section, and its closing line is left out, so it runs to the end of the document.

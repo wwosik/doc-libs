@@ -12,7 +12,6 @@ headings that say what a section is about, lists where items really are parallel
 | Every other `#` heading | A heading that starts a new page. |
 | `##` to `######` | Headings, in the table of contents (bookmarks), kept on a page with what follows them. |
 | `---` | A thin line. |
-| Text before the first heading | Normal text on the first page; the document then has no cover. |
 
 - Paragraphs are left-aligned and broken at spaces; a line break is `\` at the end of a line.
 - Lists nest with indentation; `1.` lists are numbered from their first number.
@@ -25,10 +24,10 @@ headings that say what a section is about, lists where items really are parallel
 - **Tables** span the page width; columns get the room their content needs, alignment follows the
   `:--`/`--:` markers. Long tables continue on the next page with the header row repeated. Keep
   them to about six columns: wider tables squeeze their words.
-- **Images** (PNG or JPEG) are referenced by the path given to you, keep their size and are only
-  scaled down to fit; `![Chart](chart.png "scale=0.5")` halves the size. They are never split and
-  move to the next page if needed. Several images in one paragraph stand side by side, equally
-  wide. Any other words in the title are its caption (below).
+- **Images** (PNG or JPEG) are referenced by the path given to you, keep their size, are only
+  scaled down to fit and never split; `![Chart](chart.png "scale=0.5")` halves the size. Several
+  images in one paragraph stand side by side, equally wide. Any other words in the title are its
+  caption (below).
 - **Image attributes** in braces right after an image, without a space:
   `![Team](team.jpg){.round .grey}`. `.round` crops it to a circle, `.grey` shows it in grey,
   `scale=0.5` is the same as `"scale=0.5"`. In a row of images, `fit=cover` fills the row's height
@@ -39,8 +38,8 @@ headings that say what a section is about, lists where items really are parallel
   `{.caption}` puts the alt text under it, `scale=2` doubles it; no other attributes. Keep it under
   1 000 characters: shorter addresses scan better.
 - **Footnotes:** `[^1]` in the text and `[^1]: The note.` on a line of its own anywhere below.
-  The reference becomes a small raised number; the notes are listed at the end of the document,
-  numbered in the order they are referenced. A reference without its definition stays as written.
+  The reference is a small raised number linked to its note at the foot of its page, numbered
+  through the document; a long note continues on the next page.
 - **Task lists:** `- [ ] open` and `- [x] done` get an empty or ticked box instead of a bullet.
 - **Definition lists:** a term on a line of its own, then `:   ` and its description on the next
   line (several `:` lines for several descriptions). The term is set in bold, the description
@@ -72,6 +71,14 @@ headings that say what a section is about, lists where items really are parallel
 Table: Sales by region, 2026
 ```
 
+## Justified text and page breaks
+
+- `justify: true` in the front matter justifies body text and footnotes, without hyphenation;
+  very loose lines stay ragged. Headings, tables and code never are.
+- `::: pagebreak` alone on a line starts a new page with what follows; its closing `:::` is
+  optional. `{.newpage}` at the end of any heading but the cover's starts a new page with it. A
+  break never makes an empty page.
+
 ## Syntax written for slides
 
 Markdown written for decks works here too and is shown plainly, so one text can serve both:
@@ -81,13 +88,11 @@ Markdown written for decks works here too and is shown plainly, so one text can 
 document's language (`lang`). Speaker notes (`::: notes` … `:::`), transitions (`transition:`
 in the front matter, `transition="…"` on a heading) and builds (a paragraph such as `{.build}`,
 `{.frag}`, `{.exit}` or `{.emphasize}` before a block, and `build:` in the front matter) are left
-out. For a
-PDF alone, write plain Markdown; alerts are fine for notes and warnings. Unknown containers,
+out. Unknown containers,
 attributes, alerts, transitions and build markers (a paragraph such as `{.note}`) are errors, as in
 decks, and so are a `::: notes` inside another block and a build marker that builds nothing. Write
-`\{` to show braces as text. Page breaks, `::: pagebreak` … `:::` and `{.newpage}` on a heading,
-and the keys `classification:` and `draft:` are written for Word documents: a PDF shows the content
-as usual and ignores them for now.
+`\{` to show braces as text. The keys `classification:` and `draft:` are for Word documents; a
+PDF ignores them for now.
 
 The kinds of slide `{.agenda}`, `{.quote}`, `{.statement}`, `{.contact}` and `{.chart}` show their
 content as written; an `{.agenda}` with nothing under it lists the document's `#` chapters.
@@ -207,9 +212,8 @@ author: Planning team
 | `toc` | `true` or `false`: a table of contents after the cover, with page numbers. Default `false`. |
 | `tocDepth` | `1`, `2` or `3`: the heading levels the table of contents lists. Default `2`. |
 | `headingNumbers` | `true` or `false`: numbers on three heading levels (1, 1.1, 1.1.1). Default `false`. |
-| `transition` | The transition between slides in a deck: `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut`, `morph`. A PDF accepts it and ignores it. |
-| `build` | `lists` builds every list of a deck item by item, `none` does not. A PDF accepts it and ignores it. |
-| `numberChapters` | `true` or `false`: chapter numbers on a deck's section dividers. A PDF accepts it and ignores it. |
+| `justify` | `true` or `false`: body text justified, without hyphenation. Default `false`. |
+| `transition`, `build`, `numberChapters` | Settings for decks. A PDF accepts them and ignores them. |
 | `labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral` | Status labels for decks, separated by `;`. A PDF accepts them and shows the labels as code. |
 
 An unknown key, a key given twice or an invalid value is an error that lists the valid keys.
@@ -249,6 +253,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `code-not-drawn`: a diagram could not be drawn, for example a diagram type that is not supported, and stays code. Use a supported type.
 - `html-as-text`: HTML is not interpreted: it is shown as text. Write Markdown instead.
 - `footnote-missing`: a footnote reference such as `[^1]` has no definition `[^1]: text`, so it is shown as written. Add the definition, or remove the reference.
+- `footnote-split`: a footnote was too long for the foot of its page and continues at the foot of the next. Shorten it, or move the detail into the text.
 - `language-unknown`: the language in `lang` has no texts of its own, so alert titles and similar texts are in English. Use `en` or `de`.
 - `attribute-ignored`: an image attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `focus` on an image that is not cropped. Remove it, or use it where it works.
 - `icon-not-drawn`: an icon was left out where it cannot be drawn. Move it as the *Icons* section says.

@@ -86,6 +86,7 @@ combined guide and JSON replies. See [A tool for AI agents](wwosik.DocLibs.Docum
 | `TableOfContents` | `false` | a table of contents after the cover, unless front matter sets `toc` |
 | `TableOfContentsDepth` | `2` | the heading levels it lists, 1 to 3, unless front matter sets `tocDepth` |
 | `HeadingNumbers` | `true` | numbers on Heading 1–3 of the built-in template, unless front matter sets `headingNumbers`; no effect on other templates |
+| `Justify` | `false` | justified body text (`w:jc both` on paragraphs, list items, definitions, quotes, alerts and footnotes, not on headings, tables, captions or code), unless front matter sets `justify`; any template |
 | `CodeFont` | the brand's mono family, else `Consolas` | the font of code |
 | `ImageConverters` | none | asked for images that are not PNG, JPEG or GIF, such as SVG, and for the PNG of every drawing (at twice the size they are placed at); see [Diagrams and charts](#diagrams-and-charts) |
 | `CodeBlockRenderers` | none | asked for every fenced code block: charts become native Word charts, drawings pictures (with an image converter) |
@@ -114,6 +115,7 @@ The shared syntax and rules are in
 | `toc` | `true`, `false` | all |
 | `tocDepth` | `1`, `2`, `3` | all |
 | `headingNumbers` | `true`, `false` | all; takes effect on the built-in template |
+| `justify` | `true`, `false` | all |
 | `showDate`, `showTagline` | `true`, `false` | the built-in template |
 | `embedFonts` | `true`, `false` | the built-in template and a brand's own template |
 | `styles.<role>` | a style name as Word shows it, such as `styles.heading1: Chapter` | a caller's template |

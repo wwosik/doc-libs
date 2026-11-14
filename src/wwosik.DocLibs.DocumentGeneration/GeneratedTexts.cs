@@ -56,7 +56,10 @@ public sealed record GeneratedTexts
     /// <summary>The title of <c>> [!CAUTION]</c>.</summary>
     public string Caution { get; init; } = "Caution";
 
-    /// <summary>The heading above the footnotes at the end of a PDF.</summary>
+    /// <summary>
+    /// Unused for now: PDFs used to list their footnotes at the end under this heading, and print them at the foot of
+    /// their page since E03-S03. Kept so that code setting it still compiles.
+    /// </summary>
     public string Footnotes { get; init; } = "Notes";
 
     /// <summary>The word before the source under a chart (<c>source:</c>): "Source: Annual report".</summary>

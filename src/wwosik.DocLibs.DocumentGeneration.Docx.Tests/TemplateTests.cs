@@ -128,10 +128,10 @@ public class TemplateTests
             Samples.Markdown("---\nshowDate: false\n---\n## A\n"),
             new DocxOptions { Template = CustomTemplate.Options }));
 
-        Assert.Contains("Valid keys: template, title, author, lang, classification, draft, typography, showDate, showTagline, embedFonts, toc, tocDepth, headingNumbers, transition, build, numberChapters.", builtIn.Message, StringComparison.Ordinal);
+        Assert.Contains("Valid keys: template, title, author, lang, classification, draft, typography, showDate, showTagline, embedFonts, toc, tocDepth, headingNumbers, justify, transition, build, numberChapters.", builtIn.Message, StringComparison.Ordinal);
         Assert.Contains("styles.normal, styles.title, styles.subtitle, styles.coverDetails, styles.tocHeading, styles.heading1", custom.Message, StringComparison.Ordinal);
         Assert.Contains("styles.hyperlink, styles.note, styles.tip", custom.Message, StringComparison.Ordinal);
-        Assert.Contains("styles.classificationCover, toc, tocDepth, headingNumbers", custom.Message, StringComparison.Ordinal);
+        Assert.Contains("styles.classificationCover, toc, tocDepth, headingNumbers, justify", custom.Message, StringComparison.Ordinal);
     }
 
     [Theory]

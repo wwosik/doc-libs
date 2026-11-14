@@ -30,6 +30,12 @@ internal sealed record TextRun(string Text, RunStyle Style, string? Link = null)
     /// <summary>The icon of a <see cref="RunStyle.Icon"/> run, whose <see cref="Text"/> is empty.</summary>
     public InlineIcon? Icon { get; init; }
 
+    /// <summary>
+    /// For a footnote reference (a <see cref="RunStyle.Superscript"/> run of its number): the number of its note in
+    /// <see cref="DocumentModel.Footnotes"/>; <see langword="null"/> for any other run, and for a reference inside a note.
+    /// </summary>
+    public int? Footnote { get; init; }
+
     public static TextRun Break { get; } = new("\n", RunStyle.None);
 
     public bool IsBreak => this.Text == "\n";
@@ -48,6 +54,9 @@ internal abstract record Block;
 /// <summary>A heading; <see cref="Anchor"/> is the target of <c>[x](#anchor)</c> links.</summary>
 internal sealed record HeadingBlock(int Level, IReadOnlyList<TextRun> Runs, string? Anchor) : Block
 {
+    /// <summary><c>{.newpage}</c>: the heading starts a new page, unless the page is still empty.</summary>
+    public bool NewPage { get; init; }
+
     /// <summary>Its number with <c>headingNumbers: true</c> (<c>"1.2"</c>, <see cref="HeadingNumbering"/>); <see langword="null"/>: none.</summary>
     public string? Number { get; init; }
 }
@@ -109,6 +118,9 @@ internal sealed record ImageRowBlock(IReadOnlyList<ImageBlock> Images) : Block;
 
 internal sealed record RuleBlock : Block;
 
+/// <summary>From <c>::: pagebreak</c>: what follows starts a new page, unless the page is still empty.</summary>
+internal sealed record PageBreakBlock : Block;
+
 /// <summary>A vector drawing from a code-block renderer, or a QR code.</summary>
 internal sealed record DrawingBlock(Drawing Drawing) : Block
 {
@@ -126,7 +138,16 @@ internal sealed record DocumentModel(Cover? Cover, IReadOnlyList<Block> Blocks)
 {
     /// <summary>The table of contents, after the cover; <see langword="null"/>: none.</summary>
     public TableOfContents? Contents { get; init; }
+
+    /// <summary>The footnotes by their number, which is Markdig's order through the whole document; printed at the foot of the page of their first reference.</summary>
+    public IReadOnlyDictionary<int, FootnoteText> Footnotes { get; init; } = new Dictionary<int, FootnoteText>();
 }
+
+/// <summary>
+/// A footnote's text: its paragraphs as runs, lists and code included as text paragraphs. <see cref="Line"/> is the line
+/// of its definition in the Markdown, for notes.
+/// </summary>
+internal sealed record FootnoteText(int Number, IReadOnlyList<IReadOnlyList<TextRun>> Paragraphs, int Line);
 
 /// <summary>
 /// A table of contents: an entry per heading it lists, in document order, each linking to its heading's anchor.

@@ -24,9 +24,9 @@ public class SlideLayoutTests
             return [.. Samples.Slides(package).Select(s => System.Text.RegularExpressions.Regex.Replace(s.Slide!.OuterXml, "r:(id|embed)=\"[^\"]*\"", string.Empty))];
         }
 
-        var plain = Samples.Generate(Samples.Markdown("# Cover\n\n## One\n\n- Text\n\n## Two\n\nMore.\n\nLast.\n"));
+        var plain = Samples.Generate(Samples.Markdown("# Cover\n\n## One\n\n- Text\n\n### Deep\n\n## Two\n\nMore.\n\nLast.\n"));
         var marked = Samples.Generate(Samples.Markdown(
-            "---\nclassification: internal\ndraft: true\n---\n# Cover\n\n## One\n\n- Text\n\n::: pagebreak\n:::\n\n## Two {.newpage}\n\n::: pagebreak\nMore.\n:::\n\n::: pagebreak\n\nLast.\n"));
+            "---\nclassification: internal\ndraft: true\njustify: true\n---\n# Cover\n\n## One\n\n- Text\n\n### Deep {.newpage}\n\n::: pagebreak\n:::\n\n## Two {.newpage}\n\n::: pagebreak\nMore.\n:::\n\n::: pagebreak\n\nLast.\n"));
 
         Assert.Equal(Read(plain), Read(marked));
         Samples.AssertValid(marked);

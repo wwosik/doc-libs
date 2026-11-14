@@ -36,11 +36,14 @@ internal sealed partial class FrontMatter
     /// <summary>Heading numbers, <c>true</c> or <c>false</c> (<see cref="HeadingNumbering"/>).</summary>
     public const string HeadingNumbersKey = "headingNumbers";
 
+    /// <summary>Justified body text, <c>true</c> or <c>false</c> (E03-S03).</summary>
+    public const string JustifyKey = "justify";
+
     /// <summary>
     /// The keys that concern documents only. A template that does not list them among its keys (a deck's) accepts them,
     /// checks their values and ignores them, so one Markdown serves every format.
     /// </summary>
-    public static readonly IReadOnlyList<string> DocumentKeys = [TocKey, TocDepthKey, HeadingNumbersKey];
+    public static readonly IReadOnlyList<string> DocumentKeys = [TocKey, TocDepthKey, HeadingNumbersKey, JustifyKey];
 
     private readonly List<KeyValuePair<string, string>> entries;
     private readonly Dictionary<string, int> lines = new(StringComparer.OrdinalIgnoreCase);

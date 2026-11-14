@@ -20,6 +20,7 @@ public static class DocxGenerator
     private const string TocKey = FrontMatter.TocKey;
     private const string TocDepthKey = FrontMatter.TocDepthKey;
     private const string HeadingNumbersKey = FrontMatter.HeadingNumbersKey;
+    private const string JustifyKey = FrontMatter.JustifyKey;
 
     // Keys of decks, accepted so that one Markdown serves every format: their values are checked, then ignored.
     private const string TransitionKey = "transition";
@@ -194,6 +195,7 @@ public static class DocxGenerator
             [HeadingNumbersKey] = template.IsBuiltIn
                 ? $"`true` or `false`: numbers on the first three heading levels (1, 1.1, 1.1.1). Default `{(options.HeadingNumbers ? "true" : "false")}`."
                 : "`true` or `false`. This template's heading styles decide the numbers, so it has no effect.",
+            [JustifyKey] = $"`true` or `false`: body text justified, without hyphenation. Default `{(options.Justify ? "true" : "false")}`.",
         };
         foreach (var role in DocxRoles.All.Where(r => r.Key is not null))
         {
@@ -222,7 +224,7 @@ public static class DocxGenerator
                 ["frontMatter"] = AuthoringGuides.FrontMatter(
                     registry.Expected,
                     options.Language,
-                    [.. template.Keys.Concat([TocKey, TocDepthKey, HeadingNumbersKey]).Select(k => (k, meanings[k])), classification, draft, deckKeys, labels],
+                    [.. template.Keys.Concat([TocKey, TocDepthKey, HeadingNumbersKey, JustifyKey]).Select(k => (k, meanings[k])), classification, draft, deckKeys, labels],
                     options.Typography),
                 ["characters"] = Characters(brand?.Fonts, codeFont),
                 ["imageFormats"] = options.ImageConverters.Count > 0
@@ -257,12 +259,13 @@ public static class DocxGenerator
                 : current with { Template = new BrandDocxTemplateOptions { Brand = brand } },
             brands.Expected,
             current => current.Template.Name,
-            current => [.. current.Template.Keys, TocKey, TocDepthKey, HeadingNumbersKey, TransitionKey, BuildKey, NumberChaptersKey],
+            current => [.. current.Template.Keys, TocKey, TocDepthKey, HeadingNumbersKey, JustifyKey, TransitionKey, BuildKey, NumberChaptersKey],
             (current, key, value) => key switch
             {
                 TocKey => current with { TableOfContents = frontMatter.Bool(key, value) },
                 TocDepthKey => current with { TableOfContentsDepth = frontMatter.OneOf(key, value, ("1", 1), ("2", 2), ("3", 3)) },
                 HeadingNumbersKey => current with { HeadingNumbers = frontMatter.Bool(key, value) },
+                JustifyKey => current with { Justify = frontMatter.Bool(key, value) },
                 TransitionKey => frontMatter.OneOf(key, value, [.. LayoutSyntax.Transitions.Select(t => (t, current))]),
                 BuildKey => frontMatter.OneOf(key, value, ("none", current), ("lists", current)),
                 NumberChaptersKey => frontMatter.Bool(key, value) ? current : current,

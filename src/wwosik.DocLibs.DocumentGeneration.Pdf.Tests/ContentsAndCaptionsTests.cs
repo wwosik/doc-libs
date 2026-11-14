@@ -85,9 +85,10 @@ public class ContentsAndCaptionsTests
         var model = Parse("# Cover\n\n# One\n\n## Two {.unnumbered}\n\n### Three\n\n# Four\n\nText.[^1]\n\n[^1]: A note.\n", WithContents);
 
         var entries = model.Contents!.Entries;
-        Assert.Equal([(1, "One", "1"), (2, "Two", null), (1, "Four", "2"), (1, "Notes", null)], entries.Select(e => (e.Level, Text(e.Heading), e.Heading.Number)));
-        Assert.Equal("contents-1", entries[^1].Heading.Anchor);
-        Assert.Equal(4, entries.Select(e => e.Heading.Anchor).Distinct().Count());
+        // The footnotes are at the foot of their page, so the contents have no entry for them.
+        Assert.Equal([(1, "One", "1"), (2, "Two", null), (1, "Four", "2")], entries.Select(e => (e.Level, Text(e.Heading), e.Heading.Number)));
+        Assert.Equal(3, entries.Select(e => e.Heading.Anchor).Distinct().Count());
+        Assert.Single(model.Footnotes);
         Assert.True(entries[0].Chapter);
         Assert.False(entries[1].Chapter);
 

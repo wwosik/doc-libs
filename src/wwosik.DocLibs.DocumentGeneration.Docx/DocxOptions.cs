@@ -115,6 +115,13 @@ public sealed record DocxOptions
     public bool HeadingNumbers { get; init; } = true;
 
     /// <summary>
+    /// Justified body text, unless the front matter sets <c>justify</c>: paragraphs, list items, definition descriptions,
+    /// quotes, alerts and footnotes get Word's justification (<c>w:jc both</c>); headings, the cover, tables, captions and
+    /// code do not. Default <see langword="false"/>.
+    /// </summary>
+    public bool Justify { get; init; }
+
+    /// <summary>
     /// How confidential the document is: <see cref="DocumentGeneration.Classification.Internal"/> and
     /// <see cref="DocumentGeneration.Classification.Confidential"/> put "Internal" or "Confidential" in the header of every
     /// content page, above the cover title and in the document's properties (<c>cp:contentStatus</c>). The front matter's

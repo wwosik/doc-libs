@@ -27,9 +27,10 @@ public class CaptionSyntaxTests
         Assert.Equal(("Detail", true), Deep("Detail {.unnumbered}", DocumentFormat.Pdf));
         Assert.Equal(("Detail", true), Deep("Detail {.unnumbered}", DocumentFormat.Pptx));
 
-        // `.newpage` below `##` is Word's only, until E03-S03.
+        // `.newpage` applies at every level, in every format.
         Assert.Equal(("Detail", false), Deep("Detail {.newpage}", DocumentFormat.Docx));
-        Assert.Equal(("Detail {.newpage}", false), Deep("Detail {.newpage}", DocumentFormat.Pdf));
+        Assert.Equal(("Detail", false), Deep("Detail {.newpage}", DocumentFormat.Pdf));
+        Assert.Equal(("Detail", false), Deep("Detail {.newpage}", DocumentFormat.Pptx));
 
         static (string, bool) Deep(string text, DocumentFormat format) =>
             HeadingAttributes.SplitDeep(text, format) is var (rest, attributes) ? (rest, attributes?.Unnumbered == true) : default;

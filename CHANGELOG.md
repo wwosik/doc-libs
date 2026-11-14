@@ -11,6 +11,25 @@ updating, breaking changes first.
 
 ### Breaking changes
 
+- **PDF footnotes move to the foot of their page.** A footnote is now printed at the foot of the
+  page that holds its first reference, under a short rule, instead of in a list under a "Notes" /
+  "Anmerkungen" heading after the last chapter. A PDF with footnotes therefore paginates
+  differently, has no "Notes" heading, bookmark or contents entry, and references and notes link to
+  each other. A note too long for its page continues on the next with the new note
+  `footnote-split`. PDFs without footnotes are unchanged. `GeneratedTexts.Footnotes` is no longer
+  used; code that sets it still compiles. Nothing to do, unless something depended on the list at the
+  end (such as text extraction looking for "Notes").
+- **`::: pagebreak` and `{.newpage}` break pages in PDFs** (they were accepted and ignored): a PDF
+  that uses them gets a new page there, never an empty one. `{.newpage}` on the PDF cover heading
+  now throws `DocumentConversionException`, as in Word documents. Remove them where no break is
+  wanted.
+- **`{.newpage}` on `###` to `######` is taken off in PDFs and decks,** where it stayed as text:
+  `### Detail {.newpage}` used to read "Detail {.newpage}" and now reads "Detail" (decks ignore the
+  break). Write `\{.newpage}` to keep the braces as text.
+- **`justify` is a document key in every generator:** a deck no longer rejects `justify:` in the
+  front matter (it is checked and ignored), and the lists of valid front-matter keys in PDF and Word
+  error messages name it; code that matches the messages' text adjusts. The PDF authoring guide's
+  front-matter table lists the deck keys `transition`, `build` and `numberChapters` in one row.
 - **The Markdown from PDFs changes shape** (`PdfConverter`). Ruled tables come out as pipe tables,
   drawn and glyph bullets, task boxes and numbered lines with a hanging indent as (nested) lists,
   monospace lines as fenced code blocks, footnotes at the foot of a page as `[^n]` with their
@@ -109,8 +128,9 @@ updating, breaking changes first.
   in those error messages name the new ones; code that matches the messages' text adjusts.
 - **`::: pagebreak`, `{.newpage}`, `classification:` and `draft:` are syntax now,** in every
   generator: Markdown that failed with "Unknown container", "Unknown heading attribute" or an unknown
-  front-matter key for them now generates. Decks and PDFs accept them and show nothing of them yet:
-  the content of a `::: pagebreak` is shown as before, slides stay as they were. The lists of valid
+  front-matter key for them now generates. Decks accept them and show nothing of them: the content of
+  a `::: pagebreak` is shown as before, slides stay as they were. PDFs break pages for the first two
+  (above) and show nothing of the marking yet. The lists of valid
   containers, attributes and front-matter keys in error messages name them; code that matches the
   messages' text adjusts.
 - **PDFs read captions.** An image's title, once `scale=N` and a standalone word `caption` are taken
@@ -159,6 +179,13 @@ updating, breaking changes first.
   generators join it through the new `IMarkdownGenerator`, from `PptxGenerator.ForOptions`,
   `PdfGenerator.ForOptions` and `DocxGenerator.ForOptions`; the shared package references no
   generator, so a host offering only PDFs takes no Open XML SDK.
+- **Footnotes at the foot of the page, justified text and page breaks in PDFs:** footnotes are
+  printed at the foot of the page of their reference, linked both ways and split across pages when
+  too long (`NoteCodes.FootnoteSplit`); `PdfOptions.Justify` and the front-matter key `justify`
+  justify body text and footnotes without changing any line break (no hyphenation; very loose lines
+  stay ragged); `::: pagebreak` (with or without content, closed or not) and `{.newpage}` on any
+  heading start a new page, never an empty one. Word documents read `justify` too
+  (`DocxOptions.Justify`: `w:jc both` on body text). The authoring guides describe them.
 - **Checking a document before generating it:** `PptxGenerator.Check`, `PdfGenerator.Check` and
   `DocxGenerator.Check` take the document and options of `Generate`, write nothing, and return a
   `CheckResult`: the notes `Generate` would return, the notes of style rules, `Error` (the reason

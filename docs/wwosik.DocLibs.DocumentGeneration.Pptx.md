@@ -176,14 +176,14 @@ On slides:
 
 `::: pagebreak` and `{.newpage}` on a heading ([page breaks](wwosik.DocLibs.DocumentGeneration.md#page-breaks))
 are for documents: a deck shows the content of a `::: pagebreak` as usual, without making the slide
-a flow slide, and ignores `{.newpage}`. The keys `classification` and `draft`
+a flow slide, and ignores `{.newpage}` on any heading level. The keys `classification` and `draft`
 ([classification](wwosik.DocLibs.DocumentGeneration.md#classification)) are checked and show
 nothing on slides yet.
 
 The [document keys](wwosik.DocLibs.DocumentGeneration.md#contents-and-heading-numbers) `toc`,
-`tocDepth` and `headingNumbers` are accepted on every template, their values checked, and ignored; an
-agenda slide is `{.agenda}`. `{.unnumbered}` is accepted on any heading and left out (on `###` to
-`######` only when it is the whole `{…}`; other braces stay text).
+`tocDepth`, `headingNumbers` and `justify` are accepted on every template, their values checked, and
+ignored; an agenda slide is `{.agenda}`. `{.unnumbered}` is accepted on any heading and left out (on
+`###` to `######` only when the `{…}` holds nothing but it and `{.newpage}`; other braces stay text).
 
 [Captions](wwosik.DocLibs.DocumentGeneration.md#captions): a `Table: …` paragraph right after a table,
 or a `Figure: …` one right after a fenced block a renderer drew, is shown as before (below the visual

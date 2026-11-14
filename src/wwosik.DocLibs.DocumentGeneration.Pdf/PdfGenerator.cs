@@ -6,7 +6,8 @@ namespace wwosik.DocLibs.DocumentGeneration.Pdf;
 
 /// <summary>
 /// Generates PDF/A-2b documents from Markdown: a cover page from a leading <c>#</c> heading, a new page per later
-/// <c>#</c>, headings as bookmarks, an optional table of contents and heading numbers, numbered captions, lists, tables with repeated header rows, code, quotes, images and links, in the
+/// <c>#</c> and wherever the Markdown asks for a page break, headings as bookmarks, an optional table of contents and heading numbers, numbered captions, footnotes at
+/// the foot of their page, optionally justified text, lists, tables with repeated header rows, code, quotes, images and links, in the
 /// built-in design in a brand's colours, fonts and images. Front matter at the top of the Markdown overrides the
 /// options.
 /// </summary>
@@ -17,6 +18,7 @@ public static class PdfGenerator
     private const string TocKey = FrontMatter.TocKey;
     private const string TocDepthKey = FrontMatter.TocDepthKey;
     private const string HeadingNumbersKey = FrontMatter.HeadingNumbersKey;
+    private const string JustifyKey = FrontMatter.JustifyKey;
 
     // Keys of decks, accepted so that one Markdown serves both formats: their values are checked, then ignored.
     private const string TransitionKey = "transition";
@@ -110,7 +112,7 @@ public static class PdfGenerator
             ? options.TimeProvider.GetLocalNow().ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)
             : null;
 
-        var design = new Design(brand, options.Template.ShowsTagline, date, title) { Texts = language.Texts };
+        var design = new Design(brand, options.Template.ShowsTagline, date, title) { Texts = language.Texts, Justify = options.Justify };
         var layout = new LayoutEngine(fonts, PageGeometry.For(options.PageSize, options.Orientation), design, options.ReplaceUnsupported, notes).Run(model);
         return new LaidOut(layout, fonts, author, language.Tag);
     }
@@ -143,19 +145,14 @@ public static class PdfGenerator
             [TocKey] = $"`true` or `false`: a table of contents after the cover, with page numbers. Default `{(options.TableOfContents ? "true" : "false")}`.",
             [TocDepthKey] = $"`1`, `2` or `3`: the heading levels the table of contents lists. Default `{options.TableOfContentsDepth.ToString(CultureInfo.InvariantCulture)}`.",
             [HeadingNumbersKey] = $"`true` or `false`: numbers on three heading levels (1, 1.1, 1.1.1). Default `{(options.HeadingNumbers ? "true" : "false")}`.",
+            [JustifyKey] = $"`true` or `false`: body text justified, without hyphenation. Default `{(options.Justify ? "true" : "false")}`.",
         };
         (string, string) labels = (
             "labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral",
             "Status labels for decks, separated by `;`. A PDF accepts them and shows the labels as code.");
-        (string, string) transition = (
-            TransitionKey,
-            "The transition between slides in a deck: " + string.Join(", ", LayoutSyntax.Transitions.Select(t => $"`{t}`")) + ". A PDF accepts it and ignores it.");
-        (string, string) build = (
-            BuildKey,
-            "`lists` builds every list of a deck item by item, `none` does not. A PDF accepts it and ignores it.");
-        (string, string) numberChapters = (
-            NumberChaptersKey,
-            "`true` or `false`: chapter numbers on a deck's section dividers. A PDF accepts it and ignores it.");
+        (string, string) deckKeys = (
+            $"{TransitionKey}`, `{BuildKey}`, `{NumberChaptersKey}",
+            "Settings for decks. A PDF accepts them and ignores them.");
         return AuthoringGuides.Fill(
             AuthoringGuides.Template(typeof(PdfGenerator).Assembly, "Pdf"),
             new Dictionary<string, string>
@@ -164,7 +161,7 @@ public static class PdfGenerator
                 ["frontMatter"] = AuthoringGuides.FrontMatter(
                     registry.Expected,
                     options.Language,
-                    [.. options.Template.Keys.Concat([PageSizeKey, OrientationKey, TocKey, TocDepthKey, HeadingNumbersKey]).Select(k => (k, meanings[k])), transition, build, numberChapters, labels],
+                    [.. options.Template.Keys.Concat([PageSizeKey, OrientationKey, TocKey, TocDepthKey, HeadingNumbersKey, JustifyKey]).Select(k => (k, meanings[k])), deckKeys, labels],
                     options.Typography),
                 ["characters"] = Characters(FontSet.For(ResolvedBrand.Resolve(options.Template.BrandValue)), options.ReplaceUnsupported is not null),
                 ["icons"] = AuthoringGuides.Icons(
@@ -214,7 +211,7 @@ public static class PdfGenerator
                 : current with { Template = new BrandPdfTemplateOptions { Brand = brand } },
             brands.Expected,
             current => current.Template.Name,
-            current => [.. current.Template.Keys, PageSizeKey, OrientationKey, TocKey, TocDepthKey, HeadingNumbersKey, TransitionKey, BuildKey, NumberChaptersKey],
+            current => [.. current.Template.Keys, PageSizeKey, OrientationKey, TocKey, TocDepthKey, HeadingNumbersKey, JustifyKey, TransitionKey, BuildKey, NumberChaptersKey],
             (current, key, value) => key switch
             {
                 PageSizeKey => current with
@@ -228,6 +225,7 @@ public static class PdfGenerator
                 TocKey => current with { TableOfContents = frontMatter.Bool(key, value) },
                 TocDepthKey => current with { TableOfContentsDepth = frontMatter.DocumentValue(key, value) },
                 HeadingNumbersKey => current with { HeadingNumbers = frontMatter.Bool(key, value) },
+                JustifyKey => current with { Justify = frontMatter.Bool(key, value) },
                 TransitionKey => frontMatter.OneOf(key, value, [.. LayoutSyntax.Transitions.Select(t => (t, current))]),
                 BuildKey => frontMatter.OneOf(key, value, ("none", current), ("lists", current)),
                 NumberChaptersKey => frontMatter.Bool(key, value) ? current : current,

@@ -118,7 +118,7 @@ out. Leave icons out of a document meant for Word. An unknown name is an error.
 
 `::: pagebreak` on a line of its own, closed by `:::`, starts a new page with what follows. It may
 hold content, which then starts the new page, and its closing `:::` may be left out. `{.newpage}` at
-the end of a heading starts a new page with that heading: `## Appendix {.newpage}`. A later `#`
+the end of any heading starts a new page with that heading: `## Appendix {.newpage}`. A later `#`
 already starts a page. No break makes an empty page, and the cover heading takes no `{.newpage}`.
 
 ```markdown
@@ -160,6 +160,7 @@ author: Planning team
 | `toc` | `true` or `false`: a table of contents after the cover. Default `false`. |
 | `tocDepth` | `1`, `2` or `3`: the heading levels the table of contents lists. Default `2`. |
 | `headingNumbers` | `true` or `false`: numbers on the first three heading levels (1, 1.1, 1.1.1). Default `true`. |
+| `justify` | `true` or `false`: body text justified, without hyphenation. Default `false`. |
 | `classification` | `public`, `internal` or `confidential`: the marking in the header of every page and above the cover title. Default `public`, which shows nothing. |
 | `draft` | `true` or `false`: `true` adds "Draft" to the marking and a watermark to every page. Default `false`. |
 | `transition`, `build`, `numberChapters` | Settings for decks. A Word document accepts them and ignores them. |

@@ -365,6 +365,27 @@ public class ContentTests
     }
 
     [Fact]
+    public void Justify_JustifiesBodyText_NotHeadingsTablesOrCode()
+    {
+        static bool Justified(Paragraph p) => p.ParagraphProperties?.Justification?.Val?.Value == JustificationValues.Both;
+        var markdown = "# Title\n\n## Heading\n\nA paragraph.[^1]\n\n- An item\n\n> A quote\n\nTerm\n:   A description.\n\n| A |\n| - |\n| cell |\n\n```text\ncode\n```\n\n[^1]: A note.\n";
+        var docx = Generate("---\njustify: true\n---\n" + markdown);
+        using var package = Samples.Open(docx);
+        var paragraphs = Paragraphs(package);
+        string[] body = ["A paragraph.", "An item", "A quote", "A description."];
+
+        Assert.All(body, text => Assert.True(Justified(paragraphs.Single(p => Texts(p) == text)), text));
+        Assert.All(new[] { "Title", "Heading", "Term", "cell", "code" }, text => Assert.False(Justified(paragraphs.First(p => Texts(p) == text)), text));
+        Assert.True(Justified(package.MainDocumentPart!.FootnotesPart!.Footnotes!.Elements<Footnote>().Last().Elements<Paragraph>().Single()));
+        Samples.AssertValid(docx);
+
+        using var plain = Open(markdown);
+        Assert.DoesNotContain(Paragraphs(plain), Justified);
+        using var fromOptions = Open(markdown, new DocxOptions { Justify = true });
+        Assert.True(Justified(Paragraphs(fromOptions).Single(p => Texts(p) == "A paragraph.")));
+    }
+
+    [Fact]
     public void TheLanguage_IsInTheDefaults_AndTheCaptionsAreInIt()
     {
         using var package = Open("---\nlang: de\n---\n| A |\n| - |\n| 1 |\n\nTable: Umsatz\n\n![Bild](diagram.png \"Umsatz nach Region\")\n");

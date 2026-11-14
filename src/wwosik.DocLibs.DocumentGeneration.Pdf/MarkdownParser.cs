@@ -45,6 +45,9 @@ internal sealed partial class MarkdownParser(
     private readonly List<ContentsEntry> contents = [];
     private readonly HashSet<string> anchors = new(StringComparer.Ordinal);
 
+    // The blocks a `::: pagebreak` comes right before (PageBreaks.Flatten).
+    private IReadOnlySet<Markdig.Syntax.Block> pageBreaks = new HashSet<Markdig.Syntax.Block>();
+
     // The highest heading level after the cover, and the numbers with `headingNumbers: true`.
     private int top = 1;
     private HeadingNumbering? numbering;
@@ -53,7 +56,7 @@ internal sealed partial class MarkdownParser(
     /// <paramref name="brand"/> is the brand code-block renderers draw in; <paramref name="lineOffset"/> the lines of
     /// front matter cut off the Markdown, so renderers get the block's line in the original; <paramref name="notes"/>
     /// collects what the writer should know, such as HTML shown as text; <paramref name="texts"/> are the texts of the
-    /// document language, for alert titles and the heading of the footnotes.
+    /// document language, for alert titles.
     /// </remarks>
     public static DocumentModel Parse(
         MarkdownDocument document,
@@ -69,8 +72,8 @@ internal sealed partial class MarkdownParser(
         var parser = new MarkdownParser(document, options, brand ?? Brand.Neutral, lineOffset, notes, texts, typography);
         var markdown = Markdown.Parse(document.Markdown, Pipeline);
 
-        // Page breaks are for documents: their content stays, the break itself is ignored here for now (E03-S03).
-        PageBreaks.Flatten(markdown, DocumentFormat.Pdf);
+        // Page breaks: their content stays where they were, and a PageBreakBlock goes before the block each comes before.
+        parser.pageBreaks = PageBreaks.Flatten(markdown, DocumentFormat.Pdf);
         MarkdownSyntax.ReportMissingFootnotes(markdown, parser.LineOf, notes);
 
         // Build markers are for decks: checked like there, then left out wherever they are.
@@ -84,10 +87,15 @@ internal sealed partial class MarkdownParser(
         {
             var subtitle = new List<IReadOnlyList<TextRun>>();
             start = 1;
-            while (start < blocks.Count && blocks[start] is Markdig.Syntax.ParagraphBlock paragraph && !HasImage(paragraph))
+            while (start < blocks.Count && blocks[start] is Markdig.Syntax.ParagraphBlock paragraph && !HasImage(paragraph) && !parser.pageBreaks.Contains(paragraph))
             {
                 subtitle.Add(parser.NotDrawn(parser.Runs(paragraph.Inline), "the cover"));
                 start++;
+            }
+
+            if (parser.AttributesOf(first) is { NewPage: true })
+            {
+                throw new DocumentConversionException(DocumentFormat.Pdf, "{.newpage} cannot go on the cover heading, the first '#': the cover is a page of its own.");
             }
 
             cover = new Cover(parser.NotDrawn(WithoutAttributes(parser.Runs(first.Inline)), "the cover"), subtitle, Anchor(first));
@@ -110,22 +118,20 @@ internal sealed partial class MarkdownParser(
             parser.Add(block, result);
         }
 
-        // The footnotes at the end, numbered as their references are, until footnotes at the foot of the page.
-        // Unnumbered, and listed in the table of contents at its top level.
-        if (footnotes.Count > 0)
+        // The footnotes by their number, Markdig's order through the whole document, for the foot of their page.
+        var notesByNumber = new Dictionary<int, FootnoteText>();
+        foreach (var footnote in footnotes.Where(f => f.Order > 0))
         {
-            var heading = new HeadingBlock(2, [new TextRun(texts.Footnotes, RunStyle.None)], null);
-            if (options.TableOfContents)
-            {
-                heading = heading with { Anchor = parser.NewAnchor() };
-                parser.contents.Add(new ContentsEntry(1, heading));
-            }
-
-            result.Add(heading);
-            result.Add(new ListBlock(true, 1, [.. footnotes.Select(f => (IReadOnlyList<Block>)parser.Children(f))]));
+            var paragraphs = new List<IReadOnlyList<TextRun>>();
+            NoteParagraphs(parser.Children(footnote), paragraphs);
+            notesByNumber.TryAdd(footnote.Order, new FootnoteText(footnote.Order, paragraphs, parser.LineOf(footnote)));
         }
 
-        return new DocumentModel(cover, result) { Contents = parser.contents.Count > 0 ? new TableOfContents(parser.contents) : null };
+        return new DocumentModel(cover, result)
+        {
+            Contents = parser.contents.Count > 0 ? new TableOfContents(parser.contents) : null,
+            Footnotes = notesByNumber,
+        };
     }
 
     // The slide-layout syntax of the PPTX generator is accepted and shown plainly: custom containers without their
@@ -201,6 +207,65 @@ internal sealed partial class MarkdownParser(
         }
     }
 
+    // A footnote's blocks as text paragraphs: lists with their markers as text, code line by line, quotes and definition
+    // lists by their paragraphs, a table row by row; images and drawings are left out. A reference inside a note is its
+    // number only.
+    private static void NoteParagraphs(IEnumerable<Block> blocks, List<IReadOnlyList<TextRun>> into)
+    {
+        static IReadOnlyList<TextRun> Plain(IEnumerable<TextRun> runs) => [.. runs.Select(r => r.Footnote is null ? r : r with { Footnote = null })];
+
+        foreach (var block in blocks)
+        {
+            switch (block)
+            {
+                case ParagraphBlock paragraph:
+                    into.Add(Plain(paragraph.Runs));
+                    break;
+                case HeadingBlock heading:
+                    into.Add(Plain(heading.Runs));
+                    break;
+                case ListBlock list:
+                    for (var i = 0; i < list.Items.Count; i++)
+                    {
+                        var marker = list.Tasks?[i] is { } ticked ? ticked ? "[x] " : "[ ] "
+                            : list.Ordered ? string.Create(CultureInfo.InvariantCulture, $"{list.Start + i}. ") : "• ";
+                        var item = new List<IReadOnlyList<TextRun>>();
+                        NoteParagraphs(list.Items[i], item);
+                        if (item.Count == 0)
+                        {
+                            item.Add([]);
+                        }
+
+                        item[0] = [new TextRun(marker, RunStyle.None), .. item[0]];
+                        into.AddRange(item);
+                    }
+
+                    break;
+                case CodeBlock code:
+                    into.AddRange(code.Lines.Where(l => l.Trim().Length > 0).Select(l => (IReadOnlyList<TextRun>)[new TextRun(l, RunStyle.Code)]));
+                    break;
+                case QuoteBlock quote:
+                    NoteParagraphs(quote.Blocks, into);
+                    break;
+                case DefinitionListBlock definitions:
+                    foreach (var definition in definitions.Items)
+                    {
+                        into.AddRange(definition.Terms.Select(t => Plain(t.Select(r => r.IsBreak ? r : r with { Style = r.Style | RunStyle.Bold }))));
+                        NoteParagraphs(definition.Description, into);
+                    }
+
+                    break;
+                case TableBlock table:
+                    foreach (var row in table.Rows)
+                    {
+                        into.Add(Plain(row.SelectMany((cell, c) => c == 0 ? cell : [new TextRun(" | ", RunStyle.None), .. cell])));
+                    }
+
+                    break;
+            }
+        }
+    }
+
     private HeadingAttributes? AttributesOf(Markdig.Syntax.HeadingBlock heading) =>
         this.Runs(heading.Inline) is [.., { IsBreak: false, Style: RunStyle.None, Link: null } last]
             ? HeadingAttributes.Split(last.Text, DocumentFormat.Pdf).Attributes
@@ -208,6 +273,11 @@ internal sealed partial class MarkdownParser(
 
     private void Add(Markdig.Syntax.Block block, List<Block> target)
     {
+        if (this.pageBreaks.Contains(block))
+        {
+            target.Add(new PageBreakBlock());
+        }
+
         switch (block)
         {
             case Markdig.Syntax.HeadingBlock heading:
@@ -217,7 +287,7 @@ internal sealed partial class MarkdownParser(
                 // A kind of slide without a title, such as `## {.quote}`, has no heading here.
                 if (text.Count > 0 || heading.Level > 2 || headingAttributes?.Kind is null)
                 {
-                    target.Add(this.Heading(heading, text, headingAttributes?.Unnumbered == true));
+                    target.Add(this.Heading(heading, text, headingAttributes?.Unnumbered == true, headingAttributes?.NewPage == true));
                 }
 
                 if (this.agendas.TryGetValue(heading, out var agenda))
@@ -335,12 +405,13 @@ internal sealed partial class MarkdownParser(
 
     // A heading with its number, unless it is `{.unnumbered}` or inside a slide-layout container, where it is no chapter;
     // listed in the table of contents down to its depth, with an anchor of its own if it has none.
-    private HeadingBlock Heading(Markdig.Syntax.HeadingBlock heading, List<TextRun> text, bool unnumbered)
+    private HeadingBlock Heading(Markdig.Syntax.HeadingBlock heading, List<TextRun> text, bool unnumbered, bool newPage)
     {
         var chapter = !HeadingNumbering.InLayoutContainer(heading);
         var block = new HeadingBlock(heading.Level, text, Anchor(heading))
         {
             Number = chapter && !unnumbered ? this.numbering?.Next(heading.Level)?.Number : null,
+            NewPage = newPage,
         };
         var level = heading.Level - this.top + 1;
         if (options.TableOfContents && chapter && level <= options.TableOfContentsDepth && text.Count > 0)
@@ -501,8 +572,8 @@ internal sealed partial class MarkdownParser(
     // Slide settings at the end of a `#` or `##` heading (`{.dark kicker="…"}`) are checked like in decks, then dropped.
     private static List<TextRun> WithoutAttributes(List<TextRun> runs) => Split(runs, 1).Text;
 
-    // The attributes at the end of a heading: on `#` and `##` slide settings and `{.unnumbered}`, checked like in decks;
-    // on `###` to `######` only a `{.unnumbered}`, any other braces staying text.
+    // The attributes at the end of a heading: on `#` and `##` slide settings, `{.unnumbered}` and `{.newpage}`, checked
+    // like in decks; on `###` to `######` only `{.unnumbered}` and `{.newpage}`, any other braces staying text.
     private static (List<TextRun> Text, HeadingAttributes? Attributes) Split(List<TextRun> runs, int level)
     {
         if (runs.Count == 0 || runs[^1] is not { IsBreak: false, Style: RunStyle.None, Link: null } last)
@@ -809,7 +880,8 @@ internal sealed partial class MarkdownParser(
                         this.Text(html.Tag, style, link);
                         break;
                     case FootnoteLink { IsBackLink: false } footnote:
-                        this.Text(footnote.Footnote.Order.ToString(CultureInfo.InvariantCulture), style | RunStyle.Superscript, link);
+                        // A run of its own, never joined with the text or another reference: the layout puts its note on its page.
+                        this.current.Add(new TextRun(footnote.Footnote.Order.ToString(CultureInfo.InvariantCulture), style | RunStyle.Superscript, link) { Footnote = footnote.Footnote.Order });
                         break;
                     case FootnoteLink:
                     case TaskList:
@@ -828,7 +900,7 @@ internal sealed partial class MarkdownParser(
                 return;
             }
 
-            if (this.current.Count > 0 && this.current[^1] is { IsBreak: false } last && last.Style == style && last.Link == link)
+            if (this.current.Count > 0 && this.current[^1] is { IsBreak: false, Footnote: null } last && last.Style == style && last.Link == link)
             {
                 this.current[^1] = last with { Text = last.Text + text };
             }
