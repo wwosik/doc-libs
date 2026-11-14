@@ -18,7 +18,7 @@ Management decks are the main use of the PPTX generator; their content has to la
 | [E02-S02](../60-verify/E02-S02-table-column-widths.md) | Table column widths | in verification |
 | [E02-S03](../60-verify/E02-S03-images-on-slides.md) | Images on slides | in verification |
 | [E02-S04](../60-verify/E02-S04-nothing-runs-off-the-slide.md) | Nothing runs off the slide | in verification |
-| E02-S05 | Slide kinds: `{.agenda}`, `{.quote}`, `{.interim}`, `{.contact}`, chart layouts with one or two charts, `::: conclusion`, `::: comment` | to plan |
+| [E02-S05](E02-S05-slide-kinds.md) | Slide kinds | todo |
 
 Stories marked *to plan* come from the
 [Python fork analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed

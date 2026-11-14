@@ -14,7 +14,7 @@ Markdown converted from a document is what an AI agent reads; what the converter
 
 | Story | Title | State |
 | ----- | ----- | ----- |
-| E08-S01 | Converter improvements: PDF tables, lists, code and images in place; PPTX speaker notes as `::: notes` | to plan |
+| [E08-S01](E08-S01-converter-improvements.md) | Converter improvements | todo |
 
 Stories marked *to plan* come from the
 [Python fork analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed

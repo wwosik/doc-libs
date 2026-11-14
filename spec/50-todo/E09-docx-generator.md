@@ -14,9 +14,9 @@ Word is the format most reports and proposals still have to be delivered in; the
 
 | Story | Title | State |
 | ----- | ----- | ----- |
-| E09-S01 | DOCX generator: built-in template from `ResolvedBrand`, caller templates with role → style-name map, content | to plan |
-| E09-S02 | Deck syntax in Word: containers in sequence, alerts as note styles, `==mark==`, coloured words, status labels, image rows | to plan |
-| E09-S03 | Charts, drawings (SVG + PNG) and the DOCX authoring guide | to plan |
+| [E09-S01](E09-S01-docx-generator.md) | DOCX generator | todo |
+| [E09-S02](E09-S02-deck-syntax-in-word.md) | Deck syntax in Word | todo |
+| [E09-S03](E09-S03-charts-drawings-and-guide.md) | Charts, drawings and the DOCX authoring guide | todo |
 
 Stories marked *to plan* come from the
 [Python fork analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed

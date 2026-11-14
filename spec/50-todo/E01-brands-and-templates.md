@@ -19,7 +19,8 @@ A deck or PDF is only useful to a consumer if it looks like theirs. Everything a
 | [E01-S03](../60-verify/E01-S03-brand-fonts-embedded-in-decks.md) | Brand fonts embedded in decks | in verification |
 | [E01-S04](../60-verify/E01-S04-slides-on-dark-templates.md) | Slides on dark templates | in verification |
 | [E01-S05](../60-verify/E01-S05-brand-template-features.md) | Brand template features | in verification |
-| E01-S06 | Template roles for decks: layouts and placeholders found by role (two-content, text+picture, picture, agenda, quote, statement, contact, chart, dark; subtitle, byline, chapter number, second body, picture, chart), text levels, decorative placeholders, footer pattern, content grid; then numbered chapter dividers and `{layout=…}` across placeholders | to plan |
+| [E01-S06](E01-S06-template-roles-for-decks.md) | Template roles for decks | todo |
+| [E01-S07](E01-S07-chapter-numbers-and-layouts-across-placeholders.md) | Chapter numbers and layouts across placeholders | todo |
 
 Stories marked *to plan* come from the
 [Python fork analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed

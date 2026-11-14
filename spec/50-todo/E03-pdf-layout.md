@@ -15,7 +15,9 @@ PDF/A reports are the second output of the generators; they are read on paper an
 | Story | Title | State |
 | ----- | ----- | ----- |
 | [E03-S01](../60-verify/E03-S01-keep-headings-with-their-content.md) | Keep headings with their content | in verification |
-| E03-S02 | PDF additions shared with DOCX: contents with page numbers, heading numbers, captions "Figure n" / "Table n", footnotes at the page foot, justified text, page breaks, classification marking in all formats | to plan |
+| [E03-S02](E03-S02-contents-heading-numbers-and-captions.md) | Contents, heading numbers and captions | todo |
+| [E03-S03](E03-S03-footnotes-justification-and-page-breaks.md) | Footnotes at the page foot, justified text, page breaks | todo |
+| [E03-S04](E03-S04-classification-marking.md) | Classification marking | todo |
 
 Stories marked *to plan* come from the
 [Python fork analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed

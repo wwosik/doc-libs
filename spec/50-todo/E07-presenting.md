@@ -14,10 +14,10 @@ A generated deck should be ready to present without opening PowerPoint to add no
 
 | Story | Title | State |
 | ----- | ----- | ----- |
-| E07-S01 | Speaker notes, builds, transitions: `::: notes` (repeated on continuation slides), a notes master for the built-in master, `{.build}` and its variants, `transition:`; the PPTX converter reads notes back | to plan |
-| E07-S02 | HTML deck: one self-contained file drawn from the generated PPTX | to plan |
-| E07-S03 | Preview images: each slide as PNG and a contact sheet, painted from the PPTX with SkiaSharp | to plan |
-| E07-S04 | Scenes: `::: scene` with named shapes on a 160 × 90 grid over the whole slide, steps as builds, Morph between slides, a still image in PDF | to plan |
+| [E07-S01](E07-S01-speaker-notes-builds-transitions.md) | Speaker notes, builds, transitions | todo |
+| [E07-S02](E07-S02-html-deck.md) | HTML deck | todo |
+| [E07-S03](E07-S03-preview-images.md) | Preview images | todo |
+| [E07-S04](E07-S04-scenes.md) | Scenes | todo |
 
 Stories marked *to plan* come from the
 [Python fork analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed
