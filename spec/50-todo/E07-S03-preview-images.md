@@ -6,8 +6,9 @@
 ## Summary
 
 Each slide of a deck as a PNG, and a contact sheet of all slides as one image, painted from the
-`.pptx` with SkiaSharp, with no browser and no Office. The slides are the SVGs E07-S02's reader
-writes, painted by E04-S04's `SvgConverter`, so a preview shows exactly what the HTML deck shows.
+`.pptx` with SkiaSharp, with no browser and no Office. The Pptx package writes the slides as the
+SVGs of E07-S02's reader; `wwosik.DocLibs.DocumentConversions.Svg` paints them with E04-S04's
+`SvgConverter` and lays out the contact sheet, so a preview shows exactly what the HTML deck shows.
 Hosts use them for thumbnails, chat replies, review pages and documentation.
 
 ## Context
@@ -28,9 +29,19 @@ Hosts use them for thumbnails, chat replies, review pages and documentation.
 
   SkiaSharp 4.153.1 and Svg.Skia 5.2.3 are in `Directory.Packages.props`; the managed SkiaSharp
   must match `SkiaSharp.NativeAssets.Linux` (memory, *Traps*). The package is AOT-compatible.
+- **Package references today** (`src/*/*.csproj`): DocumentConversions is the base;
+  DocumentConversions.Svg references only it (plus SkiaSharp and Svg.Skia); DocumentGeneration
+  references DocumentConversions, and DocumentGeneration.Pptx references DocumentGeneration (plus
+  the Open XML SDK and Markdig). Svg and Pptx do not reference each other. They meet through
+  contracts in the base package: `IImageConverter` and `ConvertedImage` live in
+  DocumentConversions, `SvgImageConverter` implements them, and `PptxOptions.ImageConverters`
+  takes them. The Svg test project already references the Pptx project.
+- **Where it lives** (question 2): inside `wwosik.DocLibs.DocumentConversions.Svg`, not a new
+  package.
 - **Fonts:** decks embed brand faces as EOT (E01-S03), and E07-S02 extracts the TTF from each.
-  Without brand fonts, a deck names Arial and Consolas. E07-S02 proposes moving Liberation Sans and
-  Liberation Mono from the PDF package to DocumentGeneration as stand-ins. Svg.Skia falls back to
+  Without brand fonts, a deck names Arial and Consolas. E07-S02 moves Liberation Sans and
+  Liberation Mono from the PDF package to DocumentGeneration as stand-ins, where the Svg package
+  cannot reach them. Svg.Skia falls back to
   the system's default typeface for an unknown family, which on a Linux container without
   fontconfig may be none.
 - **Decided:**
@@ -52,71 +63,105 @@ Hosts use them for thumbnails, chat replies, review pages and documentation.
      are the same in the HTML deck and the PNG.
    - If painting through SVG falls short (question 1), a direct `SKCanvas` backend over the same
      `DeckScene` model can replace it later without changing the API.
-   - **Order:** E07-S02's reader and SVG (its first part, if it splits) → this story → E07-S02's
-     presenting parts. The golden images of this story also become E07-S02's pixel tests.
-2. **Package.** A new package `wwosik.DocLibs.DocumentGeneration.Pptx.Preview`.
-   - References `wwosik.DocLibs.DocumentGeneration.Pptx` (the reader, reached through
-     `InternalsVisibleTo`, as the generator packages already reach DocumentGeneration) and
-     `wwosik.DocLibs.DocumentConversions.Svg` (`SvgConverter`, and SkiaSharp for the contact sheet).
-     No new entry in `Directory.Packages.props`.
-   - The Pptx package itself gets no native dependency, whatever E04-S05 decides for image styles
-     (see question 2).
-   - The test project references `SkiaSharp.NativeAssets.Linux`, like the Svg tests. The docs say
-     which native-assets package a Linux host adds, as the Svg page does.
-   - Checked for Native AOT like the Svg package; if the Open XML SDK warns, the package is marked
-     not AOT-compatible and the docs say so.
-3. **API.**
-   - `public static class DeckPreview` in namespace `wwosik.DocLibs.DocumentGeneration.Pptx.Preview`:
-     - `DeckPreviewResult Render(Stream pptx, DeckPreviewOptions? options = null)`: every visible
-       slide as PNG bytes, in order.
-     - `byte[] ContactSheet(Stream pptx, ContactSheetOptions? options = null)`, and
-       `ContactSheet(DeckPreviewResult slides, ContactSheetOptions? options = null)` to reuse
-       rendered slides.
+   - **Order:** E07-S02 → this story → E07-S06 (presenting the HTML deck). The golden images of
+     this story also become E07-S02's pixel tests.
+2. **Packages and the dependency direction.**
+   - The preview lives in `wwosik.DocLibs.DocumentConversions.Svg` (question 2), but the reader
+     lives in `wwosik.DocLibs.DocumentGeneration.Pptx`. The Svg package does **not** reference the
+     Pptx package: that would make every Svg user (the PDF and deck generators' SVG images
+     included) take the Open XML SDK, Markdig and the generators, and turn the base conversion
+     layer into a consumer of a generator. The Pptx package does not reference the Svg package
+     either: it stays free of SkiaSharp's native dependency, whatever E04-S05 decides for image
+     styles.
+   - Instead the **slide SVGs are the hand-over**: the Pptx package writes them (step 3), the Svg
+     package paints them and lays out the contact sheet (steps 4–6). A host that wants previews
+     references both packages and makes two calls, as Markdown to HTML deck is two calls in
+     E07-S02.
+   - The one type both sides need, `SlideSvg`, goes into the base package
+     `wwosik.DocLibs.DocumentConversions`, beside `IImageConverter` and `ConvertedImage`, so the
+     result of one call is the argument of the other without mapping.
+   - No new package and no new entry in `Directory.Packages.props`. The Svg package stays
+     AOT-compatible: it gains no Open XML SDK.
+   - The Svg test project, which already references the Pptx project and
+     `SkiaSharp.NativeAssets.Linux`, holds the preview tests. The docs say which native-assets
+     package a Linux host adds, as the Svg page does.
+3. **Slide SVGs from the Pptx package.**
+   - `public static class DeckSvg` in namespace `wwosik.DocLibs.DocumentGeneration.Pptx`:
+     `DeckSvgResult Write(Stream pptx, DeckSvgOptions? options = null)`, a thin public entry point
+     to E07-S02's internal reader and `SceneSvg`.
+   - `DeckSvgOptions` (record, init-only): `Fonts` (TrueType files for families the deck does not
+     embed, as in `HtmlDeckOptions.Fonts`), `Slides` (optional slide numbers, so a thumbnail of
+     slide 1 reads and draws only slide 1; default all).
+   - The SVGs are written for painting, not for the browser:
+     - the final build state (everything shown that some step shows, so a build slide looks
+       complete);
+     - pictures as the PNG/JPEG/GIF of the picture part, never the `svgBlip` alternative, so a
+       slide is never an SVG nested inside an SVG in Svg.Skia;
+     - each run's `font-family` names the face the reader measured it with (the deck's face, a
+       passed font or the stand-in), so Svg.Skia never falls back to a system face for a family
+       the reader measured. A family with no face is written as Liberation Sans; the reader has
+       already reported `font-missing`.
+   - `DeckSvgResult` follows `GenerationResult`'s shape (`Pages`, `Notes`, `HasNotes`; the notes
+     are the reader's `drawing-unsupported` and `font-missing`) and adds:
+     - `Slides`: `IReadOnlyList<SlideSvg>`, visible slides in order;
+     - `Fonts`: `IReadOnlyList<ReadOnlyMemory<byte>>`, each face the SVGs use once, as TTF (the
+       TTF inside each EOT, passed fonts, the Liberation stand-ins);
+     - `LabelFont`: the Liberation Sans regular face, for the contact sheet's labels.
+   - `SlideSvg` (record in `wwosik.DocLibs.DocumentConversions`): `Number` (the slide's position in
+     the deck), `Title`, `Svg` (`ReadOnlyMemory<byte>`), `Width` and `Height` (the slide's size in
+     points).
+   - A package that is not a presentation throws `DocumentConversionException` with
+     `Format = Pptx`, as in E07-S02.
+4. **API in the Svg package.**
+   - `public static class DeckPreview` in namespace `wwosik.DocLibs.DocumentConversions.Svg`:
+     - `DeckPreviewResult Render(IReadOnlyList<SlideSvg> slides, DeckPreviewOptions? options = null)`:
+       each slide as PNG bytes, in order.
+     - `byte[] ContactSheet(DeckPreviewResult slides, ContactSheetOptions? options = null)`.
+   - The documented call, in both packages' docs:
+     `var svgs = DeckSvg.Write(pptx); var previews = DeckPreview.Render(svgs.Slides, new() { Fonts = svgs.Fonts });`
+     then `DeckPreview.ContactSheet(previews, new() { LabelFont = svgs.LabelFont })`.
    - `DeckPreviewResult`: `Slides` (`IReadOnlyList<SlidePreview>` with `Number`, `Title` and
-     `Png`) and `Notes` (the reader's notes); it follows `GenerationResult`'s shape (`Pages`,
-     `Notes`, `HasNotes`).
+     `Png`). It has no notes: what could not be drawn is in `DeckSvgResult.Notes`, and the Svg
+     package does not reference DocumentGeneration, where `GenerationNote` lives.
    - `DeckPreviewOptions` (record, init-only):
      - `Width`: pixels per slide, default 1280 (720 high on 16:9); the height follows the slide's
        aspect ratio. At most `SvgConverter.MaxPixels`.
-     - `Fonts`: TrueType files for families the deck does not embed, as in `HtmlDeckOptions.Fonts`.
-     - `Slides`: optional slide numbers to render (a thumbnail of slide 1 only); default all.
+     - `Fonts`: the faces to paint with, normally `DeckSvgResult.Fonts`, as in
+       `SvgPngOptions.Fonts`.
      - `Background`: what is behind a slide without a background; default white, as PowerPoint.
    - `ContactSheetOptions`: `Columns` (default 4), `ThumbnailWidth` (default 320 px), `Gap`
-     (default 16 px), `Labels` (default `true`: the slide number under each thumbnail, set in the
-     stand-in sans face), `Background` (default light grey `F2F2F2`).
-   - Errors: a package that is not a presentation throws `DocumentConversionException` with
-     `Format = Pptx`, as in E07-S02; a slide that Svg.Skia cannot paint throws
-     `DocumentConversionException` with `Format = Svg` naming the slide.
-4. **Painting a slide.**
-   - The reader's SVG for the slide (final build state: everything shown that some step shows, so
-     a build slide looks complete) goes to `SvgConverter.ToPng` with `Width` and the faces in use.
-   - **Fonts** passed to Svg.Skia, in order: the deck's embedded faces, `DeckPreviewOptions.Fonts`,
-     the stand-ins (Liberation Sans for Arial and Helvetica, Liberation Mono for Courier New and
-     Consolas), each registered under the family the slide names, so Svg.Skia never falls back to
-     a system face for a family the reader measured. A family with no face is painted in Liberation
-     Sans; the reader has already reported `font-missing`.
-   - **Pictures:** the PNG/JPEG/GIF of the picture part, not the `svgBlip` alternative, so a slide
-     is never an SVG nested inside an SVG in Svg.Skia.
+     (default 16 px), `Labels` (default `true`: the slide number under each thumbnail),
+     `LabelFont` (TrueType bytes, normally `DeckSvgResult.LabelFont`; without one, the labels use
+     SkiaSharp's default typeface, and a platform without one gets no labels), `Background`
+     (default light grey `F2F2F2`).
+   - Errors: a slide that Svg.Skia cannot paint throws `DocumentConversionException` with
+     `Format = Svg` naming the slide number.
+5. **Painting a slide.**
+   - The slide's SVG goes to `SvgConverter.ToPng` with `Width` and the fonts.
    - Hyperlinks, `data-id` groups and anything only the HTML uses are ignored by Svg.Skia and
      cost nothing.
-5. **Contact sheet.**
+6. **Contact sheet.**
    - Painted with SkiaSharp directly: each slide's PNG scaled to `ThumbnailWidth` with
      high-quality sampling, in rows of `Columns`, a hairline border around each, the label under
      it.
    - A sheet taller than `SvgConverter.MaxPixels` is refused with an `ArgumentException` that names
      the largest thumbnail width that fits (see question 6).
-6. **Calibration first.** Before any golden image is committed, the sample decks are exported from
+7. **Calibration first.** Before any golden image is committed, the sample decks are exported from
    PowerPoint and painted here, and the text rules of E07-S02 (line pitch, first baseline, bullet
    positions) are adjusted until line breaks match and positions are within 2 px at 1280 px. What
    cannot be matched (kerning, hinting, effects) goes in the docs' known limits.
-7. **Tests.**
-   - **Unit:** size of the PNG from `Width` and the aspect ratio (16:9 and 4:3 decks); `Slides`
-     picks slides; hidden slides are skipped; the final build state shows every built paragraph;
-     a brand deck's embedded face is used (a glyph that only that face has is drawn, checked by
-     pixels); a deck naming an unknown family paints in Liberation Sans; contact sheet columns,
-     rows, labels and the size limit; errors for a non-presentation.
+8. **Tests.**
+   - **Unit, Pptx package:** `DeckSvg.Write` gives one `SlideSvg` per visible slide (hidden
+     slides skipped), `Slides` picks slides, the final build state shows every built paragraph,
+     pictures are raster and never `svgBlip`, every `font-family` names a face in `Fonts`, each
+     face is in `Fonts` once, errors for a non-presentation.
+   - **Unit, Svg package** (in its test project, decks generated through the Pptx project): size
+     of the PNG from `Width` and the aspect ratio (16:9 and 4:3 decks); a brand deck's embedded
+     face is used (a glyph that only that face has is drawn, checked by pixels); a deck naming an
+     unknown family paints in Liberation Sans; contact sheet columns, rows, labels with and
+     without `LabelFont`, and the size limit.
    - **Golden images,** two kinds:
-     - **Own goldens** (`<sample>-<template>-<n>.expected.png` at 640 px in the test project's
+     - **Own goldens** (`<sample>-<template>-<n>.expected.png` at 640 px in the Svg test project's
        `Samples/`): our previous output, compared with a tight tolerance (mean absolute difference
        per channel ≤ 1 %, and no more than 0.5 % of pixels off by more than 25 %), so rasteriser
        differences between platforms pass and real changes fail. `DOCLIBS_UPDATE_EXPECTED=1`
@@ -130,23 +175,27 @@ Hosts use them for thumbnails, chat replies, review pages and documentation.
        and an SVG image; at most about 40 images, a few MB in all.
    - CI runs everything on Linux; the goldens were made on Linux and pass on Windows within the
      tolerance (checked once by running the tests on Windows).
-8. **Real-Office comparison.** The PowerPoint references of step 7 are the comparison: the docs
+9. **Real-Office comparison.** The PowerPoint references of step 8 are the comparison: the docs
    show one sample slide both ways, and every remaining difference is listed in the known limits.
    The exports are re-made by hand when a later story changes what the generator writes, through
    a documented step in the test project's README (the export script stays in `.tmp/`, since it is
    Windows-only and not a tool of the repo).
-9. **Docs and changelog.**
-   - A package page `docs/wwosik.DocLibs.DocumentGeneration.Pptx.Preview.md`: what it does, the
-     API, sizes, fonts and stand-ins, native assets per platform and fonts in containers (as the
-     Svg page), the relation to the HTML deck, known limits, and an example of both calls.
-   - The package in `README.md` and the package table of `docs/README.md`; a pointer from the Pptx
-     page's *HTML deck* section.
-   - `CHANGELOG.md` under *New*: the new package. No existing output changes.
+10. **Docs and changelog.**
+    - `docs/wwosik.DocLibs.DocumentConversions.Svg.md`: a section *Deck previews* with what it
+      does, the API, the two calls with `DeckSvg`, sizes, fonts and stand-ins, native assets per
+      platform and fonts in containers, the relation to the HTML deck, known limits, and an
+      example.
+    - `docs/wwosik.DocLibs.DocumentGeneration.Pptx.md`: `DeckSvg` beside the *HTML deck* section,
+      with a pointer to the Svg page; `docs/wwosik.DocLibs.DocumentConversions.md`: `SlideSvg`.
+    - The Svg package's description in `README.md`, the package table of `docs/README.md` and its
+      `.csproj` `Description` names deck previews.
+    - `CHANGELOG.md` under *New*: `DeckPreview` in the Svg package, `DeckSvg` in the Pptx
+      package, `SlideSvg` in DocumentConversions. No existing output changes.
 
 ## Acceptance criteria
 
-- [ ] `DeckPreview.Render` paints every visible slide of the sample decks as a PNG of the requested
-  width, with no browser, no Office and no network.
+- [ ] `DeckSvg.Write` followed by `DeckPreview.Render` paints every visible slide of the sample
+  decks as a PNG of the requested width, with no browser, no Office and no network.
 - [ ] A slide's PNG and the same slide in the HTML deck break lines in the same places.
 - [ ] Brand decks paint in their embedded faces; neutral decks in the Liberation stand-ins; a
   missing family is reported, never painted in a random system face.
@@ -154,8 +203,9 @@ Hosts use them for thumbnails, chat replies, review pages and documentation.
   and refuses a sheet above the size limit with a message naming a width that fits.
 - [ ] Own golden images pass on Linux and Windows; PowerPoint references pass at the calibrated
   tolerance, and the remaining differences are documented.
-- [ ] SkiaSharp is referenced only through `wwosik.DocLibs.DocumentConversions.Svg` and the new
-  package; the Pptx package gains no native dependency.
+- [ ] The preview is in `wwosik.DocLibs.DocumentConversions.Svg`, which still references only
+  DocumentConversions and stays AOT-compatible; the Pptx package references neither the Svg
+  package nor SkiaSharp.
 - [ ] Docs, README, the package table and CHANGELOG are updated, and all tests pass.
 
 ## Open questions
@@ -208,3 +258,17 @@ Hosts use them for thumbnails, chat replies, review pages and documentation.
 ## Notes
 
 <!-- Free space for remarks that are not answers to the questions above. -->
+
+- **Consequence of question 2's answer** (preview inside the Svg package): the reader that the
+  preview needs is in the Pptx package, and the Svg package must not reference it (step 2), so the
+  preview cannot read a `.pptx` itself. What it means for callers and the code:
+  - Previews are **two calls in two packages**: `DeckSvg.Write` (Pptx) and then
+    `DeckPreview.Render` / `ContactSheet` (Svg). A host references both. There is no
+    `DeckPreview.Render(Stream pptx)`.
+  - The Pptx package gains a public `DeckSvg` (the reader stays internal) and the base package
+    gains one record, `SlideSvg`, so the two calls fit together.
+  - The notes about what could not be drawn come from `DeckSvg.Write`, not from the preview.
+  - The Liberation stand-ins sit in DocumentGeneration, out of the Svg package's reach, so they
+    travel in `DeckSvgResult.Fonts` and `LabelFont`.
+  - In return, Svg users who never touch decks pay nothing, the Svg package stays AOT-compatible,
+    and the Pptx package stays without a native dependency.

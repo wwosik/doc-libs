@@ -7,8 +7,9 @@
 
 Fenced code blocks that name their language (```` ```csharp ````) are highlighted in decks and PDFs:
 keywords, strings, comments, numbers and type names in colours taken from the brand, the rest in
-the text colour. A new opt-in package does the tokenising with ColorCode (MIT); the generators only
-colour the tokens they are given, so without it code looks as it does today.
+the text colour. The tokenising is built into the shared package `wwosik.DocLibs.DocumentGeneration`
+with ColorCode (MIT); no new package. Highlighting is off unless switched on, by an option or the
+front-matter key `highlight: true`, so existing output does not change.
 
 Split from the analysis's "typography and code highlighting" item; typography is E06-S03.
 
@@ -42,29 +43,43 @@ Split from the analysis's "typography and code highlighting" item; typography is
     Oniguruma through a native library per platform, and the grammar package is several MB.
 - Renderers already come as opt-in packages registered in the options (`ChartRenderer`,
   `MermaidRenderer`); the guides gain sections from them (`ICodeBlockRenderer.AuthoringGuide`).
+  Highlighting does not follow that pattern (question 2): it lives in the shared package
+  `wwosik.DocLibs.DocumentGeneration`, which every generator references, which depends only on
+  DocumentConversions and Markdig today, and which is `IsAotCompatible`.
+- **Front matter:** shared keys are constants in DocumentGeneration (`FrontMatter.TemplateKey`,
+  `TitleKey`, `AuthorKey`, `DocumentLanguage.Key`); generator-only keys are private constants
+  (`PdfGenerator.PageSizeKey`, `PptxTemplateOptions.ListBulletsKey`).
 
 ## Proposed approach
 
-1. **Hook.** In DocumentGeneration:
-   - `ICodeHighlighter` with `IReadOnlyList<CodeToken>? Highlight(string language, string code)`:
-     `null` for a language it does not know, else tokens covering the code.
-   - `CodeToken(int Start, int Length, CodeTokenKind Kind)`; `CodeTokenKind`: `Plain`, `Keyword`,
-     `String`, `Comment`, `Number`, `Type`, `Punctuation` (drawn as plain), `Markup` (tags and
-     attribute names).
-   - Options `PptxOptions.CodeHighlighter` and `PdfOptions.CodeHighlighter` (`ICodeHighlighter?`,
-     default `null`), and a shared front-matter key `highlight` (`true` / `false`) that turns it off
-     per document. Without a highlighter, nothing changes.
-2. **Package `wwosik.DocLibs.DocumentGeneration.Highlighting`.**
-   - `ColorCodeHighlighter : ICodeHighlighter` over ColorCode.Core, mapping its scope names to
-     `CodeTokenKind`; names and aliases (`cs`, `csharp`, `c#`, `js`, `ts`, `py`, `ps1`, `sql`, `xml`,
-     `html`, …) are matched case-insensitively.
+1. **Switch: off unless switched on.**
+   - Options `PptxOptions.HighlightCode` and `PdfOptions.HighlightCode` (`bool`, default `false`).
+   - A shared front-matter key `highlight` (`true` / `false`; `CodeHighlighting.Key` in
+     DocumentGeneration, next to `DocumentLanguage.Key`) that overrides the option for one document:
+     `highlight: true` switches it on when the option is off, `highlight: false` switches it off when
+     the option is on. Any other value is an error, as for other keys.
+   - Neither set: no highlighting, and output is byte-for-byte as before.
+2. **Built-in highlighter, in DocumentGeneration** (new file
+   `src/wwosik.DocLibs.DocumentGeneration/CodeHighlighting.cs` plus a `Highlighting/` folder for the
+   language definitions).
+   - Internal `CodeHighlighter.Highlight(string language, string code)` returning
+     `IReadOnlyList<CodeToken>?`: `null` for a language it does not know, else tokens covering the
+     code. Internal, not a public extension point: there is one highlighter, and a public interface
+     can be added later if someone needs another.
+   - `CodeToken(int Start, int Length, CodeTokenKind Kind)` (internal); public `CodeTokenKind`, since
+     `BrandCodeColors` names its members: `Plain`, `Keyword`, `String`, `Comment`, `Number`, `Type`,
+     `Punctuation` (drawn as plain), `Markup` (tags and attribute names).
+   - Over ColorCode.Core, mapping its scope names to `CodeTokenKind`; names and aliases (`cs`,
+     `csharp`, `c#`, `js`, `ts`, `py`, `ps1`, `sql`, `xml`, `html`, …) are matched case-insensitively.
    - Own ColorCode language definitions for `json`, `yaml` and `bash`/`sh`, the gaps that matter most
      in technical documents (question 3).
-   - The package's `AuthoringGuide` section lists the languages.
+   - ColorCode's languages are loaded and their regexes built on the first highlighted block only, so
+     a document without highlighting pays nothing at run time.
 3. **Parsers.**
    - PDFs keep the language: `CodeBlock(Lines, Language)`.
-   - Both parsers ask the highlighter for a fenced block with a language that no renderer took, and
-     split the lines into spans by token. Decks: the code runs carry a token kind
+   - When highlighting is on (point 1), both parsers ask the highlighter for a fenced block with a
+     language that no renderer took, and split the lines into spans by token. When it is off they do
+     not call it. Decks: the code runs carry a token kind
      (`TextRun.Token`); `CodeLinesBlock` holds lines of runs. PDFs: `CodeBlock` holds lines of
      `(string Text, CodeTokenKind Kind)` spans.
    - Indented code blocks and inline code spans have no language and stay plain.
@@ -88,43 +103,56 @@ Split from the analysis's "typography and code highlighting" item; typography is
      `TextItem` per span, in its colour. Line breaks fall where they fall today.
 6. **Notes.** `NoteCodes.CodeLanguageUnknown` (`code-language-unknown`): a fenced block names a
    language that neither a renderer nor the highlighter knows, so it is not highlighted. Not given for
-   `text`, `plain`, `console` and `output`. In `NoteCodes.All` and the docs table, only while a
-   highlighter is set.
+   `text`, `plain`, `console` and `output`. In `NoteCodes.All` and the docs table; given only while
+   highlighting is on for the document.
 7. **Dependencies and licences.**
-   - ColorCode.Core (MIT) in `Directory.Packages.props`, referenced only by the new package, which
-     packs `THIRD-PARTY-NOTICES.txt` with its licence.
-   - The package aims at `IsAotCompatible`; ColorCode compiles its regexes at run time, which works
-     under AOT (interpreted). A Native AOT publish is checked for warnings; if it warns, the package
-     is marked not AOT-compatible and the docs say so.
-   - The new package gets a docs page, a README package-table row and a `.Tests` sibling.
+   - ColorCode.Core (MIT): a central `PackageVersion` in `src/Directory.Packages.props` (Libraries
+     group), and a `PackageReference` in
+     `src/wwosik.DocLibs.DocumentGeneration/wwosik.DocLibs.DocumentGeneration.csproj`. So every
+     consumer of the shared package gets it, transitively; its size is measured and recorded in the
+     DocumentGeneration docs page.
+   - The shared package's `THIRD-PARTY-NOTICES.txt` (packed at the package root; started by E04-S06
+     for QRCoder and Tabler Icons — whichever story lands first creates it) gains ColorCode's licence.
+   - The shared package is `IsAotCompatible` and must stay so. ColorCode compiles its regexes at run
+     time, which works under AOT (interpreted). A Native AOT publish is checked for warnings; see Notes
+     for what happens if it warns.
+   - No new package, docs page or test project; tests go in `wwosik.DocLibs.DocumentGeneration.Tests`
+     and the Pptx / Pdf test projects.
 8. **Guides, docs, changelog.**
-   - The PPTX and PDF guides: name the language after the fence; the `highlight` key. The package's
-     section lists the languages. Expected guides regenerated.
-   - Docs: DocumentGeneration (`ICodeHighlighter`, `CodeToken`, `BrandCodeColors`, the note), Pptx and
-     Pdf, the new package's page, the brand-pack page (`colors.code.*`).
-   - `CHANGELOG.md`: new: the package, the hook, the options, `BrandColors.Code`, the key. No breaking
-     change: without a highlighter, output is as before.
+   - The PPTX and PDF guides, always (an author can switch highlighting on in front matter even when
+     the caller left it off): name the language after the fence, `highlight: true`, and the list of
+     languages. Expected guides regenerated.
+   - Docs: `docs/wwosik.DocLibs.DocumentGeneration.md` (the switch, the `highlight` key,
+     `CodeTokenKind`, `BrandCodeColors`, the languages, the note, the ColorCode dependency),
+     `docs/wwosik.DocLibs.DocumentGeneration.Pptx.md` and `docs/wwosik.DocLibs.DocumentGeneration.Pdf.md`
+     (`HighlightCode`), and the brand-pack section (`colors.code.*`).
+   - `CHANGELOG.md`: new: code highlighting, the `HighlightCode` options, the `highlight` key,
+     `BrandColors.Code`. No breaking change in output: highlighting is off unless switched on.
+     DocumentGeneration now depends on ColorCode.Core.
 9. **Tests.** Token mapping for each built-in and own language; aliases; the default colours and the
    contrast correction on light, dark and caller-template slides; split lines in PDFs keep their
-   colours across the break; a block nobody knows gives `code-language-unknown`; a brand pack with
+   colours across the break; a block nobody knows gives `code-language-unknown` (only with
+   highlighting on); the switch: option off and no key gives unchanged output, `highlight: true` with
+   the option off highlights, `highlight: false` with the option on does not; a brand pack with
    `colors.code.keyword`; decks through the Open XML validator, PDFs through the PDF/A checks; one
    highlighted deck opened in PowerPoint.
 
 ## Acceptance criteria
 
-- [ ] With `CodeHighlighter = new ColorCodeHighlighter()`, a ```` ```csharp ```` block shows keywords,
+- [ ] With `HighlightCode = true` (or `highlight: true` in front matter), a ```` ```csharp ```` block shows keywords,
   strings, comments, numbers and types in the brand's code colours in decks (plain and flow slides,
   light and dark) and PDFs.
 - [ ] `json`, `yaml` and `bash` blocks are highlighted.
-- [ ] `highlight: false` in front matter turns it off for the document.
+- [ ] Off by default; `highlight: true` in front matter turns it on for the document, and
+  `highlight: false` turns it off even when the option is on.
 - [ ] Every default colour has at least 4.5:1 contrast on its background; `colors.code.*` in a brand
   pack overrides them.
 - [ ] A block in an unknown language stays plain and gives `code-language-unknown`; `mermaid` and
   `chart` blocks still go to their renderers first.
-- [ ] Without a highlighter, samples produce the same decks and PDFs as before.
+- [ ] With highlighting off (the default), samples produce the same decks and PDFs as before.
 - [ ] Decks pass the Open XML validator and open in PowerPoint without repair; PDFs stay PDF/A-2b.
-- [ ] The new package carries `THIRD-PARTY-NOTICES.txt`; guides, docs and CHANGELOG are updated, and
-  all tests pass.
+- [ ] The DocumentGeneration package's `THIRD-PARTY-NOTICES.txt` names ColorCode; the package stays
+  `IsAotCompatible`; guides, docs and CHANGELOG are updated, and all tests pass.
 
 ## Open questions
 
@@ -168,3 +196,12 @@ Split from the analysis's "typography and code highlighting" item; typography is
 ## Notes
 
 <!-- Free space for remarks that are not answers to the questions above. -->
+
+- Revised after question 2. The old `highlight` key could only turn a configured highlighter *off*
+  (`highlight: false`); with the highlighter built in and off by default, the key now works both ways
+  (point 1). No answered question conflicts with this.
+- Risk for the human: the old plan let only the separate package lose `IsAotCompatible` if ColorCode
+  warns under Native AOT. Now that ColorCode is in the shared package, that fallback would mark the
+  whole shared package — and so every generator — not AOT-compatible. If the AOT check warns,
+  implementation stops and asks; the alternatives are suppressing a warning that is shown to be
+  harmless, or an own regex tokeniser for the same languages without ColorCode.

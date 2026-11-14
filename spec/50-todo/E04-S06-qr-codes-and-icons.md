@@ -7,8 +7,10 @@
 
 Two kinds of small vector graphics written in the Markdown. `![Survey](qr:https://example.com/s)`
 draws a QR code for the address, in the brand's colour. `:icon-check:` draws an icon from the
-bundled Tabler Icons (MIT): as a card figure and as a list bullet in decks and PDFs, and inline in
-PDF text. Both are `Drawing`s, so decks get editable shapes and PDFs vectors, as for diagrams.
+Tabler Icons outline set (MIT), embedded whole in the shared package
+`wwosik.DocLibs.DocumentGeneration` and available without any option: as a card figure and as a
+list bullet in decks and PDFs, and inline in PDF text. Both are `Drawing`s, so decks get editable
+shapes and PDFs vectors, as for diagrams. No new package.
 
 ## Context
 
@@ -34,8 +36,14 @@ PDF text. Both are `Drawing`s, so decks get editable shapes and PDFs vectors, as
     of a deck's paragraph cannot be drawn. PDF lines are laid out by `LayoutEngine` from runs with
     `IFontMetrics`, and an inline object of one em is possible there.
 - **`:name:`** has no meaning today: Markdig writes `:icon-check:` as text in both generators.
-- No package carries a third-party notice yet; the PDF package packs `Fonts/OFL.txt`. E04-S05
-  starts `THIRD-PARTY-NOTICES.txt`.
+- No package carries a third-party notice yet; the PDF package packs `Fonts/OFL.txt`
+  (`wwosik.DocLibs.DocumentGeneration.Pdf.csproj`, `Pack="true"`). E04-S05 starts
+  `THIRD-PARTY-NOTICES.txt` in the PDF package.
+- **The shared package** `wwosik.DocLibs.DocumentGeneration` (brands, `Drawing`, `ColouredWords`,
+  `FrontMatter`, `AuthoringGuides`, `GenerationResult` with `NoteCodes`) is referenced by every
+  generator and renderer package, and is `IsAotCompatible`. It embeds nothing yet; whatever it embeds
+  is downloaded and loaded by every consumer, so the icon data counts against all of them (question
+  3).
 - Colours: `ResolvedBrand` has `Primary`, the diagram colours (`Text`, `Accent`, `Surface`, …) and,
   for dark slides, `DarkSlideBrand`.
 
@@ -64,14 +72,25 @@ PDF text. Both are `Drawing`s, so decks get editable shapes and PDFs vectors, as
      icon SVGs from a Tabler release and writes one text resource: one line per icon,
      `name<TAB>path data`, absolute `M`/`L`/`C`/`Z` only, rounded to two decimals. Circles, lines,
      polylines and arcs are turned into paths there, so the runtime needs no SVG parser. The tool
-     prints the count and size.
-   - The resource is gzip-compressed and embedded in a new package (question 3),
-     `wwosik.DocLibs.DocumentGeneration.Icons`, with Tabler's licence in its
-     `THIRD-PARTY-NOTICES.txt`.
-   - Public API: an `IIconSet` interface in DocumentGeneration (`Drawing? Find(string name)`,
-     `IReadOnlyCollection<string> Names`), `TablerIcons.Outline` in the new package, and options
-     `PptxOptions.Icons` and `PdfOptions.Icons` (`IIconSet?`, default `null`). Without an icon set
-     `:icon-…:` stays text, so nothing changes for existing callers.
+     prints the count, the raw size and the gzip-compressed size, and fails above the budget (below).
+   - The whole outline set (question 2). The tool writes the resource gzip-compressed to
+     `src/wwosik.DocLibs.DocumentGeneration/Icons/tabler-outline.txt.gz`, embedded in the shared
+     package (question 3) as `EmbeddedResource` with `LogicalName="Icons.tabler-outline.txt.gz"`;
+     the generated file is committed, so a build needs neither the tool nor the network.
+   - **Loading:** the resource is read and decompressed on the first `:icon-…:` lookup only, into a
+     name → path-data dictionary; each icon's `Drawing` is built when asked for and cached. A
+     document without icons pays nothing at run time beyond the larger assembly.
+   - **Size budget:** at most 1 MB compressed for the resource (the cut-off of question 2, now held
+     against every consumer of the shared package). If a Tabler update breaks it, the tool fails and
+     the set is cut to a curated list, which goes back to the human first. The measured sizes (icon
+     count, compressed resource, packed `.nupkg` before and after) are recorded in the
+     DocumentGeneration docs page.
+   - Public API, in DocumentGeneration: an `IIconSet` interface (`Drawing? Find(string name)`,
+     `IReadOnlyCollection<string> Names`) and `TablerIcons.Outline`, the embedded set. Icons are on
+     by default: both generators use `TablerIcons.Outline` without any option. Options
+     `PptxOptions.Icons` and `PdfOptions.Icons` (`IIconSet`, default `TablerIcons.Outline`) exist
+     only to override the set, for example with a caller's own icons; there is no switch to turn
+     icons off.
    - Each icon is a 24 × 24 drawing of stroked paths: `Stroke` in the colour of its place,
      `StrokeWidth` 2, `RoundJoins`, no fill, as Tabler draws them.
 4. **Icons: syntax.** `:icon-<name>:`, the name in Tabler's kebab-case (`:icon-circle-check:`).
@@ -99,26 +118,35 @@ PDF text. Both are `Drawing`s, so decks get editable shapes and PDFs vectors, as
    draw it (inline text on a slide, a table cell, a heading), left out of the text. In
    `NoteCodes.All` and the docs table.
 7. **Dependencies and licences.**
-   - QRCoder (MIT) in `Directory.Packages.props`, referenced by DocumentGeneration. The shared
+   - QRCoder (MIT) in `src/Directory.Packages.props`, referenced by DocumentGeneration. The shared
      package is `IsAotCompatible`: a Native AOT publish is checked for warnings; if QRCoder warns,
      the plan falls back to an own encoder (question 1).
-   - `THIRD-PARTY-NOTICES.txt` packed in DocumentGeneration (QRCoder) and in the Icons package
-     (Tabler Icons, with the version).
-   - The Icons package gets its docs page, a README package-table row, and a `.Tests` sibling.
+   - One `THIRD-PARTY-NOTICES.txt` in `src/wwosik.DocLibs.DocumentGeneration/`, packed at the
+     package root (`None Include=… Pack="true" PackagePath="\"`, as the PDF package packs
+     `OFL.txt`): QRCoder's licence, and Tabler Icons' licence with the pinned version and the
+     source release. The import tool prints the version to copy there.
+   - No new package, docs page or test project; the tests go in
+     `wwosik.DocLibs.DocumentGeneration.Tests` (and the Pptx / Pdf test projects for the writers).
 8. **Guides, docs, changelog.**
    - The PPTX and PDF guides: QR codes; icons, where each format shows them, and a short list of
-     about 40 common names with a pointer to Tabler's catalogue. The Icons package adds its own guide
-     section (like `ICodeBlockRenderer.AuthoringGuide`) only when its set is passed. The expected
-     guides are regenerated.
-   - Docs: DocumentGeneration (QR, `IIconSet`, the note code), Pptx and Pdf (where they appear), the
-     new Icons page (the set, its size, the import tool).
-   - `CHANGELOG.md`: new: QR codes, the Icons package and options. Breaking: none for callers who
-     pass no icon set; DocumentGeneration depends on QRCoder.
+     about 40 common names with a pointer to Tabler's catalogue. The icon section is always in the
+     guides, since icons are always on. The expected guides are regenerated.
+   - Docs: `docs/wwosik.DocLibs.DocumentGeneration.md` (QR, `IIconSet`, `TablerIcons.Outline`, the
+     option to override it, the note code, the set's version and measured size, the import tool),
+     `docs/wwosik.DocLibs.DocumentGeneration.Pptx.md` and `docs/wwosik.DocLibs.DocumentGeneration.Pdf.md`
+     (where they appear).
+   - `CHANGELOG.md`: new: QR codes, icons, `IIconSet` and the `Icons` options. Breaking: text of the
+     form `:icon-<name>:` is now an icon, and an unknown name throws (before, it stayed text);
+     DocumentGeneration depends on QRCoder and is larger by the icon data.
 9. **Tests.** QR: the matrix for known texts against QRCoder's, the quiet zone, contrast fallback,
    the merged path; decks and PDFs with a QR code, read back as a drawing. Icons: the import tool on
    two sample SVGs (circle, arc), lookup and suggestions, each place in each format, `icon-not-drawn`,
-   and text unchanged without an icon set. Open XML validator for every deck; PDF/A markers, and one
-   veraPDF run recorded.
+   and an overriding `IIconSet` replacing the default. Open XML validator for every deck; PDF/A
+   markers, and one veraPDF run recorded.
+   - **Size guard** in `wwosik.DocLibs.DocumentGeneration.Tests`: reads the embedded
+     `Icons.tabler-outline.txt.gz` from the assembly and fails if it is over 1 MB, naming the size
+     and the budget; it also checks the icon count against the number recorded in the docs page, so
+     an import that silently drops icons fails too.
 
 ## Acceptance criteria
 
@@ -127,14 +155,16 @@ PDF text. Both are `Drawing`s, so decks get editable shapes and PDFs vectors, as
   fallback.
 - [ ] A QR code is two shapes in decks (the white square with its quiet zone, and one path of all
   modules) and two paths in PDFs, also on dark slides.
-- [ ] With `Icons = TablerIcons.Outline`, `:icon-check:` draws the icon as a card figure in decks
-  and PDFs, as bullets (an icon list in decks), and inline in PDF text.
+- [ ] Without any option, `:icon-check:` draws the icon as a card figure in decks and PDFs, as
+  bullets (an icon list in decks), and inline in PDF text; `Icons = <own set>` replaces the set.
 - [ ] An inline icon on a slide is left out and gives `icon-not-drawn` with its line.
-- [ ] `:icon-chek:` throws with suggestions; without an icon set, `:icon-check:` stays text.
+- [ ] `:icon-chek:` throws with suggestions.
 - [ ] Every deck passes the Open XML validator and opens in PowerPoint without repair; PDFs stay
   PDF/A-2b.
-- [ ] Both packages carry `THIRD-PARTY-NOTICES.txt`; the Icons package's size is recorded in its docs.
-- [ ] Samples without the new syntax produce the same decks and PDFs as before.
+- [ ] The DocumentGeneration package carries `THIRD-PARTY-NOTICES.txt` with QRCoder and Tabler Icons;
+  the embedded icon data is at most 1 MB compressed, guarded by a test, and the measured sizes are
+  recorded in its docs page.
+- [ ] Samples without `qr:` images or `:icon-…:` text produce the same decks and PDFs as before.
 - [ ] Guides, docs and CHANGELOG are updated, and all tests pass.
 
 ## Open questions
@@ -183,3 +213,12 @@ PDF text. Both are `Drawing`s, so decks get editable shapes and PDFs vectors, as
 ## Notes
 
 <!-- Free space for remarks that are not answers to the questions above. -->
+
+- Revised after question 3: the icons are always on, with no option to turn them off, because the
+  answer moves them into the shared package and the alternative it chose was "always on". The
+  consequence is a small breaking change (point 8): a document that already contains
+  `:icon-something:` as literal text now gets an icon, or an error for an unknown name. If that is
+  unwanted, a `PptxOptions.Icons = null` / `PdfOptions.Icons = null` switch-off is a one-line
+  addition — say so.
+- The 1 MB budget is the cut-off from question 2, now applied to every consumer of the shared
+  package; a tighter number can be set once the import tool has measured the real set.

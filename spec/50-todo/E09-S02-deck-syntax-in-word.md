@@ -32,8 +32,11 @@ It also adds the Word side of two features whose syntax other stories own: page 
 - **How the PDF shows it:** plainly. A card's `###` is a heading, the columns follow one another,
   an alert is a quote with its title in bold (`GeneratedTexts.Alert`), a mark is bold and labels
   stay code.
-- **What E09-S01 does with it:** the same as the PDF, so every sample generates. This story
+- **What E09-S04 does with it:** the same as the PDF, so every sample generates. This story
   replaces that with Word styles.
+- **Order.** This story comes after [E09-S01](E09-S01-docx-package-and-templates.md) (package,
+  templates, styles by role) and [E09-S04](E09-S04-docx-content.md) (content: headings, lists,
+  definition lists, captions, image fitting), which is implemented before it despite its number.
 - **Colours come from the brand:**
   - `ResolvedBrand.Highlight` for marks and important alerts;
   - `ResolvedLabelColors` (`Success`, `Info`, `Warning`, `Danger`, `Neutral`) for labels and
@@ -46,18 +49,21 @@ It also adds the Word side of two features whose syntax other stories own: page 
 - **The epic's rule:** paragraphs reference template styles by name only, and there is no direct
   formatting except in code.
 - **Shared syntax owned by other stories:**
-  - Page breaks: `::: pagebreak` and `{.newpage}` on a heading — E03-S03, which also decides
-    whether `::: pagebreak` may hold content (proposed there: yes, closing `:::` optional).
-  - Classification: two keys, `classification: public | internal | confidential` and
-    `draft: true`, the higher of host and front matter winning, texts in `GeneratedTexts`,
-    file metadata in `cp:contentStatus` — E03-S04 (each still an open question there).
-  - This story writes the Word side on whatever those stories decide; E03-S03 and E03-S04 write
+  - Page breaks: `::: pagebreak` and `{.newpage}` on a heading — E03-S03. Decided there:
+    `::: pagebreak` takes no arguments, may hold content, and its closing `:::` is optional.
+  - Classification: two keys, `classification: public | internal | confidential` (default
+    `public`, which shows nothing) and `draft: true`, decided in E03-S04. The higher of host and
+    front matter wins (`classification-kept` otherwise), the texts are `GeneratedTexts.Internal`,
+    `Confidential` and `Draft`, joined with " · ", the colour is `Labels.Danger` for
+    confidential and the footer colour otherwise, and the file metadata is `cp:contentStatus` in
+    decks and DOCX (nothing in PDFs).
+  - This story writes the Word side on what those stories decided; E03-S03 and E03-S04 write
     PDF and PPTX.
 
 ## Proposed approach
 
 1. **Roles.**
-   - `DocxStyleNames` (E09-S01) gains:
+   - `DocxStyleNames` (E09-S01, with E09-S04's content roles) gains:
      - `Note`, `Tip`, `Important`, `Warning`, `Caution` (paragraph styles);
      - `Mark` (character);
      - `LabelSuccess`, `LabelInfo`, `LabelWarning`, `LabelDanger`, `LabelNeutral` (character
@@ -76,7 +82,7 @@ It also adds the Word side of two features whose syntax other stories own: page 
      - Each `###` becomes a `ContainerHeading` paragraph: bold, in `Primary`, unnumbered, not in
        the TOC (no outline level), and kept with the next paragraph.
      - A paragraph of only bold text right after it is a figure, written in `Statement`.
-     - The short form (a list of `- **Title** – text`) becomes a definition list (E09-S01): term,
+     - The short form (a list of `- **Title** – text`) becomes a definition list (E09-S04): term,
        then description.
    - **`::: rows`.** The rows become the same definition-list look, a bold term with the text
      indented under it (question 4).
@@ -92,7 +98,7 @@ It also adds the Word side of two features whose syntax other stories own: page 
    - **Tag paragraphs** of code spans become one paragraph of `Tag` runs (code font, shaded light
      grey), separated by spaces. A list item that starts with a code span inside a container gets
      that span as a `Tag`.
-   - **Heading attributes** are dropped as in E09-S01, except `{.newpage}` (step 6). `layout="…"`
+   - **Heading attributes** are dropped as in E09-S04, except `{.newpage}` (step 6). `layout="…"`
      means nothing in Word and is checked and dropped, as in the PDF.
 3. **Alerts as note styles.**
    - **The styles.** Each kind is a paragraph style with a left bar (border) and light shading:
@@ -119,40 +125,47 @@ It also adds the Word side of two features whose syntax other stories own: page 
 5. **Image rows** (a paragraph of only images, two or more):
    - **The table.** A borderless table of one row, one cell per image, in the `ImageRow` table
      style (no borders, no cell shading), with equal column widths across the text width.
-   - **The images.** Each is scaled down to its cell (E09-S01's fitting rules). Its caption, from
-     its title (E09-S01, E03-S02), sits under it in the same cell in `Caption`, with its own
-     `SEQ Figure` number.
+   - **The images.** Each is scaled down to its cell (E09-S04's fitting rules). Its caption, from
+     its title (E09-S04, E03-S02), sits under it in the same cell in `Caption`, with its own
+     `SEQ Figure` number, as figure captions go below their figure.
    - **On the page.** The row does not split across pages (`w:cantSplit`).
 6. **Page breaks** (the syntax from E03-S03):
    - **`::: pagebreak`** gives `w:pageBreakBefore` to the next paragraph or table — its own first
-     block if E03-S03 lets it hold content. At the very end of the document it does nothing.
+     block when it holds content, which E03-S03 allows; its content then follows as normal
+     blocks. Without a closing `:::` it runs to the end of the document, with the same pages. At
+     the very end of the document it does nothing.
    - **`{.newpage}`** on a heading gives that heading `w:pageBreakBefore`.
    - **Shared checks.** `LayoutSyntax.CheckContainer` accepts `pagebreak` (no arguments; content
-     as E03-S03 decides), and `HeadingAttributes` accepts `.newpage`. Whichever of this story and
+     allowed, closing optional, as E03-S03 decided), and `HeadingAttributes` accepts `.newpage`. Whichever of this story and
      E03-S03 comes first adds them to the shared package. Until E03-S03, PDF and PPTX accept them
      and ignore them, which is not a breaking change: today they throw.
-   - `w:pageBreakBefore` is a paragraph property, the same one E09-S01 uses for a later `#`
+   - `w:pageBreakBefore` is a paragraph property, the same one E09-S04 uses for a later `#`
      (question 7).
 7. **Classification marking** (the keys from E03-S04):
    - **The keys.** `classification` and `draft` as E03-S04 defines them, with
      `DocxOptions.Classification` and `DocxOptions.Draft` as the host's defaults and the same
      "higher one wins" rule.
-   - **The texts** are the `GeneratedTexts` properties E03-S04 adds, unless this story lands first
-     and adds them itself.
+   - **The texts** are the `GeneratedTexts` properties E03-S04 adds (`Internal`, `Confidential`,
+     `Draft`), unless this story lands first and adds them itself, joined as E03-S04's
+     `Marking.Text` does ("Confidential · Draft").
    - **In the header** of every content page, the text in `Classification`: right-aligned, bold
-     caps, in the colours E03-S04 decides (proposed there: `Labels.Danger` for confidential, the
-     footer colour otherwise).
+     caps, in the colours E03-S04 decided: `Labels.Danger` for confidential, the footer colour
+     for internal and draft. `public` without a draft shows nothing.
    - **On the cover,** a `ClassificationCover` paragraph under the subtitles.
-   - **`draft: true`** also gets a watermark: Word's own kind, a VML text path ("DRAFT" / "ENTWURF",
-     light grey, 45°) in each header, so Word shows it under *Design → Watermark* and can remove it
-     there (question 9).
+   - **`draft: true`** also gets a watermark, as the PDF does (decks get none): Word's own kind, a
+     VML text path (`GeneratedTexts.Draft` in capitals, "DRAFT" / "ENTWURF", light grey, 45°) in
+     each header, so Word shows it under *Design → Watermark* and can remove it there
+     (question 9).
    - **On caller templates** (question 8):
      - a content control tagged `classification` in a header or on the first page gets the text;
      - else the text is a paragraph added at the top of each header.
-   - **Document property.** `cp:contentStatus`, as E03-S04 decides for decks and PDFs. Sensitivity
+   - **Document property.** `cp:contentStatus` holds the marking text, as E03-S04 decided for
+     decks and DOCX (PDFs get none). A document without a marking writes none. Sensitivity
      labels of a tenant are out of scope.
-8. **Notes.** No new codes. An image row whose images get too small in their cells is not reported,
-   as in the PDF.
+   - **Precedence.** Front matter can raise the host's classification but not lower it; trying
+     gives `classification-kept`, to whose formats Docx is added.
+8. **Notes.** No new codes; Docx joins `classification-kept` (step 7). An image row whose images
+   get too small in their cells is not reported, as in the PDF.
 9. **Tests.**
    - **Samples.**
      - `layouts.md` is generated with neutral, sample and custom: validator clean, compared through
@@ -168,7 +181,9 @@ It also adds the Word side of two features whose syntax other stories own: page 
      - coloured words use their styles;
      - an image row is a borderless table with equal widths and captions in the cells;
      - `::: pagebreak` and `{.newpage}` set `pageBreakBefore`, and `::: pagebreak x` throws;
-     - classification text in every header, on the cover and in `cp:contentStatus`;
+     - a `::: pagebreak` holding content breaks before its first block, closed or not;
+     - classification text in every header, on the cover and in `cp:contentStatus`, and
+       precedence with `classification-kept`;
      - a draft watermark in each header;
      - the classification fills a tagged content control in a caller template;
      - unknown containers and alerts still throw.
@@ -289,11 +304,14 @@ It also adds the Word side of two features whose syntax other stories own: page 
 
 <!-- Free space for remarks that are not answers to the questions above. -->
 
-- **Depends on E09-S01:** package, styles by role, captions, fitting.
+- **Depends on E09-S01:** package, templates, styles by role and their lookup and creation.
+- **Depends on E09-S04:** the content roles and styles, headings, definition lists, captions and
+  image fitting. E09-S04 is implemented before this story despite its number.
 - **Shared with E03-S03 and E03-S04:**
   - the syntax (`::: pagebreak`, `{.newpage}`) — E03-S03;
   - the keys `classification` and `draft`, their values and texts — E03-S04.
   - The analysis orders E09 before E03, so this story will probably add the shared pieces. The
-    names are the ones agreed in the E03 plans, and those stories then write PDF and PPTX on them.
+    names and rules are the ones decided in the E03 plans, and those stories then write PDF and
+    PPTX on them.
 - **Not taken from the fork:** its client's look (yellow marks, status dots, sizes), audience
   versions and consulting containers.

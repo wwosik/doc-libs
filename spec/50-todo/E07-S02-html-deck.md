@@ -6,11 +6,11 @@
 ## Summary
 
 A deck as one self-contained HTML file that a host can show without Office: every slide drawn from
-the `.pptx` itself, so splitting, fitting and errors are the deck's own. Keys move through slides
-and builds, a notes view and a presenter window show the speaker notes, and the page prints one
-slide per sheet. The drawing work is a reader of the deck's DrawingML into a model of positioned
-shapes and laid-out text, written as one SVG per slide. E07-S03 paints the same SVGs as PNG
-previews, so the HTML deck and the previews show the same thing.
+the `.pptx` itself, so splitting, fitting and errors are the deck's own. Keys move through the
+slides, an overview shows them all, and the page prints one slide per sheet. The drawing work is a
+reader of the deck's DrawingML into a model of positioned shapes and laid-out text, written as one
+SVG per slide. E07-S03 paints the same SVGs as PNG previews, so the HTML deck and the previews show
+the same thing. Builds, transitions, the notes view and the presenter window are E07-S06's.
 
 ## Context
 
@@ -62,11 +62,15 @@ previews, so the HTML deck and the previews show the same thing.
 - **Notes.** `GenerationResult`/`GenerationNote` and `NoteCodes` (E05-S03); every code needs an
   entry in `NoteCodes.All` and a row in the docs table.
 - **Planned in parallel:** E07-S01 writes speaker notes (`notesSlide` parts, a notes master for the
-  built-in master), builds (`p:timing`) and transitions (`p:transition`, Morph in
-  `mc:AlternateContent`); E07-S04 scenes with named shapes and Morph; E01-S06 more layout and
+  built-in master) and transitions (`p:transition`, Morph in `mc:AlternateContent`); E07-S05
+  builds (`p:timing`); E07-S04 scenes with named shapes and Morph; E01-S06 more layout and
   placeholder roles (picture placeholders, cropped pictures); E04-S05 visual blocks (chevrons,
   Harvey balls, icons, QR codes, round and grey pictures); E02-S05 slide kinds (`::: comment` as a
   callout). Each adds DrawingML this reader has to know.
+- **Split** (question 7): this story is the reader, the SVG and the static page. E07-S06
+  (presenting the HTML deck) comes after E07-S01 and E07-S05 and adds builds, transitions, the
+  notes view and the presenter window on top of this page; E07-S03 can start once this story is
+  done.
 - **Decided:** in the analysis, an HTML deck drawn from the generated PPTX's DrawingML, with keys,
   a notes view and print, and no new dependency; DrawingML fidelity is the named risk. In the epic,
   previews are painted with SkiaSharp, not in a browser.
@@ -84,8 +88,6 @@ previews, so the HTML deck and the previews show the same thing.
      - `Fonts`: TrueType files (`IReadOnlyList<ReadOnlyMemory<byte>>`) for families the deck names
        but does not embed, as in `SvgPngOptions.Fonts`; matched by family name (name ID 1).
      - `EmbedFonts`: default `true`; writes the faces the slides use as `@font-face`.
-     - `Notes`: default `true`; `false` leaves the speaker notes out of the file (a deck handed to
-       an audience).
      - `Language`: the page's `lang`, default the first run's `lang` in the deck, else `en`.
    - Markdown to HTML is two calls, documented: `PptxGenerator.Generate` into a `MemoryStream`, then
      `HtmlDeck.Write`; the host merges both results' notes.
@@ -95,14 +97,14 @@ previews, so the HTML deck and the previews show the same thing.
 2. **Reader and model** (internal, namespace `…Pptx.Rendering`).
    - `DeckReader` opens the package with the Open XML SDK and returns a `DeckScene`: slide size
      (`sldSz`), slides in `sldIdLst` order (hidden slides, `show="0"`, skipped as in a slide show),
-     and per slide a `SlideScene`: background, a tree of `SceneItem`s in z-order, hyperlinks,
-     speaker notes, build steps and the transition.
+     and per slide a `SlideScene`: background, a tree of `SceneItem`s in z-order and hyperlinks.
+     E07-S06 adds the speaker notes, build steps and the transition.
    - `SceneItem` kinds: `SceneGroup` (transform), `SceneShape` (a resolved path in EMU, fill,
      line, optional `SceneText`), `ScenePicture` (image bytes and type, the SVG alternative if any,
      crop, clip path). Tables and charts are resolved into groups of these, so the backends know
      only four kinds.
-   - Every item keeps its `cNvPr id` and name, so builds (E07-S01) and Morph (E07-S04) can address
-     it, and each paragraph of a text keeps its index for paragraph builds.
+   - Every item keeps its `cNvPr id` and name, so E07-S06 can address it for builds (E07-S05) and
+     Morph (E07-S04), and each paragraph of a text keeps its index for paragraph builds.
 3. **Inheritance.** One `StyleResolver` per slide resolves everything PowerPoint inherits:
    - **Shapes drawn:** the slide's shapes, after the layout's and the master's non-placeholder
      shapes unless the layout or slide says `showMasterSp="0"`. Placeholders on layouts and masters
@@ -187,7 +189,7 @@ previews, so the HTML deck and the previews show the same thing.
    at its baseline with `<tspan>`s per run (`font-family`, `font-weight`, `font-style`, `fill`,
    `text-decoration`, highlight as a rectangle behind). Hyperlinks become `<a>` with
    `target="_blank" rel="noopener noreferrer"`. Each item is a `<g>` with `data-id`, each
-   paragraph a `<g>` with `data-p`, so builds can show and hide them. Pictures used on several
+   paragraph a `<g>` with `data-p`, so E07-S06's builds can show and hide them. Pictures used on several
    slides (the master logo) are written once in a hidden `<svg>` of `<symbol>`s and referenced with
    `<use>`. Only what Svg.Skia also draws is used (no `foreignObject`, no CSS filters, no
    `textLength`), so E07-S03 can paint the same SVG.
@@ -199,31 +201,16 @@ previews, so the HTML deck and the previews show the same thing.
      embedded.
    - **Slides:** each SVG in a `<section>` scaled to the window with its aspect ratio, letterboxed
      on black. Text stays selectable; each section has the slide's title as `aria-label`.
-   - **Keys:** Right, Down, Space, Page Down, Enter, click and swipe left: next step; Left, Up,
-     Page Up, Backspace, swipe right: previous step; Home/End; a number then Enter: that slide;
-     `F` full screen; `N` notes view; `P` presenter window; `O` overview (all slides as a grid,
-     Enter or click opens one); `B` or `.` black screen; `?` the key list; Esc leaves full screen,
-     overview or black. The URL hash (`#7`, `#7.2` for a build step) follows, so reload and links
-     land on the same slide.
-   - **Builds** (after E07-S01): the reader turns `p:timing`'s click sequence into steps; each step
-     shows, hides or emphasizes items and paragraphs. Effects map to CSS: appear (instant), fade,
-     fly in from the effect's direction, wipe (`clip-path`), exit as the reverse, emphasis as a short
-     scale pulse; anything else is appear. Going back reverses a step without animation.
-   - **Transitions** (after E07-S01): fade, push, wipe, cover, uncover, split and zoom as CSS
-     animations of the section; cut and none instant; Morph as fade (see question 8). Speeds from
-     `spd`/`dur`. `prefers-reduced-motion` turns them all into instant changes.
-   - **Notes view** (`N`): the slide shrinks to the left two thirds and its speaker notes show beside
-     it, as HTML paragraphs with bold, italic, links and lists. Without notes it says so.
-   - **Presenter window** (`P`): opens the same file with `#presenter`, synced over
-     `BroadcastChannel` (falling back to `postMessage` between the two windows when the file is
-     opened from disk): current slide, next step, notes, slide number of total, elapsed time with a
-     reset. Keys work in both windows.
-   - **Print:** `@page` the slide's size with no margins, one slide per sheet in its final build
-     state, transitions and the toolbar hidden; with the notes view on, each sheet has the slide on
-     top and its notes below.
+   - **Keys:** Right, Down, Space, Page Down, Enter, click and swipe left: next slide; Left, Up,
+     Page Up, Backspace, swipe right: previous slide; Home/End; a number then Enter: that slide;
+     `F` full screen; `O` overview (all slides as a grid, Enter or click opens one); `B` or `.`
+     black screen; `?` the key list; Esc leaves full screen, overview or black. The URL hash (`#7`)
+     follows, so reload and links land on the same slide. E07-S06 turns next and previous into
+     build steps and adds `N`, `P` and `#7.2`.
+   - **Print:** `@page` the slide's size with no margins, one slide per sheet, the toolbar hidden.
    - **Script:** plain JavaScript in one inline `<script>`, kept in the package as an embedded
      resource (`HtmlDeck/deck.js`, `HtmlDeck/deck.css`) next to the authoring guides, minified by
-     nothing, so it can be reviewed like code.
+     nothing, so it can be reviewed like code. E07-S06 extends the same two files.
 9. **Notes for the caller.**
    - New codes `drawing-unsupported` (an element, preset, chart kind, image format or effect the
      reader leaves out, with the slide number and what it was) and `font-missing` (a family or
@@ -234,9 +221,9 @@ previews, so the HTML deck and the previews show the same thing.
     - The docs page lists the supported DrawingML (steps 3–6) as a table.
     - A **coverage test** generates every sample deck (`deck.md`, `layouts.md`, the feature samples
       of other tests) on the neutral, sample and dark templates, renders them, and fails on any
-      `drawing-unsupported` note. A later story that writes new DrawingML (E07-S01, E07-S04,
-      E01-S06, E02-S05, E04-S05) therefore extends the reader in the same change; this rule goes in
-      `ai/memory.md`.
+      `drawing-unsupported` note. A later story that writes new DrawingML (E07-S01, E07-S05,
+      E07-S04, E01-S06, E02-S05, E04-S05) therefore extends the reader in the same change; this
+      rule goes in `ai/memory.md`.
 11. **Tests.**
     - **Model:** placeholder inheritance (position from the layout, size from the master, `lstStyle`
       overrides), colour resolution with `clrMapOvr` and modifiers, the guide formulas against
@@ -249,8 +236,7 @@ previews, so the HTML deck and the previews show the same thing.
       `tableStyles.xml` style, an EMF picture (reported), a shadow (reported).
     - **HTML:** the file parses as HTML5, carries the CSP, loads nothing external (no `http` in
       `src`/`href` but the deck's own links), escapes slide text (a run `</script><img onerror>`
-      stays text), has one `<section>` per visible slide, embeds each face once, leaves notes out
-      with `Notes = false`.
+      stays text), has one `<section>` per visible slide, embeds each face once.
     - **Pixels:** each slide SVG is rasterised in the tests with `SvgConverter` (the test project
       references `wwosik.DocLibs.DocumentConversions.Svg` and `SkiaSharp.NativeAssets.Linux`) and
       compared with the images from E07-S03's golden tests; until E07-S03 exists, with PowerPoint's
@@ -262,7 +248,7 @@ previews, so the HTML deck and the previews show the same thing.
       side with the rasterised SVGs, and record the differences that remain in the docs' known
       limits.
     - Open the HTML file in current Chrome, Firefox, Edge and Safari (or WebKit), from disk and from
-      a web server: keys, overview, notes view, presenter window, print to PDF, full screen.
+      a web server: keys, overview, black screen, print to PDF, full screen.
 13. **Docs and changelog.**
     - `docs/wwosik.DocLibs.DocumentGeneration.Pptx.md`: a section *HTML deck* with the API, the keys,
       the supported DrawingML, fonts and stand-ins, security (what the CSP allows, links), size (images
@@ -284,10 +270,8 @@ previews, so the HTML deck and the previews show the same thing.
   pictures with SVG alternatives, Mermaid diagrams and financial charts are drawn.
 - [ ] Unknown elements, presets, image formats and effects are left out and reported once per
   kind with the slide numbers; missing fonts give `font-missing`.
-- [ ] Keys, overview, black screen, notes view, presenter window and print work in Chrome, Firefox,
-  Edge and Safari, from disk and from a server.
-- [ ] After E07-S01: builds step through in order and back; transitions play and respect
-  `prefers-reduced-motion`; notes from `::: notes` appear in the notes view and presenter window.
+- [ ] Keys, overview, black screen and print work in Chrome, Firefox, Edge and Safari, from disk
+  and from a server.
 - [ ] Slide text in the HTML is escaped, links are only `http`, `https` and `mailto`, and the CSP
   blocks anything not inline.
 - [ ] The sample decks were compared with PowerPoint's exports and the remaining differences are
@@ -337,28 +321,20 @@ previews, so the HTML deck and the previews show the same thing.
 
 > Accepted as proposed (the human, 2026-11-14, without discussion).
 
-7. Build effects in HTML: map E07-S01's effects to CSS (appear, fade, fly, wipe, exit, a pulse for
-   emphasis; proposed); or show steps instantly with no effects?
-
-> Accepted as proposed (the human, 2026-11-14, without discussion).
-
-8. Morph in HTML: fade for now, and E07-S04 adds the movement of shapes matched by name (proposed:
-   scenes are E07-S04's); or interpolate matched shapes' position, size and colour here already?
-
-> Accepted as proposed (the human, 2026-11-14, without discussion).
-
-9. Speaker notes: a notes view beside the slide and a presenter window synced between two windows
-   (proposed); or only the notes view in the same window?
-
-> Accepted as proposed (the human, 2026-11-14, without discussion).
-
-10. Should the work split into two stories: the reader, the SVG and the static page (slides, keys,
-    overview, print) first, and the presenting parts (builds, transitions, notes view, presenter
-    window) after E07-S01 (proposed: the first part does not wait for E07-S01, and E07-S03 can start
-    after it)?
+7. Should the work split into two stories: the reader, the SVG and the static page (slides, keys,
+   overview, print) first, and the presenting parts (builds, transitions, notes view, presenter
+   window) after E07-S01 and E07-S05 (proposed: the first part does not wait for them, and
+   E07-S03 can start after it)?
 
 > Answered by the human (2026-11-14): as proposed.
 
 ## Notes
 
 <!-- Free space for remarks that are not answers to the questions above. -->
+
+- Split on 2026-11-14 as question 7 proposed: the presenting parts and their questions (build
+  effects, Morph, notes view and presenter window) moved to E07-S06, with their answers.
+- E07-S03 adds a public entry point to this story's reader, `DeckSvg.Write`, that returns the
+  slide SVGs and the faces they use, because the previews live in
+  `wwosik.DocLibs.DocumentConversions.Svg`, which does not reference this package (see E07-S03's
+  notes). The reader and `SceneSvg` stay internal here.

@@ -46,9 +46,15 @@ generator understands.
 - **Decided by the human** (analysis question 7): Word drawings are SVG + PNG images, as in the
   fork, not editable shape groups. SkiaSharp is accepted as a dependency of the generators
   (question 9), but no generator references it today.
-- **E09-S01** places images and captions and fits them to the width and 80 % of the height. It
-  proposes shared Open XML sources in `src/Shared/OpenXml/` (its question 4). It starts
-  `AuthoringGuide/Docx.md`, and E09-S02 adds the deck syntax to it.
+- **[E09-S01](E09-S01-docx-package-and-templates.md)** puts the shared Open XML sources in
+  `src/Shared/OpenXml/` (decided, its question 2) and starts `AuthoringGuide/Docx.md`.
+- **[E09-S04](E09-S04-docx-content.md)** places images and captions and fits images to the width
+  and 80 % of the height. It is implemented before E09-S02 and this story despite its number.
+  E09-S04 adds the content sections to the guide, and E09-S02 the deck syntax.
+- **Captions (E03-S02).** A paragraph starting `Figure: ` directly after a fenced block that a
+  renderer drew is that figure's caption. Figure captions go below the figure, are numbered with
+  images through the whole document, and read "Figure n: …" in the document language. A
+  misplaced one stays text with `caption-ignored`.
 - **Authoring guides** (E05-S02):
   - renderers add their own section through `ICodeBlockRenderer.AuthoringGuide`
     (`Charts.md`, Mermaid);
@@ -62,8 +68,8 @@ generator understands.
 
 1. **Charts.**
    - **`ChartWriter` is made format-neutral.**
-     - It moves to `src/Shared/OpenXml/ChartWriter.cs`, linked into Pptx and Docx (or wherever
-       E09-S01's question 4 decides).
+     - It moves to `src/Shared/OpenXml/ChartWriter.cs`, linked into Pptx and Docx, as E09-S01's
+       question 2 decided.
      - `Add` takes the owning `OpenXmlPart` (a `SlidePart` or the `MainDocumentPart`), the text
        colour as hex or `null`, the grid colour as hex, and the font.
      - Pptx maps its `SlideColor` to those arguments. Decks must come out byte for byte as before,
@@ -78,14 +84,16 @@ generator understands.
        `ChartSpec.Colors` comes from there (question 3).
    - **Alt text.** `wp:docPr/@descr` is the chart's title, else "Chart" (`GeneratedTexts`, new
      `Chart`; German "Diagramm").
-   - **Captions.** A chart is a figure for captions. Its caption syntax is the one E03-S02 sets for
-     code-block graphics, if any (question 7).
+   - **Captions.** A chart is a figure for captions, with the syntax E03-S02 set for code-block
+     graphics (question 7): a `Figure: …` paragraph right after the `chart` block becomes a
+     `Caption` paragraph below the chart, with a `SEQ Figure` number, written as E09-S04 writes
+     figure captions. The same holds for drawings (step 2).
 2. **Drawings as SVG + PNG.**
    - **The SVG.** A `DrawingGraphic`, a `ChartGraphic`'s drawing where Word needs a picture, and an
      `ImageGraphic` that is SVG are all written with `DrawingSvg.Write`, with
      `FontFamily` set to the brand family (Arial without one).
    - **The PNG** comes from `ImageConverters` (`SvgImageConverter`) at scale 2, placed at the
-     reported natural size and fitted by E09-S01's rules.
+     reported natural size and fitted by E09-S04's rules.
    - **The picture.** It is written as `pic:pic` with the PNG as `a:blip r:embed` and the SVG in the
      `asvg:svgBlip` extension, exactly as decks write it. The shared helper in
      `src/Shared/OpenXml/` writes both.
@@ -121,7 +129,7 @@ generator understands.
      - Every front-matter key of the Docx templates, every container, alert and note code that
        applies to Docx appears in it. This is the coverage pattern the analysis names, applied to
        Docx.
-5. **Notes.** No new codes. `code-not-drawn` gets Docx in its formats if E09-S01 has not added it,
+5. **Notes.** No new codes. `code-not-drawn` gets Docx in its formats if E09-S04 has not added it,
    and its advice names the image converter.
 6. **Tests.**
    - **Charts.**
@@ -237,10 +245,11 @@ generator understands.
 
 <!-- Free space for remarks that are not answers to the questions above. -->
 
-- **Depends on E09-S01:** package, images, fitting, captions, the shared Open XML sources, and the
-  guide skeleton. It also depends on E09-S02's guide sections. Charts reuse E04-S02's
-  `ChartWriter`. SVG + PNG builds on E04-S04.
-- **Depends on E03-S02** only for the caption syntax of code-block graphics (question 7). Without
-  it, charts and diagrams have no captions.
+- **Depends on E09-S01:** package, the shared Open XML sources, and the guide skeleton.
+- **Depends on E09-S04:** images, fitting and captions. It also depends on E09-S02's guide
+  sections. Charts reuse E04-S02's `ChartWriter`. SVG + PNG builds on E04-S04.
+- **Shares with E03-S02** the caption syntax of code-block graphics (`Figure: …`, question 7),
+  agreed there. Whichever of E03-S02 and E09-S04 is implemented first adds the shared `Captions`
+  helper; this story reads it.
 - The fork's other Word visuals (icons, QR codes, timelines, Gantt) come with E04-S05 and are not
   part of this story.

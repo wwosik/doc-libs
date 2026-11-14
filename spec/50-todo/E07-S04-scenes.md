@@ -7,16 +7,17 @@
 
 `::: scene` draws a slide from named shapes placed on a grid of 160 × 90 units over the whole
 slide: boxes, rounded boxes, ellipses, texts, and arrows and lines between them. Shapes can appear
-or disappear step by step on clicks, using the builds of E07-S01. Consecutive scene slides with
+or disappear step by step on clicks, using the builds of E07-S05. Consecutive scene slides with
 `transition="morph"` move their shapes smoothly into place, because the shapes carry the same
 names. PDFs show each scene as one still drawing.
 
 ## Context
 
-- **Depends on E07-S01.** It brings the build model (`Build`, `BuildKind`, `BuildEffect`), the
-  `TimingWriter` that writes a slide's click sequence from the shapes `Canvas` records per step,
-  and the `morph` transition (`p159:morph` with a fade fallback) on a heading's
-  `transition="…"`. This story uses all three and adds no animation XML of its own.
+- **Depends on E07-S01 and E07-S05.** E07-S05 brings the build model (`Build`, `BuildKind`,
+  `BuildEffect`) and the `TimingWriter` that writes a slide's click sequence from the shapes
+  `Canvas` records per step. E07-S01 brings the `morph` transition (`p159:morph` with a fade
+  fallback) on a heading's `transition="…"`, and `::: notes`. This story uses all three and adds
+  no animation XML of its own.
 - **Containers.**
   - `LayoutSyntax.CheckContainer` knows `cards`, `rows`, `panel`, `statement`, `columns` (and
     `notes` after E07-S01). `::: scene` throws "Unknown container" in both formats today, so
@@ -64,7 +65,7 @@ names. PDFs show each scene as one still drawing.
   - E01-S06 (template roles) may add a blank or scene layout role. If so, scene slides use it;
     until then they use the title-only layout.
   - E07-S02 (HTML deck) and E07-S03 (previews) draw from the PPTX, so they get scenes as
-    ordinary shapes. The HTML deck decides how far it plays steps and Morph. The previews paint
+    ordinary shapes. E07-S06 (presenting the HTML deck) decides how far it plays steps and Morph. The previews paint
     every shape, as PowerPoint's normal view does.
   - E04-S05 (icons) may later offer icons as scene shapes.
 
@@ -126,7 +127,7 @@ names. PDFs show each scene as one still drawing.
    - It may hold only the scene and `::: notes`. Any other block, or a second scene, throws
      (question 6).
    - A `::: scene` nested in another container throws.
-   - E07-S01 build markers before a scene throw too: the scene's steps say what builds.
+   - E07-S05 build markers before a scene throw too: the scene's steps say what builds.
 4. **Writing decks** (new internal `SceneWriter`, called from a `WriteSceneSlide` in `DeckWriter`).
    - **Layout.** The slide goes on the title-only layout, or the heading's `layout="…"`, and
      gets its title as other slides do.
@@ -143,7 +144,7 @@ names. PDFs show each scene as one still drawing.
      or by Morph. A connector label is a text shape `!!<name>-label` at its midpoint.
    - **Order.** Shapes are written in the order of the lines, so later ones cover earlier ones.
      Connectors go after the shapes.
-   - **Steps.** `step=N` and `exit=N` become E07-S01 build steps:
+   - **Steps.** `step=N` and `exit=N` become E07-S05 build steps:
      - an entrance on click N with `effect` (default appear) and an exit on click N;
      - clicks ordered by N, so gaps in the numbers are closed up;
      - everything on the same N starting together.
