@@ -28,7 +28,7 @@ headings that say what a section is about, lists where items really are parallel
 - **Images** (PNG or JPEG) are referenced by the path given to you, keep their size and are only
   scaled down to fit; `![Chart](chart.png "scale=0.5")` halves the size. They are never split and
   move to the next page if needed. Several images in one paragraph stand side by side, equally
-  wide.
+  wide. Any other words in the title are its caption (below).
 - **Image attributes** in braces right after an image, without a space:
   `![Team](team.jpg){.round .grey}`. `.round` crops it to a circle, `.grey` shows it in grey,
   `scale=0.5` is the same as `"scale=0.5"`. In a row of images, `fit=cover` fills the row's height
@@ -46,6 +46,31 @@ headings that say what a section is about, lists where items really are parallel
   line (several `:` lines for several descriptions). The term is set in bold, the description
   indented under it.
 - HTML is printed as text, not interpreted: do not use it. HTML comments are dropped.
+
+## Contents, numbers and captions
+
+- `toc: true` in the front matter puts a table of contents on a page after the cover: the headings
+  of `tocDepth` levels (default 2) from the highest level after the cover, each with its page
+  number and a link to it.
+- `headingNumbers: true` numbers three heading levels from the highest one after the cover: `1`,
+  `1.1`, `1.1.1`, also in the bookmarks and the contents. A skipped level does not count: a `###`
+  right under a `#` is `1.1`. `{.unnumbered}` at the end of any heading gives it no number.
+- **Captions** are numbered through the document, figures and tables apart, as "Figure 1: …" and
+  "Table 1: …" in the document's language (`lang`):
+  - an image's title, besides `scale=`, is its caption: `![Sales](s.png "Sales by region")`;
+    `"caption"` alone uses the alt text;
+  - a paragraph `Table: …` after a table, after a blank line, goes above the table;
+  - a paragraph `Figure: …` right after a diagram block that is drawn goes below it.
+
+  `Table:` and `Figure:` stay English in every language. Anywhere else such a paragraph is text.
+
+```markdown
+| Region | Sales |
+| ------ | ----: |
+| North  | 120   |
+
+Table: Sales by region, 2026
+```
 
 ## Syntax written for slides
 
@@ -178,6 +203,9 @@ author: Planning team
 | `showTagline` | `true` or `false`: the design's tagline on the cover, if it has one. Default `true`. |
 | `pageSize` | `A4`, `A3` or `Letter`. Default `A4`. |
 | `orientation` | `portrait` or `landscape`. Default `portrait`. |
+| `toc` | `true` or `false`: a table of contents after the cover, with page numbers. Default `false`. |
+| `tocDepth` | `1`, `2` or `3`: the heading levels the table of contents lists. Default `2`. |
+| `headingNumbers` | `true` or `false`: numbers on three heading levels (1, 1.1, 1.1.1). Default `false`. |
 | `transition` | The transition between slides in a deck: `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut`, `morph`. A PDF accepts it and ignores it. |
 | `build` | `lists` builds every list of a deck item by item, `none` does not. A PDF accepts it and ignores it. |
 | `numberChapters` | `true` or `false`: chapter numbers on a deck's section dividers. A PDF accepts it and ignores it. |
@@ -224,6 +252,8 @@ The document is still written, but whoever passes it to you may also pass on not
 - `attribute-ignored`: an image attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `focus` on an image that is not cropped. Remove it, or use it where it works.
 - `icon-not-drawn`: an icon was left out where it cannot be drawn. Move it as the *Icons* section says.
 - `agenda-empty`: an empty `{.agenda}` found no `#` chapters to list. Add the chapters, or write the agenda as a list.
+- `caption-ignored`: a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text.
+- `toc-empty`: `toc: true` asked for a table of contents, but the document has no headings at the depth it lists, so there is none. Add headings, raise `tocDepth`, or leave `toc` out.
 
 A check before generating writes nothing and returns these notes too, and also:
 

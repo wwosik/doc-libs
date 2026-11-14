@@ -26,7 +26,9 @@ internal enum CaptionKind
 /// </list>
 /// <c>Table:</c> and <c>Figure:</c> are syntax and stay English; the label written is the document language's
 /// (<see cref="GeneratedTexts.Table"/>, <see cref="GeneratedTexts.Figure"/>), and a caption reads
-/// <c>&lt;label&gt; &lt;n&gt;: &lt;text&gt;</c>. Used by Word documents; PDFs and decks take it up with E03-S02.
+/// <c>&lt;label&gt; &lt;n&gt;: &lt;text&gt;</c>, figures and tables numbered apart through the whole document. Word
+/// documents and PDFs number captions; decks show a <c>Table:</c> or <c>Figure:</c> paragraph under its visual without
+/// the prefix and without a number, and keep their own image titles.
 /// </summary>
 internal static partial class Captions
 {
@@ -70,6 +72,10 @@ internal static partial class Captions
         var literal = (LiteralInline)paragraph.Inline!.FirstChild!;
         literal.Content = new Markdig.Helpers.StringSlice(literal.Content.ToString()[Prefix(kind).Length..].TrimStart());
     }
+
+    /// <summary>The message of <see cref="NoteCodes.CaptionIgnored"/> for a <paramref name="kind"/> paragraph that follows nothing it captions.</summary>
+    public static string Ignored(CaptionKind kind) =>
+        $"The paragraph '{GenerationNotes.Quote(Prefix(kind))}…' follows no {(kind == CaptionKind.Table ? "table" : "drawn diagram or chart")}, so it is shown as text. Put it right after its {(kind == CaptionKind.Table ? "table" : "diagram")}.";
 
     /// <summary>The syntax before a caption: <c>Table: </c> or <c>Figure: </c>.</summary>
     public static string Prefix(CaptionKind kind) => kind == CaptionKind.Table ? "Table: " : "Figure: ";

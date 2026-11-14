@@ -84,6 +84,9 @@ string guide = PdfGenerator.AuthoringGuide(options);   // starts at "##"
 | `Brands` | none | brands front matter may select, see [Brands](wwosik.DocLibs.DocumentGeneration.md#brands) |
 | `PageSize` | `A4` | `A4`, `A3`, `Letter` |
 | `Orientation` | `Portrait` | `Portrait`, `Landscape` |
+| `TableOfContents` | `false` | a table of contents after the cover, see [Contents, numbers and captions](#contents-numbers-and-captions) |
+| `TableOfContentsDepth` | `2` | the heading levels it lists, 1–3; another value throws `ArgumentOutOfRangeException` |
+| `HeadingNumbers` | `false` | numbers on three heading levels |
 | `CodeBlockRenderers` | none | see [Diagrams](#diagrams) |
 | `ImageConverters` | none | images in other formats, such as SVG, see [Image converters](wwosik.DocLibs.DocumentGeneration.md#image-converters) |
 | `ReplaceUnsupported` | none (throws) | see [Characters the fonts lack](#characters-the-fonts-lack) |
@@ -105,11 +108,14 @@ The shared syntax and rules are in
 | `showDate`, `showTagline` | `true`, `false` | all |
 | `pageSize` | `A4`, `A3`, `Letter` | all |
 | `orientation` | `portrait`, `landscape` | all |
+| `toc` | `true`, `false` | all |
+| `tocDepth` | `1`, `2`, `3` | all |
+| `headingNumbers` | `true`, `false` | all |
 | `title`, `author` | text | all |
 | `lang` | a language tag such as `en`, `de`, `de-CH` | all |
 | `transition` | `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut`, `morph` | all — a deck's key: checked, then ignored |
 | `build` | `none`, `lists` | all — a deck's key: checked, then ignored |
-| `numberChapters` | `true`, `false` | all — a deck's key: checked, then ignored; heading numbers in PDFs are not generated |
+| `numberChapters` | `true`, `false` | all — a deck's key: checked, then ignored; heading numbers in PDFs come from `headingNumbers` |
 
 ## Design
 
@@ -135,11 +141,45 @@ The shared syntax and rules are in
 | Code blocks | The brand's mono face, else Liberation Mono, 9 pt on light grey, wrapped by characters. |
 | Quotes | Indented, grey, with a rule on the left per quote level. |
 | Tables | 9.5 pt, in the brand's table fonts if it has them; full content width. Each column gets at least its longest word, the rest is shared in proportion to the content. Header row in the brand table colour with white bold text, banded rows, thin lines, alignment from the Markdown. A cell that is only `[0/4]` … `[4/4]` or `[1/2]` is a drawn Harvey ball, one em, in the cell's text colour and alignment (see [Harvey balls](wwosik.DocLibs.DocumentGeneration.md#steps-harvey-balls-and-risk-matrices)). A row that doesn't fit moves to the next page and the header row repeats there; a row taller than a page splits at line boundaries. |
-| Images | Natural size at 96 DPI, `"scale=N.N"` in the title multiplies it; scaled down to the content width and page height, never up; centred; moved to the next page if they don't fit. An `.svg` image needs an image converter (`SvgImageConverter` from [wwosik.DocLibs.DocumentConversions.Svg](wwosik.DocLibs.DocumentConversions.Svg.md)): placed the same way, as a PNG drawn twice as large. |
+| Images | Natural size at 96 DPI, `"scale=N.N"` in the title multiplies it, any other words of the title are a [caption](#contents-numbers-and-captions); scaled down to the content width and page height, never up; centred; moved to the next page if they don't fit. An `.svg` image needs an image converter (`SvgImageConverter` from [wwosik.DocLibs.DocumentConversions.Svg](wwosik.DocLibs.DocumentConversions.Svg.md)): placed the same way, as a PNG drawn twice as large. |
 | `---` | A thin line. |
 | `**bold**`, `*italic*`, `~~strike~~`, `` `code` `` | Font face; strike as a line through. |
 | Links | Brand link colour, underlined, with a link annotation. Absolute URLs open; `#id` jumps to the heading; anything else stays text. |
 | Raw HTML | Written out as text. HTML comments are dropped. |
+
+## Contents, numbers and captions
+
+The keys and the caption syntax are shared with Word documents:
+[contents and heading numbers](wwosik.DocLibs.DocumentGeneration.md#contents-and-heading-numbers),
+[captions](wwosik.DocLibs.DocumentGeneration.md#captions). In a PDF:
+
+- **Table of contents** (`toc: true`). It starts on a new page after the cover, or on the first page
+  without one; the body then starts on a new page. Its heading is `GeneratedTexts.Contents`
+  ("Contents", German "Inhalt"), set like a `##` heading and bookmarked, not numbered and not listed.
+  - Per entry, indented 16 pt per level: the number (if any) in a column of the widest number at that
+    level, the title (`#` chapters bold) wrapped short of the page-number column, a dot leader on one
+    grid, and the page number right-aligned at the margin. The whole entry links to its heading.
+  - The page number is the one the footer shows (the cover counts). The page-number column is three
+    digits wide (the widest digit of the regular and bold faces), so the contents' height never depends
+    on the numbers: the engine lays the document out once and writes the numbers from the headings'
+    anchors afterwards, as it writes the footers.
+  - Entries: the headings down to `tocDepth` from the highest level after the cover, `{.unnumbered}`
+    ones included, the headings inside `:::` containers not. The end-of-document footnotes heading is
+    listed at the top level. A heading without an anchor gets one (`contents-1`, …), so every entry
+    can link.
+  - No heading to list: no contents page, and the note `toc-empty`.
+- **Heading numbers** (`headingNumbers: true`). The number is set in the heading's face, size and
+  colour in a column as wide as the widest number of that level plus 0.6 em; wrapped lines of the
+  heading start at its text (a hanging indent). Bookmarks read "1.2 Title"; anchors do not change.
+  The footnotes heading is never numbered.
+- **Captions** are 9 pt in the text colour, centred, "Figure 1:" / "Table 1:" bold, then the text
+  (links in it work).
+  - Figures (images, and diagrams or charts a renderer drew) have theirs 4 pt below and stay on the
+    visual's page: a visual capped to the room under its headings also leaves room for its caption.
+  - Tables have theirs above, kept with the header row and the start of the first row; continuation
+    pages repeat the header row only.
+  - In a row of images each image has its own caption in its cell, numbered on its own.
+  - A QR code's `"caption"` keeps drawing the alt text inside the code's drawing, without a number.
 
 ## Image attributes
 
@@ -152,7 +192,7 @@ The shared syntax and rules are in
 | `focus=top`, `bottom`, `left`, `right`, `center` | Which part stays when the image is cropped (default `center`); without `fit=cover` or `.round` it has no effect. |
 | `.round` | Cropped to a square by `focus`, at the size of its shorter side, then to a circle: a clipping path of four Bézier curves around the whole image, inside `q … Q`. The pixels are not touched. |
 | `.grey` | The pixels are made grey: SkiaSharp decodes the PNG or JPEG, turns each pixel into its luminance (Rec. 709) keeping its alpha, and encodes a PNG again as PNG, a JPEG as JPEG at quality 90. An image used several times in grey is converted and embedded once. |
-| `.caption` | No effect (PDFs show no captions); the note `attribute-ignored`. |
+| `.caption` | The alt text as the image's caption, like `"caption"` in the title. |
 | `scale=N.N` | The same as `"scale=N.N"` in the title: a factor on the natural size. |
 
 **SkiaSharp's native library.** `.grey` needs it; documents without `.grey` never load it. On
@@ -306,7 +346,8 @@ Markdown written for the PPTX generator's
 
 - **Heading attributes** at the end of a `##` heading (`{.dark kicker="Label" layout="Name"}`) and of
   a `#` heading (`{.closing}`) are checked and dropped; the kicker is not shown. So is
-  `transition="…"`. A `---` that cuts a `layout="…"` slide into
+  `transition="…"`. `{.unnumbered}` is read on every level (on `###` to `######` a trailing `{…}` is
+  taken off only when it is `{.unnumbered}`; other braces stay text). A `---` that cuts a `layout="…"` slide into
   [placeholders](wwosik.DocLibs.DocumentGeneration.Pptx.md#layouts-across-placeholders) stays
   what a `---` is everywhere in a PDF.
 - **Speaker notes** (`::: notes` … `:::` at the top level) are left out, with no option to print

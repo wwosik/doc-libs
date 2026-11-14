@@ -45,13 +45,13 @@ internal sealed partial class DocxBody
     private readonly Dictionary<string, string> anchors = new(StringComparer.Ordinal);
     private readonly Dictionary<(OpenXmlPart, DocumentResource), (string Id, ImageInfo Info, string? Svg)> images = [];
     private readonly Dictionary<CaptionKind, int> captions = [];
-    private readonly int[] headingCounters = new int[3];
     private readonly List<TocEntry> headings = [];
     private readonly List<int> breaks = [];
     private DocxNumbering numbering = null!;
     private DocxFootnotes footnotes = null!;
     private DocxRuns runs = null!;
     private int shift;
+    private HeadingNumbering numbers = null!;
     private int drawingId;
     private int bookmarkId;
     private int controlId;
@@ -146,11 +146,8 @@ internal sealed partial class DocxBody
         this.Bookmarks(blocks);
 
         // The highest level used after the cover becomes Heading 1; headings inside slide-layout containers are no chapters.
-        var levels = blocks.SelectMany(b => b is HeadingBlock h ? [h] : b is ContainerBlock c ? c.Descendants<HeadingBlock>() : [])
-            .Where(h => !InLayoutContainer(h))
-            .Select(h => h.Level)
-            .ToList();
-        this.shift = levels.Count == 0 ? 0 : levels.Min() - 1;
+        this.shift = HeadingNumbering.Top(blocks) - 1;
+        this.numbers = new HeadingNumbering(1);
 
         var elements = new List<OpenXmlElement>();
         this.Blocks(blocks, new Frame(DocxRoles.Normal, this.MainPart), elements);
@@ -158,19 +155,6 @@ internal sealed partial class DocxBody
         this.numbering.Save();
         this.footnotes.Save();
         return (elements, this.headings);
-    }
-
-    private static bool InLayoutContainer(Block block)
-    {
-        for (var parent = block.Parent; parent is not null; parent = parent.Parent)
-        {
-            if (parent is CustomContainer)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     // `::: pagebreak`: where the block it comes before begins in the body, that element starts a page. Not the first
@@ -303,7 +287,7 @@ internal sealed partial class DocxBody
                 this.Context.Notes.Add(
                     NoteCodes.CaptionIgnored,
                     this.LineOf(misplaced),
-                    $"The paragraph '{GenerationNotes.Quote(Captions.Prefix(kind))}…' follows no {(kind == CaptionKind.Table ? "table" : "drawn diagram or chart")}, so it is shown as text. Put it right after its {(kind == CaptionKind.Table ? "table" : "diagram")}.");
+                    Captions.Ignored(kind));
             }
 
             this.Add(block, frame, target);
@@ -429,15 +413,21 @@ internal sealed partial class DocxBody
             properties.Append(new PageBreakBefore());
         }
 
+        var number = unnumbered || !this.Context.HeadingNumbers ? null : this.numbers.Next(level);
         if (unnumbered)
         {
             properties.Append(new NumberingProperties(new NumberingLevelReference { Val = 0 }, new NumberingId { Val = 0 }));
+        }
+        else if (number is { } counted && counted.Depth != level)
+        {
+            // A level skipped above it: Word counts the number's own level, so that it never shows a 0 (`0.1`, `1.0.1`).
+            properties.Append(new NumberingProperties(new NumberingLevelReference { Val = counted.Depth - 1 }, new NumberingId { Val = DocxNumbering.HeadingNumId }));
         }
 
         var paragraph = new Paragraph(properties);
         var bookmark = this.Bookmarked(paragraph, heading, runs);
         target.Add(paragraph);
-        this.headings.Add(new TocEntry(level, DocxRuns.Text(runs).Trim()) { Number = unnumbered ? null : this.Number(level), Bookmark = bookmark });
+        this.headings.Add(new TocEntry(level, DocxRuns.Text(runs).Trim()) { Number = number?.Number, Bookmark = bookmark });
     }
 
     // The heading's runs inside its bookmark, if it has one; returns the bookmark.
@@ -688,23 +678,6 @@ internal sealed partial class DocxBody
         {
             properties.Shading = (Shading)shading.CloneNode(true);
         }
-    }
-
-    // The number Word shows for a heading of Heading 1–3 through the multilevel list, as it counts: a level skipped shows 0.
-    private string? Number(int level)
-    {
-        if (!this.Context.HeadingNumbers || level > 3)
-        {
-            return null;
-        }
-
-        this.headingCounters[level - 1]++;
-        for (var deeper = level; deeper < 3; deeper++)
-        {
-            this.headingCounters[deeper] = 0;
-        }
-
-        return string.Join(".", this.headingCounters.Take(level).Select(n => n.ToString(CultureInfo.InvariantCulture)));
     }
 
     // Text before and after images becomes paragraphs of their own style; each image is a centred paragraph. A paragraph

@@ -111,6 +111,9 @@ public static class NoteCodes
     /// <summary>A <c>Table: …</c> or <c>Figure: …</c> paragraph follows no table or drawn diagram, so it is shown as text.</summary>
     public const string CaptionIgnored = "caption-ignored";
 
+    /// <summary>A table of contents was asked for (<c>toc: true</c>), but no heading is at the depth it lists, so there is none.</summary>
+    public const string TocEmpty = "toc-empty";
+
     /// <summary>A list is nested deeper than three levels; the deeper items are set at the third level.</summary>
     public const string ListTooDeep = "list-too-deep";
 
@@ -159,7 +162,8 @@ public static class NoteCodes
         (IconNotDrawn, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx],"an icon was left out where it cannot be drawn. Move it as the *Icons* section says."),
         (LayoutFallback, [DocumentFormat.Pptx], "the design has no layout for that kind of slide (`{.quote}` and the others), so it is drawn as a layout slide with the same content. Nothing to fix, unless the design's own look matters."),
         (AgendaEmpty, [DocumentFormat.Pptx, DocumentFormat.Pdf], "an empty `{.agenda}` found no `#` chapters to list. Add the chapters, or write the agenda as a list."),
-        (CaptionIgnored, [DocumentFormat.Docx], "a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text."),
+        (CaptionIgnored, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text."),
+        (TocEmpty, [DocumentFormat.Pdf], "`toc: true` asked for a table of contents, but the document has no headings at the depth it lists, so there is none. Add headings, raise `tocDepth`, or leave `toc` out."),
         (ListTooDeep, [DocumentFormat.Docx], "a list is nested deeper than three levels; the deeper items are set at the third level. Flatten the list to three levels."),
         (ClassificationKept, [DocumentFormat.Docx], "the front matter asks for a lower `classification` than the host set, and the host's applies. Leave the key out, or raise it."),
         (TooManyBullets, [DocumentFormat.Pptx], "a slide has more list items, counting every level, than *Limits* allows. Cut them, or split the slide into slides of your own."),

@@ -44,6 +44,9 @@ internal sealed partial class DeckParser(
     // Whether the section being walked fills a layout with picture placeholders, where every image is cropped.
     private bool pictureSlots;
 
+    // The fenced blocks a renderer drew, which a `Figure:` paragraph after them captions.
+    private readonly HashSet<FencedCodeBlock> drawn = new(ReferenceEqualityComparer.Instance);
+
     // The build marker of the block being walked, and that block, while it is walked; see WalkMarked.
     private BuildMark? build;
     private Block? marked;
@@ -750,7 +753,7 @@ internal sealed partial class DeckParser(
                 flow.Add(new LabelledTagsBlock(items));
                 break;
             case HeadingBlock heading:
-                target.Text(new TextParagraph(this.Runs(heading.Inline, imagesAsText: true, style | RunStyle.Bold), Level: level) { Heading = true });
+                target.Text(new TextParagraph(WithoutDeepAttributes(this.Runs(heading.Inline, imagesAsText: true, style | RunStyle.Bold)), Level: level) { Heading = true });
                 break;
             case ParagraphBlock paragraph:
                 this.Paragraph(paragraph.Inline, target, ParagraphKind.Plain, level, 1, style);
@@ -769,6 +772,7 @@ internal sealed partial class DeckParser(
                 target.Visual(this.Table(table, labels: target is FlowCollector), null);
                 break;
             case FencedCodeBlock fenced when this.Render(fenced) is { } rendered:
+                this.drawn.Add(fenced);
                 if (rendered is DrawingGraphic drawing)
                 {
                     target.Visual(null, null, drawing.Drawing);
@@ -898,11 +902,47 @@ internal sealed partial class DeckParser(
                 flow.Break();
             }
 
+            if (block is ParagraphBlock paragraph && Captions.Kind(paragraph) is { } kind)
+            {
+                this.Caption(paragraph, kind, index > 0 ? all[index - 1].Block : null);
+            }
+
             (this.build, this.marked) = (mark, mark is null ? null : block);
             this.Walk(block, target, 0, RunStyle.None);
         }
 
         (this.build, this.marked) = (outer, outerBlock);
+    }
+
+    // A `Table:` paragraph after a table, or a `Figure:` one after a drawn diagram, is shown under it as it always was,
+    // now without its prefix and, unlike in documents, without a number. Anywhere else it stays text, with a note.
+    private void Caption(ParagraphBlock paragraph, CaptionKind kind, Block? before)
+    {
+        if (kind == CaptionKind.Table ? before is Table : before is FencedCodeBlock fenced && this.drawn.Contains(fenced))
+        {
+            Captions.TakePrefix(paragraph, kind);
+        }
+        else
+        {
+            notes.Add(NoteCodes.CaptionIgnored, this.LineOf(paragraph), Captions.Ignored(kind));
+        }
+    }
+
+    // `{.unnumbered}` at the end of a `###` to `######` heading is for documents: taken off, as in documents.
+    private static List<TextRun> WithoutDeepAttributes(List<TextRun> runs)
+    {
+        if (runs.Count == 0 || runs[^1] is not { IsBreak: false, Link: null } last || last.Style.HasFlag(RunStyle.Code))
+        {
+            return runs;
+        }
+
+        var (text, attributes) = HeadingAttributes.SplitDeep(last.Text, Format.Pptx);
+        if (attributes is null)
+        {
+            return runs;
+        }
+
+        return text.Length > 0 ? [.. runs[..^1], last with { Text = text }] : runs[..^1];
     }
 
     // Splits the paragraph at images: text before and after becomes paragraphs, each image a visual. A paragraph of

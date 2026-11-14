@@ -341,9 +341,13 @@ On the built-in template Heading 1–3 are numbered through its multilevel list,
 `1.1.1`; Heading 4–6 are not. `headingNumbers: false` (or `HeadingNumbers = false`) leaves the
 numbering off the heading styles. A heading ending in `{.unnumbered}` gets `w:numId` 0: no number,
 and it does not count. On a caller's or a brand's own template the heading styles decide;
-`{.unnumbered}` still switches a heading's number off. Word counts a skipped level as 0: a
-`Heading 3` straight after a `Heading 1` is `1.0.1`, and a `Heading 2` before any `Heading 1` is
-`0.1`. On `###` to `######` a trailing `{…}` is taken off only when every token in it is
+`{.unnumbered}` still switches a heading's number off. Numbers follow the
+[shared rule](wwosik.DocLibs.DocumentGeneration.md#heading-numbers), as in PDFs: a skipped level
+never counts as 0. Word itself would count it (`1.0.1` for a `Heading 3` straight after a
+`Heading 1`, `0.1` for a `Heading 2` before any `Heading 1`), so such a heading gets a paragraph
+`w:numPr` with the list level of its number (`w:ilvl` 1 for `1.1`) and the heading list's `numId`;
+its style, and so its look and its level in the table of contents, stay those of its Markdown level.
+The pre-filled numbers of the table of contents are the same. On `###` to `######` a trailing `{…}` is taken off only when every token in it is
 `.unnumbered`; any other braces stay text.
 
 ### Captions

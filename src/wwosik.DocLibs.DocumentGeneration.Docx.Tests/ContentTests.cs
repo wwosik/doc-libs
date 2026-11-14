@@ -128,6 +128,28 @@ public class ContentTests
     }
 
     [Fact]
+    public void ASkippedLevel_IsNumberedAsInPdfs_WithTheListLevelOfItsNumber()
+    {
+        // As report.md: `##` sections before the first `#`, and a `###` straight under a `#`.
+        using var package = Open("---\ntoc: true\ntocDepth: 3\n---\n# Title\n\n## A\n\n### B\n\n## C\n\n# D\n\n### E\n");
+        (string Style, int? Level) Of(string text)
+        {
+            var paragraph = Paragraphs(package).Single(p => Texts(p) == text && Style(p).StartsWith("Heading", StringComparison.Ordinal));
+            return (Style(paragraph), paragraph.ParagraphProperties!.NumberingProperties?.NumberingLevelReference?.Val?.Value);
+        }
+
+        Assert.Equal(("Heading2", 0), Of("A"));
+        Assert.Equal(("Heading3", 1), Of("B"));
+        Assert.Equal(("Heading2", 0), Of("C"));
+        Assert.Equal(("Heading1", null), Of("D"));
+        Assert.Equal(("Heading3", 1), Of("E"));
+        Assert.All(
+            Paragraphs(package).Where(p => Style(p).StartsWith("Heading", StringComparison.Ordinal) && p.ParagraphProperties!.NumberingProperties is not null),
+            p => Assert.Equal(DocxNumbering.HeadingNumId, p.ParagraphProperties!.NumberingProperties!.NumberingId!.Val!.Value));
+        Assert.Equal(["1 A", "1.1 B", "2 C", "3 D", "3.1 E"], Paragraphs(package).Where(p => Style(p) is "TOC1" or "TOC2" or "TOC3").Select(Texts));
+    }
+
+    [Fact]
     public void Headings_HaveBookmarks_WhichLinksAndTheTableOfContentsJumpTo()
     {
         using var package = Open("---\ntoc: true\n---\n# Title\n\n## Costs & risks\n\nSee [costs](#costs--risks) and [nowhere](#missing).\n\n## Costs & risks\n");

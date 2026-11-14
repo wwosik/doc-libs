@@ -1,7 +1,7 @@
 # E03-S02 Contents, heading numbers and captions
 
-> Status: in progress (doc-3)
-> Epic: [E03 PDF layout](../../50-todo/E03-pdf-layout.md)
+> Status: in verification
+> Epic: [E03 PDF layout](../50-todo/E03-pdf-layout.md)
 
 ## Summary
 
@@ -16,9 +16,9 @@ for these features, so the DOCX generator (E09) reads the same source the same w
   stories (question 1):
   - E03-S02, this story: contents, heading numbers, captions. All three number or list headings
     and visuals.
-  - [E03-S03](E03-S03-footnotes-justification-and-page-breaks.md): footnotes at the page foot,
+  - [E03-S03](../55-in-progress/doc-3/E03-S03-footnotes-justification-and-page-breaks.md): footnotes at the page foot,
     justified text, page breaks. All three change how lines and pages are filled.
-  - [E03-S04](E03-S04-classification-marking.md): classification marking in PDFs and decks. It
+  - [E03-S04](../55-in-progress/doc-3/E03-S04-classification-marking.md): classification marking in PDFs and decks. It
     touches the page furniture of every format, not the flow.
 - **Layout today.** The layout runs once (`LayoutEngine.Run`, `LayoutEngine.cs:78`):
   - It places the cover, flows the blocks greedily, and then adds header and footer to every
@@ -201,23 +201,23 @@ for these features, so the DOCX generator (E09) reads the same source the same w
 
 ## Acceptance criteria
 
-- [ ] `toc: true` gives a contents page after the cover. Its entries link to their headings and
+- [x] `toc: true` gives a contents page after the cover. Its entries link to their headings and
   show the page numbers the footer shows, for `tocDepth` 1 to 3.
-- [ ] `headingNumbers: true` numbers three levels from the highest level after the cover, with a
+- [x] `headingNumbers: true` numbers three levels from the highest level after the cover, with a
   hanging indent, and the bookmarks carry the numbers. `{.unnumbered}` headings get none and do
   not count.
-- [ ] `![Alt](a.png "Text")`, `![Alt](a.png "caption")`, `Table: …` after a table and `Figure: …`
+- [x] `![Alt](a.png "Text")`, `![Alt](a.png "caption")`, `Table: …` after a table and `Figure: …`
   after a drawn diagram give "Figure n: …" and "Table n: …" in the document language. Images
   with only `"scale=…"` get none.
-- [ ] Captions stay on the page of their visual; table captions are not repeated on continuation
+- [x] Captions stay on the page of their visual; table captions are not repeated on continuation
   pages.
-- [ ] `toc-empty` and `caption-ignored` are reported with their lines.
-- [ ] Decks accept `toc`, `tocDepth`, `headingNumbers` and `{.unnumbered}` without effect. Decks
+- [x] `toc-empty` and `caption-ignored` are reported with their lines.
+- [x] Decks accept `toc`, `tocDepth`, `headingNumbers` and `{.unnumbered}` without effect. Decks
   without `Table:` / `Figure:` paragraphs are unchanged, and decks still pass the Open XML
   validator.
-- [ ] PDFs without the new keys and captions come out the same as before; with them, they are
+- [x] PDFs without the new keys and captions come out the same as before; with them, they are
   still PDF/A-2b.
-- [ ] Guides, expected guides, docs, CHANGELOG and memory are updated, and all tests pass.
+- [x] Guides, expected guides, docs, CHANGELOG and memory are updated, and all tests pass.
 
 ## Open questions
 
@@ -269,4 +269,155 @@ for these features, so the DOCX generator (E09) reads the same source the same w
 
 ## Notes
 
-<!-- Free space for remarks that are not answers to the questions above. -->
+- **Decision by the human (2026-11-14):** heading numbering with a skipped level follows this story's
+  rule in **every** format: the highest level used after the cover is level 1, and a skipped level
+  never yields zeros (`##` sections before a later `#` must not become `0.1`, `0.2`; a `###` straight
+  under a `#` is not `1.0.1`). This answers the question E09-S04 left open: the DOCX generator, which
+  followed Word's own counting, now counts like the PDF (see *Implementation notes*). It is a change
+  to the unreleased DOCX package.
+
+## Implementation notes
+
+### Breaking changes
+
+- **PDFs read captions.** An image title with words besides `scale=N` (and a standalone `caption`)
+  is now a "Figure n: …" caption under the image, where it had no effect; `"caption"` / `.caption`
+  (which gave `attribute-ignored`) now give the alt text as caption. A `Table: …` paragraph after a
+  table becomes its numbered caption above it, a `Figure: …` paragraph after a drawn diagram its
+  caption below, instead of ordinary paragraphs. PDFs without these are byte-identical (verified).
+- **Decks drop the `Table: ` / `Figure: ` prefix** of the paragraph under a table or a drawn diagram.
+  Decks without such paragraphs are unchanged (verified).
+- **New syntax that used to fail or stay text:** `{.unnumbered}` on `#`/`##` (was "Unknown heading
+  attribute" in PDFs and decks), and taken off `###`–`######` (stayed text); `toc`, `tocDepth`,
+  `headingNumbers` in PDFs and decks (were unknown keys). The valid-attributes list in error messages
+  names `.unnumbered`.
+- **DOCX (unreleased package, E09-S01/S04):** headings whose number's depth differs from their
+  heading style get a paragraph `w:numPr`; the pre-filled TOC numbers follow (`report.md`: `1`, `2`,
+  `3` instead of `0.1`, `0.2`, `1`). Recorded in CHANGELOG under the DOCX package's *New* entry, not
+  as breaking, since nothing of it was released.
+
+`CHANGELOG.md` has the three consumer-facing breaks first and the additions under *New*.
+
+### Decisions and deviations
+
+- **One numbering rule, shared** (`HeadingNumbering` in DocumentGeneration; the human's decision in
+  *Notes*). `Top(blocks after the cover)` is the highest level outside `:::` containers. `Next(level)`
+  closes the open numbered headings at that level or below; the number's depth is the number still
+  open plus one, and counters below it reset. So a skipped level never gives 0: `##` before the first
+  `#` are `1`, `2`, and that `#` is `3`; `###` under `#` is `1.1`. Levels from `top + 3` on are
+  unnumbered and do not touch the counting; `{.unnumbered}` and container headings are never passed in.
+  Word counts the same way once each paragraph is on the list level of its number's depth.
+- **DOCX** uses it in place of its own counters: `shift = Top − 1` (as before), and a numbered heading
+  whose depth ≠ its (shifted) level gets `w:numPr` with `ilvl` depth − 1 and `HeadingNumId`, on the
+  built-in template only (where `DocxContext.HeadingNumbers` is true). The heading keeps its style
+  (look, outline level, TOC level); only Word's number changes. Headings at their own depth get no
+  direct `numPr`, so documents without skipped levels are unchanged. The guide's advice "do not skip
+  levels, `###` under `#` is `1.0.1`" now says the opposite; the docs explain the `numPr`.
+- **`{.unnumbered}`** is known to every format (`HeadingAttributes.KnowsUnnumbered` removed).
+  `SplitDeep` reads it in every format; `.newpage` on `###`+ stays Word's until E03-S03. Decks take it
+  off `#`/`##` (`Split`) and `###`+ paragraphs (`DeckParser.WithoutDeepAttributes`) and ignore it.
+- **Document keys** (`FrontMatter.DocumentKeys`, `TocKey`, `TocDepthKey`, `HeadingNumbersKey`,
+  `DocumentValue`): `FrontMatter.Apply` checks and skips them for a template that does not list them,
+  so decks accept them without each deck template knowing them. Their values are checked (`tocDepth:
+  4` throws in a deck too); the deck error message's list of valid keys does not name them.
+- **PDF options:** `TableOfContents`, `TableOfContentsDepth` (1–3, `ArgumentOutOfRangeException`
+  otherwise, as in DOCX), `HeadingNumbers` (default off); front matter as planned.
+- **Parser:** numbers into `HeadingBlock.Number`; the TOC entries (`DocumentModel.Contents`,
+  `ContentsEntry(Level, HeadingBlock)`) refer to the very heading blocks, so the layout replaces a
+  heading's text once (`headingRuns`) for both the heading and its entry. Entry level counts from the
+  top; container headings and title-less slide-kind headings are not listed, `{.unnumbered}` ones are.
+  A heading without an anchor gets `contents-1`, … (unique against every Markdig id).
+- **The footnotes heading** (E06-S02) is never numbered and is listed in the contents at the top
+  level (the plan only said it gets no number).
+- **Contents layout (question 2, one pass):** the page-number column is three widest digits (regular
+  and bold) plus a 6 pt gap; the heading "Contents" is set like `##` and bookmarked at level 1 (so with
+  a cover it nests under the cover's bookmark like every `##`). Entries: 16 pt indent per level, the
+  number in a column per level (widest number at that level + 0.6 em), chapters bold, links stripped
+  from the title runs (the entry is one link), one entry never split. `ContentsPages` writes page
+  numbers and dot leaders (". . .", aligned on one grid from the margin) after the body, like
+  `Decorate`. A test checks every entry's number against its anchor's page for `tocDepth` 1–3.
+  **Deviation:** the plan said "the width of the page count's digits"; the page count is only known
+  after the layout, so the column is fixed at three digits. A document of 1,000 pages or more gets a
+  four-digit number one digit into the gap before it; the contents still never change height.
+- **Heading numbers in the layout:** a number column per Markdown level (widest number + 0.6 em),
+  drawn at the left on the first line's baseline after an explicit `Ensure`; the title's lines start
+  after it (hanging). An `{.unnumbered}` heading starts at the margin. `Mark` prefixes the bookmark.
+- **Captions (`Caption(Kind, Number, Text)`)**: numbered in the parser in document order, figures and
+  tables apart. Set 9 pt, centred (also tables, as Word's caption style is), label and number bold.
+  Figures 4 pt below their visual; the visual's `Ensure`, the room it may take under its headings
+  (`VisualRoom`) and the heading's `KeepHeight` all include the caption. Tables: above, inside the
+  table's `Ensure` with its `KeepHeight`, not repeated. Image rows: each caption in its cell, the row
+  as tall as the tallest caption. With no caption every height adds `0`, so old PDFs come out
+  byte-identical.
+- **`Figure:` only after a fenced block a renderer drew** (as in DOCX): after an image, a `qr:`
+  code or a drawn container (`::: timeline`) it is text with `caption-ignored`. A QR code's `"caption"`
+  keeps its own alt-text caption inside the drawing, unnumbered.
+- **Decks:** `DeckParser.WalkMarked` looks at the block before a caption paragraph: a `Table` for
+  `Table:`, a fenced block in `drawn` (set when a renderer drew it) for `Figure:`; then
+  `Captions.TakePrefix`, else `caption-ignored`. Paragraphs inside containers that are walked through
+  `Walk` directly (not `WalkMarked`) keep their prefix without a note.
+- **`caption-ignored`** message moved to `Captions.Ignored(kind)` and is shared by all three formats.
+  `toc-empty` (PDF) has the `toc` key's line, 0 when the option asked.
+- **Samples:** `long.md` got `toc: true`, `headingNumbers: true`, a `Table:` caption, an image with
+  a title and a Mermaid block with `Figure:`; its PDF tests now draw Mermaid (as `report.md`'s do), so
+  `TheSampleDocuments_GenerateWithoutNotes` gives the notes test an image renderer too. `report.md`
+  is unchanged (its PDFs byte-identical). The roundtrip expectations of `long` (PDF ×2, DOCX ×3) and
+  of `report`/`report-diagrams` (DOCX ×4: TOC numbers `1`, `2`, `3`) were regenerated and reviewed.
+
+### Verification
+
+- `./run.sh build`: 0 warnings, 0 errors. `./run.sh test` all green: 1 (+6 Windows-only skipped) +
+  123 + 282 + 78 + 22 + 71 + 142 + 224 + 376 = 1,319 passed; after rebasing onto E05-S04: 1 + 123 + 295 +
+  78 + 22 + 71 + 148 + 236 + 395 = 1,369 passed.
+- **New tests.** `DocumentGeneration.Tests/HeadingNumberingTests.cs` (4): three levels, skipped
+  levels never 0 (the `report.md` shape), sections as top, top outside containers;
+  `CaptionSyntaxTests` updated (`.unnumbered` in every format, `SplitDeep`).
+  `Pdf.Tests/ContentsAndCaptionsTests.cs` (17): numbers off by default, the rules incl. `{.unnumbered}`
+  and containers, skipped levels, deep braces, hanging indent and numbered bookmarks; contents entries,
+  depth, anchors, footnotes entry; every entry's page number equals its heading's page for `tocDepth`
+  1–3, with leaders and links; contents without a cover and wrapping before the number column; German
+  "Inhalt"; `toc-empty` with its line; captions of all three kinds, numbering, links, consumed
+  paragraphs and `caption-ignored` with its line; captions kept on the visual's page across page
+  breaks; table captions above with the header, not repeated; image-row captions; German labels; a full
+  PDF with contents, numbers and captions: numbered bookmarks and the PDF/A markers.
+  `Pptx.Tests/DocumentSyntaxTests.cs` (4): document keys accepted, checked, ignored; `{.unnumbered}`;
+  prefixes dropped under a table and a drawn diagram (Open XML validator clean); `caption-ignored`.
+  `Docx.Tests/ContentTests` (+1): skipped levels get `w:numPr` on their number's level and the TOC
+  reads `1`, `1.1`, `2`, `3`, `3.1`.
+- **Unchanged output.** Every PDF and deck the tests write to `.tmp/review/`, from the claim commit
+  and from this change: 57 files, 55 identical (decks part by part with relationship ids masked,
+  embedded workbooks included; PDFs byte for byte with `/ID` and dates masked), the two different
+  ones `long-neutral.pdf` and `long-sample.pdf`, whose Markdown changed on purpose.
+- **Open XML validator:** clean on every `.docx` the tests write and on `captions.pptx`.
+- **PDF/A:** the structural checks pass on a document with contents, numbers and captions (XMP
+  `pdfaid`, link annotations with `/F 4`, embedded fonts). veraPDF is not available on this machine.
+- **Looked at** (rendered with pypdfium2): `long-sample.pdf` pages 2 (contents with leaders and page
+  numbers), 3 (numbered heading), 8 (figure captions) and `contents-and-captions.pdf` page 3.
+
+### To verify by hand
+
+1. **veraPDF** (`--flavour 2b`) on `.tmp/review/contents-and-captions.pdf` and `long-*.pdf`.
+2. **Contents** in `long-*.pdf`: click each entry, it jumps to its heading; the numbers match the
+   footers; the leaders look even.
+3. **Captions** in `long-*.pdf` and `contents-and-captions.pdf`: table caption above, figure captions
+   below and centred, numbers bold.
+4. **Word** (`report-*.docx`, `long-*.docx`): after updating fields, `report`'s `##` headings read
+   `1`, `2` and `# Outlook` `3` (not `0.1`, `0.2`, `1`), with the number in the hanging indent, and the
+   TOC shows the same numbers. This also checks that Word honours a paragraph `numPr` on a heading
+   style that has its own.
+5. **Decks:** `captions.pptx`: "Sales by region" and "The flow" under their visuals, no prefix.
+
+### Loose ends
+
+- The plan's step 4 loop for contents whose height depends on the numbers (`toc-unsettled`) is not
+  built, as agreed.
+- The standalone word `caption` in an image title is a setting (E09-S04's shared rule), so a title
+  such as "a photo with a caption under it" loses that word. Kept as agreed syntax; worth a mention if
+  writers trip over it.
+- `## Title {.unnumbered}` keeps the attribute in its Markdig anchor (`#title-unnumbered`), as every
+  heading attribute does (known limit).
+- `Figure:` after drawn containers (`::: timeline` …) is not a caption in any format; a later story
+  could allow it in all three together.
+- E03-S03 adds `.newpage` on `###`+ for PDFs in `HeadingAttributes.SplitDeep` (`format == Docx` today)
+  and page breaks in the layout; E03-S05's plain documents can switch the contents off in their own
+  template. The contents' extension points: `LayoutEngine.Contents` / `ContentsPages`.

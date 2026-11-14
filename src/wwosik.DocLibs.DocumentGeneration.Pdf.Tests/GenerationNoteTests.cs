@@ -63,8 +63,10 @@ public class GenerationNoteTests
     [InlineData("long.md")]
     public void TheSampleDocuments_GenerateWithoutNotes(string sample)
     {
+        // Their diagrams drawn, so that long.md's `Figure:` is a caption.
         using var output = new MemoryStream();
-        var result = PdfGenerator.Generate(Samples.Document(sample), output, new PdfOptions { TimeProvider = Samples.FixedTime });
+        var diagrams = Samples.Renderer(request => request.Language == "mermaid" ? new ImageGraphic(Samples.Image("diagram.png")) : null);
+        var result = PdfGenerator.Generate(Samples.Document(sample), output, new PdfOptions { TimeProvider = Samples.FixedTime, CodeBlockRenderers = [diagrams] });
 
         Assert.False(result.HasNotes, result.ToString());
     }

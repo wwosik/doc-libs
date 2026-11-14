@@ -294,9 +294,10 @@ if (result.HasNotes)
 | `language-unknown` | PPTX, DOCX, PDF | The document language has no `GeneratedTexts` of its own, built in or from the options; the texts are English, the tag is kept; without a line |
 | `notes-dropped` | PPTX | A `::: notes` stands before the first heading, so it belongs to no slide and was left out |
 | `notes-simplified` | PPTX | Speaker notes held a table, code block, image, quote, alert, heading or other container, written as plain text; one note per block |
-| `attribute-ignored` | PPTX, DOCX, PDF | An image attribute has no effect where it is: `fit=cover` on an image of its own in a PDF, `focus` on an image that is not cropped, `scale` with `fit=cover`, `.caption` in a PDF, `fit`, `focus`, `.round` and `.grey` in a Word document, or any attribute on an image shown as its alt text (in a heading or a table cell) |
+| `attribute-ignored` | PPTX, DOCX, PDF | An image attribute has no effect where it is: `fit=cover` on an image of its own in a PDF, `focus` on an image that is not cropped, `scale` with `fit=cover`, `fit`, `focus`, `.round` and `.grey` in a Word document, or any attribute on an image shown as its alt text (in a heading or a table cell) |
 | `icon-not-drawn` | PPTX, PDF, DOCX | An icon (`:icon-name:`) stands where the format cannot draw it and was left out of the text: in decks anywhere but a card's figure or an icon list (inside text, a heading, a table cell, speaker notes, a list where not every item starts with an icon); in PDFs in a heading, a table cell or on the cover; in Word documents anywhere when no image converter is registered |
-| `caption-ignored` | DOCX | A `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text |
+| `caption-ignored` | PPTX, DOCX, PDF | A `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text, prefix included |
+| `toc-empty` | PDF | `toc: true` (or `PdfOptions.TableOfContents`) asked for a table of contents, but no heading is at the depth it lists, so the PDF has none; the line is the `toc` key's, 0 when the option asked |
 | `list-too-deep` | DOCX | A list is nested deeper than three levels; the deeper items are set at the third level, once per list |
 | `classification-kept` | DOCX | The front matter's `classification` is lower than the host's (`DocxOptions.Classification`); the host's applies. Decks and PDFs join with E03-S04 |
 | `too-many-bullets` | PPTX | Check only: a `#` or `##` section has more list items, all levels, than `CheckOptions.MaxBulletsPerSlide` |
@@ -532,7 +533,8 @@ that heading. Every generator accepts both (internally `LayoutSyntax.PageBreak`,
   generator takes the containers apart right after parsing, so a heading an unclosed break holds
   starts its section as usual.
 - `{.newpage}` is a heading attribute like `{.dark}` on `#` and `##` in every format. On `###` to
-  `######` only Word documents read it (with `{.unnumbered}`); elsewhere such braces stay text.
+  `######` only Word documents read it (with `{.unnumbered}`, which every format reads there); elsewhere
+  such braces stay text.
 - **Word documents** give the next paragraph or table `w:pageBreakBefore`; a break at the very start
   or end of the body does nothing, so it never makes an empty page. `{.newpage}` on the cover heading
   throws.
@@ -587,6 +589,10 @@ title: Network expansion 2027
   [Document language](#document-language)), `classification` and `draft` (see
   [Classification](#classification)), and `labels.<category>` (see
   [Slide layouts in Markdown](#slide-layouts-in-markdown)). The rest are the generator's.
+- **Document keys** (`FrontMatter.DocumentKeys`): `toc` (`true`/`false`), `tocDepth` (`1`–`3`) and
+  `headingNumbers` (`true`/`false`), read by PDFs and Word documents (see
+  [Contents and heading numbers](#contents-and-heading-numbers)). A deck accepts them, checks their
+  values and ignores them, so one Markdown serves every format.
 - `template` naming the template the caller chose keeps the caller's values; naming another one
   starts from that template's defaults.
 - **Mistakes throw** `DocumentConversionException` with the generator's format: a line that is not
@@ -607,7 +613,7 @@ is a BCP 47 tag such as `en`, `de`, `de-CH` or `en-GB`. Anything else is an erro
   `MonthFormat`, `QuarterFormat`, `WeekFormat`) and the axis titles of
   [risk matrices](#steps-harvey-balls-and-risk-matrices) (`Likelihood`, `Impact`; German
   `Eintrittswahrscheinlichkeit`, `Auswirkung`) and the heading of a Word document's table of contents
-  (`Contents`; German `Inhalt`) and the labels of its captions (`Figure`, `Table`; German
+  and of a PDF's (`Contents`; German `Inhalt`) and the labels of captions (`Figure`, `Table`; German
   `Abbildung`, `Tabelle`) and the [classification marking](#classification) (`Internal`,
   `Confidential`, `Draft`; German `Intern`, `Vertraulich`, `Entwurf`) and the alt text of a Word
   document's chart without a title (`Chart`; German `Diagramm`). Code-block
@@ -637,11 +643,31 @@ one shows them is in its own documentation.
 - A paragraph of one line followed by `:   description` lines is a definition list: the line is the
   term, each `:` line a description. Several terms in a row share the descriptions after them.
 
+## Contents and heading numbers
+
+Documents (PDFs and Word documents) read the same keys and number headings by one rule
+(internally `HeadingNumbering`); decks accept the keys and `{.unnumbered}` and ignore them.
+
+- `toc: true` (`PdfOptions.TableOfContents`, `DocxOptions.TableOfContents`) puts a table of contents
+  after the cover; `tocDepth: 1|2|3` (`TableOfContentsDepth`, default `2`) is how many heading levels
+  it lists, counted from the highest level after the cover.
+- `headingNumbers: true` (`HeadingNumbers`; default off in PDFs, on in Word documents' built-in
+  template) numbers headings:
+  - **Levels.** The cover heading is never numbered. Numbering starts at the highest heading level used
+    after the cover: `#` chapters when there are any, otherwise `##`. It numbers three levels from there
+    (`1`, `1.2`, `1.2.3`); deeper headings stay unnumbered.
+  - **Skipped levels** never count as 0, in any format: a number has one part per numbered heading it
+    is under. A `###` straight after a `#` is `1.1`; `##` sections before the first `#` are `1`, `2`,
+    and that `#` is `3`.
+  - **`{.unnumbered}`** at the end of a heading (any level) gives it no number, and it does not count.
+    Headings inside a `:::` container are no chapters: no number, not in the contents.
+- Numbers and the contents never change a heading's anchor, so `[see](#costs)` keeps working.
+
 ## Captions
 
-The caption syntax, read by Word documents today; PDFs and decks are planned to read it the same
-way (until then a `Table: …` paragraph is ordinary text there, and image titles keep their old
-meaning).
+The caption syntax, read alike by PDFs and Word documents (internally `Captions`). Decks show a
+`Table: …` or `Figure: …` paragraph under its visual as they always did, now without the prefix and
+without a number; their image titles keep their meaning (`scale=` and `caption`).
 
 - **Image.** The title of an image is its caption, once a `scale=N` token and the word `caption`
   standing alone are taken out. A title of settings only gives none; `"caption"` alone (or the
@@ -655,7 +681,10 @@ meaning).
   document language's (`GeneratedTexts.Table`, `GeneratedTexts.Figure`: "Table", "Figure"; German
   "Tabelle", "Abbildung"), and a caption reads `<label> <n>: <text>`, figures and tables numbered
   separately through the whole document. Table captions go above the table, figure captions below.
-- A `Table:` or `Figure:` paragraph anywhere else stays text, with the note `caption-ignored`.
+- A `Table:` or `Figure:` paragraph anywhere else stays text, with the note `caption-ignored`
+  (decks too). A `Figure:` after an image, a `qr:` image or a drawn container (`::: timeline`) is one
+  of those: images take their caption from the title, and a QR code's `"caption"` shows its alt text
+  inside the drawing.
 
 ## Timelines and Gantt charts
 

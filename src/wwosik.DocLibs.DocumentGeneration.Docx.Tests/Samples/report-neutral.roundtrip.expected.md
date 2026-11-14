@@ -7,11 +7,11 @@ DocLibs\
 
 Contents
 
-0.1 Summary
+1 Summary
 
-0.2 Results
+2 Results
 
-1 Outlook\
+3 Outlook\
 
 ## Summary
 

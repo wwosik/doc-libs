@@ -46,7 +46,17 @@ internal enum CellAlignment
 internal abstract record Block;
 
 /// <summary>A heading; <see cref="Anchor"/> is the target of <c>[x](#anchor)</c> links.</summary>
-internal sealed record HeadingBlock(int Level, IReadOnlyList<TextRun> Runs, string? Anchor) : Block;
+internal sealed record HeadingBlock(int Level, IReadOnlyList<TextRun> Runs, string? Anchor) : Block
+{
+    /// <summary>Its number with <c>headingNumbers: true</c> (<c>"1.2"</c>, <see cref="HeadingNumbering"/>); <see langword="null"/>: none.</summary>
+    public string? Number { get; init; }
+}
+
+/// <summary>
+/// The caption of a visual: <c>&lt;label&gt; &lt;n&gt;: &lt;text&gt;</c>, numbered by kind through the document
+/// (<see cref="Captions"/>).
+/// </summary>
+internal sealed record Caption(CaptionKind Kind, int Number, IReadOnlyList<TextRun> Text);
 
 internal sealed record ParagraphBlock(IReadOnlyList<TextRun> Runs) : Block;
 
@@ -75,7 +85,11 @@ internal sealed record CodeBlock(IReadOnlyList<string> Lines) : Block;
 
 internal sealed record QuoteBlock(IReadOnlyList<Block> Blocks) : Block;
 
-internal sealed record TableBlock(IReadOnlyList<IReadOnlyList<IReadOnlyList<TextRun>>> Rows, IReadOnlyList<CellAlignment> Alignments, bool HasHeader) : Block;
+internal sealed record TableBlock(IReadOnlyList<IReadOnlyList<IReadOnlyList<TextRun>>> Rows, IReadOnlyList<CellAlignment> Alignments, bool HasHeader) : Block
+{
+    /// <summary>From a <c>Table: …</c> paragraph after it: set above the table, kept with its start.</summary>
+    public Caption? Caption { get; init; }
+}
 
 /// <summary>A PNG or JPEG; <see cref="Scale"/> multiplies its natural size.</summary>
 internal sealed record ImageBlock(DocumentResource Resource, ImageInfo Info, double Scale) : Block
@@ -85,6 +99,9 @@ internal sealed record ImageBlock(DocumentResource Resource, ImageInfo Info, dou
 
     /// <summary>The image's line in the Markdown, from 1, for notes; 0 if unknown.</summary>
     public int Line { get; init; }
+
+    /// <summary>From its title, or a <c>Figure: …</c> paragraph after a diagram drawn as an image: set under it.</summary>
+    public Caption? Caption { get; init; }
 }
 
 /// <summary>A paragraph of nothing but images: side by side across the text width, in cells of equal width.</summary>
@@ -93,7 +110,11 @@ internal sealed record ImageRowBlock(IReadOnlyList<ImageBlock> Images) : Block;
 internal sealed record RuleBlock : Block;
 
 /// <summary>A vector drawing from a code-block renderer, or a QR code.</summary>
-internal sealed record DrawingBlock(Drawing Drawing) : Block;
+internal sealed record DrawingBlock(Drawing Drawing) : Block
+{
+    /// <summary>From a <c>Figure: …</c> paragraph after the diagram: set under it.</summary>
+    public Caption? Caption { get; init; }
+}
 
 /// <summary>A paragraph that is one <c>:icon-name:</c>: the icon on its own, left-aligned, at the figure size, in the accent colour.</summary>
 internal sealed record IconBlock(Drawing Icon) : Block;
@@ -101,4 +122,21 @@ internal sealed record IconBlock(Drawing Icon) : Block;
 /// <summary>The cover: the first <c>#</c> heading and the paragraphs up to the next heading.</summary>
 internal sealed record Cover(IReadOnlyList<TextRun> Title, IReadOnlyList<IReadOnlyList<TextRun>> Subtitle, string? Anchor);
 
-internal sealed record DocumentModel(Cover? Cover, IReadOnlyList<Block> Blocks);
+internal sealed record DocumentModel(Cover? Cover, IReadOnlyList<Block> Blocks)
+{
+    /// <summary>The table of contents, after the cover; <see langword="null"/>: none.</summary>
+    public TableOfContents? Contents { get; init; }
+}
+
+/// <summary>
+/// A table of contents: an entry per heading it lists, in document order, each linking to its heading's anchor.
+/// <see cref="ContentsEntry.Level"/> counts from 1 for the highest level after the cover.
+/// </summary>
+internal sealed record TableOfContents(IReadOnlyList<ContentsEntry> Entries);
+
+/// <summary>A heading the contents list; <see cref="Heading"/> is the very block, so its text is replaced once.</summary>
+internal sealed record ContentsEntry(int Level, HeadingBlock Heading)
+{
+    /// <summary>Set in bold: a <c>#</c> chapter.</summary>
+    public bool Chapter => this.Heading.Level == 1;
+}

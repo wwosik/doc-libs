@@ -5,12 +5,16 @@ using wwosik.DocLibs.DocumentConversions;
 namespace wwosik.DocLibs.DocumentGeneration.Pdf;
 
 /// <summary>What the layout takes from the template and the document besides the blocks.</summary>
-internal sealed record Design(ResolvedBrand Brand, bool ShowTagline, string? Date, string? HeaderTitle);
+internal sealed record Design(ResolvedBrand Brand, bool ShowTagline, string? Date, string? HeaderTitle)
+{
+    /// <summary>The texts in the document language: the heading of the contents, the labels of captions.</summary>
+    public GeneratedTexts Texts { get; init; } = GeneratedTexts.English;
+}
 
 /// <summary>
 /// Puts the block model onto pages: greedy line breaking, page breaks, lists, tables with repeated header rows,
-/// images, the cover, and header and footer once the page count is known. Works only through
-/// <see cref="IFontMetrics"/>, never on a PDF.
+/// images, captions, the cover, the table of contents, and once the page count is known its page numbers, header and
+/// footer. Works only through <see cref="IFontMetrics"/>, never on a PDF.
 /// </summary>
 internal sealed class LayoutEngine
 {
@@ -31,6 +35,16 @@ internal sealed class LayoutEngine
     private const double FooterSize = 8;
     private const double PointsPerPixel = 0.75;
     private const double MinLabelScale = 0.7;
+
+    // Captions: 9 pt, this far from their visual. Heading numbers: this share of the heading's size after the widest
+    // number of its level. The table of contents: indented by level; its page numbers in a column of the width of this
+    // many of the widest digit, after a gap, which also keeps the dot leader off the title and the number.
+    private const double CaptionSize = 9;
+    private const double CaptionGap = 4;
+    private const double NumberGap = 0.6;
+    private const double ContentsIndent = 16;
+    private const int ContentsDigits = 3;
+    private const double ContentsGap = 6;
     private const string Grey = "4B5563";
     private const string CodeBackground = "F3F4F6";
     private const string White = "FFFFFF";
@@ -61,6 +75,13 @@ internal sealed class LayoutEngine
     private readonly Dictionary<IReadOnlyList<TextRun>, (double Width, List<TextLine> Lines)> paragraphs = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<TableBlock, (double Width, PreparedTable? Table)> tables = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<HeadingBlock, (double Width, List<TextRun> Runs, List<TextLine> Lines)> headings = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<HeadingBlock, List<TextRun>> headingRuns = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<Caption, (double Width, List<TextLine> Lines)> captionLines = new(ReferenceEqualityComparer.Instance);
+
+    // Per heading level, the width of the column its numbers stand in; the entries of the contents whose page numbers
+    // are written once every heading has its page.
+    private readonly Dictionary<int, double> numberColumns = [];
+    private readonly List<ContentsSlot> contentsSlots = [];
     private LaidOutPage page = null!;
     private double y;
 
@@ -87,13 +108,22 @@ internal sealed class LayoutEngine
             this.Cover(cover);
         }
 
+        this.NumberColumns(model.Blocks);
+        var frame = new Frame(this.geometry.Left, this.geometry.ContentWidth, this.TextColor, []);
+        if (model.Contents is { } contents)
+        {
+            // On a page of its own after the cover; the body starts on the next page.
+            this.NewPage();
+            this.Contents(contents, frame);
+        }
+
         if (model.Blocks.Count > 0 || this.pages.Count == 0)
         {
             this.NewPage();
         }
 
-        var frame = new Frame(this.geometry.Left, this.geometry.ContentWidth, this.TextColor, []);
         this.Blocks(model.Blocks, frame, 0);
+        this.ContentsPages();
 
         // Replaced once, as the header shows it; without a replacement it is checked only where it is drawn.
         var title = this.design.HeaderTitle is { Length: > 0 } header && this.replaceUnsupported is not null
@@ -178,7 +208,7 @@ internal sealed class LayoutEngine
                 this.ImageRow(row, frame);
                 break;
             case DrawingBlock drawing:
-                this.Drawing(drawing.Drawing, frame);
+                this.Drawing(drawing.Drawing, frame, drawing.Caption);
                 break;
             case IconBlock icon:
                 this.Ensure(FigureSize);
@@ -226,10 +256,18 @@ internal sealed class LayoutEngine
             this.chainPage = this.pages.Count;
         }
 
-        this.Mark(runs, heading.Level - 1, heading.Anchor);
-        foreach (var line in lines)
+        this.Mark(runs, heading.Level - 1, heading.Anchor, heading.Number);
+        var indent = this.NumberIndent(heading);
+        for (var i = 0; i < lines.Count; i++)
         {
-            this.Line(line, frame, frame.Left, size, this.design.Brand.Primary);
+            if (i == 0 && heading.Number is { } number)
+            {
+                // In a column of its own; the lines of the title hang after it.
+                this.Ensure(size * LineFactor);
+                this.page.Items.Add(new TextItem(frame.Left, this.Baseline(size), this.Supported(number, FontFace.Bold), FontFace.Bold, size, this.design.Brand.Primary));
+            }
+
+            this.Line(lines[i], frame, frame.Left + indent, size, this.design.Brand.Primary);
         }
 
         this.Gap(size * 0.35, frame);
@@ -237,7 +275,31 @@ internal sealed class LayoutEngine
 
     private static double HeadingSize(HeadingBlock heading) => HeadingSizes[Math.Clamp(heading.Level, 1, 6) - 1];
 
-    // Replaced and wrapped once per heading and width, like paragraphs.
+    // The width of the number column of each level that has numbers: its widest number, then a gap.
+    private void NumberColumns(IReadOnlyList<Block> blocks)
+    {
+        foreach (var heading in Headings(blocks).Where(h => h.Number is not null))
+        {
+            var size = HeadingSize(heading);
+            var width = this.metrics.Width(heading.Number!, FontFace.Bold, size) + (size * NumberGap);
+            this.numberColumns[heading.Level] = Math.Max(this.numberColumns.GetValueOrDefault(heading.Level), width);
+        }
+    }
+
+    private static IEnumerable<HeadingBlock> Headings(IEnumerable<Block> blocks) => blocks.SelectMany(block => block switch
+    {
+        HeadingBlock heading => [heading],
+        QuoteBlock quote => Headings(quote.Blocks),
+        ListBlock list => list.Items.SelectMany(Headings),
+        DefinitionListBlock definitions => definitions.Items.SelectMany(d => Headings(d.Description)),
+        _ => [],
+    });
+
+    // Where a numbered heading's title starts, after its number; 0 for a heading without one.
+    private double NumberIndent(HeadingBlock heading) => heading.Number is null ? 0 : this.numberColumns.GetValueOrDefault(heading.Level);
+
+    // Replaced and wrapped once per heading and width, like paragraphs; replaced only once, whatever the width, since the
+    // table of contents sets the same text.
     private (List<TextRun> Runs, List<TextLine> Lines) HeadingLines(HeadingBlock heading, double width)
     {
         if (this.headings.TryGetValue(heading, out var cached) && cached.Width == width)
@@ -245,10 +307,152 @@ internal sealed class LayoutEngine
             return (cached.Runs, cached.Lines);
         }
 
-        var runs = this.Supported(heading.Runs, RunStyle.Bold);
-        var lines = this.Wrap(runs, width, HeadingSize(heading), RunStyle.Bold);
+        var runs = this.HeadingRuns(heading);
+        var lines = this.Wrap(runs, width - this.NumberIndent(heading), HeadingSize(heading), RunStyle.Bold);
         this.headings[heading] = (width, runs, lines);
         return (runs, lines);
+    }
+
+    private List<TextRun> HeadingRuns(HeadingBlock heading)
+    {
+        if (!this.headingRuns.TryGetValue(heading, out var runs))
+        {
+            runs = this.Supported(heading.Runs, RunStyle.Bold);
+            this.headingRuns[heading] = runs;
+        }
+
+        return runs;
+    }
+
+    // The contents under their heading, set like a `##` heading and bookmarked but not listed: per entry, indented by its
+    // level, its number hanging before the title, wrapped short of the page-number column, and a link to its heading.
+    // The page numbers and dot leaders come once the body is laid out (ContentsPages).
+    private void Contents(TableOfContents contents, Frame frame)
+    {
+        var size = HeadingSizes[1];
+        var title = this.Supported([new TextRun(this.design.Texts.Contents, RunStyle.None)], RunStyle.Bold);
+        this.Mark(title, 1, null);
+        foreach (var line in this.Wrap(title, frame.Width, size, RunStyle.Bold))
+        {
+            this.Line(line, frame, frame.Left, size, this.design.Brand.Primary);
+        }
+
+        this.Gap(size * 0.35 + ParagraphGap, frame);
+        var lineHeight = BodySize * LineFactor;
+        var digit = Enumerable.Range(0, 10).Max(d => Math.Max(
+            this.metrics.Width(d.ToString(CultureInfo.InvariantCulture), FontFace.Regular, BodySize),
+            this.metrics.Width(d.ToString(CultureInfo.InvariantCulture), FontFace.Bold, BodySize)));
+        var right = frame.Left + frame.Width - (digit * ContentsDigits) - ContentsGap;
+        var columns = contents.Entries.Where(e => e.Heading.Number is not null)
+            .GroupBy(e => e.Level)
+            .ToDictionary(g => g.Key, g => g.Max(e => this.metrics.Width(e.Heading.Number!, EntryFace(e), BodySize)) + (BodySize * NumberGap));
+        for (var i = 0; i < contents.Entries.Count; i++)
+        {
+            var entry = contents.Entries[i];
+            var style = entry.Chapter ? RunStyle.Bold : RunStyle.None;
+            var left = frame.Left + ((entry.Level - 1) * ContentsIndent);
+            var textLeft = left + (entry.Heading.Number is null ? 0 : columns[entry.Level]);
+            var runs = this.HeadingRuns(entry.Heading).Select(r => r.Link is null ? r : r with { Link = null }).ToList();
+            var lines = this.Wrap(runs, right - textLeft, BodySize, style);
+            if (entry.Chapter && i > 0)
+            {
+                this.Gap(ParagraphGap, frame);
+            }
+
+            this.Ensure(Math.Max(1, lines.Count) * lineHeight);
+            var top = this.y;
+            if (entry.Heading.Number is { } number)
+            {
+                this.page.Items.Add(new TextItem(left, this.Baseline(BodySize), this.Supported(number, EntryFace(entry)), EntryFace(entry), BodySize, this.TextColor));
+            }
+
+            var (lastBaseline, lastEnd) = (this.Baseline(BodySize), textLeft);
+            foreach (var line in lines)
+            {
+                (lastBaseline, lastEnd) = (this.Baseline(BodySize), textLeft + line.Width);
+                this.Line(line, frame, textLeft, BodySize, this.TextColor, keepOnPage: true);
+            }
+
+            this.page.Items.Add(new LinkItem(left, top, frame.Left + frame.Width - left, this.y - top, "#" + entry.Heading.Anchor));
+            this.contentsSlots.Add(new ContentsSlot(this.pages.Count - 1, lastBaseline, lastEnd, entry.Heading.Anchor!, EntryFace(entry)));
+            this.Gap(ListItemGap, frame);
+        }
+    }
+
+    private static FontFace EntryFace(ContentsEntry entry) => entry.Chapter ? FontFace.Bold : FontFace.Regular;
+
+    // The page number of each entry of the contents, as the footer shows it (the cover counts), right-aligned at the
+    // margin, and a dot leader to it from the end of the title, its dots on one grid on every line.
+    private void ContentsPages()
+    {
+        var face = FontFace.Regular;
+        var pitch = this.metrics.Width(". ", face, BodySize);
+        var dot = this.metrics.Width(".", face, BodySize);
+        foreach (var slot in this.contentsSlots)
+        {
+            if (!this.anchors.TryGetValue(slot.Anchor, out var target))
+            {
+                continue;
+            }
+
+            var items = this.pages[slot.Page].Items;
+            var number = (target.Page + 1).ToString(CultureInfo.InvariantCulture);
+            var x = this.geometry.Right - this.metrics.Width(number, slot.Face, BodySize);
+            items.Add(new TextItem(x, slot.Baseline, number, slot.Face, BodySize, this.TextColor));
+            var start = this.geometry.Left + (Math.Ceiling((slot.End + ContentsGap - this.geometry.Left) / pitch) * pitch);
+            var end = x - ContentsGap;
+            if (pitch > 0 && end - start >= dot)
+            {
+                var count = (int)Math.Floor((end - start - dot) / pitch) + 1;
+                items.Add(new TextItem(start, slot.Baseline, string.Join(' ', Enumerable.Repeat(".", count)), face, BodySize, this.TextColor));
+            }
+        }
+    }
+
+    // A caption: its label and number in bold, then its text; replaced and wrapped once per caption and width.
+    private List<TextLine> CaptionLines(Caption caption, double width)
+    {
+        if (this.captionLines.TryGetValue(caption, out var cached) && cached.Width == width)
+        {
+            return cached.Lines;
+        }
+
+        var label = string.Create(CultureInfo.InvariantCulture, $"{Captions.Label(caption.Kind, this.design.Texts)} {caption.Number}:");
+        List<TextRun> runs = [new TextRun(label, RunStyle.Bold), .. caption.Text.Count > 0 ? [new TextRun(" ", RunStyle.None), .. caption.Text] : Array.Empty<TextRun>()];
+        var lines = this.Wrap(this.Supported(runs, RunStyle.None), width, CaptionSize, RunStyle.None);
+        this.captionLines[caption] = (width, lines);
+        return lines;
+    }
+
+    // The room a caption takes with its gap to the visual; 0 without one.
+    private double CaptionHeight(Caption? caption, double width) =>
+        caption is null ? 0 : CaptionGap + (this.CaptionLines(caption, width).Count * CaptionSize * LineFactor);
+
+    // Draws a caption's lines centred in [left, left + width] from `top`, without moving on.
+    private void CaptionAt(Caption caption, Frame frame, double left, double width, double top)
+    {
+        var y = this.y;
+        var lineHeight = CaptionSize * LineFactor;
+        var lines = this.CaptionLines(caption, width);
+        for (var i = 0; i < lines.Count; i++)
+        {
+            this.y = top + (i * lineHeight);
+            this.Line(lines[i], frame, left + Math.Max(0, (width - lines[i].Width) / 2), CaptionSize, frame.Color, advance: false);
+        }
+
+        this.y = y;
+    }
+
+    // A caption under a visual that has just been placed: drawn, then moved past.
+    private void CaptionHere(Caption? caption, Frame frame)
+    {
+        if (caption is null)
+        {
+            return;
+        }
+
+        this.CaptionAt(caption, frame, frame.Left, frame.Width, this.y + CaptionGap);
+        this.Advance(this.CaptionHeight(caption, frame.Width), frame);
     }
 
     // The height of the headings directly above, on this page.
@@ -290,13 +494,15 @@ internal sealed class LayoutEngine
                     _ => CodePadding + (2 * CodeSize * LineFactor),
                 };
             case TableBlock table:
-                return this.Prepare(table, frame.Width) is { } prepared ? prepared.KeepHeight : 0;
+                return this.Prepare(table, frame.Width) is { } prepared ? prepared.KeepHeight + this.CaptionHeight(table.Caption, frame.Width) : 0;
             case ImageBlock image:
-                return Math.Min(this.ImageSize(image, frame).Height, this.geometry.Bottom - this.geometry.Top - above);
+                return Math.Min(this.ImageSize(image, frame).Height + this.CaptionHeight(image.Caption, frame.Width), this.geometry.Bottom - this.geometry.Top - above);
             case ImageRowBlock row:
-                return Math.Min(this.RowSizes(row, frame).Max(s => s.Height), this.geometry.Bottom - this.geometry.Top - above);
+                return Math.Min(this.RowSizes(row, frame).Max(s => s.Height) + this.RowCaptionHeight(row, frame), this.geometry.Bottom - this.geometry.Top - above);
             case DrawingBlock drawing:
-                return Math.Min(DrawingScale(drawing.Drawing, frame, this.geometry) * drawing.Drawing.Height, this.geometry.Bottom - this.geometry.Top - above);
+                return Math.Min(
+                    (DrawingScale(drawing.Drawing, frame, this.geometry) * drawing.Drawing.Height) + this.CaptionHeight(drawing.Caption, frame.Width),
+                    this.geometry.Bottom - this.geometry.Top - above);
             case IconBlock:
                 return FigureSize;
             case DefinitionListBlock { Items.Count: > 0 }:
@@ -311,12 +517,13 @@ internal sealed class LayoutEngine
     // The lines of a paragraph that must stay together at its start: all of a short one, else two.
     private static int KeepLines(int lines) => lines <= 3 ? Math.Max(1, lines) : 2;
 
-    private void Mark(IReadOnlyList<TextRun> title, int level, string? anchor)
+    // A numbered heading's bookmark starts with its number: "1.2 Title".
+    private void Mark(IReadOnlyList<TextRun> title, int level, string? anchor, string? number = null)
     {
         var text = string.Concat(title.Select(r => r.IsBreak ? " " : r.Text)).Trim();
         if (text.Length > 0)
         {
-            this.bookmarks.Add(new Bookmark(text, level, this.pages.Count - 1, this.y));
+            this.bookmarks.Add(new Bookmark(number is null ? text : number + " " + text, level, this.pages.Count - 1, this.y));
         }
 
         if (anchor is { Length: > 0 })
@@ -525,40 +732,58 @@ internal sealed class LayoutEngine
         this.Gap(ParagraphGap, frame);
     }
 
+    // A caption goes under the image and stays on its page: the image leaves room for it.
     private void Image(ImageBlock image, Frame frame)
     {
         var (width, height) = this.ImageSize(image, frame);
-        if (height > this.VisualRoom)
+        var caption = this.CaptionHeight(image.Caption, frame.Width);
+        var room = this.VisualRoom - caption;
+        if (height > room)
         {
             // Smaller still, to share a page with the headings above it.
-            width *= this.VisualRoom / height;
-            height = this.VisualRoom;
+            width *= room / height;
+            height = room;
         }
 
-        this.Ensure(height);
+        this.Ensure(height + caption);
         this.page.Items.Add(Placed(image, frame.Left + ((frame.Width - width) / 2), this.y, width, height));
         this.Advance(height, frame);
+        this.CaptionHere(image.Caption, frame);
         this.Gap(ParagraphGap, frame);
     }
 
-    // Side by side in cells of equal width, top-aligned, each centred in its cell; the row moves to the next page whole.
+    // Side by side in cells of equal width, top-aligned, each centred in its cell and its caption under it in the cell;
+    // the row moves to the next page whole.
     private void ImageRow(ImageRowBlock row, Frame frame)
     {
         var sizes = this.RowSizes(row, frame);
         var height = sizes.Max(s => s.Height);
-        var shrink = height > this.VisualRoom ? this.VisualRoom / height : 1.0;
+        var captions = this.RowCaptionHeight(row, frame);
+        var room = this.VisualRoom - captions;
+        var shrink = height > room ? room / height : 1.0;
         height *= shrink;
-        this.Ensure(height);
+        this.Ensure(height + captions);
         var cell = (frame.Width - ((row.Images.Count - 1) * RowGap)) / row.Images.Count;
         for (var i = 0; i < row.Images.Count; i++)
         {
             var (width, imageHeight) = (sizes[i].Width * shrink, sizes[i].Height * shrink);
             var image = row.Images[i];
             this.page.Items.Add(Placed(image, frame.Left + (i * (cell + RowGap)) + ((cell - width) / 2), this.y, width, imageHeight));
+            if (image.Caption is { } caption)
+            {
+                this.CaptionAt(caption, frame, frame.Left + (i * (cell + RowGap)), cell, this.y + height + CaptionGap);
+            }
         }
 
-        this.Advance(height, frame);
+        this.Advance(height + captions, frame);
         this.Gap(ParagraphGap, frame);
+    }
+
+    // The tallest caption of a row's images, in their cells.
+    private double RowCaptionHeight(ImageRowBlock row, Frame frame)
+    {
+        var cell = (frame.Width - ((row.Images.Count - 1) * RowGap)) / row.Images.Count;
+        return row.Images.Max(image => this.CaptionHeight(image.Caption, cell));
     }
 
     // Images with `fit=cover` fill their cell at the row's height: that of its tallest other image, or 3/4 of the cell's
@@ -620,8 +845,8 @@ internal sealed class LayoutEngine
             1.0,
             Math.Min(frame.Width / (drawing.Width * PointsPerPixel), (geometry.Bottom - geometry.Top) / (drawing.Height * PointsPerPixel)));
 
-    // Placed like an image: centred, scaled down to the content width and the page height, never up.
-    private void Drawing(Drawing drawing, Frame frame)
+    // Placed like an image: centred, scaled down to the content width and the page height, never up; a caption under it.
+    private void Drawing(Drawing drawing, Frame frame, Caption? caption = null)
     {
         drawing.Validate();
         if (drawing.Width <= 0 || drawing.Height <= 0)
@@ -630,13 +855,15 @@ internal sealed class LayoutEngine
         }
 
         var scale = DrawingScale(drawing, frame, this.geometry);
-        if (drawing.Height * scale > this.VisualRoom)
+        var captionHeight = this.CaptionHeight(caption, frame.Width);
+        var room = this.VisualRoom - captionHeight;
+        if (drawing.Height * scale > room)
         {
-            scale = this.VisualRoom / drawing.Height;
+            scale = room / drawing.Height;
         }
 
         var height = drawing.Height * scale;
-        this.Ensure(height);
+        this.Ensure(height + captionHeight);
         var left = frame.Left + ((frame.Width - (drawing.Width * scale)) / 2);
         var top = this.y;
         (double X, double Y) Place(double x, double y) => (left + (x * scale), top + (y * scale));
@@ -662,6 +889,7 @@ internal sealed class LayoutEngine
         }
 
         this.Advance(height, frame);
+        this.CaptionHere(caption, frame);
         this.Gap(ParagraphGap, frame);
     }
 
@@ -770,7 +998,15 @@ internal sealed class LayoutEngine
         var lineHeight = TableSize * LineFactor;
         var header = table.HasHeader ? cells[0] : null;
         var headerHeight = header is null ? 0 : RowHeight(header, lineHeight);
-        this.Ensure(keepHeight);
+
+        // The caption goes above, with the header and the start of the first row; continuation pages repeat only the header.
+        var caption = this.CaptionHeight(table.Caption, frame.Width);
+        this.Ensure(keepHeight + caption);
+        if (table.Caption is { } tableCaption)
+        {
+            this.CaptionAt(tableCaption, frame, frame.Left, frame.Width, this.y);
+            this.Advance(caption, frame);
+        }
         for (var r = 0; r < cells.Count; r++)
         {
             var isHeader = header is not null && r == 0;
@@ -1376,6 +1612,12 @@ internal sealed class LayoutEngine
             (true, false, true) => FontFace.TableItalic,
             (true, false, false) => FontFace.TableRegular,
         };
+
+    /// <summary>
+    /// An entry of the contents waiting for its page number: its page, the baseline and end of its title's last line, the
+    /// anchor of its heading, and the face of its number.
+    /// </summary>
+    private sealed record ContentsSlot(int Page, double Baseline, double End, string Anchor, FontFace Face);
 
     /// <summary>A table with its text replaced, its column widths, its wrapped cells, and the height its start needs.</summary>
     private sealed record PreparedTable(double[] Widths, List<List<List<TextLine>>> Cells, double KeepHeight);

@@ -88,7 +88,6 @@ public class ImageAttributeTests
     }
 
     [Theory]
-    [InlineData("![a](portrait.png){.caption}", ".caption")]
     [InlineData("![a](portrait.png){focus=left}", "focus")]
     [InlineData("![a](portrait.png){fit=cover scale=0.5} ![b](landscape.png)", "scale")]
     public void AttributesWithoutEffect_AreReported(string markdown, string name)

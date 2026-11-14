@@ -15,8 +15,8 @@ sentences and paragraphs, headings that say what a section is about.
 
 - Every paragraph uses a style of the template. Do not try to format text by other means; bold,
   italic and strike-through are the only formatting inside a paragraph.
-- Write headings in order, without skipping a level: where headings are numbered, a `###` right
-  under a `#` is numbered `1.0.1`.
+- A skipped level never shows as 0 where headings are numbered: a `###` right under a `#` is
+  `1.1`, and `##` sections before the first `#` are `1`, `2`. Still, write headings in order.
 
 ## Heading numbers
 

@@ -5,7 +5,7 @@ namespace wwosik.DocLibs.DocumentGeneration.Pdf;
 
 /// <summary>
 /// Generates PDF/A-2b documents from Markdown: a cover page from a leading <c>#</c> heading, a new page per later
-/// <c>#</c>, headings as bookmarks, lists, tables with repeated header rows, code, quotes, images and links, in the
+/// <c>#</c>, headings as bookmarks, an optional table of contents and heading numbers, numbered captions, lists, tables with repeated header rows, code, quotes, images and links, in the
 /// built-in design in a brand's colours, fonts and images. Front matter at the top of the Markdown overrides the
 /// options.
 /// </summary>
@@ -13,6 +13,9 @@ public static class PdfGenerator
 {
     private const string PageSizeKey = "pageSize";
     private const string OrientationKey = "orientation";
+    private const string TocKey = FrontMatter.TocKey;
+    private const string TocDepthKey = FrontMatter.TocDepthKey;
+    private const string HeadingNumbersKey = FrontMatter.HeadingNumbersKey;
 
     // Keys of decks, accepted so that one Markdown serves both formats: their values are checked, then ignored.
     private const string TransitionKey = "transition";
@@ -29,15 +32,24 @@ public static class PdfGenerator
     /// returns one that is not either, or the language is not a language tag.
     /// </exception>
     /// <exception cref="ArgumentException">The brand is invalid, or two of <see cref="PdfOptions.Brands"/> share a name.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><see cref="PdfOptions.TableOfContentsDepth"/> is not 1, 2 or 3.</exception>
     public static GenerationResult Generate(MarkdownDocument document, Stream output, PdfOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(output);
+        options ??= PdfOptions.Default;
+        CheckDepth(options);
         var notes = new GenerationNotes();
-        var laidOut = Lay(document, options ?? PdfOptions.Default, notes);
+        var laidOut = Lay(document, options, notes);
         Renders++;
         output.Write(PdfRenderer.Render(laidOut.Layout, laidOut.Fonts, laidOut.Layout.Title, laidOut.Author, laidOut.LanguageTag));
         return notes.Result(laidOut.Layout.Pages.Count);
+    }
+
+    private static void CheckDepth(PdfOptions options)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(options.TableOfContentsDepth, 1, nameof(options));
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(options.TableOfContentsDepth, 3, nameof(options));
     }
 
     /// <summary>
@@ -49,10 +61,12 @@ public static class PdfGenerator
     /// <exception cref="ArgumentException">
     /// The brand or <see cref="PdfOptions.Checks"/> is invalid, or two of <see cref="PdfOptions.Brands"/> share a name.
     /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException"><see cref="PdfOptions.TableOfContentsDepth"/> is not 1, 2 or 3.</exception>
     public static CheckResult Check(MarkdownDocument document, PdfOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(document);
         options ??= PdfOptions.Default;
+        CheckDepth(options);
         return DocumentCheck.Run(document, options.Checks ?? CheckOptions.Default, DocumentFormat.Pdf, options.CodeBlockRenderers, (checkedDocument, renderers, notes) =>
             new CheckRun(Lay(checkedDocument, options with { CodeBlockRenderers = renderers }, notes).Layout.Pages.Count));
     }
@@ -74,6 +88,14 @@ public static class PdfGenerator
         var fonts = FontSet.For(brand);
         var language = DocumentLanguage.Resolve(frontMatter.Language, options.Language, options.Texts, notes, DocumentFormat.Pdf);
         var model = MarkdownParser.Parse(document with { Markdown = frontMatter.Body }, options, options.Template.BrandValue, frontMatter.BodyLine, notes, language.Texts);
+        if (options.TableOfContents && model.Contents is null)
+        {
+            notes.Add(
+                NoteCodes.TocEmpty,
+                frontMatter.LineOf(TocKey),
+                $"The table of contents lists the headings of {options.TableOfContentsDepth} level{(options.TableOfContentsDepth == 1 ? string.Empty : "s")} from the highest one after the cover, and the document has none, so it has no table of contents. Add headings, or leave 'toc' out.");
+        }
+
         var title = frontMatter.Title ?? document.Metadata.GetValueOrDefault(MetadataKeys.Title)
             ?? (model.Cover is { } cover ? string.Concat(cover.Title.Select(r => r.IsBreak ? " " : r.Text)) : null);
         var author = frontMatter.Author ?? document.Metadata.GetValueOrDefault(MetadataKeys.Author);
@@ -81,7 +103,7 @@ public static class PdfGenerator
             ? options.TimeProvider.GetLocalNow().ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)
             : null;
 
-        var design = new Design(brand, options.Template.ShowsTagline, date, title);
+        var design = new Design(brand, options.Template.ShowsTagline, date, title) { Texts = language.Texts };
         var layout = new LayoutEngine(fonts, PageGeometry.For(options.PageSize, options.Orientation), design, options.ReplaceUnsupported, notes).Run(model);
         return new LaidOut(layout, fonts, author, language.Tag);
     }
@@ -104,6 +126,9 @@ public static class PdfGenerator
             ["showTagline"] = "`true` or `false`: the design's tagline on the cover, if it has one. Default `true`.",
             [PageSizeKey] = $"`A4`, `A3` or `Letter`. Default `{options.PageSize}`.",
             [OrientationKey] = $"`portrait` or `landscape`. Default `{options.Orientation.ToString().ToLowerInvariant()}`.",
+            [TocKey] = $"`true` or `false`: a table of contents after the cover, with page numbers. Default `{(options.TableOfContents ? "true" : "false")}`.",
+            [TocDepthKey] = $"`1`, `2` or `3`: the heading levels the table of contents lists. Default `{options.TableOfContentsDepth.ToString(CultureInfo.InvariantCulture)}`.",
+            [HeadingNumbersKey] = $"`true` or `false`: numbers on three heading levels (1, 1.1, 1.1.1). Default `{(options.HeadingNumbers ? "true" : "false")}`.",
         };
         (string, string) labels = (
             "labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral",
@@ -125,7 +150,7 @@ public static class PdfGenerator
                 ["frontMatter"] = AuthoringGuides.FrontMatter(
                     registry.Expected,
                     options.Language,
-                    [.. options.Template.Keys.Concat([PageSizeKey, OrientationKey]).Select(k => (k, meanings[k])), transition, build, numberChapters, labels]),
+                    [.. options.Template.Keys.Concat([PageSizeKey, OrientationKey, TocKey, TocDepthKey, HeadingNumbersKey]).Select(k => (k, meanings[k])), transition, build, numberChapters, labels]),
                 ["characters"] = Characters(FontSet.For(ResolvedBrand.Resolve(options.Template.BrandValue)), options.ReplaceUnsupported is not null),
                 ["icons"] = AuthoringGuides.Icons(
                     options.Icons,
@@ -163,7 +188,7 @@ public static class PdfGenerator
                 : current with { Template = new BrandPdfTemplateOptions { Brand = brand } },
             brands.Expected,
             current => current.Template.Name,
-            current => [.. current.Template.Keys, PageSizeKey, OrientationKey, TransitionKey, BuildKey, NumberChaptersKey],
+            current => [.. current.Template.Keys, PageSizeKey, OrientationKey, TocKey, TocDepthKey, HeadingNumbersKey, TransitionKey, BuildKey, NumberChaptersKey],
             (current, key, value) => key switch
             {
                 PageSizeKey => current with
@@ -174,6 +199,9 @@ public static class PdfGenerator
                 {
                     Orientation = frontMatter.OneOf(key, value, ("portrait", PdfOrientation.Portrait), ("landscape", PdfOrientation.Landscape)),
                 },
+                TocKey => current with { TableOfContents = frontMatter.Bool(key, value) },
+                TocDepthKey => current with { TableOfContentsDepth = frontMatter.DocumentValue(key, value) },
+                HeadingNumbersKey => current with { HeadingNumbers = frontMatter.Bool(key, value) },
                 TransitionKey => frontMatter.OneOf(key, value, [.. LayoutSyntax.Transitions.Select(t => (t, current))]),
                 BuildKey => frontMatter.OneOf(key, value, ("none", current), ("lists", current)),
                 NumberChaptersKey => frontMatter.Bool(key, value) ? current : current,

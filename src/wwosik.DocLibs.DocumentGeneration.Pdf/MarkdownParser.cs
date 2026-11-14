@@ -20,7 +20,9 @@ namespace wwosik.DocLibs.DocumentGeneration.Pdf;
 
 /// <summary>
 /// Turns Markdown into the block model. A document that starts with a <c>#</c> heading gets a cover from it and
-/// the paragraphs up to the next heading; everything else flows as blocks.
+/// the paragraphs up to the next heading; everything else flows as blocks. Headings get their numbers here
+/// (<see cref="HeadingNumbering"/>), visuals their numbered captions (<see cref="Captions"/>), and the table of contents
+/// its entries.
 /// </summary>
 internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptions options, Brand brand, int lineOffset, GenerationNotes notes, GeneratedTexts texts)
 {
@@ -31,6 +33,20 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
 
     // Images in grey, by the image they were made from, so an image used twice is converted and embedded once.
     private readonly Dictionary<DocumentResource, DocumentResource> greyImages = new(ReferenceEqualityComparer.Instance);
+
+    // The `Table:` and `Figure:` paragraphs a visual took as its caption, so they are not written again.
+    private readonly HashSet<Markdig.Syntax.ParagraphBlock> captionParagraphs = new(ReferenceEqualityComparer.Instance);
+
+    // The captions so far, by kind: figures and tables are numbered apart, through the whole document.
+    private readonly Dictionary<CaptionKind, int> captions = [];
+
+    // The headings the table of contents lists; the anchors in the document, so a generated one is new.
+    private readonly List<ContentsEntry> contents = [];
+    private readonly HashSet<string> anchors = new(StringComparer.Ordinal);
+
+    // The highest heading level after the cover, and the numbers with `headingNumbers: true`.
+    private int top = 1;
+    private HeadingNumbering? numbering;
 
     /// <remarks>
     /// <paramref name="brand"/> is the brand code-block renderers draw in; <paramref name="lineOffset"/> the lines of
@@ -53,6 +69,7 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         // Build markers are for decks: checked like there, then left out wherever they are.
         BuildMarker.Check(markdown, DocumentFormat.Pdf, parser.LineOf);
         var footnotes = markdown.OfType<FootnoteGroup>().SelectMany(g => g.OfType<Footnote>()).OrderBy(f => f.Order).ToList();
+        parser.anchors.UnionWith(markdown.Descendants<Markdig.Syntax.HeadingBlock>().Select(Anchor).OfType<string>());
         var blocks = markdown.Where(b => b is not FootnoteGroup && !(b is Markdig.Syntax.ParagraphBlock paragraph && BuildMarker.IsMarker(paragraph))).ToList();
         Cover? cover = null;
         var start = 0;
@@ -70,6 +87,8 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         }
 
         parser.CheckSections(blocks, start == 1 ? (Markdig.Syntax.HeadingBlock)blocks[0] : null);
+        parser.top = HeadingNumbering.Top(blocks.Skip(start));
+        parser.numbering = options.HeadingNumbers ? new HeadingNumbering(parser.top) : null;
         var result = new List<Block>();
         foreach (var block in blocks.Skip(start))
         {
@@ -85,13 +104,21 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         }
 
         // The footnotes at the end, numbered as their references are, until footnotes at the foot of the page.
+        // Unnumbered, and listed in the table of contents at its top level.
         if (footnotes.Count > 0)
         {
-            result.Add(new HeadingBlock(2, [new TextRun(texts.Footnotes, RunStyle.None)], null));
+            var heading = new HeadingBlock(2, [new TextRun(texts.Footnotes, RunStyle.None)], null);
+            if (options.TableOfContents)
+            {
+                heading = heading with { Anchor = parser.NewAnchor() };
+                parser.contents.Add(new ContentsEntry(1, heading));
+            }
+
+            result.Add(heading);
             result.Add(new ListBlock(true, 1, [.. footnotes.Select(f => (IReadOnlyList<Block>)parser.Children(f))]));
         }
 
-        return new DocumentModel(cover, result);
+        return new DocumentModel(cover, result) { Contents = parser.contents.Count > 0 ? new TableOfContents(parser.contents) : null };
     }
 
     // The slide-layout syntax of the PPTX generator is accepted and shown plainly: custom containers without their
@@ -178,12 +205,12 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         {
             case Markdig.Syntax.HeadingBlock heading:
                 var runs = this.NotDrawn(this.Runs(heading.Inline), "a heading");
-                var text = heading.Level <= 2 ? WithoutAttributes(runs) : runs;
+                var (text, headingAttributes) = Split(runs, heading.Level);
 
                 // A kind of slide without a title, such as `## {.quote}`, has no heading here.
-                if (text.Count > 0 || heading.Level > 2 || this.AttributesOf(heading)?.Kind is null)
+                if (text.Count > 0 || heading.Level > 2 || headingAttributes?.Kind is null)
                 {
-                    target.Add(new HeadingBlock(heading.Level, text, Anchor(heading)));
+                    target.Add(this.Heading(heading, text, headingAttributes?.Unnumbered == true));
                 }
 
                 if (this.agendas.TryGetValue(heading, out var agenda))
@@ -230,7 +257,14 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
                 break;
             case Markdig.Syntax.ParagraphBlock marker when BuildMarker.IsMarker(marker):
                 break;
+            case Markdig.Syntax.ParagraphBlock caption when this.captionParagraphs.Contains(caption):
+                break;
             case Markdig.Syntax.ParagraphBlock paragraph:
+                if (Captions.Kind(paragraph) is { } misplaced)
+                {
+                    notes.Add(NoteCodes.CaptionIgnored, this.LineOf(paragraph), Captions.Ignored(misplaced));
+                }
+
                 this.Paragraph(paragraph.Inline, target);
                 break;
             case Markdig.Syntax.ListBlock list:
@@ -253,14 +287,15 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
                 target.Add(new QuoteBlock(this.Children(quote)));
                 break;
             case Table table:
-                target.Add(this.Table(table));
+                target.Add(this.Table(table) with { Caption = this.CaptionAfter(table, CaptionKind.Table) });
                 break;
             case FencedCodeBlock fenced when this.Render(fenced) is { } rendered:
+                var figure = this.CaptionAfter(fenced, CaptionKind.Figure);
                 target.Add(rendered switch
                 {
-                    DrawingGraphic drawing => new DrawingBlock(drawing.Drawing),
-                    ImageGraphic image => this.ImageOf(image.Image, 1.0),
-                    ChartGraphic chart => new DrawingBlock(chart.Drawing),
+                    DrawingGraphic drawing => new DrawingBlock(drawing.Drawing) { Caption = figure },
+                    ImageGraphic image => this.ImageOf(image.Image, 1.0) with { Caption = figure },
+                    ChartGraphic chart => new DrawingBlock(chart.Drawing) { Caption = figure },
                     _ => throw new UnreachableException(),
                 });
                 break;
@@ -289,6 +324,61 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
 
                 break;
         }
+    }
+
+    // A heading with its number, unless it is `{.unnumbered}` or inside a slide-layout container, where it is no chapter;
+    // listed in the table of contents down to its depth, with an anchor of its own if it has none.
+    private HeadingBlock Heading(Markdig.Syntax.HeadingBlock heading, List<TextRun> text, bool unnumbered)
+    {
+        var chapter = !HeadingNumbering.InLayoutContainer(heading);
+        var block = new HeadingBlock(heading.Level, text, Anchor(heading))
+        {
+            Number = chapter && !unnumbered ? this.numbering?.Next(heading.Level)?.Number : null,
+        };
+        var level = heading.Level - this.top + 1;
+        if (options.TableOfContents && chapter && level <= options.TableOfContentsDepth && text.Count > 0)
+        {
+            block = block.Anchor is null ? block with { Anchor = this.NewAnchor() } : block;
+            this.contents.Add(new ContentsEntry(level, block));
+        }
+
+        return block;
+    }
+
+    // An anchor no heading of the document has.
+    private string NewAnchor()
+    {
+        var n = 0;
+        string anchor;
+        do
+        {
+            anchor = string.Create(CultureInfo.InvariantCulture, $"contents-{++n}");
+        }
+        while (!this.anchors.Add(anchor));
+        return anchor;
+    }
+
+    // The `Table:` or `Figure:` paragraph right after `block`, as its caption, numbered; that paragraph is then taken.
+    private Caption? CaptionAfter(Markdig.Syntax.Block block, CaptionKind kind)
+    {
+        var parent = block.Parent;
+        var index = parent?.IndexOf(block) ?? -1;
+        if (parent is null || index < 0 || index + 1 >= parent.Count
+            || parent[index + 1] is not Markdig.Syntax.ParagraphBlock paragraph || Captions.Kind(paragraph) != kind)
+        {
+            return null;
+        }
+
+        this.captionParagraphs.Add(paragraph);
+        Captions.TakePrefix(paragraph, kind);
+        return this.NewCaption(kind, this.Runs(paragraph.Inline));
+    }
+
+    private Caption NewCaption(CaptionKind kind, IReadOnlyList<TextRun> text)
+    {
+        var number = this.captions.GetValueOrDefault(kind) + 1;
+        this.captions[kind] = number;
+        return new Caption(kind, number, text);
     }
 
     // An item whose text starts with an icon: the icon, taken off the text, goes in place of the marker.
@@ -402,20 +492,24 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
     }
 
     // Slide settings at the end of a `#` or `##` heading (`{.dark kicker="…"}`) are checked like in decks, then dropped.
-    private static List<TextRun> WithoutAttributes(List<TextRun> runs)
+    private static List<TextRun> WithoutAttributes(List<TextRun> runs) => Split(runs, 1).Text;
+
+    // The attributes at the end of a heading: on `#` and `##` slide settings and `{.unnumbered}`, checked like in decks;
+    // on `###` to `######` only a `{.unnumbered}`, any other braces staying text.
+    private static (List<TextRun> Text, HeadingAttributes? Attributes) Split(List<TextRun> runs, int level)
     {
         if (runs.Count == 0 || runs[^1] is not { IsBreak: false, Style: RunStyle.None, Link: null } last)
         {
-            return runs;
+            return (runs, null);
         }
 
-        var (text, attributes) = HeadingAttributes.Split(last.Text, DocumentFormat.Pdf);
+        var (text, attributes) = level <= 2 ? HeadingAttributes.Split(last.Text, DocumentFormat.Pdf) : HeadingAttributes.SplitDeep(last.Text, DocumentFormat.Pdf);
         if (attributes is null)
         {
-            return runs;
+            return (runs, null);
         }
 
-        return text.Length > 0 ? [.. runs[..^1], last with { Text = text }] : runs[..^1];
+        return (text.Length > 0 ? [.. runs[..^1], last with { Text = text }] : runs[..^1], attributes);
     }
 
     // Paragraphs in italics, those of list items too.
@@ -572,17 +666,13 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         }
 
         var line = this.LineOf(link);
-        if (attributes.Caption)
-        {
-            this.Ignored(line, attributes, ".caption", "PDFs show no captions under images");
-        }
-
         if (attributes is { Focus: not null, Fit: ImageFit.Contain, Round: false })
         {
             this.Ignored(line, attributes, "focus", "the image is not cropped; add .round, or fit=cover in a row of images");
         }
 
-        var image = this.ImageOf(resource, titleScale ?? attributes.Scale ?? 1.0) with { Attributes = attributes, Line = line };
+        var caption = Captions.OfImage(link.Title, attributes.Caption, AltText(link)) is { } words ? this.NewCaption(CaptionKind.Figure, [new TextRun(words, RunStyle.None)]) : null;
+        var image = this.ImageOf(resource, titleScale ?? attributes.Scale ?? 1.0) with { Attributes = attributes, Line = line, Caption = caption };
         return attributes.Grey ? this.Grey(image) : image;
     }
 

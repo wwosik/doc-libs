@@ -24,6 +24,21 @@ internal sealed partial class FrontMatter
     /// <summary>The draft marking, <c>true</c> or <c>false</c> (<see cref="Marking"/>).</summary>
     public const string DraftKey = "draft";
 
+    /// <summary>A table of contents, <c>true</c> or <c>false</c> (E03-S02).</summary>
+    public const string TocKey = "toc";
+
+    /// <summary>The heading levels a table of contents lists, <c>1</c>, <c>2</c> or <c>3</c>.</summary>
+    public const string TocDepthKey = "tocDepth";
+
+    /// <summary>Heading numbers, <c>true</c> or <c>false</c> (<see cref="HeadingNumbering"/>).</summary>
+    public const string HeadingNumbersKey = "headingNumbers";
+
+    /// <summary>
+    /// The keys that concern documents only. A template that does not list them among its keys (a deck's) accepts them,
+    /// checks their values and ignores them, so one Markdown serves every format.
+    /// </summary>
+    public static readonly IReadOnlyList<string> DocumentKeys = [TocKey, TocDepthKey, HeadingNumbersKey];
+
     private readonly List<KeyValuePair<string, string>> entries;
     private readonly Dictionary<string, int> lines = new(StringComparer.OrdinalIgnoreCase);
     private readonly DocumentFormat format;
@@ -108,8 +123,9 @@ internal sealed partial class FrontMatter
     /// Applies the entries to <paramref name="options"/>: <c>template</c> first, through
     /// <paramref name="withTemplate"/> (which returns <see langword="null"/> for an unknown name), then every other
     /// key but the shared ones (<c>title</c>, <c>author</c>, <c>lang</c>, <c>classification</c>, <c>draft</c>,
-    /// <c>labels.*</c>), in any order, through <paramref name="with"/>. A key not in
-    /// <paramref name="keys"/> of the options at that point throws, listing the valid ones.
+    /// <c>labels.*</c>), in any order, through <paramref name="with"/>. One of <see cref="DocumentKeys"/> that is not in
+    /// <paramref name="keys"/> is checked and skipped; any other key not in <paramref name="keys"/> of the options at
+    /// that point throws, listing the valid ones.
     /// </summary>
     /// <param name="options">The caller's options.</param>
     /// <param name="withTemplate">The options with the named template: unchanged if it is already that template.</param>
@@ -146,6 +162,13 @@ internal sealed partial class FrontMatter
             }
 
             var supported = keys(options);
+            if (DocumentKeys.FirstOrDefault(k => k.Equals(key, StringComparison.OrdinalIgnoreCase)) is { } documentKey
+                && !supported.Contains(documentKey, StringComparer.OrdinalIgnoreCase))
+            {
+                this.DocumentValue(documentKey, value);
+                continue;
+            }
+
             var known = supported.FirstOrDefault(k => k.Equals(key, StringComparison.OrdinalIgnoreCase))
                 ?? throw this.Error(
                     $"The front matter key '{key}' is not supported by the template '{templateName(options)}'. "
@@ -186,6 +209,12 @@ internal sealed partial class FrontMatter
 
         return labels;
     }
+
+    /// <summary>The value of one of <see cref="DocumentKeys"/>: a <see cref="bool"/>, or the depth for <c>tocDepth</c>.</summary>
+    /// <exception cref="DocumentConversionException">The value is not one the key takes.</exception>
+    public int DocumentValue(string key, string value) => key == TocDepthKey
+        ? this.OneOf(key, value, ("1", 1), ("2", 2), ("3", 3))
+        : this.Bool(key, value) ? 1 : 0;
 
     /// <exception cref="DocumentConversionException">The value is neither <c>true</c> nor <c>false</c>.</exception>
     public bool Bool(string key, string value) => this.OneOf(key, value, ("true", true), ("false", false));

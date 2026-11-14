@@ -19,7 +19,8 @@ a title that states the point, then a few short lines.
   on a further slide with the same title; long tables repeat their header row. Better: split long
   content yourself, into slides whose titles say what each one shows.
 - **A table, an image or a diagram gets a slide of its own,** titled like its section; text before
-  it goes above, text after it below as a caption. A second one in the same section gets a further
+  it goes above, text after it below as a caption; a leading `Table: ` or `Figure: ` is dropped
+  there (documents number such captions). A second one in the same section gets a further
   slide with the same title. Slides that use [layouts](#layouts) keep several on one slide.
 - Lists nest with indentation; `1.` lists are numbered. `**bold**`, `*italic*`, `~~strike~~`,
   `` `code` `` and links work; a link needs an absolute URL (`https://…`), others stay text. A
@@ -260,7 +261,8 @@ The end date does not move.
 - Other braces alone in a paragraph, such as `{.note}`, are a mistake; `\{` keeps them as text.
 
 Page breaks are for documents: a deck shows the content of `::: pagebreak` … `:::` as usual and
-ignores `{.newpage}` on a heading, as it ignores `classification:` and `draft:` for now.
+ignores `{.newpage}` and `{.unnumbered}` on a heading, as it ignores `classification:`, `draft:`,
+`toc:`, `tocDepth:` and `headingNumbers:` (checked, then ignored).
 
 {{templateLayouts}}
 

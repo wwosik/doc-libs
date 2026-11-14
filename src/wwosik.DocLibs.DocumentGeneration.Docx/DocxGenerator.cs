@@ -17,9 +17,9 @@ namespace wwosik.DocLibs.DocumentGeneration.Docx;
 /// </summary>
 public static class DocxGenerator
 {
-    private const string TocKey = "toc";
-    private const string TocDepthKey = "tocDepth";
-    private const string HeadingNumbersKey = "headingNumbers";
+    private const string TocKey = FrontMatter.TocKey;
+    private const string TocDepthKey = FrontMatter.TocDepthKey;
+    private const string HeadingNumbersKey = FrontMatter.HeadingNumbersKey;
 
     // Keys of decks, accepted so that one Markdown serves every format: their values are checked, then ignored.
     private const string TransitionKey = "transition";

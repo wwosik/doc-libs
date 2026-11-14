@@ -67,6 +67,25 @@ public sealed record PdfOptions
     public IIconSet? Icons { get; init; } = TablerIcons.Outline;
 
     /// <summary>
+    /// A table of contents after the cover, unless the front matter sets <c>toc</c>: the headings down to
+    /// <see cref="TableOfContentsDepth"/>, each with its page number and a link to it. Default <see langword="false"/>.
+    /// </summary>
+    public bool TableOfContents { get; init; }
+
+    /// <summary>
+    /// The heading levels the table of contents lists, 1 to 3 from the highest level after the cover, unless the front
+    /// matter sets <c>tocDepth</c>. Default <c>2</c>. Another value throws <see cref="ArgumentOutOfRangeException"/> when
+    /// a document is generated.
+    /// </summary>
+    public int TableOfContentsDepth { get; init; } = 2;
+
+    /// <summary>
+    /// Numbers on three heading levels from the highest one after the cover (1, 1.1, 1.1.1), unless the front matter sets
+    /// <c>headingNumbers</c>; also in the bookmarks and the table of contents. Default <see langword="false"/>.
+    /// </summary>
+    public bool HeadingNumbers { get; init; }
+
+    /// <summary>
     /// The clock for the date of generation in the footer, and for today in timelines and Gantt charts that do not pin it
     /// with <c>today=</c>. Default <see cref="TimeProvider.System"/>.
     /// </summary>

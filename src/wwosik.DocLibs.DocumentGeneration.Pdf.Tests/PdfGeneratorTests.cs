@@ -25,7 +25,7 @@ public class PdfGeneratorTests
     [MemberData(nameof(Samples.BuiltInTemplates), MemberType = typeof(Samples))]
     public void LongDocument_RoundTripsThroughThePdfConverter(string template)
     {
-        var pdf = Samples.Generate(Samples.Document("long.md"), new PdfOptions { Template = Samples.BuiltIn(template) });
+        var pdf = Samples.Generate(Samples.Document("long.md"), WithDiagrams with { Template = Samples.BuiltIn(template) });
         Samples.WriteForReview($"long-{template}.pdf", pdf);
 
         Samples.AssertMatchesExpected($"long-{template}.roundtrip", Samples.RoundTrip(pdf));

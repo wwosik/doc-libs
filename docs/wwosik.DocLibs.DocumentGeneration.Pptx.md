@@ -177,6 +177,18 @@ a flow slide, and ignores `{.newpage}`. The keys `classification` and `draft`
 ([classification](wwosik.DocLibs.DocumentGeneration.md#classification)) are checked and show
 nothing on slides yet.
 
+The [document keys](wwosik.DocLibs.DocumentGeneration.md#contents-and-heading-numbers) `toc`,
+`tocDepth` and `headingNumbers` are accepted on every template, their values checked, and ignored; an
+agenda slide is `{.agenda}`. `{.unnumbered}` is accepted on any heading and left out (on `###` to
+`######` only when it is the whole `{…}`; other braces stay text).
+
+[Captions](wwosik.DocLibs.DocumentGeneration.md#captions): a `Table: …` paragraph right after a table,
+or a `Figure: …` one right after a fenced block a renderer drew, is shown as before (below the visual
+on an image or table slide, in order on a flow slide) but without its `Table: ` / `Figure: ` prefix;
+decks number no captions. Anywhere else such a paragraph keeps its prefix and gives the note
+`caption-ignored`. Image titles keep their deck meaning: `scale=` and `caption` (the alt text below);
+other words have no effect, unlike in documents.
+
 ## Presenting
 
 - **Speaker notes:** `::: notes` … `:::` at the top level of a `#` or `##` section is taken out of

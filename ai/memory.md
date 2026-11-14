@@ -129,6 +129,22 @@ same change that made it untrue — a stale fact here is worse than a missing on
   `ReplaceUnsupported` to one call per element. `Paragraph` places lines in chunks with at least
   two lines on each side of a break. `Ensure` has a 1e-6 tolerance because a capped visual fills
   the page exactly.
+- **Contents, heading numbers, captions (E03-S02):** `HeadingNumbering` (shared) is the one numbering
+  rule for every format: top = highest level after the cover outside `:::` containers, three levels
+  numbered, a number has one part per numbered heading still open above it (a skipped level never
+  gives 0, `##` before the first `#` are `1`, `2`, that `#` is `3`). `{.unnumbered}` is known to every
+  format (`SplitDeep` reads it on `###`+; `.newpage` there stays Word's until E03-S03).
+  `FrontMatter.DocumentKeys` (`toc`, `tocDepth`, `headingNumbers`) are checked and skipped by
+  `FrontMatter.Apply` for templates that do not list them (decks). The PDF parser numbers headings
+  (`HeadingBlock.Number`), collects `DocumentModel.Contents` (entries point at the `HeadingBlock`s,
+  so the layout replaces each heading's text once via `headingRuns`), and attaches `Caption`s to
+  `ImageBlock`/`TableBlock`/`DrawingBlock`, taking the caption paragraph (`captionParagraphs`). The
+  **contents are one layout pass**: the page-number column is three widest digits wide, entries record
+  a `ContentsSlot`, and `ContentsPages` writes numbers and dot leaders from `anchors` after the body,
+  like `Decorate`. Caption heights are added to `KeepHeight`, `VisualRoom` and the visual's `Ensure`;
+  with no caption every sum adds 0, which keeps old PDFs byte-identical. Decks strip the prefix in
+  `DeckParser.WalkMarked` (`Caption`), knowing drawn fences from `drawn`. Images' standalone word
+  `caption` is a setting, so a title "with a caption under it" loses that word.
 - **No PDF layout library** (PDFsharp/MigraDoc went AGPL with 6.5.0, QuestPDF and iText are
   paid or AGPL): the PDF generator has its own layout engine on PdfPig's writer. It works through
   `IFontMetrics`, so its tests use made-up widths.
@@ -364,17 +380,18 @@ same change that made it untrue — a stale fact here is worse than a missing on
   `DocxBody` behind `IBodyWriter` (a new instance per document: it keeps numbers and ids); `DocxWriter`
   puts the cover and the TOC before it and keeps the template's final `w:sectPr`.
 - **DOCX content (E09-S04):** headings are shifted so that the highest Markdown level after the cover is
-  Heading 1 (`DocxBody.shift`; E03-S02 numbers PDF headings by the same rule). Heading numbers default
+  Heading 1 (`DocxBody.shift`, from `HeadingNumbering.Top`). Heading numbers default
   **on** in DOCX (built-in template only: `numPr` in the Heading 1–3 styles, `StyleDesign.HeadingNumbers`,
   numbering part written by the template builder, `DocxNumbering.HeadingNumId` = 1) and **off** in PDF;
-  `{.unnumbered}` is a paragraph `numId` 0 and is known to `HeadingAttributes` for `Docx` only until
-  E03-S02. The TOC's pre-filled numbers copy Word's counting (a skipped level shows 0). The built-in
+  `{.unnumbered}` is a paragraph `numId` 0. Numbers follow the shared `HeadingNumbering` (below), not
+  Word's own counting: a heading whose number's depth differs from its style level gets a paragraph
+  `numPr` (`ilvl` = depth − 1, `HeadingNumId`), so Word never shows `0.1` / `1.0.1`. The built-in
   `Normal` style is empty, its size and spacing in the document defaults, because a paragraph style's own
   settings beat a table style's in cells. Lists get `w:numPr` on every item paragraph (the converter
   reads lists from it); list numbering comes from the template's list style if it has `numPr`, else
   `DocxNumbering` adds abstract definitions on first use, and every ordered list gets its own `w:num`
   with a `startOverride`. The shared `Captions` (image title, `Table:` / `Figure:` prefixes,
-  `GeneratedTexts.Figure`/`Table`) is used only by DOCX until E03-S02, so decks and PDFs are unchanged.
+  `GeneratedTexts.Figure`/`Table`) is read by DOCX and PDFs alike; decks only drop the prefixes.
   A pipe table followed by a line without `|` is no table at all in Markdig: a `Table:` caption needs a
   blank line before it. Drawing ids continue after the highest `docPr`/`cNvPr` id of the template's
   parts; check boxes declare `w14` with `mc:Ignorable` on the root.

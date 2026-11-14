@@ -13,7 +13,7 @@ generator (E09) reads it the same way.
 ## Context
 
 - Split from the epic's row E03-S02 (see
-  [E03-S02](E03-S02-contents-heading-numbers-and-captions.md), question 1). This story covers the
+  [E03-S02](../../60-verify/E03-S02-contents-heading-numbers-and-captions.md), question 1). This story covers the
   three features that change how lines and pages are filled.
 - **Footnotes today** (E06-S02):
   - `MarkdownParser.Parse` takes the `FootnoteGroup` out of the blocks. It appends a `##` heading

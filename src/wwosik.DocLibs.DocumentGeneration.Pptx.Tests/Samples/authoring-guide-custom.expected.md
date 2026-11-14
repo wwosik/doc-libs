@@ -19,7 +19,8 @@ a title that states the point, then a few short lines.
   on a further slide with the same title; long tables repeat their header row. Better: split long
   content yourself, into slides whose titles say what each one shows.
 - **A table, an image or a diagram gets a slide of its own,** titled like its section; text before
-  it goes above, text after it below as a caption. A second one in the same section gets a further
+  it goes above, text after it below as a caption; a leading `Table: ` or `Figure: ` is dropped
+  there (documents number such captions). A second one in the same section gets a further
   slide with the same title. Slides that use [layouts](#layouts) keep several on one slide.
 - Lists nest with indentation; `1.` lists are numbered. `**bold**`, `*italic*`, `~~strike~~`,
   `` `code` `` and links work; a link needs an absolute URL (`https://…`), others stay text. A
@@ -260,7 +261,8 @@ The end date does not move.
 - Other braces alone in a paragraph, such as `{.note}`, are a mistake; `\{` keeps them as text.
 
 Page breaks are for documents: a deck shows the content of `::: pagebreak` … `:::` as usual and
-ignores `{.newpage}` on a heading, as it ignores `classification:` and `draft:` for now.
+ignores `{.newpage}` and `{.unnumbered}` on a heading, as it ignores `classification:`, `draft:`,
+`toc:`, `tocDepth:` and `headingNumbers:` (checked, then ignored).
 
 **Kinds of slide** are drawn as layout slides with the same content, unless the template has a layout of the right type.
 
@@ -360,6 +362,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `icon-not-drawn`: an icon was left out where it cannot be drawn. Move it as the *Icons* section says.
 - `layout-fallback`: the design has no layout for that kind of slide (`{.quote}` and the others), so it is drawn as a layout slide with the same content. Nothing to fix, unless the design's own look matters.
 - `agenda-empty`: an empty `{.agenda}` found no `#` chapters to list. Add the chapters, or write the agenda as a list.
+- `caption-ignored`: a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text.
 
 A check before generating writes nothing and returns these notes too, and also:
 

@@ -13,7 +13,7 @@ their meaning are shared, so the DOCX generator (E09) marks Word documents from 
 ## Context
 
 - Split from the epic's row E03-S02 (see
-  [E03-S02](E03-S02-contents-heading-numbers-and-captions.md), question 1). The marking concerns
+  [E03-S02](../../60-verify/E03-S02-contents-heading-numbers-and-captions.md), question 1). The marking concerns
   the page furniture of every format, not the flow of text.
 - **The fork**, made for one client, has a classification marking (confidential / internal /
   draft): in the Word header, on the cover, and as a draft watermark, with the same key for decks

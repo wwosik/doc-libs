@@ -6,15 +6,16 @@ namespace wwosik.DocLibs.DocumentGeneration.Tests;
 
 public class CaptionSyntaxTests
 {
-    [Fact]
-    public void Unnumbered_IsKnownToWordDocumentsOnly()
+    [Theory]
+    [InlineData(DocumentFormat.Docx)]
+    [InlineData(DocumentFormat.Pdf)]
+    [InlineData(DocumentFormat.Pptx)]
+    public void Unnumbered_IsKnownToEveryFormat(DocumentFormat format)
     {
-        var (text, attributes) = HeadingAttributes.Split("Preface {.unnumbered}", DocumentFormat.Docx);
+        var (text, attributes) = HeadingAttributes.Split("Preface {.unnumbered}", format);
 
         Assert.Equal("Preface", text);
         Assert.True(attributes!.Unnumbered);
-        Assert.Throws<DocumentConversionException>(() => HeadingAttributes.Split("Preface {.unnumbered}", DocumentFormat.Pdf));
-        Assert.Throws<DocumentConversionException>(() => HeadingAttributes.Split("Preface {.unnumbered}", DocumentFormat.Pptx));
     }
 
     [Fact]
@@ -23,7 +24,12 @@ public class CaptionSyntaxTests
         Assert.Equal(("Detail", true), Deep("Detail {.unnumbered}", DocumentFormat.Docx));
         Assert.Equal(("Detail {.dark}", false), Deep("Detail {.dark}", DocumentFormat.Docx));
         Assert.Equal(("Detail {.unnumbered .dark}", false), Deep("Detail {.unnumbered .dark}", DocumentFormat.Docx));
-        Assert.Equal(("Detail {.unnumbered}", false), Deep("Detail {.unnumbered}", DocumentFormat.Pdf));
+        Assert.Equal(("Detail", true), Deep("Detail {.unnumbered}", DocumentFormat.Pdf));
+        Assert.Equal(("Detail", true), Deep("Detail {.unnumbered}", DocumentFormat.Pptx));
+
+        // `.newpage` below `##` is Word's only, until E03-S03.
+        Assert.Equal(("Detail", false), Deep("Detail {.newpage}", DocumentFormat.Docx));
+        Assert.Equal(("Detail {.newpage}", false), Deep("Detail {.newpage}", DocumentFormat.Pdf));
 
         static (string, bool) Deep(string text, DocumentFormat format) =>
             HeadingAttributes.SplitDeep(text, format) is var (rest, attributes) ? (rest, attributes?.Unnumbered == true) : default;

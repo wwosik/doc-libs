@@ -113,6 +113,24 @@ updating, breaking changes first.
   the content of a `::: pagebreak` is shown as before, slides stay as they were. The lists of valid
   containers, attributes and front-matter keys in error messages name them; code that matches the
   messages' text adjusts.
+- **PDFs read captions.** An image's title, once `scale=N` and a standalone word `caption` are taken
+  out, is now its caption, "Figure n: …" centred under it: `![Sales](s.png "Sales by region")` shows
+  "Figure 1: Sales by region" where the title used to have no effect, and `"caption"` or `.caption`
+  (which gave `attribute-ignored`) shows the alt text. A `Table: …` paragraph after a table (after a
+  blank line) is now the table's numbered caption above it, and a `Figure: …` paragraph right after a
+  diagram a renderer drew its caption below, instead of ordinary paragraphs. Elsewhere such a
+  paragraph stays text with the new note `caption-ignored`. The labels follow `lang` ("Abbildung",
+  "Tabelle"). To keep the old look, leave words out of image titles and write such paragraphs without
+  the `Table: ` / `Figure: ` prefix. PDFs without these are unchanged.
+- **Decks drop a `Table: ` or `Figure: ` prefix** from the paragraph under a table, or under a
+  diagram a renderer drew: "Table: Sales by region" under a table now reads "Sales by region".
+  Elsewhere the paragraph keeps its prefix and gives the note `caption-ignored`. Decks without such
+  paragraphs are unchanged.
+- **`{.unnumbered}`, `toc`, `tocDepth` and `headingNumbers` are syntax now** in PDFs and decks:
+  Markdown that failed with "Unknown heading attribute" or an unknown front-matter key for them now
+  generates (decks accept and ignore them). On `###` to `######` a trailing `{.unnumbered}`, which
+  used to stay text, is taken off. The list of valid heading attributes in error messages names
+  `.unnumbered`; code that matches the messages' text adjusts.
 - **`DocxConverter` no longer reads table styles' paragraphs as headings:** a paragraph whose style
   id or name contains "table" or "tabelle" (such as `Table Title`, `Tabellentitel` or a
   `Table Heading`) comes back as a paragraph, not as `#`. Code that relied on those headings in the
@@ -132,6 +150,14 @@ updating, breaking changes first.
   `too-many-words`, `long-paragraph`, `title-too-long`, `alt-text-missing`, `image-source`. The
   authoring guides have a section *Limits* and list the check codes. `Generate` and its output are
   unchanged.
+- **Contents, heading numbers and captions in PDFs:** `PdfOptions.TableOfContents` and
+  `TableOfContentsDepth` (front matter `toc`, `tocDepth`: 1–3, default 2) put a table of contents
+  after the cover, each entry with its number, a dot leader, the page number the footer shows and a
+  link to its heading; `PdfOptions.HeadingNumbers` (front matter `headingNumbers`, default off)
+  numbers three heading levels from the highest one after the cover, with a hanging indent and
+  numbered bookmarks; `{.unnumbered}` leaves a heading out. Figures and tables get numbered captions
+  in the document language. New note `toc-empty` (`NoteCodes.TocEmpty`) when the contents would list
+  nothing; `caption-ignored` now also in PDFs and decks. The authoring guides describe them.
 - **The PDF converter reads a page's drawn shapes** with PdfPig: table rules (full grids, merged
   cells, tables ruled only horizontally), drawn bullets and task boxes, code backgrounds. A page whose
   analysis fails falls back to plain paragraphs. The documentation lists what it reads and its limits.
@@ -280,7 +306,8 @@ updating, breaking changes first.
     faces skipped (front matter `embedFonts`).
   - **Content** in Word's own form: headings shifted so that the highest level after the cover is
     Heading 1, numbered `1`, `1.1`, `1.1.1` on the built-in template (`DocxOptions.HeadingNumbers`,
-    front matter `headingNumbers`, `{.unnumbered}` on a heading), with bookmarks that `#id` links and
+    front matter `headingNumbers`, `{.unnumbered}` on a heading) as PDFs number them, a skipped level
+    never shown as 0, with bookmarks that `#id` links and
     the table of contents' entries jump to, and a new page at every later `#`; bold, italic and
     strike-through runs; lists to three levels that restart at their own first number; task items
     with Word check boxes; definition lists; tables at the text width with a repeating header row,
