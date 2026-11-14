@@ -151,7 +151,8 @@ It also adds the Word side of two features whose syntax other stories own: page 
    - **In the header** of every content page, the text in `Classification`: right-aligned, bold
      caps, in the colours E03-S04 decided: `Labels.Danger` for confidential, the footer colour
      for internal and draft. `public` without a draft shows nothing.
-   - **On the cover,** a `ClassificationCover` paragraph under the subtitles.
+   - **On the cover,** a `ClassificationCover` paragraph above the title, as in the PDF (E03-S04;
+     the human's decision, 2026-11-14).
    - **`draft: true`** also gets a watermark, as the PDF does (decks get none): Word's own kind, a
      VML text path (`GeneratedTexts.Draft` in capitals, "DRAFT" / "ENTWURF", light grey, 45°) in
      each header, so Word shows it under *Design → Watermark* and can remove it there

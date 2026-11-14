@@ -89,8 +89,9 @@ shapes and PDFs vectors, as for diagrams. No new package.
      `IReadOnlyCollection<string> Names`) and `TablerIcons.Outline`, the embedded set. Icons are on
      by default: both generators use `TablerIcons.Outline` without any option. Options
      `PptxOptions.Icons` and `PdfOptions.Icons` (`IIconSet`, default `TablerIcons.Outline`) exist
-     only to override the set, for example with a caller's own icons; there is no switch to turn
-     icons off.
+     to override the set, for example with a caller's own icons. `Icons = null` switches icons off:
+     `:icon-name:` then stays text, as today, and is not checked (the human's decision,
+     2026-11-14).
    - Each icon is a 24 × 24 drawing of stroked paths: `Stroke` in the colour of its place,
      `StrokeWidth` 2, `RoundJoins`, no fill, as Tabler draws them.
 4. **Icons: syntax.** `:icon-<name>:`, the name in Tabler's kebab-case (`:icon-circle-check:`).
@@ -220,5 +221,8 @@ shapes and PDFs vectors, as for diagrams. No new package.
   `:icon-something:` as literal text now gets an icon, or an error for an unknown name. If that is
   unwanted, a `PptxOptions.Icons = null` / `PdfOptions.Icons = null` switch-off is a one-line
   addition — say so.
+  - Decided by the human (2026-11-14): icons on by default, the breaking change accepted, and
+    `Icons = null` switches them off (step 2). Add a test that `:icon-check:` stays text with
+    `Icons = null`, and mention the switch-off in the CHANGELOG entry.
 - The 1 MB budget is the cut-off from question 2, now applied to every consumer of the shared
   package; a tighter number can be set once the import tool has measured the real set.
