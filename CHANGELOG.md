@@ -49,6 +49,13 @@ updating, breaking changes first.
   licence is in the package's `THIRD-PARTY-NOTICES.txt`.
 - **`CodeBlockRequest` has `Texts`,** which is part of its equality: requests that differ only in
   their document language are no longer equal.
+- **Paragraphs of only `{…}` are build markers:** in both generators, a paragraph that is nothing
+  but `{.build}`, `{.build=appear}`, `{.build=fly}`, `{.build=wipe}`, `{.frag}`, `{.exit}` or
+  `{.emphasize}` (or several of them) is no longer written as text, and any other paragraph of only
+  classes and quoted `key="value"` pairs, such as `{.note}` or `{width="50%"}`, now throws
+  `DocumentConversionException` listing the markers; so does a marker that builds nothing or stands
+  inside a list, a quote or speaker notes. Other
+  braces (`{"a": 1}`, `{x}`) stay text. Write `\{` where such a paragraph is meant as text.
 
 ### New
 
@@ -98,6 +105,12 @@ updating, breaking changes first.
   `.grey` as PowerPoint's greyscale effect; PDFs crop with clipping paths (`fit=cover` only in rows
   of images), draw `.round` as a circular clip and make `.grey` pixels grey.
 - **New note:** `attribute-ignored`, for an image attribute that has no effect where it is.
+- **Builds in decks:** a build marker paragraph before a block makes it appear (`{.build}`,
+  `{.build=fly}`, `{.build=wipe}`: item by item; `{.frag}`: at once), disappear (`{.exit}`) or pulse
+  (`{.emphasize}`) on a click, as PowerPoint's own animations: lists by item, cards, rows, columns
+  and image rows one by one. Front matter `build: lists` and `PptxOptions.Build` (`DeckBuild`) build
+  every top-level list item by item. Decks without markers are unchanged; PDFs leave the markers
+  out and accept `build`.
 
 ## 2610.28.22
 

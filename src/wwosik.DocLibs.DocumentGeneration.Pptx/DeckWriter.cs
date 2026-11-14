@@ -167,7 +167,7 @@ internal sealed partial class DeckWriter
             : BuiltInTableStyleId;
     }
 
-    /// <summary>Writes the slides, fitted, with their speaker notes and transitions; returns how many were written.</summary>
+    /// <summary>Writes the slides, fitted, with their speaker notes, transitions and builds; returns how many were written.</summary>
     public int Write(IReadOnlyList<Slide> slides)
     {
         var number = 0;
@@ -194,6 +194,7 @@ internal sealed partial class DeckWriter
 
             this.Tag(canvas);
             Transitions.Write(canvas.Part.Slide!, slide.Transition);
+            TimingWriter.Write(canvas.Part.Slide!, canvas.Targets);
             if (slide.SpeakerNotes.Count > 0)
             {
                 speakerNotes.Add((canvas.Part, slide.SpeakerNotes));
@@ -243,7 +244,7 @@ internal sealed partial class DeckWriter
         var subtitle = FindPlaceholder(layout, p => p.Type?.Value == P.PlaceholderValues.SubTitle) ?? bodies.Skip(titleInBody ? 1 : 0).FirstOrDefault();
         if (subtitle is not null)
         {
-            canvas.Add(Placeholder(canvas, subtitle, "Subtitle", slide.Subtitle.Select(p => this.Paragraph(canvas, p, explicitBullets: false, null))));
+            canvas.AddText(Placeholder(canvas, subtitle, "Subtitle", slide.Subtitle.Select(p => this.Paragraph(canvas, p, explicitBullets: false, null))), slide.Subtitle);
         }
         else if (!slide.Closing)
         {
@@ -271,7 +272,7 @@ internal sealed partial class DeckWriter
         {
             var properties = step == 0 ? null : new A.BodyProperties(new A.NormalAutoFit { FontScale = (int)(this.BodySize(step) * 100000L / this.bodySize) });
             var box = this.footnotes.Count > 0 ? this.ContentArea(layout) : (Rect?)null; // shortened for the footnotes
-            canvas.Add(Placeholder(canvas, body, "Content", slide.Body.Select(p => this.Paragraph(canvas, p, explicitBullets: this.listBullets, null)), box, properties));
+            canvas.AddText(Placeholder(canvas, body, "Content", slide.Body.Select(p => this.Paragraph(canvas, p, explicitBullets: this.listBullets, null)), box, properties), slide.Body);
         }
         else
         {
@@ -297,19 +298,24 @@ internal sealed partial class DeckWriter
         }
 
         var captionHeight = slide.Below.Count > 0 ? EstimateHeight(slide.Below, captionSize, area.W) : 0;
-        var placed = new Rect(area.X, y, area.W, 0);
-        if (slide.Table is { } table)
+        var placed = canvas.Building(slide.VisualBuild, () =>
         {
-            placed = this.Table(canvas, table, new Rect(area.X, y, area.W, 0), TableStartSize(table) - (step * SizeStep));
-        }
-        else if (slide.Images is not null || slide.Drawing is not null || slide.Chart is not null)
-        {
+            if (slide.Table is { } table)
+            {
+                return this.Table(canvas, table, new Rect(area.X, y, area.W, 0), TableStartSize(table) - (step * SizeStep));
+            }
+
+            if (slide.Images is null && slide.Drawing is null && slide.Chart is null)
+            {
+                return new Rect(area.X, y, area.W, 0);
+            }
+
             var room = area.Bottom - y - (captionHeight > 0 ? captionHeight + Gap : 0);
             var box = new Rect(area.X, y, area.W, Math.Max(room, area.H / 4));
-            placed = slide.Images is { } images ? box with { H = this.Images(canvas, images, box) }
+            return slide.Images is { } images ? box with { H = this.Images(canvas, images, box, slide.VisualBuild) }
                 : slide.Chart is { } chart ? this.Chart(canvas, chart, box)
                 : this.Drawing(canvas, slide.Drawing!, box);
-        }
+        });
 
         if (slide.Below.Count > 0)
         {
@@ -510,12 +516,18 @@ internal sealed partial class DeckWriter
         _ => false,
     };
 
-    private long Place(Canvas? canvas, FlowBlock block, Rect box, FlowStyle style) => block switch
+    // A block with a build marker: every shape written for it is part of its build.
+    private long Place(Canvas? canvas, FlowBlock block, Rect box, FlowStyle style) =>
+        canvas is not null && block.Build is { } mark
+            ? canvas.Building(mark, () => this.PlaceBlock(canvas, block, box, style))
+            : this.PlaceBlock(canvas, block, box, style);
+
+    private long PlaceBlock(Canvas? canvas, FlowBlock block, Rect box, FlowStyle style) => block switch
     {
         TextBlock text => this.FlowText(canvas, text.Paragraphs, box, style.Size, style.Text),
         TableBlock table => this.Table(canvas, table.Table, box).H,
         ImageBlock image => this.Images(canvas, [image.Image], this.VisualBox(box)),
-        ImageRowBlock row => this.Images(canvas, row.Images, this.VisualBox(box)),
+        ImageRowBlock row => this.Images(canvas, row.Images, this.VisualBox(box), row.Build),
         ColumnsBlock columns => this.Columns(canvas, columns, box, style),
         ChartBlock chart => this.Chart(canvas, chart.Chart, this.VisualBox(box)).H,
         DrawingBlock drawing => this.Drawing(canvas, drawing.Drawing, this.VisualBox(box)).H,
@@ -536,22 +548,23 @@ internal sealed partial class DeckWriter
     private long FlowText(Canvas? canvas, IReadOnlyList<TextParagraph> paragraphs, Rect box, int size, SlideColor? color)
     {
         var height = FlowHeight(paragraphs, size, box.W);
-        canvas?.Add(TextBoxShape(canvas, box with { H = height }, paragraphs.Select(p => this.Paragraph(canvas, p, explicitBullets: true, size, color: color))));
+        canvas?.AddText(TextBoxShape(canvas, box with { H = height }, paragraphs.Select(p => this.Paragraph(canvas, p, explicitBullets: true, size, color: color))), paragraphs);
         return height;
     }
 
     // Images side by side in cells of equal width, each fitted into its cell and centred in it, its alt text under it
     // when it asks for a caption; more than four wrap into further rows that share the height. Returns the height.
-    private long Images(Canvas? canvas, IReadOnlyList<SlideImage> images, Rect box)
+    // With a `build` marker, each image with its caption is an item of it, numbered from `first`.
+    private long Images(Canvas? canvas, IReadOnlyList<SlideImage> images, Rect box, BuildMark? build = null, int first = 0)
     {
         if (images.Count > MaxImagesPerRow)
         {
             var rows = images.Chunk(MaxImagesPerRow).ToList();
             var rowHeight = Math.Max((box.H - ((rows.Count - 1) * Gap)) / rows.Count, 0);
             var y = box.Y;
-            foreach (var row in rows)
+            for (var r = 0; r < rows.Count; r++)
             {
-                y += this.Images(canvas, row, box with { Y = y, H = rowHeight }) + Gap;
+                y += this.Images(canvas, rows[r], box with { Y = y, H = rowHeight }, build, first + (r * MaxImagesPerRow)) + Gap;
             }
 
             return y - Gap - box.Y;
@@ -569,6 +582,7 @@ internal sealed partial class DeckWriter
         {
             for (var i = 0; i < count; i++)
             {
+                canvas.Item(build, first + i);
                 var cell = new Rect(box.X + (i * (width + Gap)), box.Y, width, Math.Max(box.H - captionHeight, box.H / 2));
                 var placed = this.Picture(canvas, images[i], cell);
                 if (captions[i] is { } caption)
@@ -591,6 +605,7 @@ internal sealed partial class DeckWriter
         for (var i = 0; i < block.Columns.Count; i++)
         {
             var width = i == block.Columns.Count - 1 ? box.Right - x : room * block.Widths[i] / total;
+            canvas?.Item(block.Build, i);
             height = Math.Max(height, this.Stack(canvas, block.Columns[i], new Rect(x, box.Y, width, box.H), style));
             x += width + Gap;
         }
@@ -605,6 +620,7 @@ internal sealed partial class DeckWriter
         var width = (box.W - ((columns - 1) * Gap)) / columns;
         var inner = style with { Size = style.Scaled(FlowSmallSize) };
         var y = box.Y;
+        var index = 0;
         foreach (var row in block.Cards.Chunk(columns))
         {
             var height = row.Max(card => this.Card(null, card, new Rect(0, 0, width, 0), inner));
@@ -612,6 +628,7 @@ internal sealed partial class DeckWriter
             {
                 for (var i = 0; i < row.Length; i++)
                 {
+                    canvas.Item(block.Build, index++);
                     var card = new Rect(box.X + (i * (width + Gap)), y, width, height);
                     canvas.Add(Shape(canvas, card, A.ShapeTypeValues.RoundRectangle, null, style.Dark ? this.palette.DarkLine : this.palette.Line));
                     this.Card(canvas, row[i], card, inner);
@@ -648,8 +665,9 @@ internal sealed partial class DeckWriter
         var description = new Rect(box.X + termWidth + Gap, 0, box.W - termWidth - Gap, 0);
         var line = style.Dark ? this.palette.DarkLine : this.palette.Line;
         var y = box.Y;
-        foreach (var row in block.Rows)
+        foreach (var (index, row) in block.Rows.Index())
         {
+            canvas?.Item(block.Build, index);
             var term = new TextParagraph(Bold(row.Term));
             var height = Math.Max(FlowHeight([term], style.Size, termWidth), FlowHeight(row.Description, style.Size, description.W)) + (2 * RowPad);
             if (canvas is not null)
@@ -763,6 +781,7 @@ internal sealed partial class DeckWriter
             }
 
             var item = block.Items[i];
+            canvas?.Item(block.Build, i);
             var paragraph = new TextParagraph(item.Text);
             var height = Math.Max(chipHeight, FlowHeight([paragraph], style.Size, text.W));
             if (canvas is not null)
@@ -880,8 +899,8 @@ internal sealed partial class DeckWriter
         }
     }
 
-    private void TextBox(Canvas canvas, Rect box, IEnumerable<TextParagraph> paragraphs, int size, bool center) =>
-        canvas.Add(TextBoxShape(canvas, box, paragraphs.Select(p => this.Paragraph(canvas, p, explicitBullets: true, size, center ? CellAlignment.Center : CellAlignment.Default, color: this.palette.Text))));
+    private void TextBox(Canvas canvas, Rect box, IReadOnlyList<TextParagraph> paragraphs, int size, bool center) =>
+        canvas.AddText(TextBoxShape(canvas, box, paragraphs.Select(p => this.Paragraph(canvas, p, explicitBullets: true, size, center ? CellAlignment.Center : CellAlignment.Default, color: this.palette.Text))), paragraphs);
 
     private static P.Shape TextBoxShape(Canvas canvas, Rect box, IEnumerable<A.Paragraph> paragraphs)
     {
@@ -1534,19 +1553,83 @@ internal sealed partial class DeckWriter
     }
 
     /// <summary>
-    /// The slide being written: its part, its shape tree, and the ids used on it. <paramref name="links"/> is the part
-    /// hyperlinks go on, when it is not the slide's: the notes page of its speaker notes.
+    /// The slide being written: its part, its shape tree, the ids used on it, and what its build markers cover.
+    /// <paramref name="links"/> is the part hyperlinks go on, when it is not the slide's: the notes page of its speaker notes.
     /// </summary>
     private sealed class Canvas(SlidePart part, P.ShapeTree tree, OpenXmlPart? links = null)
     {
         private readonly Dictionary<string, string?> hyperlinks = new(StringComparer.Ordinal);
+        private readonly List<BuildTarget> targets = [];
+
+        // The marked blocks being written, innermost last, each with the item being written.
+        private readonly List<(BuildMark Mark, int Item)> building = [];
         private uint nextId = 2;
 
         public SlidePart Part => part;
 
+        /// <summary>The shapes and paragraphs the slide's build markers cover, in the order they were written.</summary>
+        public IReadOnlyList<BuildTarget> Targets => this.targets;
+
         public uint NextId() => this.nextId++;
 
-        public void Add(OpenXmlElement shape) => tree.Append(shape);
+        /// <summary>Adds a shape; while a marked block is written, it becomes part of that block's build.</summary>
+        public void Add(OpenXmlElement shape)
+        {
+            tree.Append(shape);
+            if (this.building.Count > 0)
+            {
+                var (mark, item) = this.building[^1];
+                this.targets.Add(new BuildTarget(mark, item, IdOf(shape), shape switch
+                {
+                    P.Shape => TargetKind.Shape,
+                    P.GraphicFrame => TargetKind.Graphic,
+                    _ => TargetKind.Other,
+                }, null));
+            }
+        }
+
+        /// <summary>Adds a shape with text whose paragraphs are <paramref name="paragraphs"/>: each marked one is built on its own.</summary>
+        public void AddText(P.Shape shape, IEnumerable<TextParagraph> paragraphs)
+        {
+            this.Add(shape);
+            foreach (var (index, paragraph) in paragraphs.Index())
+            {
+                if (paragraph.Build is { } mark)
+                {
+                    this.targets.Add(new BuildTarget(mark, mark.Item, IdOf(shape), TargetKind.Shape, index));
+                }
+            }
+        }
+
+        /// <summary>Writes a block with <paramref name="mark"/>, if any: the shapes it adds are built with it.</summary>
+        public T Building<T>(BuildMark? mark, Func<T> write)
+        {
+            if (mark is null)
+            {
+                return write();
+            }
+
+            this.building.Add((mark, mark.Item));
+            try
+            {
+                return write();
+            }
+            finally
+            {
+                this.building.RemoveAt(this.building.Count - 1);
+            }
+        }
+
+        /// <summary>The shapes added from now on belong to <paramref name="item"/> of the block marked <paramref name="mark"/>.</summary>
+        public void Item(BuildMark? mark, int item)
+        {
+            if (mark is not null && this.building.Count > 0 && ReferenceEquals(this.building[^1].Mark, mark))
+            {
+                this.building[^1] = (mark, item);
+            }
+        }
+
+        private static uint IdOf(OpenXmlElement shape) => shape.Descendants<P.NonVisualDrawingProperties>().First().Id!.Value;
 
         public string? Hyperlink(string url)
         {

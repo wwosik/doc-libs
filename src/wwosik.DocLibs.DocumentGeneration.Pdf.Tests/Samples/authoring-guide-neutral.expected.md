@@ -49,11 +49,14 @@ Markdown written for decks works here too and is shown plainly, so one text can 
 `## Title {kicker="…"}` drops the attributes, `::: cards`, `rows`, `panel`, `statement` and
 `columns` show their content as normal text, one part after the other, `==marked==` text is bold, and an alert (`> [!NOTE]`, `[!TIP]`,
 `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`) is a quote that starts with its title in bold, in the
-document's language (`lang`). Speaker notes (`::: notes` … `:::`) and transitions (`transition:`
-in the front matter, `transition="…"` on a heading) are left out. For a
+document's language (`lang`). Speaker notes (`::: notes` … `:::`), transitions (`transition:`
+in the front matter, `transition="…"` on a heading) and builds (a paragraph such as `{.build}`,
+`{.frag}`, `{.exit}` or `{.emphasize}` before a block, and `build:` in the front matter) are left
+out. For a
 PDF alone, write plain Markdown; alerts are fine for notes and warnings. Unknown containers,
-attributes, alerts and transitions are errors, as in decks, and so is a `::: notes` inside another
-block.
+attributes, alerts, transitions and build markers (a paragraph such as `{.note}`) are errors, as in
+decks, and so are a `::: notes` inside another block and a build marker that builds nothing. Write
+`\{` to show braces as text.
 
 ## Diagrams
 
@@ -103,6 +106,7 @@ author: Planning team
 | `pageSize` | `A4`, `A3` or `Letter`. Default `A4`. |
 | `orientation` | `portrait` or `landscape`. Default `portrait`. |
 | `transition` | The transition between slides in a deck: `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut`, `morph`. A PDF accepts it and ignores it. |
+| `build` | `lists` builds every list of a deck item by item, `none` does not. A PDF accepts it and ignores it. |
 | `labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral` | Status labels for decks, separated by `;`. A PDF accepts them and shows the labels as code. |
 
 An unknown key, a key given twice or an invalid value is an error that lists the valid keys.

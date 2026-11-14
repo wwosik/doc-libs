@@ -121,7 +121,7 @@ internal sealed partial class DeckWriter
             isFirst ? slide.Above : [],
             Subset(table, chosen),
             null,
-            isLast ? slide.Below : []) { Layout = slide.Layout, Line = slide.Line };
+            isLast ? slide.Below : []) { Layout = slide.Layout, Line = slide.Line, VisualBuild = slide.VisualBuild };
         var parts = Pack(rows, chosen => this.VisualHeight(Part(chosen, chosen[0] == first, false, 0), MaxVisualStep, area.W) <= area.H);
         return parts.Select((chosen, i) =>
         {
@@ -243,28 +243,28 @@ internal sealed partial class DeckWriter
                 case TextBlock text:
                     foreach (var group in ListGroups(text.Paragraphs))
                     {
-                        yield return [new Piece(new TextBlock(group), o)];
+                        yield return [new Piece(text with { Paragraphs = group }, o)];
                     }
 
                     break;
                 case RowsBlock rows:
                     foreach (var row in rows.Rows)
                     {
-                        yield return [new Piece(new RowsBlock([row]), o)];
+                        yield return [new Piece(rows with { Rows = [row] }, o)];
                     }
 
                     break;
                 case LabelledTagsBlock tags:
                     foreach (var item in tags.Items)
                     {
-                        yield return [new Piece(new LabelledTagsBlock([item]), o)];
+                        yield return [new Piece(tags with { Items = [item] }, o)];
                     }
 
                     break;
-                case TableBlock { Table: var table } when table.Rows.Count - (table.HasHeader ? 1 : 0) >= 2:
+                case TableBlock { Table: var table } whole when table.Rows.Count - (table.HasHeader ? 1 : 0) >= 2:
                     for (var r = table.HasHeader ? 1 : 0; r < table.Rows.Count; r++)
                     {
-                        yield return [new Piece(new TableBlock(Subset(table, [r])), o)];
+                        yield return [new Piece(whole with { Table = Subset(table, [r]) }, o)];
                     }
 
                     break;
@@ -275,7 +275,7 @@ internal sealed partial class DeckWriter
         }
     }
 
-    // Pieces back into blocks: neighbouring pieces of one block joined.
+    // Pieces back into blocks: neighbouring pieces of one block joined, with its build marker.
     private static List<FlowBlock> Combine(IReadOnlyList<Piece> pieces)
     {
         var blocks = new List<FlowBlock>();
@@ -286,14 +286,17 @@ internal sealed partial class DeckWriter
             {
                 blocks[^1] = (blocks[^1], piece.Block) switch
                 {
-                    (TextBlock a, TextBlock b) => new TextBlock([.. a.Paragraphs, .. b.Paragraphs]),
-                    (RowsBlock a, RowsBlock b) => new RowsBlock([.. a.Rows, .. b.Rows]),
-                    (LabelledTagsBlock a, LabelledTagsBlock b) => new LabelledTagsBlock([.. a.Items, .. b.Items]),
-                    (TableBlock a, TableBlock b) => new TableBlock(a.Table with
+                    (TextBlock a, TextBlock b) => a with { Paragraphs = [.. a.Paragraphs, .. b.Paragraphs] },
+                    (RowsBlock a, RowsBlock b) => a with { Rows = [.. a.Rows, .. b.Rows] },
+                    (LabelledTagsBlock a, LabelledTagsBlock b) => a with { Items = [.. a.Items, .. b.Items] },
+                    (TableBlock a, TableBlock b) => a with
                     {
-                        Rows = [.. a.Table.Rows, .. b.Table.Rows.Skip(b.Table.HasHeader ? 1 : 0)],
-                        Highlighted = [.. a.Table.Highlighted, .. b.Table.Highlighted.Skip(b.Table.HasHeader ? 1 : 0)],
-                    }),
+                        Table = a.Table with
+                        {
+                            Rows = [.. a.Table.Rows, .. b.Table.Rows.Skip(b.Table.HasHeader ? 1 : 0)],
+                            Highlighted = [.. a.Table.Highlighted, .. b.Table.Highlighted.Skip(b.Table.HasHeader ? 1 : 0)],
+                        },
+                    },
                     var (_, other) => other,
                 };
             }

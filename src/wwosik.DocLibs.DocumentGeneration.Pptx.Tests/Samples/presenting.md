@@ -115,4 +115,121 @@ Shapes that are on both slides move from one place to the other.
 
 This slide simply replaces the one before.
 
+## Building the plan
+
+{.build}
+
+- Collect the schedules
+- Write them as documents
+  - one per route
+- Let the planner read them
+
+{.build=fly}
+
+The new planner goes live in autumn.
+
+{.frag .exit}
+
+This line comes in on one click and goes on the next.
+
+{.emphasize}
+
+Remember the deadline.
+
+::: notes
+Each click brings the next point; the last one pulses.
+:::
+
+## Every berth, one by one
+
+{.build=wipe}
+
+- Berth 1: the northern pier, where the coastal line loads its containers
+- Berth 2: the customs quay, where papers are checked before departure
+- Berth 3: the fuel dock, which opens at six and closes at ten
+- Berth 4: the eastern basin, kept for repairs and inspections only
+- Berth 5: the ferry berth, served every hour in the summer months
+- Berth 6: the grain quay, loading bulk cargo for the inland routes
+- Berth 7: the cold store quay, for fresh fish and fruit from the south
+- Berth 8: the container berth, the longest quay of the whole harbour
+- Berth 9: the cruise berth, busy on weekends from May to September
+- Berth 10: the pilot berth, where every large ship takes a pilot on board
+- Berth 11: the breakwater berth, with the lighthouse at its end
+- Berth 12: the marina pontoons, for small boats and the authority's launches
+- Berth 13: the shipyard berth, fitting out two ferries this year
+- Berth 14: the museum quay, where the old warehouses are now offices
+- Berth 15: the tug berth, where four tugs wait for the large ships
+- Berth 16: the ro-ro ramp, loading trucks and trailers for the islands
+- Berth 17: the bunker berth, refuelling ships at anchor in the roads
+- Berth 18: the timber quay, stacked with logs from the northern forests
+- Berth 19: the office quay, open every day of the year from six to six
+- Berth 20: the rail quay, linking the berths with the national network
+- Berth 21: the passenger berth, with waiting rooms and a small café
+- Berth 22: the dry dock, booked out for the next eight months
+- Berth 23: the scrap quay, shipping metal for recycling abroad
+- Berth 24: the southern pier, the last berth before the open sea
+
+## Arrivals, step by step
+
+{.frag}
+
+Arrivals per quarter, with the total below:
+
+{.build=wipe}
+
+| Quarter | Ships |
+| --- | ---: |
+| Q1 | 412 |
+| Q2 | 455 |
+
+{.frag}
+
+The total is 867.
+
+## Who we talked to {kicker="Builds"}
+
+{.build}
+
+::: cards
+### Planners
+Write documents instead of filling tables.
+
+### Captains
+See the same schedule on every device.
+
+### Agents
+Book berths from the same documents.
+:::
+
+::: panel
+The pilot starts in spring.
+
+{.frag}
+
+The rollout follows in autumn.
+:::
+
+{.emphasize}
+
+> [!IMPORTANT]
+> Nothing changes for the passengers.
+
+## Before and after {kicker="Builds"}
+
+{.build}
+
+::: columns
+**Before:** tables, typed again every week.
+
+---
+
+**After:** documents, read by the planner.
+:::
+
+{.exit}
+
+::: statement
+Fewer tables, fewer mistakes.
+:::
+
 # Thank you {.closing}

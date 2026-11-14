@@ -173,6 +173,43 @@ stays a picture PowerPoint can edit: every crop is `a:srcRect`, every shape a pr
   | `morph` | `mc:AlternateContent`: `p159:morph` (`option="byObject"`, PowerPoint 2019 and Microsoft 365), with `p:fade` as the fallback | slow |
 
   An unknown name throws in both generators.
+- **Builds:** a paragraph that is nothing but a build marker makes the block after it come in on
+  clicks in the slide show. Only braces of classes and quoted `key="value"` pairs count, as for
+  heading attributes; any other paragraph of such braces (`{.note}`, `{width="50%"}`) throws, listing
+  the markers, and `\{` keeps braces as text. The markers, each PowerPoint's own preset, so the
+  Animation pane names it:
+
+  | Marker | Click | Preset |
+  | ------ | ----- | ------ |
+  | `{.build}`, `{.build=appear}` | the block appears, item by item | entrance Appear (`presetID` 1) |
+  | `{.build=fly}` | the same, flying in | entrance Fly In from the bottom (2, subtype 4) |
+  | `{.build=wipe}` | the same, wiped in | entrance Wipe from the left (22, subtype 8) |
+  | `{.frag}` | the whole block appears | entrance Appear |
+  | `{.exit}` | the block, shown at first, disappears | exit Disappear (1) |
+  | `{.emphasize}` | the block pulses and stays as it was | emphasis Pulse (26) |
+
+  **Item by item** means: a list by its top-level items (sub-items with their item), `cards` by card,
+  `rows` by row, `columns` by column, the labelled tags of a container list by item, an image row by
+  image; any other block appears whole, tables and charts too. Several classes in one marker
+  (`{.frag .exit}`) are consecutive clicks in their written order.
+  - **Where markers go:** at the top level of a section, or directly inside a `:::` container or an
+    alert, where they build what follows them there. A marker before a container builds the whole
+    container; markers inside it build their block on a later click. The blocks of `::: statement`
+    follow on the slide and build with the statement, unless they have their own marker. A marker
+    followed by a heading, `::: notes`, another marker, a `---` or nothing, and one inside a list, a
+    quote, a footnote or speaker notes, throw with its line, in both generators.
+  - **`build: lists`** in the front matter (else `PptxOptions.Build`, `DeckBuild.None` or `Lists`)
+    gives every top-level list of a section without a marker `{.build}`.
+  - **On the slide:** content slides build by paragraph of their body placeholder; visual slides the
+    text above, the visual and the caption below; flow slides by block (every shape written for the
+    block) or by item. A paragraph split at an image builds its text and the image together. Each
+    part of a [split](#fitting) slide plays the steps of what it holds, from its first click.
+  - **Written as** `p:timing` after `p:transition`, as the schema orders them: the main sequence,
+    one click group per step, the first shape of a step `clickEffect` and the others `withEffect`;
+    text by paragraph range (`p:txEl/p:pRg`); `p:bldLst` with `p:bldP build="p"` for paragraphs,
+    `p:bldP animBg="1"` for whole shapes and `p:bldGraphic` with `p:bldAsOne` for tables and charts
+    (pictures and groups have none). A slide without builds gets no `p:timing`, so decks without
+    markers stay as before. `PptxConverter` does not read builds back.
 
 ## Layouts
 
@@ -270,8 +307,8 @@ template.
 
 Every template takes `PptxOptions.ListBullets`: `Template` (default) leaves the bullets of text slides
 to the template's styles, `Always` writes Markdown's bullets on every level — for templates whose
-level-1 style has none. Every template also takes `PptxOptions.Transition`, see
-[Presenting](#presenting).
+level-1 style has none. Every template also takes `PptxOptions.Transition` and `PptxOptions.Build`,
+see [Presenting](#presenting).
 
 **Notes master.** A deck with [speaker notes](#presenting) uses the template's notes master as it
 is. A template without one — the built-in master, a brand's own template or a caller's template —
@@ -359,6 +396,7 @@ author: Team Docs
 | `showFooter` | `true`, `false` | brands with their own `Pptx` template |
 | `listBullets` | `template`, `always` | all |
 | `transition` | `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut`, `morph` | all — see [Presenting](#presenting) |
+| `build` | `none`, `lists` | all — see [Presenting](#presenting) |
 | `layouts.title`, `layouts.content`, `layouts.titleOnly`, `layouts.sectionHeader`, `layouts.closing` | layout name | custom |
 | `title`, `author` | text | all — the core properties |
 | `lang` | a language tag such as `en`, `de`, `de-CH`; default `PptxOptions.Language` (`en`), with `PptxOptions.Texts` for further languages | all — see [Document language](wwosik.DocLibs.DocumentGeneration.md#document-language) |

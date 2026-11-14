@@ -134,6 +134,37 @@ transitions: `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`
 slides share from one to the other; viewers without it fade. Use one transition for the whole
 deck, and a different one only where it means something.
 
+**Builds:** a paragraph that is only a build marker, before a block, makes that block come in click
+by click in the slide show. Leave a blank line after it.
+
+````markdown
+{.build}
+
+- 14 of 20 substations upgraded
+- Two delays, both in permitting
+
+{.frag .exit}
+
+The end date does not move.
+````
+
+| Marker | On a click |
+| ------ | ---------- |
+| `{.build}` | appears item by item: list items (with their sub-items), cards, rows, columns, images in a row; other blocks whole |
+| `{.build=fly}`, `{.build=wipe}` | the same, flying in or wiped in (`=appear` is `{.build}`) |
+| `{.frag}` | the whole block appears |
+| `{.exit}` | the block disappears |
+| `{.emphasize}` | the block pulses |
+
+- `{.frag .exit}` and other combinations play one after the other. Clicks follow the Markdown; a
+  slide that continues on another starts each from its first click.
+- Put a marker at the top level of a section, or inside a `:::` container or alert for what follows
+  it there; before a container it builds the whole container. Not before a heading, `::: notes`,
+  another marker or nothing, and not in a list, quote or speaker notes.
+- `build: lists` in the front matter builds every top-level list like `{.build}`, unless it has its
+  own marker.
+- Other braces alone in a paragraph, such as `{.note}`, are a mistake; `\{` keeps them as text.
+
 ## Diagrams
 
 A ` ```mermaid ` code block becomes a diagram in the document's colours. Use one where a picture
@@ -182,6 +213,7 @@ author: Planning team
 | `embedFonts` | `true` or `false`. Leave it out: by default the deck carries its fonts. |
 | `listBullets` | `always` to show bullets on every list level, also where the design's first level has none; `template` (the default) leaves it to the design. |
 | `transition` | How every slide is brought on when presented: `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut`, `morph`. Default `none`. A heading's `transition="…"` wins; see [Presenting](#presenting). |
+| `build` | `lists` builds every top-level list item by item; `none` (the default) only what has a marker. See [Presenting](#presenting). |
 | `labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral` | The [status labels](#layouts) in that category, separated by `;`: `labels.success: Done; Delivered`. |
 
 An unknown key, a key given twice or an invalid value is an error that lists the valid keys.
@@ -226,7 +258,8 @@ The deck is set in Liberation Serif, with PT Sans Narrow in tables and Inconsola
 ## When something is wrong
 
 Generation stops with a message that says what to fix: an unknown container (`::: grid`), heading
-attribute (`{.wide}`), alert (`[!INFO]`) or transition, a `::: notes` inside another block, a
+attribute (`{.wide}`), alert (`[!INFO]`), transition or build marker (`{.note}`), a marker that
+builds nothing, a `::: notes` inside another block, a
 `cards` or `rows` item without a bold start, an
 image that is not among the files, a front matter key that does not exist, or a broken diagram
 with its line. Fix the Markdown and generate again.

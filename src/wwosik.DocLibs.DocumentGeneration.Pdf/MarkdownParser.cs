@@ -43,8 +43,11 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
         var parser = new MarkdownParser(document, options, brand ?? Brand.Neutral, lineOffset, notes, texts);
         var markdown = Markdown.Parse(document.Markdown, Pipeline);
         MarkdownSyntax.ReportMissingFootnotes(markdown, parser.LineOf, notes);
+
+        // Build markers are for decks: checked like there, then left out wherever they are.
+        BuildMarker.Check(markdown, DocumentFormat.Pdf, parser.LineOf);
         var footnotes = markdown.OfType<FootnoteGroup>().SelectMany(g => g.OfType<Footnote>()).OrderBy(f => f.Order).ToList();
-        var blocks = markdown.Where(b => b is not FootnoteGroup).ToList();
+        var blocks = markdown.Where(b => b is not FootnoteGroup && !(b is Markdig.Syntax.ParagraphBlock paragraph && BuildMarker.IsMarker(paragraph))).ToList();
         Cover? cover = null;
         var start = 0;
         if (blocks.FirstOrDefault() is Markdig.Syntax.HeadingBlock { Level: 1 } first)
@@ -126,6 +129,8 @@ internal sealed partial class MarkdownParser(MarkdownDocument document, PdfOptio
                 target.Add(new QuoteBlock([
                     new ParagraphBlock([new TextRun(texts.Alert(alert.Kind.ToString()), RunStyle.Bold)]),
                     .. this.Children(alert)]));
+                break;
+            case Markdig.Syntax.ParagraphBlock marker when BuildMarker.IsMarker(marker):
                 break;
             case Markdig.Syntax.ParagraphBlock paragraph:
                 this.Paragraph(paragraph.Inline, target);

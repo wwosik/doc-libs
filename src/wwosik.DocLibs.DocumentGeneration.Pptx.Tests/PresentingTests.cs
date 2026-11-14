@@ -73,13 +73,14 @@ public class PresentingTests
         Assert.All(numbers, s => Assert.Equal(["Two tables, so two slides: say the totals out loud."], SpeakerNotes(s)));
         Assert.NotNull(SpeakerNotes(slides.Single(s => Title(s) == "What changes")));
         Assert.Null(slides.Single(s => Title(s) == "Timeline").NotesSlidePart);
+        Assert.Equal(["Each click brings the next point; the last one pulses."], SpeakerNotes(slides.Single(s => Title(s) == "Building the plan")));
 
         // A content slide with speaker notes stays a content slide; the flow slide stays a flow slide.
         Assert.Equal("Title and Content", Samples.LayoutName(slides.Single(s => Title(s) == "Where we stand")));
         Assert.Equal("Title Only", Samples.LayoutName(slides.Single(s => Title(s) == "What changes")));
 
         Assert.Equal("fade", TransitionOf(slides[0]));
-        Assert.Equal(["push", "wipe", "wipe", "split", "split", "cover", "pull", "zoom", "cut", "morph", null, "fade"], slides.Skip(1).Select(TransitionOf));
+        Assert.Equal(["push", "wipe", "wipe", "split", "split", "cover", "pull", "zoom", "cut", "morph", null, "fade", "fade", "fade", "fade", "fade", "fade", "fade"], slides.Skip(1).Select(TransitionOf));
     }
 
     [Fact]
@@ -278,7 +279,7 @@ public class PresentingTests
     }
 
     // Each part's content, for comparing two decks whose relationship ids are random.
-    private static Dictionary<string, string> Parts(byte[] pptx)
+    internal static Dictionary<string, string> Parts(byte[] pptx)
     {
         using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(pptx));
         return zip.Entries.ToDictionary(

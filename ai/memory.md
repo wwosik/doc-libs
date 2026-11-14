@@ -222,6 +222,15 @@ same change that made it untrue — a stale fact here is worse than a missing on
   then — so decks without notes keep their parts. `Canvas` takes the part hyperlinks go on (the notes
   page). PDFs skip top-level `::: notes` in `MarkdownParser.Parse` and accept front matter
   `transition`. `PptxConverter` reads the notes page's body placeholder as `::: notes`.
+- **Builds (E07-S05):** `BuildMarker` (shared) recognises a marker paragraph from its inlines (Markdig
+  releases `Lines` after inline parsing; an escaped `\{` is no marker) and `BuildMarker.Check` validates
+  every marker of the document once, so both formats throw alike; the PDF then skips marker paragraphs.
+  `DeckParser.WalkMarked` attaches a marker to the next block (`BuildMark`, numbered by the block's
+  `Span.Start`): on `TextParagraph.Build`, `FlowBlock.Build`, `VisualSlide.VisualBuild`, set by the
+  `ITarget`s from the parser's current `build`. A new per-paragraph or per-block property must survive
+  `Fit`'s pieces (`with`, not `new`). The writer records targets in `Canvas` (`Building` scopes for
+  shapes, `AddText` for paragraphs, `Item` for cards/rows/columns/images) and `TimingWriter` appends
+  `p:timing` **after** `p:transition` (schema order: `transition`, then `timing`).
 - **The SDK's relationship ids are random** (`R` + 16 hex digits), so two runs never give the same
   `.pptx` bytes; compare decks part by part with those ids masked (`PresentingTests.Parts`). PDFs have
   a random `/ID` in the trailer.

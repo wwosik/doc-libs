@@ -2,7 +2,7 @@ using wwosik.DocLibs.DocumentConversions;
 
 namespace wwosik.DocLibs.DocumentGeneration.Pdf.Tests;
 
-/// <summary>Speaker notes and transitions, which are for decks: PDFs check them and leave them out.</summary>
+/// <summary>Speaker notes, transitions and builds, which are for decks: PDFs check them and leave them out.</summary>
 public class PresentingTests
 {
     private static byte[] Generate(string markdown)
@@ -51,5 +51,41 @@ public class PresentingTests
     {
         var error = Assert.Throws<DocumentConversionException>(() => Generate("## Plan\n\n::: notes dark\nHidden.\n:::\n"));
         Assert.Contains("takes no arguments", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildMarkers_AreLeftOut_AndTheRestIsUnchanged()
+    {
+        var plain = Generate(
+            "---\ntitle: Plan\n---\n# Plan\n\nIntro.\n\n## One\n\nText.\n\n- A\n- B\n\n::: panel\nInside.\n\nMore.\n:::\n\n"
+            + "> [!NOTE]\n> Noted.\n\n| A |\n| - |\n| 1 |\n");
+        var built = Generate(
+            "---\ntitle: Plan\nbuild: lists\n---\n# Plan\n\n{.build=fly}\n\nIntro.\n\n## One\n\n{.frag}\n\nText.\n\n{.build .exit}\n\n- A\n- B\n\n"
+            + "{.emphasize}\n\n::: panel\nInside.\n\n{.frag}\n\nMore.\n:::\n\n> [!NOTE]\n> {.build=wipe}\n>\n> Noted.\n\n{.exit}\n\n| A |\n| - |\n| 1 |\n");
+
+        Assert.Equal(WithoutId(plain), WithoutId(built));
+    }
+
+    [Theory]
+    [InlineData("## A\n\n{.build}\n\n## B\n\nText.\n", "followed by a heading")]
+    [InlineData("## A\n\nText.\n\n{.build}\n\n::: notes\nSay it.\n:::\n", "followed by speaker notes")]
+    [InlineData("## A\n\n{.build}\n\n{.frag}\n\nText.\n", "followed by another marker")]
+    [InlineData("## A\n\nText.\n\n{.build}\n", "followed by nothing to build")]
+    [InlineData("## A\n\n- Item\n\n  {.build}\n\n  More.\n", "inside a list")]
+    [InlineData("## A\n\nText.\n\n::: notes\n{.build}\n\nSay it.\n:::\n", "inside speaker notes")]
+    [InlineData("## A\n\n{.note}\n\nText.\n", "Unknown build marker '.note'")]
+    [InlineData("## A\n\n{.build=zoom}\n\nText.\n", "Valid markers: .build, .build=appear, .build=fly, .build=wipe, .frag, .exit, .emphasize.")]
+    public void AStrayOrUnknownMarker_Throws(string markdown, string expected)
+    {
+        var error = Assert.Throws<DocumentConversionException>(() => Generate(markdown));
+        Assert.Equal(DocumentFormat.Pdf, error.Format);
+        Assert.Contains(expected, error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheBuildKey_IsChecked()
+    {
+        var error = Assert.Throws<DocumentConversionException>(() => Generate("---\nbuild: all\n---\n## Plan\n\nText.\n"));
+        Assert.Contains("'build'", error.Message, StringComparison.Ordinal);
     }
 }

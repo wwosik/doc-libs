@@ -67,6 +67,13 @@ public sealed record PptxOptions
     public SlideTransition Transition { get; init; }
 
     /// <summary>
+    /// Which blocks build click by click without a marker of their own: <see cref="DeckBuild.Lists"/> builds every
+    /// top-level list item by item, as <c>{.build}</c> before it would. Default <see cref="DeckBuild.None"/>: only
+    /// blocks with a marker. Front matter <c>build</c> overrides it.
+    /// </summary>
+    public DeckBuild Build { get; init; }
+
+    /// <summary>
     /// The document language, a BCP 47 tag such as <c>en</c>, <c>de</c> or <c>de-CH</c>, unless the front matter sets
     /// <c>lang</c>. It picks the texts the generator writes itself (see <see cref="Texts"/>) and tags the text, for
     /// spell checking in PowerPoint. Default <c>en</c>.
@@ -92,6 +99,16 @@ public enum ListBullets
 
     /// <summary>Markdown's bullets on every level, whatever the template's styles say.</summary>
     Always,
+}
+
+/// <summary>Which blocks of a deck build click by click without a build marker of their own.</summary>
+public enum DeckBuild
+{
+    /// <summary>None: only blocks with a marker such as <c>{.build}</c> build.</summary>
+    None,
+
+    /// <summary>Every top-level list of a slide builds item by item, unless it has a marker of its own.</summary>
+    Lists,
 }
 
 /// <summary>

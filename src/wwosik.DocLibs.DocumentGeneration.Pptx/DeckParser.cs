@@ -30,6 +30,10 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
     private readonly Dictionary<Footnote, int> footnotes = [];
     private bool hasCover;
 
+    // The build marker of the block being walked, and that block, while it is walked; see WalkMarked.
+    private BuildMark? build;
+    private Block? marked;
+
     /// <remarks>
     /// <paramref name="brand"/> is the brand code-block renderers draw in; <paramref name="lineOffset"/> the lines of
     /// front matter cut off the Markdown, so renderers get the block's line in the original; <paramref name="notes"/>
@@ -44,6 +48,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         var blocks = new List<Block>();
         var markdown = Markdown.Parse(document.Markdown, Pipeline);
         MarkdownSyntax.ReportMissingFootnotes(markdown, parser.LineOf, parser.Notes);
+        BuildMarker.Check(markdown, Format.Pptx, parser.LineOf);
         foreach (var block in markdown)
         {
             if (block is FootnoteGroup)
@@ -338,23 +343,15 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         if (attributes is not ({ Dark: true } or { Kicker: not null }) && (isTitle || !blocks.Any(UsesLayouts)))
         {
             var closing = attributes?.Closing ?? false;
-            var section = new SectionBuilder(this.slides, title, isTitle, isTitle && this.hasCover && !closing, attributes?.Layout, closing);
+            var section = new SectionBuilder(this, this.slides, title, isTitle, isTitle && this.hasCover && !closing, attributes?.Layout, closing);
             this.hasCover |= isTitle && !closing;
-            foreach (var block in blocks)
-            {
-                this.Walk(block, section, 0, RunStyle.None);
-            }
-
+            this.WalkMarked(blocks, section, section: true);
             section.Finish();
             return Transition(attributes);
         }
 
-        var flow = new FlowCollector(inContainer: false);
-        foreach (var block in blocks)
-        {
-            this.Walk(block, flow, 0, RunStyle.None);
-        }
-
+        var flow = new FlowCollector(this, inContainer: false);
+        this.WalkMarked(blocks, flow, section: true);
         this.slides.Add(new FlowSlide(title, attributes?.Kicker, attributes?.Dark ?? false, flow.Finish()) { Layout = attributes?.Layout });
         return Transition(attributes);
     }
@@ -427,7 +424,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
                 this.Paragraph(paragraph.Inline, target, ParagraphKind.Plain, level, 1, style);
                 break;
             case ListBlock list:
-                this.List(list, target, level, style);
+                this.List(list, target, level, style, items: this.build is not null && ReferenceEquals(list, this.marked));
                 break;
             case QuoteBlock quote:
                 foreach (var child in quote)
@@ -489,12 +486,19 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         }
     }
 
-    // A task list item (`- [ ]`, `- [x]`) has a box for its bullet, numbered or not.
-    private void List(ListBlock list, ITarget target, int level, RunStyle style)
+    // A task list item (`- [ ]`, `- [x]`) has a box for its bullet, numbered or not. A list with a marker of its own
+    // builds by its top-level `items`: each item's paragraphs, its sub-items included, carry the item's number.
+    private void List(ListBlock list, ITarget target, int level, RunStyle style, bool items = false)
     {
         var start = list.IsOrdered && int.TryParse(list.OrderedStart, NumberStyles.None, CultureInfo.InvariantCulture, out var n) ? n : 1;
-        foreach (var item in list.OfType<ListItemBlock>())
+        var marker = this.build;
+        foreach (var (index, item) in list.OfType<ListItemBlock>().Index())
         {
+            if (items)
+            {
+                this.build = marker! with { Item = index };
+            }
+
             var kind = item.FirstOrDefault() is ParagraphBlock { Inline.FirstChild: TaskList task } ? task.Checked ? ParagraphKind.TaskDone : ParagraphKind.Task
                 : list.IsOrdered ? ParagraphKind.Numbered : ParagraphKind.Bullet;
             var marked = false;
@@ -520,6 +524,46 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
                 target.Text(new TextParagraph([], kind, level, start));
             }
         }
+
+        this.build = marker;
+    }
+
+    // The blocks with the build marker before each, if any; the marker paragraphs themselves are left out. With
+    // `build: lists`, every list of a section without a marker gets `{.build}`. A mark is numbered by where its block
+    // starts in the Markdown, which orders the clicks of a slide.
+    private IEnumerable<(Block Block, BuildMark? Mark)> Marked(IEnumerable<Block> blocks, bool section)
+    {
+        IReadOnlyList<Build>? pending = null;
+        foreach (var block in blocks)
+        {
+            if (block is ParagraphBlock paragraph && BuildMarker.TryParse(paragraph, Format.Pptx) is { } builds)
+            {
+                pending = builds;
+                continue;
+            }
+
+            if (pending is null && section && options.Build == DeckBuild.Lists && block is ListBlock)
+            {
+                pending = BuildMarker.Lists;
+            }
+
+            yield return (block, pending is null ? null : new BuildMark(pending, block.Span.Start));
+            pending = null;
+        }
+    }
+
+    // Walks blocks of a section or a container, each with its own marker: the blocks inside a marked container build
+    // with it, as part of it, unless they have a marker of their own.
+    private void WalkMarked(IEnumerable<Block> blocks, ITarget target, bool section = false)
+    {
+        var (outer, outerBlock) = (this.build, this.marked);
+        foreach (var (block, mark) in this.Marked(blocks, section))
+        {
+            (this.build, this.marked) = (mark, mark is null ? null : block);
+            this.Walk(block, target, 0, RunStyle.None);
+        }
+
+        (this.build, this.marked) = (outer, outerBlock);
     }
 
     // Splits the paragraph at images: text before and after becomes paragraphs, each image a visual. A paragraph of
@@ -605,17 +649,23 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             case LayoutSyntax.Notes:
                 throw LayoutSyntax.NestedNotes(Format.Pptx);
             case "statement":
-                if (container.FirstOrDefault() is not ParagraphBlock lead)
+                // Its blocks follow on the slide itself: with the statement's marker, unless they have their own.
+                var children = this.Marked(container, section: false).ToList();
+                if (children.FirstOrDefault() is not (ParagraphBlock lead, var leadMark))
                 {
                     throw Error("A '::: statement' starts with a paragraph, its statement.");
                 }
 
+                var (outer, outerBlock) = (this.build, this.marked);
+                this.build = leadMark ?? outer;
                 target.Add(new StatementBlock(this.Runs(lead.Inline, imagesAsText: true)));
-                foreach (var child in container.Skip(1))
+                foreach (var (child, mark) in children.Skip(1))
                 {
+                    (this.build, this.marked) = (mark ?? outer, mark is null ? null : child);
                     this.Walk(child, target, 0, RunStyle.None);
                 }
 
+                (this.build, this.marked) = (outer, outerBlock);
                 break;
         }
     }
@@ -787,12 +837,8 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
 
     private List<FlowBlock> Flow(IEnumerable<Block> blocks)
     {
-        var flow = new FlowCollector(inContainer: true);
-        foreach (var block in blocks)
-        {
-            this.Walk(block, flow, 0, RunStyle.None);
-        }
-
+        var flow = new FlowCollector(this, inContainer: true);
+        this.WalkMarked(blocks, flow);
         return flow.Finish();
     }
 
@@ -1081,8 +1127,11 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         }
     }
 
-    /// <summary>Collects the text and visuals of one heading's section and turns them into slides.</summary>
-    private sealed class SectionBuilder(List<Slide> slides, IReadOnlyList<TextRun> title, bool isTitle, bool isSection, string? layout, bool closing) : ITarget
+    /// <summary>
+    /// Collects the text and visuals of one heading's section and turns them into slides; each paragraph and visual
+    /// takes the build marker of the block it comes from.
+    /// </summary>
+    private sealed class SectionBuilder(DeckParser parser, List<Slide> slides, IReadOnlyList<TextRun> title, bool isTitle, bool isSection, string? layout, bool closing) : ITarget
     {
         private List<TextParagraph> above = [];
         private List<TextParagraph> below = [];
@@ -1090,11 +1139,13 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         private IReadOnlyList<SlideImage>? images;
         private Drawing? drawing;
         private ChartSpec? chart;
+        private BuildMark? visualBuild;
         private bool titlePending = isTitle;
 
         private bool HasVisual => this.table is not null || this.images is not null || this.drawing is not null || this.chart is not null;
 
-        public void Text(TextParagraph paragraph) => (this.HasVisual ? this.below : this.above).Add(paragraph);
+        public void Text(TextParagraph paragraph) =>
+            (this.HasVisual ? this.below : this.above).Add(parser.build is { } mark ? paragraph with { Build = mark } : paragraph);
 
         public void Visual(SlideTable? newTable, IReadOnlyList<SlideImage>? newImages, Drawing? newDrawing = null, ChartSpec? newChart = null)
         {
@@ -1113,6 +1164,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
             this.images = newImages;
             this.drawing = newDrawing;
             this.chart = newChart;
+            this.visualBuild = parser.build;
         }
 
         public void Finish()
@@ -1133,18 +1185,28 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
 
         private void FlushVisual()
         {
-            slides.Add(new VisualSlide(title, this.above, this.table, this.images, this.below) { Drawing = this.drawing, Chart = this.chart, Layout = layout });
+            slides.Add(new VisualSlide(title, this.above, this.table, this.images, this.below)
+            {
+                Drawing = this.drawing,
+                Chart = this.chart,
+                Layout = layout,
+                VisualBuild = this.visualBuild,
+            });
             this.above = [];
             this.below = [];
             this.table = null;
             this.images = null;
             this.drawing = null;
             this.chart = null;
+            this.visualBuild = null;
         }
     }
 
-    /// <summary>Collects the blocks of a flow slide or of a container on one; consecutive paragraphs make one text block.</summary>
-    private sealed class FlowCollector(bool inContainer) : ITarget
+    /// <summary>
+    /// Collects the blocks of a flow slide or of a container on one; consecutive paragraphs make one text block. Each
+    /// paragraph and block takes the build marker of the Markdown block it comes from.
+    /// </summary>
+    private sealed class FlowCollector(DeckParser parser, bool inContainer) : ITarget
     {
         private readonly List<FlowBlock> blocks = [];
         private List<TextParagraph>? text;
@@ -1160,7 +1222,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
                 this.blocks.Add(new TextBlock(this.text));
             }
 
-            this.text.Add(paragraph);
+            this.text.Add(parser.build is { } mark ? paragraph with { Build = mark } : paragraph);
         }
 
         public void Visual(SlideTable? table, IReadOnlyList<SlideImage>? images, Drawing? drawing = null, ChartSpec? chart = null) =>
@@ -1173,7 +1235,7 @@ internal sealed partial class DeckParser(MarkdownDocument document, PptxOptions 
         public void Add(FlowBlock block)
         {
             this.text = null;
-            this.blocks.Add(block);
+            this.blocks.Add(parser.build is { } mark && block.Build is null ? block with { Build = mark } : block);
         }
 
         public List<FlowBlock> Finish() => this.blocks;

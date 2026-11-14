@@ -18,7 +18,7 @@ A generated deck should be ready to present without opening PowerPoint to add no
 | [E07-S02](E07-S02-html-deck.md) | HTML deck | todo |
 | [E07-S03](E07-S03-preview-images.md) | Preview images | todo |
 | [E07-S04](E07-S04-scenes.md) | Scenes | todo |
-| [E07-S05](../55-in-progress/doc-3/E07-S05-builds.md) | Builds | in progress (doc-3) |
+| [E07-S05](../60-verify/E07-S05-builds.md) | Builds | in verification |
 | [E07-S06](E07-S06-presenting-the-html-deck.md) | Presenting the HTML deck | todo |
 
 Stories marked *to plan* come from the

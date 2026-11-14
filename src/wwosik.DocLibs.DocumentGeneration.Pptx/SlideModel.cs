@@ -54,7 +54,18 @@ internal enum CellAlignment
 }
 
 /// <summary>A paragraph; <see cref="NumberStart"/> is the start value of the numbered list it belongs to.</summary>
-internal sealed record TextParagraph(IReadOnlyList<TextRun> Runs, ParagraphKind Kind = ParagraphKind.Plain, int Level = 0, int NumberStart = 1);
+internal sealed record TextParagraph(IReadOnlyList<TextRun> Runs, ParagraphKind Kind = ParagraphKind.Plain, int Level = 0, int NumberStart = 1)
+{
+    /// <summary>The build marker of the block the paragraph comes from, if any, with the number of its list item.</summary>
+    public BuildMark? Build { get; init; }
+}
+
+/// <summary>
+/// A build marker on content: its builds, played as consecutive clicks; <see cref="Block"/>, the number of the marked
+/// block in the document, which orders the clicks of a slide; and <see cref="Item"/>, the number of the top-level list
+/// item (or card, row, column, image) the content belongs to, for builds that go item by item.
+/// </summary>
+internal sealed record BuildMark(IReadOnlyList<Build> Builds, int Block, int Item = 0);
 
 /// <summary>A table; <see cref="Highlighted"/> holds, per row, whether its first cell is all <c>==marked==</c>.</summary>
 internal sealed record SlideTable(
@@ -159,6 +170,9 @@ internal sealed record VisualSlide(
 
     /// <summary>A chart from a code-block renderer, written as a native chart.</summary>
     public ChartSpec? Chart { get; init; }
+
+    /// <summary>The build marker of the table, image, drawing or chart, if any.</summary>
+    public BuildMark? VisualBuild { get; init; }
 }
 
 /// <summary>
@@ -168,7 +182,14 @@ internal sealed record VisualSlide(
 internal sealed record FlowSlide(IReadOnlyList<TextRun> Title, string? Kicker, bool Dark, IReadOnlyList<FlowBlock> Blocks) : Slide(Title);
 
 /// <summary>One block of a <see cref="FlowSlide"/>, or of a card, panel or callout on one.</summary>
-internal abstract record FlowBlock;
+internal abstract record FlowBlock
+{
+    /// <summary>
+    /// The build marker of the block, if any. Text carries its markers on its paragraphs instead; a block marked
+    /// item by item builds by card, row, column, labelled tag or image, any other as a whole.
+    /// </summary>
+    public BuildMark? Build { get; init; }
+}
 
 internal sealed record TextBlock(IReadOnlyList<TextParagraph> Paragraphs) : FlowBlock;
 

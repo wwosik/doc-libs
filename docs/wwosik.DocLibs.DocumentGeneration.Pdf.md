@@ -102,6 +102,7 @@ The shared syntax and rules are in
 | `title`, `author` | text | all |
 | `lang` | a language tag such as `en`, `de`, `de-CH` | all |
 | `transition` | `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut`, `morph` | all — a deck's key: checked, then ignored |
+| `build` | `none`, `lists` | all — a deck's key: checked, then ignored |
 
 ## Design
 
@@ -274,8 +275,11 @@ Markdown written for the PPTX generator's
   a `#` heading (`{.closing}`) are checked and dropped; the kicker is not shown. So is
   `transition="…"`.
 - **Speaker notes** (`::: notes` … `:::` at the top level) are left out, with no option to print
-  them; a `::: notes` inside another block throws, as in decks. With front matter `transition`, a
-  PDF from Markdown written for a deck is the same as from that Markdown without its
+  them; a `::: notes` inside another block throws, as in decks.
+- **Build markers** (a paragraph such as `{.build}`, `{.frag .exit}` or `{.emphasize}`) are checked
+  like in decks and left out wherever they are; an unknown one (`{.note}`) or one that builds nothing
+  throws. With front matter `transition` and `build`, a PDF from Markdown written for a deck is the
+  same as from that Markdown without its
   [presenting](wwosik.DocLibs.DocumentGeneration.Pptx.md#presenting) parts.
 - **Containers** (`::: cards`, `rows`, `panel`, `statement`, `columns`) show their content as normal
   blocks: a card's `###` is a heading, a short-form list a list, the columns of `::: columns` one
@@ -286,7 +290,7 @@ Markdown written for the PPTX generator's
 - **`[words]{.success}`** sets the words bold in that status colour (`Colors.Labels`), as in decks.
 - **A paragraph of only images** is a row: the images side by side in cells of equal width across
   the text width, each scaled down to its cell, the row moved to the next page whole.
-- Unknown attributes, containers, alerts and transitions throw, as in decks.
+- Unknown attributes, containers, alerts, transitions and build markers throw, as in decks.
 
 ## Known limits
 
