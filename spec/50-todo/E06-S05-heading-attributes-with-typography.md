@@ -1,0 +1,111 @@
+# E06-S05 Heading attributes with typography
+
+> Status: todo
+> Epic: [E06 Markdown syntax](E06-markdown-syntax.md)
+
+## Summary
+
+With `typography: true`, a heading's quoted attributes (`{kicker="Plan"}`, `{transition="fade"}`,
+`{layout="…"}`) are no longer recognised: the typography pass curls their quotes before the
+attributes are split off, so the whole block stays in the title and nothing is applied. This story
+reads heading attributes before typography in every generator, so a document generates the same
+slides and pages with and without typography, apart from the typeset text itself.
+
+## Context
+
+- Reported against 2611.15.8:
+  [bug-typography-breaks-quoted-heading-attributes.md](../00-brainstorming/bug-typography-breaks-quoted-heading-attributes.md).
+  Typography is off by default (E06-S03), so only documents that switch it on are affected.
+- **Where it goes wrong.** Each parser builds a heading's runs with its `Runs(...)` helper, which
+  applies coloured words, then icons, then typography (`DeckParser.Icons` → `DeckParser.Typeset`,
+  the same chain in the PDF `MarkdownParser` and in `DocxRuns`). Only afterwards are the attributes
+  taken off the last run:
+  - decks: `DeckParser.Attributes(title)` (`##`, `#`) and `WithoutDeepAttributes` (`###`–`######`);
+  - PDF: `MarkdownParser.Split` / `WithoutAttributes` (cover, chapters, contents, headings);
+  - Word: `DocxBody` heading split (`HeadingAttributes.Split` / `SplitDeep`).
+  `HeadingAttributes.BlockPattern` and `TokenPattern` accept only straight `"`, so after typesetting
+  (`"Plan"` → `“Plan”`, or `„Plan“` in German) the block no longer matches. Classes without values
+  (`{.dark}`, `{.unnumbered}`, `{.newpage}`) still work, because they contain no quotes.
+- **Verified by the report:** decks only. **From reading the code:** PDF and Word split the same
+  way after typesetting, so they are expected to show the same fault (the attribute block printed
+  in the title, `kicker` lost, `{.newpage}`-style classes fine). Step 1 confirms this with tests.
+- **Not affected, from reading the code:**
+  - image attributes: `ImageAttributes.Take` reads the raw Markdig literals after the image;
+  - build markers: `BuildMarker` reads the paragraph's raw text;
+  - container arguments (`::: columns 1:2`, `::: panel dark`): read from the container's info string;
+  - the Word cover title and front-matter `title`/`author`: attributes are taken off first, then
+    `DocxGenerator.Typeset` runs.
+  Step 1 adds regression tests for these too, so that stays true.
+- `Check` does not report the fault, because the heading is valid text.
+
+## Proposed approach
+
+1. **Tests first (they fail today).** A shared test matrix, run for decks, PDF and Word, with
+   `typography: true` and `false`, in English and German:
+   - `## Title {kicker="Plan"}`, `{transition="fade"}`, `{layout="…"}`, `{.dark kicker="A"}`,
+     `{.unnumbered}`, `{.newpage}` on `##`, and `{.unnumbered .newpage}` on `###`;
+   - the `#` cover and a chapter divider with attributes;
+   - a value with characters typography would change: `{kicker="Plan -- 2027..."}` keeps them as typed.
+   Each test asserts the same title text (typeset or not), the same attributes, and for decks the
+   same slide count and layouts in both settings. Regression tests with typography on for image
+   attributes (`![a](x.png){fit=cover}`), a build marker (`{.build}`) and container arguments.
+2. **Split before typesetting.** In each parser, take the attribute block off the last run of the
+   heading *before* typography runs; then typeset the remaining title runs:
+   - give the runs helper a way to stop before typography (e.g. `Runs(inline, typeset: false)`) and
+     a `Typeset(runs, line)` to call after the split — the same three steps as today, in a new order;
+   - decks: `Attributes(title)` and `WithoutDeepAttributes`; PDF: every heading path that calls
+     `Split`/`WithoutAttributes` (cover, chapter list, contents entries, bookmarks, headings); Word:
+     the `DocxBody` heading split;
+   - attribute values are never typeset: they are settings, not text (a `kicker` value is typeset
+     when it is drawn as text, like any other title text — check where the kicker is rendered and
+     apply typography there, so it looks the same as the title).
+3. **No change to the attribute syntax.** The patterns keep accepting only straight `"`. An author
+   who types curly quotes by hand (`{kicker=“Plan”}`) still gets text, as before (question 2).
+4. **Docs and changelog.** CHANGELOG `## Unreleased` gets a fix entry under *Breaking changes* only
+   if output of documents without typography changes (it should not); otherwise under a new
+   *Fixed* heading: "With `typography: true`, quoted heading attributes were kept as title text and
+   not applied." No guide change. `ai/memory.md`: "heading attributes are split before typography".
+
+## Acceptance criteria
+
+- [ ] With `typography: true`, `## Status {kicker="Plan"}` gives the title "Status" and the kicker
+  "Plan" in decks; `transition="…"` and `layout="…"` apply as without typography.
+- [ ] PDF and Word take the same attribute blocks off headings with typography on (cover, chapters,
+  contents entries, bookmarks, `###` and deeper).
+- [ ] A deck with typography on has the same number of slides and the same layouts as with it off
+  (the bug report's sample: no `slide-split` / `slide-overfull` that are not there with it off).
+- [ ] Attribute values are kept exactly as typed; the title and kicker text are typeset.
+- [ ] Regression tests with typography on pass for image attributes, build markers and container
+  arguments.
+- [ ] All existing outputs with typography off are unchanged (decks and Word part by part with
+  relationship ids masked, PDFs with `/ID` and dates masked); the full test suite is green.
+- [ ] CHANGELOG entry; `ai/memory.md` note.
+
+## Open questions
+
+1. Fix approach: split the attributes off before typography (proposed: the attribute block is
+   syntax, not text, and every format gets the same order), or teach typography to leave a trailing
+   `{…}` block alone (smaller change, but typography would need to know heading syntax)?
+
+>
+
+2. Curly quotes typed by the author (`{kicker=“Plan”}`, e.g. pasted from Word): keep treating them
+   as text (proposed: unchanged behaviour, out of scope), or accept `“ ” „ ‚ ‘ ’` as attribute
+   quotes too?
+
+>
+
+3. Release: cut a fix release (`v2611.15.<hour>` or the next day's) right after this story is
+   verified (proposed), or right after it is implemented, since 2611.15.8 is already out with the
+   fault?
+
+>
+
+4. Changelog heading: add a *Fixed* section for bug fixes (proposed: the changelog has only
+   *Breaking changes* and *New* so far), or file the fix under *New*?
+
+>
+
+## Notes
+
+<!-- Free space for remarks that are not answers to the questions above. -->
