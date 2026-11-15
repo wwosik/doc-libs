@@ -160,7 +160,7 @@ Full suite: 1795 passed, 6 skipped (Windows only).
   Cause: `DocxRuns.Collector` read the literal after an image as text before `DocxBody.Picture`
   called `ImageAttributes.Take`, which cuts the block off that literal. The collector now calls
   `Take` when it meets the image (as decks and PDFs do); the result is cached on the image, so
-  `Picture` gets the same attributes. `scale=` applies, and `fit=cover`, `focus`, `.round`, `.grey`
+  `Picture` gets the same attributes. `scale=` applied before too (`Picture` read the literal, which was not yet cut); still, `fit=cover`, `focus`, `.round`, `.grey`
   give their `attribute-ignored` note as the guide says. Test:
   `ImageAttributes_AreTakenOff_NotPrinted_ScaleApplies_AndTheOthersGiveANote` (fails without the
   fix). No sample document uses image attributes in Word, so the review outputs are unchanged.
