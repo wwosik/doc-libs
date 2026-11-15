@@ -103,6 +103,40 @@ internal static class LayoutSyntax
         _ => throw new DocumentConversionException(format, $"Unknown alert '[!{kind}]'. Valid alerts: {Alerts}."),
     };
 
+    /// <summary>
+    /// The columns of a <c>::: columns</c> container: its blocks split at thematic breaks (a <c>---</c> after a blank
+    /// line), and their widths as weights from the arguments (<c>1:2</c>), equal without them.
+    /// </summary>
+    /// <exception cref="DocumentConversionException">There are not two or three columns, one is empty, or the widths do not match them.</exception>
+    public static (IReadOnlyList<int> Widths, IReadOnlyList<IReadOnlyList<Block>> Parts) Columns(ContainerBlock container, string arguments, DocumentFormat format)
+    {
+        var parts = new List<List<Block>> { new() };
+        foreach (var child in container)
+        {
+            if (child is ThematicBreakBlock)
+            {
+                parts.Add([]);
+            }
+            else
+            {
+                parts[^1].Add(child);
+            }
+        }
+
+        if (parts.Count is not (2 or 3) || parts.Any(p => p.Count == 0))
+        {
+            throw new DocumentConversionException(format, "A '::: columns' holds two or three columns, separated by a line '---' with a blank line before it.");
+        }
+
+        var widths = arguments.Length > 0 ? ColumnWidths(arguments)! : Enumerable.Repeat(1, parts.Count).ToList();
+        if (widths.Count != parts.Count)
+        {
+            throw new DocumentConversionException(format, $"'::: columns {arguments}' gives {widths.Count} widths for {parts.Count} columns.");
+        }
+
+        return (widths, parts);
+    }
+
     /// <summary>The widths of <c>::: columns 1:2</c> as weights; <see langword="null"/> when they are not two or three whole numbers.</summary>
     public static IReadOnlyList<int>? ColumnWidths(string arguments)
     {

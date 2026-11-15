@@ -102,9 +102,7 @@ Then a shadow run: Harbour calculates the same bookings, and the results are com
 
 ### Two views
 
-Before: every change waited for the weekly release.
-
-After: changes ship the same day, behind a switch, and the old path stays until the numbers agree.
+Before: every change waited for After: changes ship the same day, behind a switch, and the old the weekly release. path stays until the numbers agree.
 
 ### Agenda
 

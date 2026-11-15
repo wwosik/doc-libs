@@ -88,20 +88,27 @@ internal sealed partial class MarkdownParser(
         var start = 0;
         if (blocks.FirstOrDefault() is Markdig.Syntax.HeadingBlock { Level: 1 } first)
         {
+            // A plain document has no cover: its first `#` is the title of the first page, and the paragraphs after it are text.
+            var plain = options.Layout == PdfLayout.Plain;
+            var place = plain ? "the title" : "the cover";
             var subtitle = new List<IReadOnlyList<TextRun>>();
             start = 1;
-            while (start < blocks.Count && blocks[start] is Markdig.Syntax.ParagraphBlock paragraph && !HasImage(paragraph) && !parser.pageBreaks.Contains(paragraph))
+            while (!plain && start < blocks.Count && blocks[start] is Markdig.Syntax.ParagraphBlock paragraph && !HasImage(paragraph) && !parser.pageBreaks.Contains(paragraph))
             {
-                subtitle.Add(parser.NotDrawn(parser.Runs(paragraph.Inline), "the cover"));
+                subtitle.Add(parser.NotDrawn(parser.Runs(paragraph.Inline), place));
                 start++;
             }
 
             if (parser.AttributesOf(first) is { NewPage: true })
             {
-                throw new DocumentConversionException(DocumentFormat.Pdf, "{.newpage} cannot go on the cover heading, the first '#': the cover is a page of its own.");
+                throw new DocumentConversionException(
+                    DocumentFormat.Pdf,
+                    plain
+                        ? "{.newpage} cannot go on the title, the first '#': the title starts the first page."
+                        : "{.newpage} cannot go on the cover heading, the first '#': the cover is a page of its own.");
             }
 
-            cover = new Cover(parser.NotDrawn(WithoutAttributes(parser.Runs(first.Inline)), "the cover"), subtitle, Anchor(first));
+            cover = new Cover(parser.NotDrawn(WithoutAttributes(parser.Runs(first.Inline)), place), subtitle, Anchor(first));
         }
 
         parser.CheckSections(blocks, start == 1 ? (Markdig.Syntax.HeadingBlock)blocks[0] : null);
@@ -250,6 +257,13 @@ internal sealed partial class MarkdownParser(
                 case QuoteBlock quote:
                     NoteParagraphs(quote.Blocks, into);
                     break;
+                case ColumnsBlock columns:
+                    foreach (var column in columns.Columns)
+                    {
+                        NoteParagraphs(column, into);
+                    }
+
+                    break;
                 case DefinitionListBlock definitions:
                     foreach (var definition in definitions.Items)
                     {
@@ -324,13 +338,26 @@ internal sealed partial class MarkdownParser(
                     break;
                 }
 
+                if (container.Info == "columns")
+                {
+                    // Side by side: the columns are split at their `---` lines, as in decks.
+                    var (widths, parts) = LayoutSyntax.Columns(container, container.Arguments?.Trim() ?? string.Empty, DocumentFormat.Pdf);
+                    target.Add(new ColumnsBlock(widths, [.. parts.Select(part =>
+                    {
+                        var column = new List<Block>();
+                        foreach (var child in part)
+                        {
+                            this.Add(child, column);
+                        }
+
+                        return (IReadOnlyList<Block>)column;
+                    })]));
+                    break;
+                }
+
                 foreach (var child in container)
                 {
-                    // The `---` between the columns of `::: columns` only separates them; the columns follow one another.
-                    if (child is not ThematicBreakBlock || container.Info != "columns")
-                    {
-                        this.Add(child, target);
-                    }
+                    this.Add(child, target);
                 }
 
                 break;

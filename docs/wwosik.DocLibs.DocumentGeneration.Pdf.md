@@ -86,6 +86,7 @@ string guide = PdfGenerator.AuthoringGuide(options);   // starts at "##"
 | `Brands` | none | brands front matter may select, see [Brands](wwosik.DocLibs.DocumentGeneration.md#brands) |
 | `PageSize` | `A4` | `A4`, `A3`, `Letter` |
 | `Orientation` | `Portrait` | `Portrait`, `Landscape` |
+| `Layout` | `Report` | `Report` or `Plain`: a document without a cover and header, see [Plain documents](#plain-documents) |
 | `TableOfContents` | `false` | a table of contents after the cover, see [Contents, numbers and captions](#contents-numbers-and-captions) |
 | `TableOfContentsDepth` | `2` | the heading levels it lists, 1–3; another value throws `ArgumentOutOfRangeException` |
 | `HeadingNumbers` | `false` | numbers on three heading levels |
@@ -116,6 +117,7 @@ The shared syntax and rules are in
 | `showDate`, `showTagline` | `true`, `false` | all |
 | `pageSize` | `A4`, `A3`, `Letter` | all |
 | `orientation` | `portrait`, `landscape` | all |
+| `layout` | `report`, `plain` | all — see [Plain documents](#plain-documents) |
 | `toc` | `true`, `false` | all |
 | `tocDepth` | `1`, `2`, `3` | all |
 | `headingNumbers` | `true`, `false` | all |
@@ -140,7 +142,8 @@ The shared syntax and rules are in
   A document that does not start with `#` has no cover.
 - **Content pages:** margins 20 mm left and right; header with the document title (8 pt) left and
   the logo right; footer with the footer text, the date (`ShowDate`, `dd.MM.yyyy`) and "n / m"
-  right. Page numbers count the cover.
+  right. Page numbers count the cover. A [plain document](#plain-documents) has neither cover nor
+  header.
 - **Body text** 10.5 pt in the brand's regular face (Liberation Sans without brand fonts), line height 1.35. Headings bold in the brand colour,
   20 / 16 / 13.5 / 12 / 11 / 10.5 pt.
 
@@ -300,6 +303,46 @@ the contents stay left-aligned.
   nothing, so two in a row make one break, and a break with nothing after it makes no page. A
   `::: pagebreak` right after the cover heading ends the subtitle.
 
+## Plain documents
+
+`layout: plain` (or `PdfOptions.Layout = PdfLayout.Plain`) is for a one- or two-page business
+document, such as an invoice or a letter, that starts with its content on page 1. `report`, the
+default, is everything above.
+
+- **No cover.** A leading `#` heading is the title at the top of page 1: set like a `#` heading
+  (20 pt bold in the brand colour), left-aligned, wrapped short of the logo. The paragraphs after it
+  are body text, not a subtitle. The brand's logo stands top right beside it, top-aligned with the
+  title, 36 pt high (at most 30 % of the text width wide); the content starts below the taller of
+  the two. Without a leading `#` there is no title and no logo; the body starts at the top of
+  page 1. Cover artwork and the tagline are not used.
+- **No header** on any page: no running title, no logo. The **footer** stays: footer text, date
+  (`ShowDate`) and "n / m", page 1 included.
+- **Classification marking:** right-aligned at the right margin at the header's baseline (38 pt) on
+  every page, as a header without logo would have it; the draft watermark as in a report.
+- **Table of contents** (`toc: true`): right after the title on page 1, and the body follows it on the
+  same page.
+- **Footnotes, bookmarks, links** work as in a report; the title is the top bookmark and the target
+  of its anchor. Later `#` headings still start a new page, and `{.newpage}` on the title throws.
+- The document title (metadata) comes from front matter `title`, else metadata, else the title.
+
+## Columns
+
+`::: columns` with two or three parts, separated by a `---` line after a blank line, sets the parts
+side by side; `::: columns 1:2` (or `1:2:1`) gives their widths as weights, equal without them. The
+same mistakes as in decks throw: one or more than three parts, an empty part, a ratio that does not
+match the parts (shared `LayoutSyntax.Columns`).
+
+- The columns share the text width less an 18 pt gap between them, are top-aligned, and what follows
+  starts below the tallest. Inside a column any block works (paragraphs, lists, small tables,
+  images, headings, quotes); tables and images take the column's width.
+- **Together.** The columns are laid out on the current page without a bottom; if the tallest does not
+  fit above the footnotes, they all move to the next page. A heading right above them is kept with
+  all of them (its keep height is the columns' height).
+- **Fallback.** Columns taller than a page, or with a block that starts a page (a `#` heading,
+  `{.newpage}`, `::: pagebreak`), are set one after another across the full width, as before.
+- Footnotes in a column go to the foot of the page like any other.
+- Inside a quote, the quote's rule runs once along the tallest column.
+
 ## Classification marking
 
 The [shared keys](wwosik.DocLibs.DocumentGeneration.md#classification) `classification` and `draft`,
@@ -445,9 +488,9 @@ Markdown written for the PPTX generator's
   brand's colours, drawn and scaled like a diagram; see
   [Scenes](wwosik.DocLibs.DocumentGeneration.md#scenes). `step=`, `exit=` and `effect=` are checked and
   have no other effect. A scene's mistakes and misplacements throw as in decks.
-- **Containers** (`::: cards`, `rows`, `panel`, `statement`, `columns`) show their content as normal
-  blocks: a card's `###` is a heading, a short-form list a list, the columns of `::: columns` one
-  after the other without the `---` between them.
+- **Containers** (`::: cards`, `rows`, `panel`, `statement`) show their content as normal
+  blocks: a card's `###` is a heading, a short-form list a list. `::: columns` sets its parts side by
+  side, see [Columns](#columns).
 - **Alerts** (`> [!NOTE]` …) are quotes that start with their kind in bold ("Note", "Warning").
 - **Slide kinds** (`{.agenda}`, `{.quote}`, `{.statement}`, `{.contact}`, `{.chart}`) are checked
   like in decks and show their content as written: the quote with its byline, the people as a list,
@@ -473,4 +516,4 @@ Markdown written for the PPTX generator's
 - A table wider than the page in minimum widths is squeezed, and its words break by characters.
 - Reading a generated PDF back with `PdfConverter` loses the cover title (it equals the running
   header and is removed as such), puts a page's images after its text, and does not recover
-  tables or list nesting.
+  tables or list nesting. Side-by-side columns come back line by line, their lines interleaved.

@@ -25,6 +25,12 @@ internal sealed record Design(ResolvedBrand Brand, bool ShowTagline, string? Dat
     /// <summary>The colour of <see cref="Marking"/>: the danger colour for a confidential document, else the footer's.</summary>
     public string? MarkingColor { get; init; }
 
+    /// <summary>
+    /// A plain document (<see cref="PdfLayout.Plain"/>): no cover and no header; the cover's title is set at the top of the
+    /// first page with the logo beside it, and <see cref="Marking"/> stands alone at the top right of every page.
+    /// </summary>
+    public bool Plain { get; init; }
+
     /// <summary>A draft's watermark ("DRAFT"), diagonally under the content of every page; <see langword="null"/>: none.</summary>
     public string? Watermark { get; init; }
 }
@@ -62,6 +68,14 @@ internal sealed class LayoutEngine
     private const double CoverMarkingGap = 4;
     private const double WatermarkShare = 0.7;
     private const double WatermarkTint = 0.15;
+
+    // A plain document's title: the logo beside it at most this high, and at most this share of the text width.
+    private const double TitleLogoHeight = 36;
+    private const double TitleLogoShare = 0.3;
+
+    // Between the columns of `::: columns`; the bottom of the page while they are set, so nothing breaks inside them.
+    private const double ColumnGap = 18;
+    private const double Unbounded = 1e9;
 
     // Captions: 9 pt, this far from their visual. Heading numbers: this share of the heading's size after the widest
     // number of its level. The table of contents: indented by level; its page numbers in a column of the width of this
@@ -144,6 +158,9 @@ internal sealed class LayoutEngine
     private double? chainTop;
     private int chainPage;
 
+    // While columns are set side by side: the page has no bottom, and footnotes do not move it.
+    private bool unbounded;
+
     public LayoutEngine(
         IFontMetrics metrics, PageGeometry geometry, Design design, Func<string, string>? replaceUnsupported = null, GenerationNotes? notes = null)
     {
@@ -159,21 +176,35 @@ internal sealed class LayoutEngine
     public Layout Run(DocumentModel model)
     {
         this.footnotes = model.Footnotes;
+        var plain = this.design.Plain;
         if (model.Cover is { } cover)
         {
-            this.Cover(cover);
+            if (plain)
+            {
+                this.NewPage();
+                this.Title(cover);
+            }
+            else
+            {
+                this.Cover(cover);
+            }
         }
 
         this.NumberColumns(model.Blocks);
         var frame = new Frame(this.geometry.Left, this.geometry.ContentWidth, this.TextColor, []);
         if (model.Contents is { } contents)
         {
-            // On a page of its own after the cover; the body starts on the next page.
-            this.NewPage();
+            // On a page of its own after the cover, and the body starts on the next page; in a plain document both
+            // follow the title.
+            if (!plain || this.pages.Count == 0)
+            {
+                this.NewPage();
+            }
+
             this.Contents(contents, frame);
         }
 
-        if (model.Blocks.Count > 0 || this.pages.Count == 0)
+        if ((!plain && model.Blocks.Count > 0) || this.pages.Count == 0)
         {
             this.NewPage();
         }
@@ -298,6 +329,9 @@ internal sealed class LayoutEngine
             case DefinitionListBlock definitions:
                 this.Definitions(definitions, frame, listLevel);
                 break;
+            case ColumnsBlock columns:
+                this.Columns(columns, frame, listLevel);
+                break;
             case PageBreakBlock:
                 // Never an empty page: on one that is still empty, the break has nothing to do.
                 if (!this.AtTop)
@@ -384,6 +418,7 @@ internal sealed class LayoutEngine
         QuoteBlock quote => Headings(quote.Blocks),
         ListBlock list => list.Items.SelectMany(Headings),
         DefinitionListBlock definitions => definitions.Items.SelectMany(d => Headings(d.Description)),
+        ColumnsBlock columns => columns.Columns.SelectMany(Headings),
         _ => [],
     });
 
@@ -616,6 +651,9 @@ internal sealed class LayoutEngine
                 return FigureSize;
             case DefinitionListBlock { Items.Count: > 0 }:
                 return 2 * BodySize * LineFactor;
+            case ColumnsBlock columns:
+                // All of them, as they move to the next page together: measured where they would go.
+                return this.ColumnsHeight(columns, frame) is { } columnsHeight ? Math.Min(columnsHeight, this.geometry.Bottom - this.geometry.Top - above) : 0;
             case RuleBlock:
                 return 12;
             default:
@@ -818,6 +856,108 @@ internal sealed class LayoutEngine
         {
             this.Gap(ParagraphGap - ListItemGap, frame);
         }
+    }
+
+    // Side by side, top-aligned, in widths in proportion to their weights with a gap between them; they move to the next
+    // page together. Columns taller than a page, or with a block that starts a page, follow one another instead.
+    private void Columns(ColumnsBlock columns, Frame frame, int listLevel)
+    {
+        if (!StartsPage(columns.Columns.SelectMany(c => c)))
+        {
+            var state = this.Save();
+            var end = this.SideBySide(columns, frame, listLevel);
+            if (end > this.bottom + 1e-6 && !state.AtTop)
+            {
+                this.Restore(state);
+                this.NewPage();
+                state = this.Save();
+                end = this.SideBySide(columns, frame, listLevel);
+            }
+
+            if (end <= this.bottom + 1e-6)
+            {
+                // The rules of the quotes around the columns, once, along the tallest of them.
+                this.Advance(end - state.Y, frame);
+                return;
+            }
+
+            this.Restore(state);
+        }
+
+        foreach (var column in columns.Columns)
+        {
+            this.Blocks(column, frame, listLevel);
+        }
+    }
+
+    // The height of the columns side by side here; null when they would follow one another.
+    private double? ColumnsHeight(ColumnsBlock columns, Frame frame)
+    {
+        if (StartsPage(columns.Columns.SelectMany(c => c)))
+        {
+            return null;
+        }
+
+        var state = this.Save();
+        var height = this.SideBySide(columns, frame, 0) - state.Y;
+        this.Restore(state);
+        return height;
+    }
+
+    // Sets each column from the current line on a page without a bottom, and returns where the tallest ends. Leaves the
+    // line where it was and the bottom at the page's bottom less its footnotes, those of the columns included.
+    private double SideBySide(ColumnsBlock columns, Frame frame, int listLevel)
+    {
+        var (top, end, outer) = (this.y, this.y, this.unbounded);
+        var available = frame.Width - ((columns.Columns.Count - 1) * ColumnGap);
+        var total = columns.Widths.Sum();
+        var left = frame.Left;
+        this.unbounded = true;
+        this.bottom = Unbounded;
+        for (var i = 0; i < columns.Columns.Count; i++)
+        {
+            var width = available * columns.Widths[i] / total;
+            this.y = top;
+            this.chainTop = null;
+            this.Blocks(columns.Columns[i], frame with { Left = left, Width = width, QuoteRules = [] }, listLevel);
+            end = Math.Max(end, this.y);
+            left += width + ColumnGap;
+        }
+
+        this.unbounded = outer;
+        this.bottom = outer ? Unbounded : this.geometry.Bottom - this.NotesHeight(this.pageNotes);
+        this.y = top;
+        return end;
+    }
+
+    // Whether any of the blocks, at any depth, starts a page: a `#` heading, one with `{.newpage}`, a page break.
+    private static bool StartsPage(IEnumerable<Block> blocks) => blocks.Any(block => block switch
+    {
+        HeadingBlock heading => heading.Level == 1 || heading.NewPage,
+        PageBreakBlock => true,
+        QuoteBlock quote => StartsPage(quote.Blocks),
+        ListBlock list => list.Items.Any(StartsPage),
+        DefinitionListBlock definitions => definitions.Items.Any(d => StartsPage(d.Description)),
+        ColumnsBlock inner => StartsPage(inner.Columns.SelectMany(c => c)),
+        _ => false,
+    });
+
+    // What setting columns on the current page changes, so a try that does not fit can be undone.
+    private LayoutState Save() => new(
+        this.Page.Items.Count, this.bookmarks.Count, [.. this.anchors.Keys], [.. this.placedNotes], this.pageNotes.Count, this.y, this.bottom, this.chainTop, this.chainPage, this.AtTop);
+
+    private void Restore(LayoutState state)
+    {
+        this.Page.Items.RemoveRange(state.Items, this.Page.Items.Count - state.Items);
+        this.bookmarks.RemoveRange(state.Bookmarks, this.bookmarks.Count - state.Bookmarks);
+        foreach (var key in this.anchors.Keys.Where(k => !state.Anchors.Contains(k)).ToList())
+        {
+            this.anchors.Remove(key);
+        }
+
+        this.placedNotes.IntersectWith(state.PlacedNotes);
+        this.pageNotes.RemoveRange(state.PageNotes, this.pageNotes.Count - state.PageNotes);
+        (this.y, this.bottom, this.chainTop, this.chainPage) = (state.Y, state.Bottom, state.ChainTop, state.ChainPage);
     }
 
     private void Code(CodeBlock code, Frame frame)
@@ -1365,6 +1505,39 @@ internal sealed class LayoutEngine
         }
     }
 
+    // A plain document's title at the top of its first page, set like a `#` heading, short of the logo at the top right.
+    private void Title(Cover cover)
+    {
+        var brand = this.design.Brand;
+        var g = this.geometry;
+        var size = HeadingSizes[0];
+        var top = this.y;
+        var (logoWidth, logoHeight) = (0.0, 0.0);
+        if (brand.Logo is { } logo && ImageInfo.Read(logo) is { } info)
+        {
+            logoHeight = TitleLogoHeight;
+            logoWidth = logoHeight * info.Width / info.Height;
+            if (logoWidth > g.ContentWidth * TitleLogoShare)
+            {
+                logoWidth = g.ContentWidth * TitleLogoShare;
+                logoHeight = logoWidth * info.Height / info.Width;
+            }
+
+            this.Page.Items.Add(new ImageItem(logo, logo, info.Format, g.Right - logoWidth, top, logoWidth, logoHeight));
+        }
+
+        var title = this.Supported(cover.Title, RunStyle.Bold);
+        this.Mark(title, 0, cover.Anchor);
+        var frame = new Frame(g.Left, g.ContentWidth - (logoWidth > 0 ? logoWidth + HeaderGap : 0), this.TextColor, []);
+        foreach (var line in this.Wrap(title, frame.Width, size, RunStyle.Bold))
+        {
+            this.Line(line, frame, g.Left, size, brand.Primary);
+        }
+
+        this.y = Math.Max(this.y, top + logoHeight);
+        this.Gap((size * 0.35) + ParagraphGap, frame);
+    }
+
     // Header (document title, marking, logo) and footer (footer text, date, page number) on every page but the cover; a
     // draft's watermark under everything on every page.
     private void Decorate(string? title)
@@ -1389,8 +1562,9 @@ internal sealed class LayoutEngine
                 continue;
             }
 
+            // A plain document has no header: only its marking, at the right margin.
             var logoWidth = 0.0;
-            if (logoInfo is { } info)
+            if (logoInfo is { } info && !this.design.Plain)
             {
                 var h = 18.0;
                 logoWidth = h * info.Width / info.Height;
@@ -1403,7 +1577,7 @@ internal sealed class LayoutEngine
                 items.Add(new TextItem(right - markingWidth, 38, marking, FontFace.Bold, FooterSize, this.design.MarkingColor ?? brand.Footer));
             }
 
-            if (title is { Length: > 0 })
+            if (title is { Length: > 0 } && !this.design.Plain)
             {
                 var room = g.ContentWidth - logoWidth - HeaderGap - (marking is null ? 0 : markingWidth + HeaderGap);
                 var text = this.Fit(title, FontFace.Regular, FooterSize, room);
@@ -1816,7 +1990,7 @@ internal sealed class LayoutEngine
             }
         }
 
-        if (numbers.Count > 0)
+        if (numbers.Count > 0 && !this.unbounded)
         {
             this.bottom = this.geometry.Bottom - this.NotesHeight(this.pageNotes);
         }
@@ -2098,6 +2272,10 @@ internal sealed class LayoutEngine
     /// anchor of its heading, and the face of its number.
     /// </summary>
     private sealed record ContentsSlot(int Page, double Baseline, double End, string Anchor, FontFace Face);
+
+    /// <summary>What <see cref="Save"/> keeps: counts of what only grows, the anchors and placed notes, and the position.</summary>
+    private sealed record LayoutState(
+        int Items, int Bookmarks, HashSet<string> Anchors, HashSet<int> PlacedNotes, int PageNotes, double Y, double Bottom, double? ChainTop, int ChainPage, bool AtTop);
 
     /// <summary>Lines [From, From + Count) of a footnote, at the foot of one page.</summary>
     private sealed record NotePart(int Number, int From, int Count);

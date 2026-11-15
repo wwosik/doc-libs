@@ -1172,30 +1172,7 @@ internal sealed partial class DeckParser(
     // Its parts, split at thematic breaks (`---` after a blank line), side by side.
     private ColumnsBlock Columns(CustomContainer container, string arguments)
     {
-        var parts = new List<List<Block>> { new() };
-        foreach (var child in container)
-        {
-            if (child is ThematicBreakBlock)
-            {
-                parts.Add([]);
-            }
-            else
-            {
-                parts[^1].Add(child);
-            }
-        }
-
-        if (parts.Count is not (2 or 3) || parts.Any(p => p.Count == 0))
-        {
-            throw Error("A '::: columns' holds two or three columns, separated by a line '---' with a blank line before it.");
-        }
-
-        var widths = arguments.Length > 0 ? LayoutSyntax.ColumnWidths(arguments)! : Enumerable.Repeat(1, parts.Count).ToList();
-        if (widths.Count != parts.Count)
-        {
-            throw Error($"'::: columns {arguments}' gives {widths.Count} widths for {parts.Count} columns.");
-        }
-
+        var (widths, parts) = LayoutSyntax.Columns(container, arguments, Format.Pptx);
         return new ColumnsBlock(widths, parts.Select(p => (IReadOnlyList<FlowBlock>)this.Flow(p)).ToList());
     }
 

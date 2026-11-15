@@ -493,6 +493,16 @@ same change that made it untrue — a stale fact here is worse than a missing on
   slide, or `TemplateTone.IsDark(layout)` (light title text in the layout's own title placeholder, else
   its own dark background); `SlidePalette.Footer` is its colour. Both guides leave `classification-kept`
   out of their notes list for room (word limits).
+- **PDF columns and plain documents (E03-S05):** `ColumnsBlock` (parser splits through the shared
+  `LayoutSyntax.Columns`, which decks use too). `LayoutEngine.Columns` lays each column out on the real page
+  with `unbounded` set (`bottom` = 1e9, `PlaceNotes` leaves `bottom` alone), checks the tallest against the
+  real bottom, and on a miss undoes the try (`Save`/`Restore`: item, bookmark and note counts, anchors,
+  placed notes, y, bottom, chain) and retries once on a new page, else falls back to sequential (also when a
+  column holds a page-starting block, `StartsPage`). `KeepHeight` measures columns the same way. Any new
+  layout state that a block changes must go into `LayoutState`, or a retried column leaks it. Plain:
+  `Design.Plain`; the parser makes a `Cover` without subtitle, `LayoutEngine.Title` sets it on page 1,
+  `Decorate` skips the header title and logo (the marking stays at the right margin). `layout` is a PDF
+  key, deliberately not in `FrontMatter.DocumentKeys`.
 - **Charts and drawings in Word (E09-S03):** `DocxBody.Graphics.cs`. A chart is a native chart part on the
   main part (a chart in a footnote falls back to its drawing). Every other drawing (renderer drawings,
   `qr:`, icons, drawn containers) goes `DrawingSvg.Write` (hover and hotspots stripped, brand family or
@@ -544,8 +554,8 @@ same change that made it untrue — a stale fact here is worse than a missing on
 
 - **A shape with no extent one way** (a straight connector across or up, `cy="0"`) used to give `NaN` paths in
   the HTML deck reader (`Geometry.Path` divided by the zero height); it now keeps that axis' coordinates. The PPTX
-  guide is at about 3,497 of its 3,500 words and the PDF guide at about 2,498 of 2,500 (E07-S04): any addition needs
-  a trim or the human raising the limit.
+  guide is at about 3,497 of its 3,500 words (E07-S04): any addition needs a trim or the human raising the limit.
+  The PDF guide's limit was raised to 3,500 by the human (2026-11-15, E03-S05); it is at about 2,900-3,000.
 
 - **The role layouts give two placeholders the same `idx`** (e.g. a picture placeholder and the date both
   `idx="2"` on the contact layout), so the HTML deck matches a slide placeholder by `idx` only among

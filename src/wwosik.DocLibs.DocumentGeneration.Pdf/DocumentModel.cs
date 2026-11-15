@@ -127,6 +127,12 @@ internal sealed record ImageRowBlock(IReadOnlyList<ImageBlock> Images) : Block;
 
 internal sealed record RuleBlock : Block;
 
+/// <summary>
+/// From <c>::: columns</c>: two or three columns side by side, their widths in proportion to <see cref="Widths"/>, each a
+/// sequence of blocks.
+/// </summary>
+internal sealed record ColumnsBlock(IReadOnlyList<int> Widths, IReadOnlyList<IReadOnlyList<Block>> Columns) : Block;
+
 /// <summary>From <c>::: pagebreak</c>: what follows starts a new page, unless the page is still empty.</summary>
 internal sealed record PageBreakBlock : Block;
 
@@ -140,7 +146,10 @@ internal sealed record DrawingBlock(Drawing Drawing) : Block
 /// <summary>A paragraph that is one <c>:icon-name:</c>: the icon on its own, left-aligned, at the figure size, in the accent colour.</summary>
 internal sealed record IconBlock(Drawing Icon) : Block;
 
-/// <summary>The cover: the first <c>#</c> heading and the paragraphs up to the next heading.</summary>
+/// <summary>
+/// The cover: the first <c>#</c> heading and the paragraphs up to the next heading. In a plain document
+/// (<see cref="PdfLayout.Plain"/>) the title at the top of the first page, without a subtitle.
+/// </summary>
 internal sealed record Cover(IReadOnlyList<TextRun> Title, IReadOnlyList<IReadOnlyList<TextRun>> Subtitle, string? Anchor);
 
 internal sealed record DocumentModel(Cover? Cover, IReadOnlyList<Block> Blocks)

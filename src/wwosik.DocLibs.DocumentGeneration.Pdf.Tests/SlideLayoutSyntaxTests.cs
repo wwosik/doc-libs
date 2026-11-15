@@ -73,13 +73,17 @@ public class SlideLayoutSyntaxTests
     }
 
     [Fact]
-    public void Columns_FollowOneAnother_WithoutRules()
+    public void Columns_StandSideBySide_WithoutRules()
     {
         var pdf = Samples.Generate(Samples.Markdown("## C\n\n::: columns 1:2\nLeft text\n\n---\n\nRight text\n:::\n"));
 
-        var text = Samples.RoundTrip(pdf);
-        Assert.True(text.IndexOf("Left text", StringComparison.Ordinal) < text.IndexOf("Right text", StringComparison.Ordinal));
-        Assert.DoesNotContain("---", text, StringComparison.Ordinal);
+        using var document = PdfDocument.Open(pdf);
+        var letters = document.GetPage(1).Letters;
+        var left = letters.First(l => l.Value == "L");
+        var right = letters.First(l => l.Value == "R");
+        Assert.Equal(left.StartBaseLine.Y, right.StartBaseLine.Y, 1);
+        Assert.True(right.StartBaseLine.X > left.StartBaseLine.X + 100, "the second column is right of the first");
+        Assert.DoesNotContain("---", Samples.RoundTrip(pdf), StringComparison.Ordinal);
     }
 
     [Fact]

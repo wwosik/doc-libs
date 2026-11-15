@@ -8,7 +8,7 @@ headings that say what a section is about, lists where items really are parallel
 
 | Markdown | Becomes |
 | -------- | ------- |
-| A `#` heading as the very first line | The cover page. The paragraphs below it, up to the next heading, are the subtitle. Without it, there is no cover. |
+| A `#` heading as the very first line | The cover page. The paragraphs below it, up to the next heading, are the subtitle. Without it, there is no cover. With `layout: plain`, the title at the top of page 1 (below). |
 | Every other `#` heading | A heading that starts a new page. |
 | `##` to `######` | Headings, in the table of contents (bookmarks), kept on a page with what follows them. |
 | `---` | A thin line. |
@@ -49,7 +49,7 @@ headings that say what a section is about, lists where items really are parallel
 
 - `toc: true` in the front matter puts a table of contents on a page after the cover: the headings
   of `tocDepth` levels (default 2) from the highest level after the cover, each with its page
-  number.
+  number. In a plain document it follows the title.
 - `headingNumbers: true` numbers three heading levels from the highest one after the cover: `1`,
   `1.1`, `1.1.1`, also in the bookmarks and the contents. A skipped level does not count: a `###`
   right under a `#` is `1.1`. `{.unnumbered}` at the end of any heading gives it no number.
@@ -78,11 +78,42 @@ Table: Sales by region, 2026
   optional. `{.newpage}` at the end of any heading but the cover's starts a new page with it. A
   break never makes an empty page.
 
+## Plain documents and columns
+
+- `layout: plain` in the front matter is for short business documents such as invoices and
+  letters: no cover and no header. A leading `#` is the title at the top of page 1, with the logo
+  beside it, and the text follows right below it. The footer and page numbers stay.
+- `::: columns` sets two or three parts side by side, equally wide or as `::: columns 1:2` says;
+  a `---` after a blank line separates them. Columns that do not fit on the page move to the next
+  one together, so keep them short: paragraphs, lists, small tables.
+
+```markdown
+---
+layout: plain
+---
+
+# Invoice 2026-114
+
+::: columns
+**Seller**\
+Example Ltd, 1 High Street
+
+---
+
+**Buyer**\
+Client Ltd, 5 Market Square
+:::
+
+| Item | Amount |
+| ---- | -----: |
+| Consulting, October | 4,800.00 |
+```
+
 ## Syntax written for slides
 
 Markdown written for decks works here too and is shown plainly, so one text can serve both:
-`## Title {kicker="…"}` drops the attributes, `::: cards`, `rows`, `panel`, `statement` and
-`columns` show their content as text, one part after the other, `==marked==` text is bold, and an alert (`> [!NOTE]`, `[!TIP]`,
+`## Title {kicker="…"}` drops the attributes, `::: cards`, `rows`, `panel` and `statement` show
+their content as text, `::: columns` sets its parts side by side (above), `==marked==` text is bold, and an alert (`> [!NOTE]`, `[!TIP]`,
 `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`) is a quote that starts with its title in bold, in the
 document's language (`lang`). Speaker notes (`::: notes` … `:::`), transitions (`transition:`
 in the front matter, `transition="…"` on a heading) and builds (a paragraph such as `{.build}`,

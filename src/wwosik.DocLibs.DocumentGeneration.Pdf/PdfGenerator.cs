@@ -19,6 +19,7 @@ public static class PdfGenerator
     private const string TocDepthKey = FrontMatter.TocDepthKey;
     private const string HeadingNumbersKey = FrontMatter.HeadingNumbersKey;
     private const string JustifyKey = FrontMatter.JustifyKey;
+    private const string LayoutKey = "layout";
 
     // Keys of decks, accepted so that one Markdown serves both formats: their values are checked, then ignored.
     private const string TransitionKey = "transition";
@@ -116,6 +117,7 @@ public static class PdfGenerator
         {
             Texts = language.Texts,
             Justify = options.Justify,
+            Plain = options.Layout == PdfLayout.Plain,
             Marking = marking.IsEmpty ? null : marking.Text(language.Texts),
             MarkingColor = marking.Classification == Classification.Confidential ? brand.Labels.Danger : brand.Footer,
             Watermark = marking.Draft ? Marking.Watermark(language.Texts, language.Tag) : null,
@@ -153,6 +155,7 @@ public static class PdfGenerator
             [TocDepthKey] = $"`1`, `2` or `3`: the heading levels the table of contents lists. Default `{options.TableOfContentsDepth.ToString(CultureInfo.InvariantCulture)}`.",
             [HeadingNumbersKey] = $"`true` or `false`: numbers on three heading levels (1, 1.1, 1.1.1). Default `{(options.HeadingNumbers ? "true" : "false")}`.",
             [JustifyKey] = $"`true` or `false`: body text justified, without hyphenation. Default `{(options.Justify ? "true" : "false")}`.",
+            [LayoutKey] = $"`report` or `plain`: `plain` has no cover and no header, for a short business document. Default `{options.Layout.ToString().ToLowerInvariant()}`.",
         };
         (string, string) labels = (
             "labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral",
@@ -169,7 +172,7 @@ public static class PdfGenerator
                 ["frontMatter"] = AuthoringGuides.FrontMatter(
                     registry.Expected,
                     options.Language,
-                    [.. options.Template.Keys.Concat([PageSizeKey, OrientationKey, TocKey, TocDepthKey, HeadingNumbersKey, JustifyKey]).Select(k => (k, meanings[k])), classification, draft, deckKeys, labels],
+                    [.. options.Template.Keys.Concat([PageSizeKey, OrientationKey, LayoutKey, TocKey, TocDepthKey, HeadingNumbersKey, JustifyKey]).Select(k => (k, meanings[k])), classification, draft, deckKeys, labels],
                     options.Typography, options.HighlightCode),
                 ["characters"] = Characters(FontSet.For(ResolvedBrand.Resolve(options.Template.BrandValue)), options.ReplaceUnsupported is not null),
                 ["icons"] = AuthoringGuides.Icons(
@@ -220,7 +223,7 @@ public static class PdfGenerator
                 : current with { Template = new BrandPdfTemplateOptions { Brand = brand } },
             brands.Expected,
             current => current.Template.Name,
-            current => [.. current.Template.Keys, PageSizeKey, OrientationKey, TocKey, TocDepthKey, HeadingNumbersKey, JustifyKey, TransitionKey, BuildKey, NumberChaptersKey],
+            current => [.. current.Template.Keys, PageSizeKey, OrientationKey, LayoutKey, TocKey, TocDepthKey, HeadingNumbersKey, JustifyKey, TransitionKey, BuildKey, NumberChaptersKey],
             (current, key, value) => key switch
             {
                 PageSizeKey => current with
@@ -230,6 +233,10 @@ public static class PdfGenerator
                 OrientationKey => current with
                 {
                     Orientation = frontMatter.OneOf(key, value, ("portrait", PdfOrientation.Portrait), ("landscape", PdfOrientation.Landscape)),
+                },
+                LayoutKey => current with
+                {
+                    Layout = frontMatter.OneOf(key, value, ("report", PdfLayout.Report), ("plain", PdfLayout.Plain)),
                 },
                 TocKey => current with { TableOfContents = frontMatter.Bool(key, value) },
                 TocDepthKey => current with { TableOfContentsDepth = frontMatter.DocumentValue(key, value) },

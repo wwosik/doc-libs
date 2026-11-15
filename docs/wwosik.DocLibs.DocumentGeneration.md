@@ -633,7 +633,8 @@ The PDF generator accepts the same Markdown, so one source serves both, and show
 [its documentation](wwosik.DocLibs.DocumentGeneration.Pdf.md#slide-layouts). Both reject the same
 mistakes — unknown heading attributes, containers and alerts, a kind of slide with content it does
 not take, a misplaced `::: conclusion` or `::: comment` (internally `SlideKinds`) — with a
-`DocumentConversionException` in their format. Custom containers are block-level only in both: `::text::` stays text.
+`DocumentConversionException` in their format, and `::: columns` with the wrong number of parts or
+widths throws alike in both (`LayoutSyntax.Columns`); PDFs set the columns side by side too. Custom containers are block-level only in both: `::text::` stays text.
 Word documents draw the same syntax with styles: see
 [the DOCX page](wwosik.DocLibs.DocumentGeneration.Docx.md#syntax-written-for-slides).
 
@@ -754,7 +755,8 @@ title: Network expansion 2027
   `headingNumbers` (`true`/`false`) and `justify` (`true`/`false`, justified body text), read by
   PDFs and Word documents (see [Contents and heading numbers](#contents-and-heading-numbers) and
   the generators' own pages). A deck accepts them, checks their values and ignores them, so one
-  Markdown serves every format.
+  Markdown serves every format. `layout` (`report`/`plain`, a document without cover and header)
+  is a PDF key only, not a document key: decks and Word documents reject it as unknown.
 - `template` naming the template the caller chose keeps the caller's values; naming another one
   starts from that template's defaults.
 - **Mistakes throw** `DocumentConversionException` with the generator's format: a line that is not

@@ -11,6 +11,17 @@ updating, breaking changes first.
 
 ### Breaking changes
 
+- **`::: columns` stands side by side in PDFs.** Its two or three parts were set one after another;
+  they are now set next to each other (widths from `::: columns 1:2`, equal without), top-aligned,
+  and move to the next page together. A PDF with `::: columns` therefore looks and paginates
+  differently, and `PdfConverter` reads such columns back line by line, interleaved. Columns taller
+  than a page, or with a `#` heading, `{.newpage}` or `::: pagebreak` inside, still follow one
+  another. `::: columns` with one part, more than three, an empty part, or a ratio that does not
+  match the parts now throws `DocumentConversionException` in PDFs, with the same message as decks;
+  it used to be accepted. PDFs without `::: columns` are unchanged.
+- **The PDF authoring guide** is longer: a section "Plain documents and columns" and a `layout` row
+  in the front-matter table; its word limit is 3,500 (was 2,500). The tool guide changes with it.
+
 - **PDF footnotes move to the foot of their page.** A footnote is now printed at the foot of the
   page that holds its first reference, under a short rule, instead of in a list under a "Notes" /
   "Anmerkungen" heading after the last chapter. A PDF with footnotes therefore paginates
@@ -162,6 +173,12 @@ updating, breaking changes first.
 
 ### New
 
+- **Plain PDF documents.** `layout: plain` in the front matter, or `PdfOptions.Layout =
+  PdfLayout.Plain`, makes a one- or two-page business document such as an invoice: no cover and no
+  header. A leading `#` is the title at the top of page 1 with the brand's logo beside it, and the
+  paragraphs after it are text; the footer with "n / m" stays, the classification marking stands at
+  the top right of every page, and a table of contents follows the title. `layout: report` is the
+  default and unchanged. PDF only: decks and Word documents reject the key.
 - **Classification marking in PDFs and decks.** `classification: internal|confidential` and
   `draft: true` in the front matter, or the new `PdfOptions.Classification`/`Draft` and
   `PptxOptions.Classification`/`Draft`, mark the document as Word documents already were: front

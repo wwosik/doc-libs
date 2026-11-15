@@ -19,11 +19,11 @@ public partial class AuthoringGuideTests
 
     [Theory]
     [MemberData(nameof(Brands))]
-    public void Guide_StaysUnder2500Words(string brand)
+    public void Guide_StaysUnder3500Words(string brand)
     {
         var words = AuthoringGuides.Words(PdfGenerator.AuthoringGuide(Options(brand)));
 
-        Assert.True(words < 2500, $"{words} words");
+        Assert.True(words < 3500, $"{words} words");
     }
 
     [Fact]

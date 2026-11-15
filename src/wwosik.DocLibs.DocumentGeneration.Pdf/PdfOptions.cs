@@ -120,9 +120,16 @@ public sealed record PdfOptions
     public bool Justify { get; init; }
 
     /// <summary>
+    /// The kind of document, unless the front matter sets <c>layout</c>. <see cref="PdfLayout.Report"/>: a cover from a
+    /// leading <c>#</c> and a header on every other page. <see cref="PdfLayout.Plain"/>: a one- or two-page business
+    /// document such as an invoice, with no cover and no header. Default <see cref="PdfLayout.Report"/>.
+    /// </summary>
+    public PdfLayout Layout { get; init; } = PdfLayout.Report;
+
+    /// <summary>
     /// How confidential the document is: <see cref="DocumentGeneration.Classification.Internal"/> and
     /// <see cref="DocumentGeneration.Classification.Confidential"/> put "Internal" or "Confidential" in the header of every
-    /// page but the cover and above the cover title. The front matter's <c>classification</c> can raise it but not lower
+    /// page but the cover and above the cover title; in a plain document at the top right of every page. The front matter's <c>classification</c> can raise it but not lower
     /// it. Default <see cref="DocumentGeneration.Classification.Public"/>, which shows nothing.
     /// </summary>
     public Classification Classification { get; init; } = Classification.Public;
@@ -168,4 +175,20 @@ public enum PdfOrientation
 
     /// <summary>Wider than tall.</summary>
     Landscape,
+}
+
+/// <summary>The kinds of document <see cref="PdfOptions.Layout"/> sets.</summary>
+public enum PdfLayout
+{
+    /// <summary>
+    /// A report: a leading <c>#</c> heading and the paragraphs after it make a cover page, and every other page has a
+    /// header with the document title and the logo, and the footer.
+    /// </summary>
+    Report,
+
+    /// <summary>
+    /// A plain document: no cover and no header. A leading <c>#</c> heading is the title at the top of the first page,
+    /// with the logo beside it; what follows it starts right below. Every page keeps the footer.
+    /// </summary>
+    Plain,
 }
