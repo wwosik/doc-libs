@@ -18,8 +18,8 @@ updating, breaking changes first.
   with typography on as off; only the text is typeset, the kicker included. Attribute values are
   never typeset. Documents without typography are unchanged.
 - **Image attributes in Word documents.** `{…}` after an image (`![a](x.png){scale=0.5}`,
-  `{.round}`) was printed as text after the picture, though it took effect. The block is now
-  only read: `scale=` scales the picture, and `fit=`, `focus`, `.round` and `.grey` give the
+  `{.round}`) was printed as text after the picture, although it took effect. It is no longer
+  printed: `scale=` scales the picture, and `fit=`, `focus`, `.round` and `.grey` give the
   `attribute-ignored` note, as the guide says.
 
 ## 2611.15.8
