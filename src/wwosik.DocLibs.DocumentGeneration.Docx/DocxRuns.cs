@@ -294,6 +294,8 @@ internal sealed class DocxRuns(DocxBody body)
                         this.Text(DocxBody.AltText(image), flags, link);
                         break;
                     case LinkInline { IsImage: true } image:
+                        // Its attributes now, before the literal after the image is read as text (as in decks and PDFs).
+                        ImageAttributes.Take(image, body.LineOf(image), Format.Docx);
                         this.Pieces.Add(image);
                         this.current = [];
                         this.Pieces.Add(this.current);

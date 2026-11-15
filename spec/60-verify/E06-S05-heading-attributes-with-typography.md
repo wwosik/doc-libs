@@ -155,9 +155,14 @@ Full suite: 1795 passed, 6 skipped (Windows only).
 
 ### Loose ends
 
-- **Word shows image attributes as text, with and without typography:** `![a](x.png){.round}` and
-  `{scale=0.5}` after an image in a Word document stay in the paragraph as `{.round}`. The guide says
-  `fit=`, `focus`, `.round` and `.grey` have no effect in Word, but they should be taken off (with an
-  `attribute-ignored` note), not printed. Not caused by typography, so not fixed here; the Word
-  regression test only checks that typography changes nothing. Worth a story of its own.
+- **Fixed at the human's request (2026-11-15): Word printed image attributes as text,** with and
+  without typography: `![a](x.png){.round}` or `{scale=0.5}` stayed in the paragraph as `{.round}`.
+  Cause: `DocxRuns.Collector` read the literal after an image as text before `DocxBody.Picture`
+  called `ImageAttributes.Take`, which cuts the block off that literal. The collector now calls
+  `Take` when it meets the image (as decks and PDFs do); the result is cached on the image, so
+  `Picture` gets the same attributes. `scale=` applies, and `fit=cover`, `focus`, `.round`, `.grey`
+  give their `attribute-ignored` note as the guide says. Test:
+  `ImageAttributes_AreTakenOff_NotPrinted_ScaleApplies_AndTheOthersGiveANote` (fails without the
+  fix). No sample document uses image attributes in Word, so the review outputs are unchanged.
+  Full suite: 1796 passed, 6 skipped.
 - Release after the human has verified the fix (question 3).

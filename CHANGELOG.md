@@ -17,6 +17,10 @@ updating, breaking changes first.
   typography, so a document has the same slides, layouts, transitions, page breaks and numbering
   with typography on as off; only the text is typeset, the kicker included. Attribute values are
   never typeset. Documents without typography are unchanged.
+- **Image attributes in Word documents.** `{…}` after an image (`![a](x.png){scale=0.5}`,
+  `{.round}`) was printed as text after the picture, and `scale=` was not applied. The block is now
+  taken off: `scale=` scales the picture, and `fit=`, `focus`, `.round` and `.grey` give the
+  `attribute-ignored` note, as the guide says.
 
 ## 2611.15.8
 

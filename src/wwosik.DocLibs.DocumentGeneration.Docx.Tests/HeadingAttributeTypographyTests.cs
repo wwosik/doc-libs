@@ -83,6 +83,36 @@ public class HeadingAttributeTypographyTests
         var offTexts = off.MainDocumentPart.Document.Body.Descendants<Paragraph>().Select(p => p.InnerText).ToList();
         Assert.Contains("The “text” column.", texts);
         Assert.Equal(offTexts.Select(t => t.Replace("\"text\"", "“text”", StringComparison.Ordinal)), texts);
+        Assert.DoesNotContain(texts, t => t.Contains('{', StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ImageAttributes_AreTakenOff_NotPrinted_ScaleApplies_AndTheOthersGiveANote()
+    {
+        static (WordprocessingDocument Package, GenerationResult Result) Generate(string markdown)
+        {
+            var (docx, result) = Samples.GenerateWithResult(Samples.Markdown(markdown, Samples.Image("photo.png")));
+            return (Samples.Open(docx), result);
+        }
+
+        static List<string> Texts(WordprocessingDocument package) =>
+            [.. package.MainDocumentPart!.Document!.Body!.Descendants<Paragraph>().Select(p => p.InnerText).Where(t => t.Length > 0)];
+
+        static long Width(WordprocessingDocument package) =>
+            package.MainDocumentPart!.Document!.Body!.Descendants<DocumentFormat.OpenXml.Drawing.Wordprocessing.Extent>().Single().Cx!.Value;
+
+        var (plain, _) = Generate("![One](photo.png)\n");
+        var (scaled, _) = Generate("![One](photo.png){scale=0.5}\n");
+        var (round, result) = Generate("Before ![One](photo.png){.round .grey} after.\n");
+        using (plain)
+        using (scaled)
+        using (round)
+        {
+            Assert.Empty(Texts(scaled));
+            Assert.InRange(Width(scaled), (Width(plain) / 2) - 1, (Width(plain) / 2) + 1);
+            Assert.Equal(["Before", "after."], Texts(round).Select(t => t.Trim()));
+            Assert.Equal(2, result.Notes.Count(n => n.Code == NoteCodes.AttributeIgnored));
+        }
     }
 
     // The headings: their style, whether they are numbered and their text.
