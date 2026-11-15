@@ -1,7 +1,7 @@
 # E06-S05 Heading attributes with typography
 
-> Status: todo
-> Epic: [E06 Markdown syntax](E06-markdown-syntax.md)
+> Status: in progress (doc-3)
+> Epic: [E06 Markdown syntax](../../50-todo/E06-markdown-syntax.md)
 
 ## Summary
 
@@ -14,7 +14,7 @@ slides and pages with and without typography, apart from the typeset text itself
 ## Context
 
 - Reported against 2611.15.8:
-  [bug-typography-breaks-quoted-heading-attributes.md](../00-brainstorming/bug-typography-breaks-quoted-heading-attributes.md).
+  [bug-typography-breaks-quoted-heading-attributes.md](../../00-brainstorming/bug-typography-breaks-quoted-heading-attributes.md).
   Typography is off by default (E06-S03), so only documents that switch it on are affected.
 - **Where it goes wrong.** Each parser builds a heading's runs with its `Runs(...)` helper, which
   applies coloured words, then icons, then typography (`DeckParser.Icons` → `DeckParser.Typeset`,
