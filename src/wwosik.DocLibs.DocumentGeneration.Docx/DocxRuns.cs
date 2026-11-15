@@ -71,17 +71,24 @@ internal sealed class DocxRuns(DocxBody body)
     private readonly Dictionary<(OpenXmlPart, string), string> relationships = [];
 
     /// <summary>The runs of <paramref name="inline"/> and its images, in order: <see cref="List{DocxRun}"/> or <see cref="LinkInline"/>.</summary>
-    public List<object> Pieces(ContainerInline? inline, bool imagesAsText = false, RunFlags flags = RunFlags.None)
+    public List<object> Pieces(ContainerInline? inline, bool imagesAsText = false, RunFlags flags = RunFlags.None, bool typeset = true)
     {
         var collector = new Collector(body, imagesAsText);
         collector.Add(inline, flags, null);
         var line = inline is null ? 0 : body.LineOf(inline);
-        return [.. collector.Pieces.Select(p => p is List<DocxRun> runs ? this.Icons(Colour(runs), line) : p)];
+        return [.. collector.Pieces.Select(p => p is List<DocxRun> runs ? (typeset ? this.Icons(Colour(runs), line) : this.IconsOnly(Colour(runs), line)) : p)];
     }
 
-    /// <summary>The runs of <paramref name="inline"/>, images as their alt text, trimmed.</summary>
-    public List<DocxRun> Runs(ContainerInline? inline, RunFlags flags = RunFlags.None) =>
-        Trim([.. this.Pieces(inline, imagesAsText: true, flags).OfType<List<DocxRun>>().SelectMany(r => r)]);
+    /// <summary>
+    /// The runs of <paramref name="inline"/>, images as their alt text, trimmed. Without typesetting
+    /// (<paramref name="typeset"/> <see langword="false"/>), the caller typesets them with <see cref="Typeset(List{DocxRun}, ContainerInline?)"/>
+    /// once it has taken the heading attributes off.
+    /// </summary>
+    public List<DocxRun> Runs(ContainerInline? inline, RunFlags flags = RunFlags.None, bool typeset = true) =>
+        Trim([.. this.Pieces(inline, imagesAsText: true, flags, typeset).OfType<List<DocxRun>>().SelectMany(r => r)]);
+
+    /// <summary>Typography on the runs of <paramref name="inline"/>, when it is on.</summary>
+    public List<DocxRun> Typeset(List<DocxRun> runs, ContainerInline? inline) => this.Typeset(runs, inline is null ? 0 : body.LineOf(inline));
 
     /// <summary>Runs without blank runs at either end, and without the spaces at the ends.</summary>
     public static List<DocxRun> Trim(List<DocxRun> runs)
@@ -225,7 +232,9 @@ internal sealed class DocxRuns(DocxBody body)
 
     // `:icon-name:`: a run of its own that stands for the icon, outside code; an unknown name throws. Then typography,
     // when it is on.
-    private List<DocxRun> Icons(List<DocxRun> runs, int line) => this.Typeset(
+    private List<DocxRun> Icons(List<DocxRun> runs, int line) => this.Typeset(this.IconsOnly(runs, line), line);
+
+    private List<DocxRun> IconsOnly(List<DocxRun> runs, int line) =>
         IconSyntax.Apply(
             runs,
             r => r.Footnote is null ? r.Text : string.Empty,
@@ -234,8 +243,7 @@ internal sealed class DocxRuns(DocxBody body)
             (r, icon) => r with { Icon = icon },
             body.Context.Options.Icons,
             line,
-            Format.Docx),
-        line);
+            Format.Docx);
 
     // Typography, when it is on: code, tags, status labels and footnote references are left alone.
     private List<DocxRun> Typeset(List<DocxRun> runs, int line) => body.Context.Typography is not { } typography ? runs : typography.Apply(

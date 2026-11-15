@@ -1,7 +1,7 @@
 # E06-S05 Heading attributes with typography
 
-> Status: in progress (doc-3)
-> Epic: [E06 Markdown syntax](../../50-todo/E06-markdown-syntax.md)
+> Status: in verification
+> Epic: [E06 Markdown syntax](../50-todo/E06-markdown-syntax.md)
 
 ## Summary
 
@@ -14,7 +14,7 @@ slides and pages with and without typography, apart from the typeset text itself
 ## Context
 
 - Reported against 2611.15.8:
-  [bug-typography-breaks-quoted-heading-attributes.md](../../00-brainstorming/bug-typography-breaks-quoted-heading-attributes.md).
+  [bug-typography-breaks-quoted-heading-attributes.md](../00-brainstorming/bug-typography-breaks-quoted-heading-attributes.md).
   Typography is off by default (E06-S03), so only documents that switch it on are affected.
 - **Where it goes wrong.** Each parser builds a heading's runs with its `Runs(...)` helper, which
   applies coloured words, then icons, then typography (`DeckParser.Icons` → `DeckParser.Typeset`,
@@ -68,18 +68,18 @@ slides and pages with and without typography, apart from the typeset text itself
 
 ## Acceptance criteria
 
-- [ ] With `typography: true`, `## Status {kicker="Plan"}` gives the title "Status" and the kicker
+- [x] With `typography: true`, `## Status {kicker="Plan"}` gives the title "Status" and the kicker
   "Plan" in decks; `transition="…"` and `layout="…"` apply as without typography.
-- [ ] PDF and Word take the same attribute blocks off headings with typography on (cover, chapters,
+- [x] PDF and Word take the same attribute blocks off headings with typography on (cover, chapters,
   contents entries, bookmarks, `###` and deeper).
-- [ ] A deck with typography on has the same number of slides and the same layouts as with it off
+- [x] A deck with typography on has the same number of slides and the same layouts as with it off
   (the bug report's sample: no `slide-split` / `slide-overfull` that are not there with it off).
-- [ ] Attribute values are kept exactly as typed; the title and kicker text are typeset.
-- [ ] Regression tests with typography on pass for image attributes, build markers and container
+- [x] Attribute values are kept exactly as typed; the title and kicker text are typeset.
+- [x] Regression tests with typography on pass for image attributes, build markers and container
   arguments.
-- [ ] All existing outputs with typography off are unchanged (decks and Word part by part with
+- [x] All existing outputs with typography off are unchanged (decks and Word part by part with
   relationship ids masked, PDFs with `/ID` and dates masked); the full test suite is green.
-- [ ] CHANGELOG entry; `ai/memory.md` note.
+- [x] CHANGELOG entry; `ai/memory.md` note.
 
 ## Open questions
 
@@ -109,3 +109,55 @@ slides and pages with and without typography, apart from the typeset text itself
 ## Notes
 
 <!-- Free space for remarks that are not answers to the questions above. -->
+
+## Implementation notes
+
+### Breaking changes
+
+None. Documents without typography are unchanged: the 158 decks, PDFs and Word documents the test
+suite writes to `.tmp/review/` are identical before and after the fix, part by part, with
+relationship ids, `/ID` and dates masked (embedded chart workbooks included). With typography on,
+quoted heading attributes now apply, which is the fix. CHANGELOG: a new *Fixed* section under
+`## Unreleased` (question 4).
+
+### Decisions and deviations
+
+- **Same three steps, new order** (question 1): each parser's runs helper got `typeset: false`
+  (coloured words and icons, no typography); the heading paths take the attribute block off the last
+  run, then typeset the title runs. `Icons(...)` is now `Typeset(IconsOnly(...))` in all three.
+  - Decks: `DeckParser.Slides` (`#`, `##`) and the `###`–`######` heading in flow content
+    (`WithoutDeepAttributes`).
+  - PDF: a new `MarkdownParser.TitleOf(heading, level)` serves the cover, the chapter list, kind
+    checks, `AttributesOf` and headings (which give contents entries and bookmarks);
+    `WithoutAttributes` is gone.
+  - Word: `DocxBody.HeadingParts` (split in `HeadingSplit`, then `DocxRuns.Typeset`); `DocxContent`
+    (cover title, `{.newpage}` check) works on raw text and was already right.
+- **Kicker:** the plan said both "values are kept as typed" and "the kicker is typeset where it is
+  drawn". Implemented: every value is read as typed (`layout`, `transition` match exactly), and the
+  kicker *text*, which decks draw, is typeset with the title (`Plan -- 2027...` → `Plan – 2027…`).
+  PDF and Word do not draw kickers.
+- **Curly quotes typed by hand** still make the block text (question 2); no pattern change.
+
+### Tests
+
+`HeadingAttributeTypographyTests` in the Pptx, Pdf and Docx test projects, written first (they fail
+without the fix: 5 of 6 in decks, 2 of 3 in PDFs and in Word):
+- English and German, typography off vs on: cover, `#` chapter with an attribute, `kicker` with
+  `--`/`...`, `transition`, `layout` (decks, on a template with that layout), `.dark kicker`,
+  `{.unnumbered .newpage}` on `##` and `###`, `{.closing}`, `{.agenda}` (PDF); same slides, layouts,
+  transitions and shapes (decks), pages, bookmarks and lines (PDF), paragraph styles, numbering, page
+  breaks and sections (Word); no `{` left in any text.
+- The sample decks `layouts.md`, `presenting.md`, `deck.md` with typography on: the same slides,
+  layouts, transitions and notes as off (the report's "no extra `slide-split`/`slide-overfull`").
+- Regression with typography on: image attributes, `{.build}`, `::: columns 1:2`.
+
+Full suite: 1795 passed, 6 skipped (Windows only).
+
+### Loose ends
+
+- **Word shows image attributes as text, with and without typography:** `![a](x.png){.round}` and
+  `{scale=0.5}` after an image in a Word document stay in the paragraph as `{.round}`. The guide says
+  `fit=`, `focus`, `.round` and `.grey` have no effect in Word, but they should be taken off (with an
+  `attribute-ignored` note), not printed. Not caused by typography, so not fixed here; the Word
+  regression test only checks that typography changes nothing. Worth a story of its own.
+- Release after the human has verified the fix (question 3).

@@ -420,9 +420,11 @@ internal sealed partial class DeckParser(
     // Returns the transition the heading asks for, if any.
     private SlideTransition? Slides(HeadingBlock heading, List<Block> blocks)
     {
-        var title = this.Runs(heading.Inline, imagesAsText: true);
+        // The attributes are syntax, not text: taken off before typography, which would curl their quotes.
+        var title = this.Runs(heading.Inline, imagesAsText: true, typeset: false);
         var isTitle = heading.Level == 1;
-        var attributes = Attributes(title);
+        var attributes = this.Typeset(Attributes(title), this.LineOf(heading.Inline));
+        title = this.Typeset(title, this.LineOf(heading.Inline));
         if (isTitle && attributes is { Dark: true } or { Kicker: not null })
         {
             throw Error("A '#' heading takes only the attributes layout=\"…\" and .closing; .dark and kicker=\"…\" go on '##' headings.");
@@ -793,7 +795,9 @@ internal sealed partial class DeckParser(
                 flow.Add(new LabelledTagsBlock(items));
                 break;
             case HeadingBlock heading:
-                target.Text(new TextParagraph(WithoutDeepAttributes(this.Runs(heading.Inline, imagesAsText: true, style | RunStyle.Bold)), Level: level) { Heading = true });
+                target.Text(new TextParagraph(
+                    this.Typeset(WithoutDeepAttributes(this.Runs(heading.Inline, imagesAsText: true, style | RunStyle.Bold, typeset: false)), this.LineOf(heading.Inline)),
+                    Level: level) { Heading = true });
                 break;
             case ParagraphBlock paragraph:
                 this.Paragraph(paragraph.Inline, target, ParagraphKind.Plain, level, 1, style);
@@ -1036,15 +1040,20 @@ internal sealed partial class DeckParser(
         return result;
     }
 
-    private List<TextRun> Runs(ContainerInline? inline, bool imagesAsText, RunStyle style = RunStyle.None)
+    // Without typesetting (`typeset: false`), the caller typesets the runs once it has taken the heading attributes off.
+    private List<TextRun> Runs(ContainerInline? inline, bool imagesAsText, RunStyle style = RunStyle.None, bool typeset = true)
     {
         var collector = new RunCollector(this, imagesAsText);
         collector.Add(inline, style, null);
-        return Trim(this.Icons(Colour(collector.Pieces.OfType<List<TextRun>>().SelectMany(r => r).ToList()), this.LineOf(inline)));
+        var runs = Colour(collector.Pieces.OfType<List<TextRun>>().SelectMany(r => r).ToList());
+        var line = this.LineOf(inline);
+        return Trim(typeset ? this.Icons(runs, line) : this.IconsOnly(runs, line));
     }
 
     // `:icon-name:`: an icon run of its own, unless icons are switched off; then typography, when it is on.
-    private List<TextRun> Icons(List<TextRun> runs, int line) => this.Typeset(
+    private List<TextRun> Icons(List<TextRun> runs, int line) => this.Typeset(this.IconsOnly(runs, line), line);
+
+    private List<TextRun> IconsOnly(List<TextRun> runs, int line) =>
         IconSyntax.Apply(
             runs,
             r => r.Text,
@@ -1053,8 +1062,11 @@ internal sealed partial class DeckParser(
             (r, icon) => r with { Icon = icon },
             options.Icons,
             line,
-            Format.Pptx),
-        line);
+            Format.Pptx);
+
+    // A kicker is drawn as text: typeset like the title; the other attribute values are settings, kept as typed.
+    private HeadingAttributes? Typeset(HeadingAttributes? attributes, int line) =>
+        typography is null || attributes?.Kicker is not { } kicker ? attributes : attributes with { Kicker = typography.Apply(kicker, line) };
 
     // Typography, when it is on: code, status labels, footnote references and Harvey balls are left alone.
     private List<TextRun> Typeset(List<TextRun> runs, int line) => typography is null ? runs : typography.Apply(

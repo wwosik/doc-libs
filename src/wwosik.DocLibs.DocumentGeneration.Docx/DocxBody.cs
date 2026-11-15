@@ -376,9 +376,17 @@ internal sealed partial class DocxBody
 
     // The heading's runs and its attributes: slide settings on `#` and `##` (checked as in decks), `.unnumbered` on any
     // level; on `###` to `######` other braces stay text.
+    // The attributes are syntax, not text: taken off before typography, which would curl their quotes; then the text
+    // is typeset.
     private (List<DocxRun> Runs, HeadingAttributes? Attributes) HeadingParts(HeadingBlock heading)
     {
-        var runs = this.runs.Runs(heading.Inline);
+        var (runs, attributes) = this.HeadingSplit(heading);
+        return (this.runs.Typeset(runs, heading.Inline), attributes);
+    }
+
+    private (List<DocxRun> Runs, HeadingAttributes? Attributes) HeadingSplit(HeadingBlock heading)
+    {
+        var runs = this.runs.Runs(heading.Inline, typeset: false);
         if (runs.Count == 0 || runs[^1] is not { IsBreak: false, Footnote: null, Flags: RunFlags.None, Link: null } last)
         {
             return (runs, null);

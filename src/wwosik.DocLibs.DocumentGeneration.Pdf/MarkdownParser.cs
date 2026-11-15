@@ -108,7 +108,7 @@ internal sealed partial class MarkdownParser(
                         : "{.newpage} cannot go on the cover heading, the first '#': the cover is a page of its own.");
             }
 
-            cover = new Cover(parser.NotDrawn(WithoutAttributes(parser.Runs(first.Inline)), place), subtitle, Anchor(first));
+            cover = new Cover(parser.NotDrawn(parser.TitleOf(first, 1).Text, place), subtitle, Anchor(first));
         }
 
         parser.CheckSections(blocks, start == 1 ? (Markdig.Syntax.HeadingBlock)blocks[0] : null);
@@ -181,7 +181,7 @@ internal sealed partial class MarkdownParser(
         {
             if (heading is { Level: 1 } && heading != cover && this.AttributesOf(heading) is not { Closing: true })
             {
-                chapters.Add(Trim([.. WithoutAttributes(this.Runs(heading.Inline)).Where(r => r.Icon is null)]));
+                chapters.Add(Trim([.. this.TitleOf(heading, 1).Text.Where(r => r.Icon is null)]));
             }
         }
 
@@ -193,7 +193,7 @@ internal sealed partial class MarkdownParser(
                 continue;
             }
 
-            var title = string.Concat(WithoutAttributes(this.Runs(heading.Inline)).Select(r => r.IsBreak ? " " : r.Text)).Trim();
+            var title = string.Concat(this.TitleOf(heading, 1).Text.Select(r => r.IsBreak ? " " : r.Text)).Trim();
             if (heading.Level == 1)
             {
                 throw new DocumentConversionException(DocumentFormat.Pdf, $"{{.{kind}}} goes on a '##' heading: a '#' heading is the cover or a section divider.");
@@ -283,10 +283,15 @@ internal sealed partial class MarkdownParser(
         }
     }
 
-    private HeadingAttributes? AttributesOf(Markdig.Syntax.HeadingBlock heading) =>
-        this.Runs(heading.Inline) is [.., { IsBreak: false, Style: RunStyle.None, Link: null } last]
-            ? HeadingAttributes.Split(last.Text, DocumentFormat.Pdf).Attributes
-            : null;
+    private HeadingAttributes? AttributesOf(Markdig.Syntax.HeadingBlock heading) => this.TitleOf(heading, 1).Attributes;
+
+    // A heading's text and attributes. The attributes are syntax, not text: taken off before typography, which would
+    // curl their quotes; then the text is typeset. `level` picks the attributes, as in Split.
+    private (List<TextRun> Text, HeadingAttributes? Attributes) TitleOf(Markdig.Syntax.HeadingBlock heading, int level)
+    {
+        var (text, attributes) = Split(this.Runs(heading.Inline, typeset: false), level);
+        return (this.Typeset(text, this.LineOf(heading.Inline)), attributes);
+    }
 
     private void Add(Markdig.Syntax.Block block, List<Block> target)
     {
@@ -298,8 +303,8 @@ internal sealed partial class MarkdownParser(
         switch (block)
         {
             case Markdig.Syntax.HeadingBlock heading:
-                var runs = this.NotDrawn(this.Runs(heading.Inline), "a heading");
-                var (text, headingAttributes) = Split(runs, heading.Level);
+                var (title, headingAttributes) = this.TitleOf(heading, heading.Level);
+                var text = this.NotDrawn(title, "a heading");
 
                 // A kind of slide without a title, such as `## {.quote}`, has no heading here.
                 if (text.Count > 0 || heading.Level > 2 || headingAttributes?.Kind is null)
@@ -614,9 +619,6 @@ internal sealed partial class MarkdownParser(
         }
     }
 
-    // Slide settings at the end of a `#` or `##` heading (`{.dark kicker="…"}`) are checked like in decks, then dropped.
-    private static List<TextRun> WithoutAttributes(List<TextRun> runs) => Split(runs, 1).Text;
-
     // The attributes at the end of a heading: on `#` and `##` slide settings, `{.unnumbered}` and `{.newpage}`, checked
     // like in decks; on `###` to `######` only `{.unnumbered}` and `{.newpage}`, any other braces staying text.
     private static (List<TextRun> Text, HeadingAttributes? Attributes) Split(List<TextRun> runs, int level)
@@ -651,15 +653,20 @@ internal sealed partial class MarkdownParser(
         this.LineOf(html),
         $"The HTML '{GenerationNotes.Quote(text)}' is shown as text. Write Markdown instead.");
 
-    private List<TextRun> Runs(ContainerInline? inline)
+    // Without typesetting (`typeset: false`), the caller typesets the runs once it has taken the heading attributes off.
+    private List<TextRun> Runs(ContainerInline? inline, bool typeset = true)
     {
         var collector = new RunCollector(this, imagesAsText: true);
         collector.Add(inline, RunStyle.None, null);
-        return Trim(this.Icons(Colour(collector.Pieces.OfType<List<TextRun>>().SelectMany(r => r).ToList()), this.LineOf(inline)));
+        var runs = Colour(collector.Pieces.OfType<List<TextRun>>().SelectMany(r => r).ToList());
+        var line = this.LineOf(inline);
+        return Trim(typeset ? this.Icons(runs, line) : this.IconsOnly(runs, line));
     }
 
     // `:icon-name:`: an icon run of its own, unless icons are switched off; then typography, when it is on.
-    private List<TextRun> Icons(List<TextRun> runs, int line) => this.Typeset(
+    private List<TextRun> Icons(List<TextRun> runs, int line) => this.Typeset(this.IconsOnly(runs, line), line);
+
+    private List<TextRun> IconsOnly(List<TextRun> runs, int line) =>
         IconSyntax.Apply(
             runs,
             r => r.Text,
@@ -668,8 +675,7 @@ internal sealed partial class MarkdownParser(
             (r, icon) => r with { Style = r.Style | RunStyle.Icon, Icon = icon },
             options.Icons,
             line,
-            DocumentFormat.Pdf),
-        line);
+            DocumentFormat.Pdf);
 
     // Typography, when it is on: code and footnote references are left alone.
     private List<TextRun> Typeset(List<TextRun> runs, int line) => typography is null ? runs : typography.Apply(

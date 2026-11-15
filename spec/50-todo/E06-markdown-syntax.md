@@ -18,7 +18,7 @@ One syntax for every format means a writer learns it once and the same source go
 | [E06-S02](../60-verify/E06-S02-markdown-foundations.md) | Markdown foundations: footnotes, task lists, definition lists, document language (`lang`) with English and German generated-text tables, `Drawing` even-odd fill and validation | in verification |
 | [E06-S03](../60-verify/E06-S03-typography.md) | Typography | in verification |
 | [E06-S04](../60-verify/E06-S04-code-highlighting.md) | Code highlighting | in verification |
-| [E06-S05](../55-in-progress/doc-3/E06-S05-heading-attributes-with-typography.md) | Heading attributes with typography (bug) | in progress (doc-3) |
+| [E06-S05](../60-verify/E06-S05-heading-attributes-with-typography.md) | Heading attributes with typography (bug) | in verification |
 
 Stories marked *to plan* come from the
 [Python fork analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed

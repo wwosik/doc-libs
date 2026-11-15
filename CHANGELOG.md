@@ -7,6 +7,17 @@ plus a counter for a further release within the same hour. The version says noth
 compatibility, so this file does. Read the sections between your version and the new one before
 updating, breaking changes first.
 
+## Unreleased
+
+### Fixed
+
+- **Heading attributes with typography.** With `typography: true`, quoted heading attributes
+  (`{kicker="…"}`, `{transition="…"}`, `{layout="…"}`) were kept as title text, with their quotes
+  curled, and not applied, in decks, PDFs and Word documents. They are now taken off before
+  typography, so a document has the same slides, layouts, transitions, page breaks and numbering
+  with typography on as off; only the text is typeset, the kicker included. Attribute values are
+  never typeset. Documents without typography are unchanged.
+
 ## 2611.15.8
 
 ### Breaking changes

@@ -288,6 +288,10 @@ same change that made it untrue — a stale fact here is worse than a missing on
   must lie within one run. The font check is a `Func<int, bool>`: PDFs `FontSet.HasGlyph` over the eight text and
   table faces, decks and DOCX `ResolvedFonts.HasEveryTextFace`, everything without brand fonts. Drawings
   (renderers, `VisualContainers`) are never typeset.
+  Heading attributes are split **before** typography (E06-S05): the parsers build heading runs with
+  `Runs(..., typeset: false)` (icons, no typography), take the `{…}` off, then `Typeset` the title; decks also typeset
+  the `kicker` value (`DeckParser.Typeset(HeadingAttributes?)`). Any new heading path must keep that order, or the
+  curled quotes stop the attribute patterns from matching.
 - **Code highlighting (E06-S04):** `CodeHighlighting.For(frontMatter, options.HighlightCode, notes)` (null = off;
   front matter `highlight` over the option) goes to `DeckParser`, `MarkdownParser` and `DocxContext`; its `Lines`
   returns `null` for a block it does not highlight, and every caller then takes its old plain path, which is what
