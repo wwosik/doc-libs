@@ -87,24 +87,24 @@ slides and pages with and without typography, apart from the typeset text itself
    syntax, not text, and every format gets the same order), or teach typography to leave a trailing
    `{…}` block alone (smaller change, but typography would need to know heading syntax)?
 
->
+> Answered by the human (2026-11-15): Split the attributes off before typography, in every generator.
 
 2. Curly quotes typed by the author (`{kicker=“Plan”}`, e.g. pasted from Word): keep treating them
    as text (proposed: unchanged behaviour, out of scope), or accept `“ ” „ ‚ ‘ ’` as attribute
    quotes too?
 
->
+> Answered by the human (2026-11-15): Keep treating hand-typed curly quotes as text; unchanged behaviour.
 
 3. Release: cut a fix release (`v2611.15.<hour>` or the next day's) right after this story is
    verified (proposed), or right after it is implemented, since 2611.15.8 is already out with the
    fault?
 
->
+> Answered by the human (2026-11-15): Release after the human has verified the fix.
 
 4. Changelog heading: add a *Fixed* section for bug fixes (proposed: the changelog has only
    *Breaking changes* and *New* so far), or file the fix under *New*?
 
->
+> Answered by the human (2026-11-15): A new *Fixed* section in the changelog for bug fixes.
 
 ## Notes
 
