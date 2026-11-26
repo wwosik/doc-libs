@@ -1,7 +1,7 @@
 # E07-S07 Slide lines for editor previews
 
-> Status: todo
-> Epic: [E07 Presenting](E07-presenting.md)
+> Status: in progress (port-1)
+> Epic: [E07 Presenting](../../50-todo/E07-presenting.md)
 
 ## Summary
 

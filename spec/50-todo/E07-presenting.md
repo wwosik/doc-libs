@@ -20,7 +20,7 @@ A generated deck should be ready to present without opening PowerPoint to add no
 | [E07-S04](../60-verify/E07-S04-scenes.md) | Scenes | in verification |
 | [E07-S05](../60-verify/E07-S05-builds.md) | Builds | in verification |
 | [E07-S06](../60-verify/E07-S06-presenting-the-html-deck.md) | Presenting the HTML deck | in verification |
-| [E07-S07](E07-S07-slide-lines-for-editor-previews.md) | Slide lines for editor previews | todo |
+| [E07-S07](../55-in-progress/port-1/E07-S07-slide-lines-for-editor-previews.md) | Slide lines for editor previews | in progress (port-1) |
 
 Stories marked *to plan* come from the
 [2026-11-13 analysis](../10-analysis/2026-11-13%20feature-plan.md); each is written and agreed
