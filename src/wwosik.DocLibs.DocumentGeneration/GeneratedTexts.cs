@@ -41,7 +41,6 @@ public sealed record GeneratedTexts
         Chart = "Diagramm",
         Exercise = "Übung",
         Solution = "Lösung",
-
         Info = "Info",
         Author = "Autor",
         Date = "Datum",
