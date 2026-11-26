@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Generates Excel workbooks (.xlsx) from a typed model in a brand's look: an info sheet with a contents list, tables with typed values in the culture's number formats, a frozen and filtered header and banding that survives sorting, print setup, a check that reports every problem at once, and a plain HTML preview.</Description>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DocumentFormat.OpenXml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration\wwosik.DocLibs.DocumentGeneration.csproj" />
+  </ItemGroup>
+
+  <!-- The core properties are written by the same code as in decks and Word documents. -->
+  <ItemGroup>
+    <Compile Include="..\Shared\OpenXml\CoreProperties.cs" Link="Shared\OpenXml\CoreProperties.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Xlsx.Tests" />
+  </ItemGroup>
+
+</Project>

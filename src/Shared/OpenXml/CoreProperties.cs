@@ -76,6 +76,24 @@ internal static class CoreProperties
         xml.Save(output);
     }
 
+    /// <summary>
+    /// Sets <c>dc:subject</c> and <c>dc:description</c>, which Office shows as the subject and the comments; each left out
+    /// when empty.
+    /// </summary>
+    public static void Describe(CoreFilePropertiesPart part, string? subject, string? description)
+    {
+        XDocument xml;
+        using (var stream = part.GetStream(FileMode.Open, FileAccess.Read))
+        {
+            xml = XDocument.Load(stream);
+        }
+
+        Replace(xml.Root!, DublinCore + "subject", subject);
+        Replace(xml.Root!, DublinCore + "description", description);
+        using var output = part.GetStream(FileMode.Create, FileAccess.Write);
+        xml.Save(output);
+    }
+
     private static void Replace(XElement root, XName name, string? value)
     {
         root.Elements(name).Remove();

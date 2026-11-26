@@ -25,7 +25,7 @@ table colours (`TableHeader`, `TableBand`, `TableLine`), a diagram palette and a
 
 | Story | Title | State |
 | ----- | ----- | ----- |
-| [E10-S01](../55-in-progress/port-1/E10-S01-workbook-package-model-and-look.md) | Workbook package: model, look, values, print, check and preview | in progress (port-1) |
+| [E10-S01](../60-verify/E10-S01-workbook-package-model-and-look.md) | Workbook package: model, look, values, print, check and preview | in verification |
 | [E10-S02](E10-S02-totals-and-formulas.md) | Totals and formulas | todo |
 | [E10-S03](E10-S03-charts-on-sheet-cells.md) | Charts on sheet cells | todo |
 | [E10-S04](E10-S04-workbooks-from-markdown.md) | Workbooks from Markdown | todo |

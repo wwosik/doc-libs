@@ -41,6 +41,12 @@ public sealed record GeneratedTexts
         Chart = "Diagramm",
         Exercise = "Übung",
         Solution = "Lösung",
+
+        Info = "Info",
+        Author = "Autor",
+        Date = "Datum",
+        Language = "Sprache",
+        PageOfFormat = "Seite {0} von {1}",
     };
 
     /// <summary>The title of <c>> [!NOTE]</c>.</summary>
@@ -117,6 +123,21 @@ public sealed record GeneratedTexts
 
     /// <summary>The label of a solution (<c>::: solution</c>), before its exercise's number: "Solution 1"; German "Lösung".</summary>
     public string Solution { get; init; } = "Solution";
+
+    /// <summary>The name of a workbook's info sheet: "Info"; German "Info".</summary>
+    public string Info { get; init; } = "Info";
+
+    /// <summary>The label of the author on a workbook's info sheet: "Author"; German "Autor".</summary>
+    public string Author { get; init; } = "Author";
+
+    /// <summary>The label of the date on a workbook's info sheet: "Date"; German "Datum".</summary>
+    public string Date { get; init; } = "Date";
+
+    /// <summary>The label of the language on a workbook's info sheet: "Language"; German "Sprache".</summary>
+    public string Language { get; init; } = "Language";
+
+    /// <summary>A page number in a workbook's printed footer: <c>{0}</c> the page, <c>{1}</c> the pages. "Page 2 of 5"; German "Seite 2 von 5".</summary>
+    public string PageOfFormat { get; init; } = "Page {0} of {1}";
 
     /// <summary>The title of an alert of the kind <paramref name="kind"/> (<c>NOTE</c>, <c>TIP</c>, …).</summary>
     internal string Alert(string kind) => kind.ToUpperInvariant() switch

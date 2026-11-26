@@ -1,0 +1,250 @@
+using System.Globalization;
+
+namespace wwosik.DocLibs.DocumentGeneration.Xlsx;
+
+/// <summary>
+/// A workbook for <see cref="XlsxGenerator"/>: what its info sheet says, and its sheets, each one table. Everything but
+/// <see cref="Sheets"/> is optional.
+/// </summary>
+public sealed record XlsxWorkbook
+{
+    /// <summary>The title: on the info sheet, in the printed page header and in the core properties.</summary>
+    public string? Title { get; init; }
+
+    /// <summary>The subtitle: on the info sheet under the title, and the subject in the core properties.</summary>
+    public string? Subtitle { get; init; }
+
+    /// <summary>What the workbook holds: on the info sheet, and the description in the core properties.</summary>
+    public string? Description { get; init; }
+
+    /// <summary>The author: on the info sheet, and the creator in the core properties.</summary>
+    public string? Author { get; init; }
+
+    /// <summary>The date shown on the info sheet and above every table. Default: today, from <see cref="XlsxOptions.TimeProvider"/>.</summary>
+    public DateOnly? Date { get; init; }
+
+    /// <summary>
+    /// The language, a BCP 47 tag such as <c>en</c>, <c>de</c> or <c>de-CH</c>: it picks the texts the generator writes
+    /// itself (<see cref="XlsxOptions.Texts"/>) and, unless <see cref="XlsxOptions.Culture"/> is set, the culture of the
+    /// number and date formats. Default <c>en</c>.
+    /// </summary>
+    public string? Language { get; init; }
+
+    /// <summary>
+    /// The classification marking: on the info sheet and in the printed page header, never in the properties. It can
+    /// raise <see cref="XlsxOptions.Marking"/> but not lower it, like front matter.
+    /// </summary>
+    public XlsxMarking? Marking { get; init; }
+
+    /// <summary>
+    /// The name of the brand: <c>neutral</c>, the brand of <see cref="XlsxOptions.Brand"/> or one of
+    /// <see cref="XlsxOptions.Brands"/>. Default: <see cref="XlsxOptions.Brand"/>.
+    /// </summary>
+    public string? Brand { get; init; }
+
+    /// <summary>The sheets, in order; the info sheet comes before them.</summary>
+    public IReadOnlyList<XlsxSheet> Sheets { get; init; } = [];
+}
+
+/// <summary>A classification and whether the workbook is a draft: "Confidential · Draft".</summary>
+/// <param name="Classification">How confidential the workbook is.</param>
+/// <param name="Draft">Whether it is a draft.</param>
+public sealed record XlsxMarking(Classification Classification, bool Draft = false);
+
+/// <summary>A sheet holding one table: a title and a description above it, the header row, the rows.</summary>
+public sealed record XlsxSheet
+{
+    /// <summary>
+    /// The sheet's name on its tab, by Excel's rules: 1 to 31 characters, none of <c>[]:*?/\</c>, not starting or ending
+    /// with <c>'</c>, and unique ignoring case.
+    /// </summary>
+    public required string Name { get; init; }
+
+    /// <summary>The title above the table and in the info sheet's contents list.</summary>
+    public string? Title { get; init; }
+
+    /// <summary>The line under the title, and the text beside the sheet in the contents list.</summary>
+    public string? Description { get; init; }
+
+    /// <summary>The columns, left to right.</summary>
+    public IReadOnlyList<XlsxColumn> Columns { get; init; } = [];
+
+    /// <summary>The rows, each at most as many cells as there are columns; a short row is filled with empty cells.</summary>
+    public IReadOnlyList<IReadOnlyList<XlsxCell>> Rows { get; init; } = [];
+}
+
+/// <summary>A column of a sheet's table: its header and the type of its values.</summary>
+/// <param name="Header">The text of the header row.</param>
+/// <param name="Type">What the values are, and so how they are shown.</param>
+public sealed record XlsxColumn(string Header, XlsxColumnType Type = XlsxColumnType.Text)
+{
+    /// <summary>
+    /// Digits after the decimal point, 0 to 10, for <see cref="XlsxColumnType.Number"/>, <see cref="XlsxColumnType.Currency"/>
+    /// and <see cref="XlsxColumnType.Percent"/>. Default: the culture's (the currency's for a currency of another country).
+    /// </summary>
+    public int? Decimals { get; init; }
+
+    /// <summary>
+    /// The ISO 4217 code of a <see cref="XlsxColumnType.Currency"/> column, such as <c>EUR</c>; its symbol is shown where
+    /// the culture puts its own. Default: the culture's currency.
+    /// </summary>
+    public string? Currency { get; init; }
+
+    /// <summary>The width in characters, 1 to 255. Default: measured from the header and the values, 6 to 50.</summary>
+    public double? Width { get; init; }
+
+    /// <summary>The alignment. Default: text left, booleans centred, numbers and dates right.</summary>
+    public XlsxAlign? Align { get; init; }
+}
+
+/// <summary>What the values of a column are.</summary>
+public enum XlsxColumnType
+{
+    /// <summary>Text, kept as written: <c>01234</c> stays <c>01234</c>.</summary>
+    Text,
+
+    /// <summary>A number with the culture's decimals and thousands separator.</summary>
+    Number,
+
+    /// <summary>A whole number with the thousands separator.</summary>
+    Integer,
+
+    /// <summary>An amount with a currency symbol (<see cref="XlsxColumn.Currency"/>).</summary>
+    Currency,
+
+    /// <summary>A share, stored as a fraction: <c>0.25</c> is shown as 25 %.</summary>
+    Percent,
+
+    /// <summary>A date in the culture's short format.</summary>
+    Date,
+
+    /// <summary>A date and time in the culture's short formats.</summary>
+    DateTime,
+
+    /// <summary>A truth value, which Excel shows as TRUE or FALSE in its own language.</summary>
+    Boolean,
+}
+
+/// <summary>The horizontal alignment of a column.</summary>
+public enum XlsxAlign
+{
+    /// <summary>At the left.</summary>
+    Left,
+
+    /// <summary>Centred.</summary>
+    Center,
+
+    /// <summary>At the right.</summary>
+    Right,
+}
+
+/// <summary>What an <see cref="XlsxCell"/> holds.</summary>
+public enum XlsxCellKind
+{
+    /// <summary>Nothing.</summary>
+    Empty,
+
+    /// <summary>Text.</summary>
+    Text,
+
+    /// <summary>A number.</summary>
+    Number,
+
+    /// <summary>A date without a time.</summary>
+    Date,
+
+    /// <summary>A date and time.</summary>
+    DateTime,
+
+    /// <summary>A truth value.</summary>
+    Boolean,
+}
+
+/// <summary>
+/// One value of a row: text, a number, a date, a date and time, a truth value, or nothing. Converts implicitly from
+/// <see cref="string"/>, <see cref="int"/>, <see cref="long"/>, <see cref="double"/>, <see cref="decimal"/>,
+/// <see cref="DateOnly"/>, <see cref="System.DateTime"/> and <see cref="bool"/>; a <see langword="null"/> or empty string is
+/// <see cref="Empty"/>.
+/// </summary>
+public sealed record XlsxCell
+{
+    private XlsxCell(XlsxCellKind kind, string? text = null, double number = 0, DateTime dateTime = default, bool boolean = false)
+    {
+        this.Kind = kind;
+        this.Text = text;
+        this.Number = number;
+        this.DateTime = dateTime;
+        this.Boolean = boolean;
+    }
+
+    /// <summary>An empty cell.</summary>
+    public static XlsxCell Empty { get; } = new(XlsxCellKind.Empty);
+
+    /// <summary>What the cell holds.</summary>
+    public XlsxCellKind Kind { get; }
+
+    /// <summary>The text of a <see cref="XlsxCellKind.Text"/> cell; else <see langword="null"/>.</summary>
+    public string? Text { get; }
+
+    /// <summary>The value of a <see cref="XlsxCellKind.Number"/> cell; else 0.</summary>
+    public double Number { get; }
+
+    /// <summary>
+    /// The value of a <see cref="XlsxCellKind.Date"/> (at midnight) or <see cref="XlsxCellKind.DateTime"/> cell, as the
+    /// reader's clock shows it (its <see cref="System.DateTime.Kind"/> is ignored); else <see langword="default"/>.
+    /// </summary>
+    public DateTime DateTime { get; }
+
+    /// <summary>The value of a <see cref="XlsxCellKind.Boolean"/> cell; else <see langword="false"/>.</summary>
+    public bool Boolean { get; }
+
+    /// <summary>A text cell; <see langword="null"/> or empty gives <see cref="Empty"/>.</summary>
+    public static XlsxCell FromText(string? text) => string.IsNullOrEmpty(text) ? Empty : new(XlsxCellKind.Text, text);
+
+    /// <summary>A number cell.</summary>
+    public static XlsxCell FromNumber(double number) => new(XlsxCellKind.Number, number: number);
+
+    /// <summary>A date cell.</summary>
+    public static XlsxCell FromDate(DateOnly date) => new(XlsxCellKind.Date, dateTime: date.ToDateTime(TimeOnly.MinValue));
+
+    /// <summary>A date-and-time cell.</summary>
+    public static XlsxCell FromDateTime(DateTime dateTime) => new(XlsxCellKind.DateTime, dateTime: DateTime.SpecifyKind(dateTime, DateTimeKind.Unspecified));
+
+    /// <summary>A truth-value cell.</summary>
+    public static XlsxCell FromBoolean(bool value) => new(XlsxCellKind.Boolean, boolean: value);
+
+    /// <summary>A text cell, or <see cref="Empty"/>.</summary>
+    public static implicit operator XlsxCell(string? text) => FromText(text);
+
+    /// <summary>A number cell.</summary>
+    public static implicit operator XlsxCell(int number) => FromNumber(number);
+
+    /// <summary>A number cell.</summary>
+    public static implicit operator XlsxCell(long number) => FromNumber(number);
+
+    /// <summary>A number cell.</summary>
+    public static implicit operator XlsxCell(double number) => FromNumber(number);
+
+    /// <summary>A number cell.</summary>
+    public static implicit operator XlsxCell(decimal number) => FromNumber((double)number);
+
+    /// <summary>A date cell.</summary>
+    public static implicit operator XlsxCell(DateOnly date) => FromDate(date);
+
+    /// <summary>A date-and-time cell.</summary>
+    public static implicit operator XlsxCell(DateTime dateTime) => FromDateTime(dateTime);
+
+    /// <summary>A truth-value cell.</summary>
+    public static implicit operator XlsxCell(bool value) => FromBoolean(value);
+
+    /// <summary>The value, written invariantly: text as it is, <c>1234.5</c>, <c>2026-03-15</c>, <c>2026-03-15T14:30:00</c>, <c>true</c>; empty for an empty cell.</summary>
+    public override string ToString() => this.Kind switch
+    {
+        XlsxCellKind.Text => this.Text!,
+        XlsxCellKind.Number => this.Number.ToString("R", CultureInfo.InvariantCulture),
+        XlsxCellKind.Date => this.DateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+        XlsxCellKind.DateTime => this.DateTime.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture),
+        XlsxCellKind.Boolean => this.Boolean ? "true" : "false",
+        _ => string.Empty,
+    };
+}

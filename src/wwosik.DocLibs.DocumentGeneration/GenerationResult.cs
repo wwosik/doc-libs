@@ -182,6 +182,24 @@ public static class NoteCodes
     /// </summary>
     public const string FontMissing = "font-missing";
 
+    /// <summary>Workbooks: a value does not fit its column's type, such as text in a number column, or a number with decimals in an integer column.</summary>
+    public const string CellType = "cell-type";
+
+    /// <summary>Workbooks: a sheet name breaks Excel's rules: empty, longer than 31 characters, with one of <c>[]:*?/\</c>, or the same as another ignoring case.</summary>
+    public const string SheetName = "sheet-name";
+
+    /// <summary>Workbooks: a column is invalid: no header, decimals outside 0–10 or on a type without them, a currency on a column that is not a currency column, an unknown currency code, or a width outside 1–255.</summary>
+    public const string ColumnInvalid = "column-invalid";
+
+    /// <summary>Workbooks: a row has more cells than its sheet has columns.</summary>
+    public const string RowTooWide = "row-too-wide";
+
+    /// <summary>Workbooks: Excel cannot hold it: more than 1,048,576 rows or 16,384 columns, more than 32,767 characters in a cell, a date before 1900, or no sheet at all.</summary>
+    public const string ExcelLimit = "excel-limit";
+
+    /// <summary>Workbooks: a character the brand's fonts lack, which Excel shows in a substitute font; once per character.</summary>
+    public const string CharacterMissing = "character-missing";
+
     /// <summary>Every code, with the formats it occurs in and what a writer changes about it, for the authoring guides.</summary>
     internal static readonly IReadOnlyList<(string Code, DocumentFormat[] Formats, string Advice)> All =
     [
@@ -217,6 +235,12 @@ public static class NoteCodes
         (ImageSource, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "an image is not among the files given to you, or is a web address or `data:` URL, which is never loaded. Use only the paths you were given."),
         (DrawingUnsupported, [DocumentFormat.Pptx], "the HTML deck could not draw something on a slide, such as a shadow or an EMF picture, and left it out. Nothing to fix in the Markdown: it comes from the template, or from a deck made elsewhere."),
         (FontMissing, [DocumentFormat.Pptx], "the HTML deck measured a font it does not have with a stand-in or an estimate, so its lines may break differently from PowerPoint's. Pass the font in `HtmlDeckOptions.Fonts`."),
+        (CellType, [DocumentFormat.Xlsx], "a value does not fit its column's type, such as text in a number column. Give the column the right type, or fix the value."),
+        (SheetName, [DocumentFormat.Xlsx], "a sheet name is empty, longer than 31 characters, holds one of `[]:*?/\\`, or repeats another ignoring case. Rename the sheet."),
+        (ColumnInvalid, [DocumentFormat.Xlsx], "a column has no header, decimals outside 0–10, a currency without the currency type, an unknown currency code or a width outside 1–255. Fix the column."),
+        (RowTooWide, [DocumentFormat.Xlsx], "a row has more cells than the sheet has columns. Add the column, or remove the extra cells."),
+        (ExcelLimit, [DocumentFormat.Xlsx], "Excel cannot hold the sheet or the value: too many rows or columns, too long a text, or a date before 1900. Split the data or shorten the text."),
+        (CharacterMissing, [DocumentFormat.Xlsx], "the brand's fonts lack a character, which Excel shows in a substitute font. Write it as a plain character, or leave it out."),
     ];
 
     /// <summary>The codes only a check returns, never <c>Generate</c>: the guides list them apart.</summary>

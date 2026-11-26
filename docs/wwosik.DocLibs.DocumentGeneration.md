@@ -274,6 +274,9 @@ if (result.HasNotes)
 - **`GenerationResult(Notes)`**: `Pages` (slides for decks, pages for PDFs, 0 for Word documents,
   whose pages Word lays out itself), `SlideLines` (for a deck, the Markdown line each slide starts
   at, counted like a note's `Line`; `null` for PDFs and Word documents), `HasNotes`, and
+
+- **`GenerationResult(Notes)`**: `Pages` (slides for decks, pages for PDFs, sheets for workbooks, 0 for Word documents,
+  whose pages Word lays out itself), `HasNotes`, and
   `ToString()`, one `- line N: …` per note or `No notes.`.
 - **`GenerationNote(Code, Line, Message)`**: `Code` is one of `NoteCodes`, stable, for filtering;
   `Line` is the Markdown line it concerns, from 1, front matter included, 0 if unknown; `Message`
@@ -317,6 +320,12 @@ if (result.HasNotes)
 | `image-source` | PPTX, PDF, DOCX | Check only: an image is not among the document's resources, or is an `http:`, `https:` or `data:` URL, which the generators never load. `Generate` throws for the first one instead |
 | `drawing-unsupported` | HTML deck | `HtmlDeck.Write` left something of a slide out: an effect, a preset shape it does not know (drawn as a rectangle), a chart kind, an EMF picture and the like; one note per kind with the slide numbers, without a line |
 | `font-missing` | HTML deck | `HtmlDeck.Write` measured a font with a stand-in of other widths (Consolas with Liberation Mono), by estimate (a family with neither a face nor a stand-in), or a missing bold or italic face with the regular one; one note per family, without a line |
+| `cell-type` | XLSX | A workbook value does not fit its column's type, such as text in a number column; see [the workbook generator](wwosik.DocLibs.DocumentGeneration.Xlsx.md#check) |
+| `sheet-name` | XLSX | A sheet name breaks Excel's rules: empty, longer than 31 characters, with one of `[]:*?/\`, or the same as another ignoring case |
+| `column-invalid` | XLSX | A sheet has no columns, or a column has no header, invalid decimals, a misplaced or unknown currency, or a width outside 1–255 |
+| `row-too-wide` | XLSX | A row has more cells than its sheet has columns |
+| `excel-limit` | XLSX | Excel cannot hold it: too many rows or columns, a text over 32,767 characters, a date before 1900, or no sheet at all |
+| `character-missing` | XLSX | A character the brand's fonts lack, which Excel shows in a substitute font; once per character, without a line |
 
 ## Checking a document
 
@@ -385,7 +394,8 @@ authoring guide (section *Limits*) and an AI tool see the same ones. `null` swit
 `CheckStatistics`: `Pages` (slides of a deck, pages of a PDF, 0 for Word documents and after an
 error), `Words` (all text: tables, headings and footnotes included, speaker notes not), `Images`
 (each image of a row, not `qr:` codes), `Tables`, `Diagrams` (code blocks a renderer drew, and the
-drawn containers such as `::: timeline`), and for decks:
+drawn containers such as `::: timeline`), `Sheets` (workbooks only: the sheets, the info sheet
+included; also first in `ToString()`), and for decks:
 
 - **`SlidesByKind`**, over the written slides, split parts included, in the order of
   `CheckStatistics.SlideKinds`, kinds without a slide left out: `cover`, `section`, `text` (a text

@@ -77,6 +77,18 @@ updating, breaking changes first.
   `PdfTone.Light` whatever the brand, so existing PDFs are unchanged byte for byte. A dark PDF
   prints dark; generate with `Tone = Light` for paper.
 
+- **`wwosik.DocLibs.DocumentGeneration.Xlsx`**, a new package: `XlsxGenerator.Generate` writes an
+  `XlsxWorkbook` (sheets of typed columns: text, number, integer, currency with an ISO 4217 code,
+  percent, date, date-time, boolean) as an `.xlsx` in the brand's look, with an info sheet, a
+  frozen and filtered header, banding that survives sorting, number formats from the culture, and
+  print setup; `XlsxGenerator.Check` reports every problem at once, each with its sheet and cell;
+  `XlsxGenerator.Preview` shows the workbook as plain HTML. The same workbook and clock give the
+  same bytes. See its [page](docs/wwosik.DocLibs.DocumentGeneration.Xlsx.md).
+- **Shared types grow for workbooks:** `GeneratedTexts.Info`, `Author`, `Date`, `Language` and
+  `PageOfFormat` (English and German); `CheckStatistics.Sheets`; note codes `cell-type`,
+  `sheet-name`, `column-invalid`, `row-too-wide`, `excel-limit` and `character-missing`, used only
+  by workbooks. Decks, PDFs and Word documents do not change, nor do their guides.
+
 ## 2611.15.12
 
 ### Fixed

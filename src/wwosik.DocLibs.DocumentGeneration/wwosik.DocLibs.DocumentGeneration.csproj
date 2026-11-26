@@ -31,6 +31,8 @@
     <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Diagrams.Tests" />
     <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Charts" />
     <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Charts.Tests" />
+    <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Xlsx" />
+    <InternalsVisibleTo Include="wwosik.DocLibs.DocumentGeneration.Xlsx.Tests" />
     <InternalsVisibleTo Include="wwosik.DocLibs.DocumentConversions.Svg.Tests" />
   </ItemGroup>
 

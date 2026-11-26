@@ -115,6 +115,9 @@ public sealed record CheckStatistics
     /// <summary>The slides a deck would have, or the pages of a PDF; 0 for a Word document, and when the check found an error.</summary>
     public int Pages { get; init; }
 
+    /// <summary>Workbooks: the sheets, the info sheet included; 0 for other formats.</summary>
+    public int Sheets { get; init; }
+
     /// <summary>
     /// The words of all text, tables, headings and footnotes included, speaker notes, code and alt text not: runs of letters
     /// and digits (with <c>'</c> or <c>-</c> inside), a code span one word, and in Chinese, Japanese and Thai each two
@@ -150,6 +153,11 @@ public sealed record CheckStatistics
     public override string ToString()
     {
         var parts = new List<string>();
+        if (this.Sheets > 0)
+        {
+            parts.Add(Invariant($"{this.Sheets} sheets"));
+        }
+
         if (this.Pages > 0)
         {
             parts.Add(Invariant($"{this.Pages} {(this.SlidesByKind.Count > 0 ? "slides" : "pages")}"));
@@ -175,7 +183,7 @@ public sealed record CheckStatistics
 
     /// <inheritdoc/>
     public bool Equals(CheckStatistics? other) =>
-        other is not null && this.Pages == other.Pages && this.Words == other.Words && this.Images == other.Images && this.Tables == other.Tables
+        other is not null && this.Pages == other.Pages && this.Sheets == other.Sheets && this.Words == other.Words && this.Images == other.Images && this.Tables == other.Tables
         && this.Diagrams == other.Diagrams && this.TalkTime == other.TalkTime && this.SlidesByKind.SequenceEqual(other.SlidesByKind);
 
     /// <inheritdoc/>

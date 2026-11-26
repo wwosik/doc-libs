@@ -1,7 +1,7 @@
 # E10-S01 Workbook package: model, look, values, print, check and preview
 
-> Status: in progress (port-1)
-> Epic: [E10 Workbook generator](../../50-todo/E10-workbook-generator.md)
+> Status: in verification
+> Epic: [E10 Workbook generator](../50-todo/E10-workbook-generator.md)
 
 ## Summary
 
@@ -141,3 +141,51 @@ plain HTML.
 ## Notes
 
 <!-- Free space for remarks that are not answers to the questions above. -->
+
+## Implementation notes
+
+- **Package:** `src/wwosik.DocLibs.DocumentGeneration.Xlsx/` with `…Xlsx.Tests`, in the solution, packed with its
+  `docs/` page; `IsAotCompatible` (builds without trim/AOT warnings). Only dependency besides the shared package:
+  the Open XML SDK (MIT, as in Docx), so no THIRD-PARTY notice file.
+- **Writing:** the SDK only builds the package; every part is XML text fed into parts added with explicit
+  relationship ids. The SDK's zip writes the current time on every entry, so the package is copied entry by
+  entry with one fixed time (2000-01-01): with the same workbook, options and clock the bytes are identical (a
+  test generates twice, 2 s apart). The logo is one image part shared by the info sheet and every header.
+- **Model choices** where the story left them open: `XlsxMarking(Classification, Draft)` is the type of
+  `XlsxWorkbook.Marking` and `XlsxOptions.Marking`; the workbook's can raise the host's, not lower it
+  (`classification-kept`), like front matter. `XlsxWorkbook.Brand` is a name looked up among `neutral`,
+  `XlsxOptions.Brand` and `XlsxOptions.Brands`; an unknown name throws (Check: `Error`). The default language
+  is `en`; a neutral language becomes its main country's culture. A sheet's `Description` is the "subtitle"
+  above its table; a sheet with neither title nor description starts with the header in row 1 and shows no
+  date. `XlsxOptions.PageSize` (`A4`, `A3`, `Letter`) is new, as the story's print section asks.
+- **Strictness:** a value of another kind than its column is `cell-type` (no silent conversion); `Date`
+  accepts a `DateTime` at midnight and `DateTime` a `Date`. Decimals are allowed only on Number, Currency,
+  Percent. Empty `XlsxSheet.Columns` and an empty workbook without info sheet are problems
+  (`column-invalid`, `excel-limit`).
+- **Problems vs notes:** the five new error codes come only as problems (Generate throws the first ten,
+  Check returns all, capped at 500, with `Error` set to Generate's message); `character-missing`,
+  `language-unknown`, `classification-kept` are notes. Notes have line 0; messages name sheet, row (from
+  the first data row), column and cell. The new codes are listed in `NoteCodes.All` with the format `Xlsx`
+  only, so no existing authoring guide changes. `character-missing` did not exist yet in the other
+  generators; it is used by workbooks only.
+- **Info sheet:** named `GeneratedTexts.Info`; if a data sheet already has that name, "Info 2" etc. The
+  German "Info" equals the English, so the shared test that German differs in every text now excepts it.
+  `GeneratedTexts.Contents` (existing) heads the contents list.
+- **Widths** are measured with `TrueTypeMetrics` in the brand's table face when the brand has fonts, else with
+  `TextMetrics`' estimate, over the first 10,000 rows (cost on huge sheets).
+- **Formats:** the culture's patterns for currency (all 16 negative patterns), percent and dates are mapped
+  to Excel codes with literals escaped. Separators cannot be fixed in an Excel format: Excel shows `,`/`.` in
+  the reader's settings; documented as a known limit. A foreign currency's symbol comes from a culture of its
+  country (the workbook's language first, then English, then by name), e.g. USD in `de-DE` gives
+  `#,##0.00\ "$"`. Booleans are Excel booleans (TRUE/FALSE in the reader's language).
+- **Shared changes, all additive:** `GeneratedTexts.Info/Author/Date/Language/PageOfFormat`,
+  `CheckStatistics.Sheets` (in equality and first in `ToString` when > 0), six `NoteCodes`,
+  `CoreProperties.Describe` (subject, description), `InternalsVisibleTo` for the Xlsx projects.
+  `GenerationResult.Pages` of a workbook is its sheet count, info sheet included; `CheckStatistics.Pages` is 0.
+- **Preview:** a truncated table ends in a `<tfoot>` "… +N" row (language-neutral); newlines become `<br>`.
+- **Breaking changes:** none. Decks, PDFs, Word documents and the authoring guides are unchanged.
+- **To verify in Excel** (not possible here): opening without repair, sorting/filtering keeping banding and
+  header, no warning triangle on `01234`, the header picture and the printed header/footer, and how the
+  description row's estimated height looks. Generated samples for review: `.tmp/review/every-type*.xlsx`
+  after running the tests.
+

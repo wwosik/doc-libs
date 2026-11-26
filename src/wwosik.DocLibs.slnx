@@ -15,6 +15,8 @@
   <Project Path="wwosik.DocLibs.DocumentGeneration.Pdf/wwosik.DocLibs.DocumentGeneration.Pdf.csproj" />
   <Project Path="wwosik.DocLibs.DocumentGeneration.Pptx.Tests/wwosik.DocLibs.DocumentGeneration.Pptx.Tests.csproj" />
   <Project Path="wwosik.DocLibs.DocumentGeneration.Pptx/wwosik.DocLibs.DocumentGeneration.Pptx.csproj" />
+  <Project Path="wwosik.DocLibs.DocumentGeneration.Xlsx.Tests/wwosik.DocLibs.DocumentGeneration.Xlsx.Tests.csproj" />
+  <Project Path="wwosik.DocLibs.DocumentGeneration.Xlsx/wwosik.DocLibs.DocumentGeneration.Xlsx.csproj" />
   <Project Path="wwosik.DocLibs.DocumentGeneration.Tests/wwosik.DocLibs.DocumentGeneration.Tests.csproj" />
   <Project Path="wwosik.DocLibs.DocumentGeneration/wwosik.DocLibs.DocumentGeneration.csproj" />
 </Solution>

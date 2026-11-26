@@ -12,7 +12,7 @@ same change that made it untrue — a stale fact here is worse than a missing on
 - Scaffolded on 2026-10-21 from the `projekt-init` catalog (`core`, `spec-workflow`,
   `dotnet-solution` adapted to a library layout, `tools-dotnet`; CI written for GitHub Actions).
   The code, samples and docs here are neutral, and must stay so.
-- `src/wwosik.DocLibs.slnx` holds nine packages, each with a `.Tests` sibling:
+- `src/wwosik.DocLibs.slnx` holds ten packages, each with a `.Tests` sibling:
   - `wwosik.DocLibs.DocumentConversions` — cross-platform: PDF, DOCX, PPTX to Markdown, JIRA
     wiki markup; PdfPig only.
   - `wwosik.DocLibs.DocumentConversions.WindowsOnly` — Office automation for `.doc`, `.rtf`,
@@ -37,6 +37,8 @@ same change that made it untrue — a stale fact here is worse than a missing on
     and any `.pptx` → one HTML page (`HtmlDeck`, E07-S02).
   - `wwosik.DocLibs.DocumentGeneration.Docx` — Markdown → `.docx` (E09); Markdig and the Open XML
     SDK, like Pptx, sharing Open XML code with it as linked source (`src/Shared/OpenXml/`).
+  - `wwosik.DocLibs.DocumentGeneration.Xlsx` — typed workbook model → `.xlsx` (E10); the Open XML SDK only
+    for the package, the parts written as XML text; links `src/Shared/OpenXml/CoreProperties.cs`.
   - `wwosik.DocLibs.DocumentGeneration.Pdf` — Markdown → PDF/A-2b; Markdig and PdfPig, own
     layout engine, the Liberation fonts from the shared package; SkiaSharp only for `.grey` images (E04-S05).
 - Public on GitHub as `wwosik/doc-libs`, MIT, published to nuget.org by tag (see
@@ -558,6 +560,14 @@ same change that made it untrue — a stale fact here is worse than a missing on
   a graphic frame, an element in the shape tree) extends the reader in the same change and adds a sample.
   The scene's path segments are `PathMove`/`PathLine`/`PathCubic`/`PathClose`, not the shared `Drawing`'s
   `MoveTo`/`LineTo`, which tests see first.
+
+- **Workbooks (E10-S01):** `XlsxPlan.Of` resolves brand, language, culture, marking, row positions, formats
+  and widths, and collects every problem (capped at 500); `Generate` throws its first ten, `Check` returns them
+  all, `Preview` ignores them. `XlsxWriter` feeds XML text into SDK parts added with **explicit relationship
+  ids**, then copies the zip entry by entry with one fixed time (`Normalize`): that is what makes the bytes
+  deterministic — any new part must get an explicit id. The logo is one image part shared by the info sheet's
+  drawing and every sheet's header VML. Number formats come from `XlsxFormat.For` (culture patterns mapped to
+  Excel codes, literals escaped); separators stay Excel's `,`/`.`, which Excel localises itself.
 
 ## Traps
 
