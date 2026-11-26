@@ -107,7 +107,7 @@ public class TemplateTests
         Assert.NotEmpty(package.MainDocumentPart!.FontTablePart!.FontParts);
         Samples.AssertValid(docx);
         var error = Assert.Throws<DocumentConversionException>(() => Samples.Generate(Samples.Markdown("---\nshowDate: false\n---\n## A\n"), options));
-        Assert.Contains("Valid keys: template, title, author, lang, classification, draft, audience, typography, highlight, embedFonts, toc, tocDepth, headingNumbers", error.Message, StringComparison.Ordinal);
+        Assert.Contains("Valid keys: template, title, author, lang, classification, draft, audience, typography, highlight, coverImage, coverImageSize, coverImagePosition, embedFonts, toc, tocDepth, headingNumbers", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -128,7 +128,7 @@ public class TemplateTests
             Samples.Markdown("---\nshowDate: false\n---\n## A\n"),
             new DocxOptions { Template = CustomTemplate.Options }));
 
-        Assert.Contains("Valid keys: template, title, author, lang, classification, draft, audience, typography, highlight, showDate, showTagline, embedFonts, toc, tocDepth, headingNumbers, justify, transition, build, numberChapters.", builtIn.Message, StringComparison.Ordinal);
+        Assert.Contains("Valid keys: template, title, author, lang, classification, draft, audience, typography, highlight, coverImage, coverImageSize, coverImagePosition, showDate, showTagline, embedFonts, toc, tocDepth, headingNumbers, justify, transition, build, numberChapters.", builtIn.Message, StringComparison.Ordinal);
         Assert.Contains("styles.normal, styles.title, styles.subtitle, styles.coverDetails, styles.tocHeading, styles.heading1", custom.Message, StringComparison.Ordinal);
         Assert.Contains("styles.hyperlink, styles.note, styles.tip", custom.Message, StringComparison.Ordinal);
         Assert.Contains("styles.classificationCover, toc, tocDepth, headingNumbers, justify", custom.Message, StringComparison.Ordinal);

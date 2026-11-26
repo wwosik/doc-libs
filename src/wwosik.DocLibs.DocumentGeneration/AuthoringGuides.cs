@@ -83,6 +83,7 @@ internal static partial class AuthoringGuides
         text.Append(CultureInvariant(
             $"| `highlight` | `true` colours fenced code in these languages: {CodeLanguages.List()}. Default `{(highlight ? "true" : "false")}`. |\n"));
         text.Append(CultureInvariant($"| `template` | The design: {templates.Replace("'", "`", StringComparison.Ordinal)}. |\n"));
+        text.Append($"| `{CoverImage.Key}`, `{CoverImage.SizeKey}`, `{CoverImage.PositionKey}` | An image on the cover, one of your image paths; `small`, `medium` or `large`; `below` or `right` of the title. |\n");
         foreach (var (key, meaning) in keys)
         {
             text.Append(CultureInvariant($"| `{key}` | {meaning} |\n"));

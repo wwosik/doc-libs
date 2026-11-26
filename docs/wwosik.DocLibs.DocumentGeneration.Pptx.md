@@ -758,6 +758,7 @@ author: Team Docs
 | `lang` | a language tag such as `en`, `de`, `de-CH`; default `PptxOptions.Language` (`en`), with `PptxOptions.Texts` for further languages | all — see [Document language](wwosik.DocLibs.DocumentGeneration.md#document-language) |
 | `typography` | `true`, `false`; default `PptxOptions.Typography` (`false`), with `PptxOptions.TypographyRules` for further languages | all — typographic quotes, dashes, `…` and no-break spaces in the document language, see [Typography](wwosik.DocLibs.DocumentGeneration.md#typography) |
 | `highlight` | `true`, `false`; default `PptxOptions.HighlightCode` (`false`) | all — colours fenced code blocks that name their language, on plain and flow slides, light and dark, see [Code highlighting](wwosik.DocLibs.DocumentGeneration.md#code-highlighting) |
+| `coverImage`, `coverImageSize`, `coverImagePosition` | a resource path; `small`, `medium`, `large`; `below`, `right` | all — an image on the title slide, in a `picture` placeholder the title layout's roles declare, see [Cover image](wwosik.DocLibs.DocumentGeneration.md#cover-image) |
 
 - `template` naming the template the caller chose keeps the caller's values; naming another one
   starts from that template's defaults. The other keys then apply, whatever their order.

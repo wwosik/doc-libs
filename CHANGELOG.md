@@ -53,6 +53,21 @@ updating, breaking changes first.
   Word uses a second numbering in letters on the headings' multilevel list. Decks ignore it with the
   note `attribute-ignored`.
 
+- **Cover image keys in messages and guides.** The lists of valid front-matter keys name
+  `coverImage`, `coverImageSize` and `coverImagePosition` after `highlight`; code that matches the
+  messages' text adjusts. The guides' front-matter tables have a row for them, the PDF and Word
+  guides the note `cover-image-ignored`, and three sentences of the deck guide are shorter to stay
+  under its word limit.
+
+- **Cover image.** Front matter `coverImage: mark.png` puts an image from the document's resources
+  (PNG, JPEG, or SVG through the image converters) on the cover of decks, HTML decks, PDFs and Word
+  documents; `coverImageSize` (`small`, `medium`, `large`: a tenth, a sixth or a quarter of the
+  cover's height) and `coverImagePosition` (`below` the subtitle, or `right` of the title) place
+  it. It never covers the logo, artwork or tagline, and is made smaller instead. `Brand.CoverImage`
+  (`images.coverImage` in `brand.json`) is the default the front matter overrides. On a
+  PowerPoint template whose roles declare a `picture` placeholder on the title layout, it goes
+  there. A missing resource throws `DocumentConversionException` naming the key; a document
+  without a cover gets the new note `cover-image-ignored` (`NoteCodes.CoverImageIgnored`).
 - **Contact sheet in the tool reply.** `DocumentToolOptions.Preview` takes an `IDeckPreview`; with
   `new DeckContactSheet()` from `wwosik.DocLibs.DocumentConversions.Svg`, every deck `DocumentTool`
   writes comes with a PNG of its slides, four to a row and numbered, in `DocumentToolRun.ContactSheet`,

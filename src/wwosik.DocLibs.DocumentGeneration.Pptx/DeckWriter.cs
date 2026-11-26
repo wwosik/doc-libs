@@ -258,7 +258,7 @@ internal sealed partial class DeckWriter
 
             var canvas = slide switch
             {
-                TitleSlide title => this.WriteTitleSlide(title),
+                TitleSlide title => this.WithCoverImage(this.WriteTitleSlide(title), title),
                 ContentSlide content => this.WriteContentSlide(content, step),
                 VisualSlide visual => this.WriteVisualSlide(visual, step),
                 FlowSlide flow => this.WriteFlowSlide(flow, step),
@@ -296,6 +296,7 @@ internal sealed partial class DeckWriter
         }
 
         this.footnotes = [];
+        this.CoverImageLeftOver();
 
         // The notes master only for a deck with speaker notes, after the slides: a deck without them keeps its parts and ids.
         if (speakerNotes.Count > 0)

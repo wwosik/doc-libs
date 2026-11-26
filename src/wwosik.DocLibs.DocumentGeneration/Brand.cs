@@ -40,6 +40,13 @@ public sealed record Brand
     /// <summary>A slogan as an image, bottom right on the cover.</summary>
     public BrandImage? Tagline { get; init; }
 
+    /// <summary>
+    /// An image on the cover of decks, PDFs and Word documents, such as a product mark: under the subtitle, a sixth of
+    /// the cover's height, unless the front matter's <c>coverImageSize</c> and <c>coverImagePosition</c> say otherwise.
+    /// Front matter <c>coverImage</c> replaces it with a resource of the document.
+    /// </summary>
+    public BrandImage? CoverImage { get; init; }
+
     /// <summary>A <c>.pptx</c> or <c>.potx</c> to build decks on instead of the built-in master. PDFs ignore it.</summary>
     public PptxBrandTemplate? Pptx { get; init; }
 

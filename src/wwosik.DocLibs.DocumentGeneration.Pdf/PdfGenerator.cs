@@ -119,6 +119,7 @@ public static class PdfGenerator
 
         var design = new Design(brand, options.Template.ShowsTagline, date, title)
         {
+            CoverImage = CoverImageOf(frontMatter, document, brand, options, model, notes),
             Texts = language.Texts,
             Justify = options.Justify,
             Plain = options.Layout == PdfLayout.Plain,
@@ -132,6 +133,25 @@ public static class PdfGenerator
         }
         var layout = new LayoutEngine(fonts, PageGeometry.For(options.PageSize, options.Orientation), design, options.ReplaceUnsupported, notes).Run(model);
         return new LaidOut(layout, fonts, author, language.Tag);
+    }
+
+    // The cover image, as PNG or JPEG; none, with a note, for a document without a cover.
+    private static PdfCoverImage? CoverImageOf(FrontMatter frontMatter, MarkdownDocument document, ResolvedBrand brand, PdfOptions options, DocumentModel model, GenerationNotes notes)
+    {
+        if (CoverImage.Resolve(frontMatter, document, brand, DocumentFormat.Pdf) is not { } image)
+        {
+            return null;
+        }
+
+        if (model.Cover is null || options.Layout == PdfLayout.Plain)
+        {
+            image.Ignored(notes, options.Layout == PdfLayout.Plain ? "a plain document has no cover" : "the document has no cover, as it does not start with a '#' heading");
+            return null;
+        }
+
+        var height = PageGeometry.For(options.PageSize, options.Orientation).Height * image.HeightShare / 0.75;
+        var (placeable, info, width, naturalHeight, _) = image.Placeable(options.ImageConverters, height, DocumentFormat.Pdf, ImageFormat.Png, ImageFormat.Jpeg);
+        return new PdfCoverImage(image, placeable.Content, info.Format, width / Math.Max(1, naturalHeight));
     }
 
     /// <summary>

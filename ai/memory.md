@@ -560,6 +560,13 @@ same change that made it untrue — a stale fact here is worse than a missing on
   a graphic frame, an element in the shape tree) extends the reader in the same change and adds a sample.
   The scene's path segments are `PathMove`/`PathLine`/`PathCubic`/`PathClose`, not the shared `Drawing`'s
   `MoveTo`/`LineTo`, which tests see first.
+- **Cover image (E01-S08):** `CoverImage` (shared) resolves `coverImage` / `coverImageSize` /
+  `coverImagePosition` (front matter, else `ResolvedBrand.CoverImage`), converts SVGs and places the
+  image with `CoverImage.Place` (made smaller, never moved, clear of obstacles). Each generator keeps
+  its part in a file of its own: `LayoutEngine.CoverImage.cs` (two calls in `Cover`),
+  `DeckWriter.CoverImage.cs` (`WithCoverImage` wraps `WriteTitleSlide`, `CoverImageLeftOver` after
+  the loop), `DocxCoverImage.cs` (called from `DocxWriter.Cover`). Only an image the front matter
+  names gets `cover-image-ignored`.
 
 - **Workbooks (E10-S01):** `XlsxPlan.Of` resolves brand, language, culture, marking, row positions, formats
   and widths, and collects every problem (capped at 500); `Generate` throws its first ten, `Check` returns them
@@ -674,3 +681,6 @@ same change that made it untrue — a stale fact here is worse than a missing on
 - **The managed SkiaSharp version must match its native assets** (`libSkiaSharp` refuses another
   major): pin `SkiaSharp` to the same version as `SkiaSharp.NativeAssets.Linux`, above what Svg.Skia
   asks for.
+- **The deck guide is at its 3500-word limit** (`Guide_StaysUnder3500Words`, the custom template's
+  guide the longest): a new shared front-matter row or note there needs words cut elsewhere, or the
+  note left out of the deck's notes list (`AuthoringGuides.Notes` exclusions in `PptxGenerator`).

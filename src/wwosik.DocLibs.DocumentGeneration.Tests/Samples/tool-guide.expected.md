@@ -21,9 +21,8 @@ The tool replies with JSON, in one of these shapes:
 
 ### Writing Markdown for a deck
 
-The deck is generated from Markdown: headings become slides, and the design (colours, fonts,
-logo, footer) is applied for you. Write content, not formatting. A slide is read in seconds:
-a title that states the point, then a few short lines.
+Headings become slides; the design (colours, fonts, logo, footer) is applied for you. Write
+content, not formatting: a title that states the point, then a few short lines.
 
 ### Structure
 
@@ -33,7 +32,7 @@ a title that states the point, then a few short lines.
 | Every later `#` heading | A section divider, with the text below it as subtitle. |
 | `##` heading | One slide with that title. |
 | `###` heading inside a slide | A bold line (in `::: cards`: a card's title). |
-| Text before the first heading, `---`, HTML comments | Nothing: they are dropped. |
+| Text before the first heading, `---`, HTML comments | Dropped. |
 
 - **Keep slides short:** at most about six bullets of one line each, or one table, image or
   diagram with a sentence. What does not fit is set smaller, then continues on a further slide with
@@ -321,6 +320,7 @@ author: Planning team
 | `typography` | `true` sets typographic quotes, dashes, `…` and no-break spaces (`10 km`) for the language; type straight quotes. Default `false`. |
 | `highlight` | `true` colours fenced code in these languages: `csharp`, `vb`, `fsharp`, `cpp`, `java`, `javascript`, `typescript`, `php`, `python`, `powershell`, `sql`, `html`, `xml`, `css`, `markdown`, `haskell`, `json`, `yaml`, `bash`. Default `false`. |
 | `template` | The design: `neutral`. |
+| `coverImage`, `coverImageSize`, `coverImagePosition` | An image on the cover, one of your image paths; `small`, `medium` or `large`; `below` or `right` of the title. |
 | `showDate` | `true` or `false`: today's date in the footer. Default `true`. |
 | `showTagline` | `true` or `false`: the design's tagline on the cover, if it has one. Default `true`. |
 | `embedFonts` | `true` or `false`. Leave it out: by default the deck carries its fonts. |
@@ -349,7 +349,6 @@ Generation stops with a message that says what to fix: an unknown container (`::
 attribute (`{.wide}`), alert (`[!INFO]`), transition or marker (`{.note}`), a misplaced marker or
 `::: notes`, a `cards` or `rows` item without a bold start, a kind of slide with content it does
 not take, an image that is not among the files, an unknown front matter key, or a broken diagram.
-Fix the Markdown and generate again.
 
 ### Notes you may get back
 
@@ -654,6 +653,7 @@ author: Planning team
 | `typography` | `true` sets typographic quotes, dashes, `…` and no-break spaces (`10 km`) for the language; type straight quotes. Default `false`. |
 | `highlight` | `true` colours fenced code in these languages: `csharp`, `vb`, `fsharp`, `cpp`, `java`, `javascript`, `typescript`, `php`, `python`, `powershell`, `sql`, `html`, `xml`, `css`, `markdown`, `haskell`, `json`, `yaml`, `bash`. Default `false`. |
 | `template` | The design: `neutral`. |
+| `coverImage`, `coverImageSize`, `coverImagePosition` | An image on the cover, one of your image paths; `small`, `medium` or `large`; `below` or `right` of the title. |
 | `showDate` | `true` or `false`: today's date in the footer. Default `true`. |
 | `showTagline` | `true` or `false`: the design's tagline on the cover, if it has one. Default `true`. |
 | `tone` | `light` or `dark`: `dark` paints every page in the design's dark background with light text, diagrams and charts; it prints dark too. Default `light`. |
@@ -716,6 +716,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `typography-skipped`: with `typography: true`, a character the fonts lack was kept as typed. Nothing to fix.
 - `code-language-unknown`: with `highlight: true`, a code block's language is unknown. Check the spelling, or write `text`.
 - `audience-omitted`: this version left out parts marked for other versions (*Versions*). Nothing to fix.
+- `cover-image-ignored`: there is no cover (no leading `#`) or no room on it for `coverImage`. Start with a `#` heading, or leave it out.
 
 A check before generating writes nothing and returns these notes too, and also:
 

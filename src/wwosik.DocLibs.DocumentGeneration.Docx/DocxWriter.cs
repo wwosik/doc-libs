@@ -45,6 +45,9 @@ internal sealed record DocxContext(
     /// <summary>The blocks a <c>::: pagebreak</c> comes right before.</summary>
     public IReadOnlySet<Markdig.Syntax.Block> PageBreaks { get; init; } = new HashSet<Markdig.Syntax.Block>();
 
+    /// <summary>The image on the cover (<c>coverImage</c>); <see langword="null"/>: none.</summary>
+    public CoverImage? CoverImage { get; init; }
+
     /// <summary>The colours of the built-in styles, for the one direct formatting: the shading of highlighted table rows.</summary>
     public StyleDesign? Design { get; init; }
 
@@ -92,7 +95,7 @@ internal static class DocxWriter
         var blocks = new List<List<OpenXmlElement>>();
         if (content.Cover is { } cover)
         {
-            blocks.Add(Cover(cover, author, date, context));
+            blocks.Add(Cover(cover, author, date, context, elements));
         }
         else if (section?.GetFirstChild<TitlePage>() is { } titlePage)
         {
@@ -167,7 +170,7 @@ internal static class DocxWriter
 
     // The marking, if any, the title, each subtitle paragraph, then the author and the date. Under a marking the title
     // starts right away: the marking's style has taken the space above the title, so the title stays where it was.
-    private static List<OpenXmlElement> Cover(DocxCover cover, string? author, string? date, DocxContext context)
+    private static List<OpenXmlElement> Cover(DocxCover cover, string? author, string? date, DocxContext context, IReadOnlyList<OpenXmlElement> body)
     {
         var styles = context.Styles;
         var elements = new List<OpenXmlElement>();
@@ -184,6 +187,22 @@ internal static class DocxWriter
 
         elements.Add(title);
         elements.AddRange(cover.Subtitle.Select(s => Paragraph(styles.Id(DocxRoles.Subtitle), Typeset(s))));
+        if (context.CoverImage is { } image)
+        {
+            // Right of the title: anchored in the title's paragraph; else in a paragraph of its own under the subtitle.
+            var picture = DocxCoverImage.Picture(image, context, body);
+            if (image.Position == CoverImagePosition.Right)
+            {
+                title.InsertAfter(picture, title.ParagraphProperties);
+            }
+            else
+            {
+                var paragraph = Paragraph(styles.Id(DocxRoles.Subtitle));
+                paragraph.Append(picture);
+                elements.Add(paragraph);
+            }
+        }
+
         var details = new[] { author, date }.Where(d => !string.IsNullOrWhiteSpace(d)).Select(d => new TextPiece(d!)).ToList();
         if (details.Count > 0)
         {

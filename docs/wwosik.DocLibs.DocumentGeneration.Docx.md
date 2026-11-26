@@ -113,6 +113,7 @@ The shared syntax and rules are in
 | `lang` | a language tag such as `en`, `de`, `de-CH` | all |
 | `typography` | `true`, `false` | all — see [Typography](wwosik.DocLibs.DocumentGeneration.md#typography) |
 | `highlight` | `true`, `false` | all — see [Code highlighting](wwosik.DocLibs.DocumentGeneration.md#code-highlighting) |
+| `coverImage`, `coverImageSize`, `coverImagePosition` | a resource path; `small`, `medium`, `large`; `below`, `right` | all — an image on the cover, see [Cover image](wwosik.DocLibs.DocumentGeneration.md#cover-image) |
 | `classification` | `public`, `internal`, `confidential` | all; see [Classification](#classification) |
 | `draft` | `true`, `false` | all |
 | `toc` | `true`, `false` | all |

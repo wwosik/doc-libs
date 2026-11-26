@@ -129,6 +129,7 @@ internal sealed record BrandManifest(
             LogoOnDark = Image("images.logoOnDark", this.Images?.LogoOnDark),
             CoverArtwork = Image("images.coverArtwork", this.Images?.CoverArtwork),
             Tagline = Image("images.tagline", this.Images?.Tagline),
+            CoverImage = Image("images.coverImage", this.Images?.CoverImage),
             Fonts = this.Fonts is not { } fonts ? null : new BrandFonts
             {
                 Regular = RequiredFont("fonts.regular", fonts.Regular),
@@ -408,7 +409,7 @@ internal sealed record BrandManifest(
 
     internal sealed record TableSection(string? Header, string? Band, string? Line);
 
-    internal sealed record ImagesSection(string? Logo, string? LogoOnDark, string? CoverArtwork, string? Tagline);
+    internal sealed record ImagesSection(string? Logo, string? LogoOnDark, string? CoverArtwork, string? Tagline, string? CoverImage = null);
 
     internal sealed record FontsSection(
         string? Regular,

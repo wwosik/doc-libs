@@ -46,6 +46,9 @@ internal sealed partial record ResolvedBrand(
 
     public static ResolvedBrand Neutral => Resolve(Brand.Neutral);
 
+    /// <summary>The brand's cover image (<see cref="Brand.CoverImage"/>), a PNG or JPEG, if it has one.</summary>
+    public byte[]? CoverImage { get; init; }
+
     /// <summary>The brand's own Word template, if it has one.</summary>
     public DocxBrandTemplate? Docx { get; init; }
 
@@ -186,6 +189,7 @@ internal sealed partial record ResolvedBrand(
             resolvedLabels,
             chart)
         {
+            CoverImage = Image(brand, nameof(Brand.CoverImage), brand.CoverImage),
             Docx = brand.Docx is { Content.IsEmpty: true } ? throw Invalid(brand, nameof(Brand.Docx), "is empty")
                 : brand.Docx is { Styles: null } ? throw Invalid(brand, "Docx.Styles", "is missing")
                 : brand.Docx,

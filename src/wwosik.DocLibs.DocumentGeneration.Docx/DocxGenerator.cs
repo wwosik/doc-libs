@@ -108,6 +108,12 @@ public static class DocxGenerator
             ?? Typeset(typography, content.Cover?.Title, content.Cover is null ? 0 : LineOf(content.Source.OfType<Markdig.Syntax.HeadingBlock>().First()));
         var author = Typeset(typography, frontMatter.Author, frontMatter.LineOf(FrontMatter.AuthorKey)) ?? document.Metadata.GetValueOrDefault(MetadataKeys.Author);
         var codeFont = options.CodeFont ?? brand?.CodeFontFamily ?? DocxOptions.DefaultCodeFont;
+        var coverImage = CoverImage.Resolve(frontMatter, document, brand, Format.Docx);
+        if (coverImage is not null && content.Cover is null)
+        {
+            coverImage.Ignored(notes, "the document has no cover, as it does not start with a '#' heading");
+            coverImage = null;
+        }
 
         using var buffer = new MemoryStream();
         template.Write(buffer, date, options.HeadingNumbers, codeFont);
@@ -144,6 +150,7 @@ public static class DocxGenerator
                     Marking = marking,
                     Typography = typography,
                     Highlighting = CodeHighlighting.For(frontMatter, options.HighlightCode, notes),
+                    CoverImage = coverImage,
                 };
                 DocxWriter.Write(content, context, DocxBody.Instance, author, date, options.TableOfContents, options.TableOfContentsDepth);
                 DocxMarking.Apply(context, template.IsBuiltIn ? LogoIndent(brand) : null, (brand ?? ResolvedBrand.Neutral).FontFamily);

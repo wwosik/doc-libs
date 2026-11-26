@@ -124,6 +124,7 @@ The shared syntax and rules are in
 | `tocDepth` | `1`, `2`, `3` | all |
 | `headingNumbers` | `true`, `false` | all |
 | `justify` | `true`, `false` | all |
+| `coverImage`, `coverImageSize`, `coverImagePosition` | a resource path; `small`, `medium`, `large`; `below`, `right` | all — an image on the cover, see [Cover image](wwosik.DocLibs.DocumentGeneration.md#cover-image) |
 | `classification` | `public`, `internal`, `confidential` | all — see [Classification marking](#classification-marking) |
 | `draft` | `true`, `false` | all |
 | `title`, `author` | text | all |

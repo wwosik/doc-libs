@@ -62,6 +62,7 @@ drawn.
 | `LogoOnDark` | PPTX section dividers (on the gradient); dark PDFs, in its place (`Tone = Dark`) | none (dark PDFs: `Logo`) |
 | `CoverArtwork` | Cover bottom right: PDF — page width, ≤ 42 % of the height; PPTX — slide width, below the subtitle | none |
 | `Tagline` | Cover bottom right, over the artwork; `ShowTagline` turns it off | none |
+| `CoverImage` | An image on the cover of decks, PDFs and Word documents, such as a product mark; front matter `coverImage` replaces it (see [Cover image](#cover-image)) | none |
 | `Docx` | A `.dotx` / `.docx` Word documents are built on instead of the built-in template (a `DocxBrandTemplate`, compared by content), with `Styles`, a `DocxStyleNames` naming the template's style for each role (see the [DOCX docs](wwosik.DocLibs.DocumentGeneration.Docx.md#templates)) | none |
 | `Pptx` | A `.pptx` / `.potx` decks are built on instead of the built-in master (see the PPTX docs); with `ClosingLayout` (the closing slide's layout by name) and `Tone` (`Auto`, `Light`, `Dark`: whether its slides are dark) | none |
 | `SlideColors` | Colours of decks and dark PDFs where they differ from light PDFs (see [Slide colours](#slide-colours)) | `Colors` |
@@ -167,7 +168,7 @@ paths relative to the pack.
     "highlight": "#3FC1FF",
     "labels": { "success": "#16A34A", "info": "#0B5FFF", "warning": "#F59E0B", "danger": "#DC2626", "neutral": "#9CA3AF" }
   },
-  "images": { "logo": "logo.png", "logoOnDark": "logo-on-dark.png", "coverArtwork": "cover.png", "tagline": "tagline.png" },
+  "images": { "logo": "logo.png", "logoOnDark": "logo-on-dark.png", "coverArtwork": "cover.png", "tagline": "tagline.png", "coverImage": "mark.png" },
   "fonts": {
     "regular": "fonts/Sans-Regular.ttf", "bold": "fonts/Sans-Bold.ttf",
     "italic": "fonts/Sans-Italic.ttf", "boldItalic": "fonts/Sans-BoldItalic.ttf",
@@ -319,6 +320,7 @@ if (result.HasNotes)
 | `alt-text-missing` | PPTX, PDF, DOCX | Check only: an image has empty alt text (`![](a.png)`) and `CheckOptions.RequireAltText` is on; `qr:` codes too |
 | `image-source` | PPTX, PDF, DOCX | Check only: an image is not among the document's resources, or is an `http:`, `https:` or `data:` URL, which the generators never load. `Generate` throws for the first one instead |
 | `drawing-unsupported` | HTML deck | `HtmlDeck.Write` left something of a slide out: an effect, a preset shape it does not know (drawn as a rectangle), a chart kind, an EMF picture and the like; one note per kind with the slide numbers, without a line |
+| `cover-image-ignored` | PPTX, PDF, DOCX | Front matter `coverImage` names an image that is not drawn: the document has no cover (no leading `#`, a plain PDF, a deck without a title slide), or the cover has no room left for it (see [Cover image](#cover-image)) |
 | `font-missing` | HTML deck | `HtmlDeck.Write` measured a font with a stand-in of other widths (Consolas with Liberation Mono), by estimate (a family with neither a face nor a stand-in), or a missing bold or italic face with the regular one; one note per family, without a line |
 | `cell-type` | XLSX | A workbook value does not fit its column's type, such as text in a number column; see [the workbook generator](wwosik.DocLibs.DocumentGeneration.Xlsx.md#check) |
 | `sheet-name` | XLSX | A sheet name breaks Excel's rules: empty, longer than 31 characters, with one of `[]:*?/\`, or the same as another ignoring case |
@@ -867,7 +869,8 @@ title: Network expansion 2027
 - An opening `---` followed by a blank line is a thematic break, not front matter.
 - **Shared keys:** `template` (applied first, whatever its position), `title`, `author`, `lang` (see
   [Document language](#document-language)), `typography` (see [Typography](#typography)), `highlight`
-  (see [Code highlighting](#code-highlighting)),
+  (see [Code highlighting](#code-highlighting)), `coverImage`, `coverImageSize` and `coverImagePosition` (see
+  [Cover image](#cover-image)),
   `classification` and `draft` (see
   [Classification](#classification)), `audience` (see [Audience versions](#audience-versions)), and `labels.<category>` (see
   [Slide layouts in Markdown](#slide-layouts-in-markdown)). The rest are the generator's.
@@ -883,6 +886,44 @@ title: Network expansion 2027
   `key: value`, a key without value, a duplicate key, a block that is never closed, an unknown key
   or one the template does not support (the message lists the valid keys), an invalid value (the
   message lists the valid ones).
+
+## Cover image
+
+Every generator puts an image on its cover when the front matter names one, such as a product
+mark or a partner's logo; without the key, the brand's `CoverImage` is used, if it has one.
+
+```markdown
+---
+coverImage: mark.svg
+coverImageSize: small
+coverImagePosition: right
+---
+```
+
+| Key | Values |
+| --- | ------ |
+| `coverImage` | The path of a resource of the document (never a file on disk): PNG, JPEG or, through the image converters, SVG; GIF too in decks and Word documents |
+| `coverImageSize` | `small`, `medium` (default) or `large`: a tenth, a sixth or a quarter of the cover's height |
+| `coverImagePosition` | `below` (default): under the subtitle, left-aligned with the title; `right`: right of the title block, top-aligned with the title, at most 40 % of its width, the title and subtitle narrowed to leave it room |
+
+- **Where:** decks on the title slide (the first `#`), HTML decks as drawn from that deck, PDFs on
+  the cover page, Word documents on the cover — `below` inline in a paragraph of its own after the
+  subtitle, `right` anchored at the right margin, the title wrapping left of it.
+- It keeps its aspect ratio and **never covers the logo, the artwork or the tagline**: where
+  they (or the foot of the cover) are in the way, it is made smaller, never moved. With less than 2 % of
+  the cover's height left it is left out with the note `cover-image-ignored`. Word lays out
+  its own pages, so there it is only kept within the text width.
+- **A template's picture placeholder:** when the roles of a caller's or brand's PowerPoint template
+  declare a `picture` placeholder on the title layout, the image is fitted into it (not
+  cropped) instead, whatever its size key says.
+- An SVG is converted by the registered image converters, sharp enough for its size: decks and Word
+  documents carry the SVG beside the PNG, which PowerPoint and Word 2016 and later draw as a vector;
+  PDFs embed the PNG.
+- **Errors and notes:** a `coverImage` that is not among the document's resources throws
+  `DocumentConversionException` naming the key and the path; an invalid size or position throws
+  like any front matter value. A document without a cover (no leading `#`, a plain PDF, a deck
+  without a title slide) gets `cover-image-ignored` for an image the front matter names; the
+  brand's image is left out silently.
 
 ## Document language
 

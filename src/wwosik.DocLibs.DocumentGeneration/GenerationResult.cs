@@ -203,6 +203,12 @@ public static class NoteCodes
     /// <summary>Workbooks: a character the brand's fonts lack, which Excel shows in a substitute font; once per character.</summary>
     public const string CharacterMissing = "character-missing";
 
+    /// <summary>
+    /// Front matter <c>coverImage</c> names an image, but it is not drawn: the document has no cover (a plain document,
+    /// a deck without a title slide), or the cover has no room left for it.
+    /// </summary>
+    public const string CoverImageIgnored = "cover-image-ignored";
+
     /// <summary>Every code, with the formats it occurs in and what a writer changes about it, for the authoring guides.</summary>
     internal static readonly IReadOnlyList<(string Code, DocumentFormat[] Formats, string Advice)> All =
     [
@@ -244,6 +250,7 @@ public static class NoteCodes
         (RowTooWide, [DocumentFormat.Xlsx], "a row has more cells than the sheet has columns. Add the column, or remove the extra cells."),
         (ExcelLimit, [DocumentFormat.Xlsx], "Excel cannot hold the sheet or the value: too many rows or columns, too long a text, or a date before 1900. Split the data or shorten the text."),
         (CharacterMissing, [DocumentFormat.Xlsx], "the brand's fonts lack a character, which Excel shows in a substitute font. Write it as a plain character, or leave it out."),
+        (CoverImageIgnored, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "there is no cover (no leading `#`) or no room on it for `coverImage`. Start with a `#` heading, or leave it out."),
     ];
 
     /// <summary>The codes only a check returns, never <c>Generate</c>: the guides list them apart.</summary>

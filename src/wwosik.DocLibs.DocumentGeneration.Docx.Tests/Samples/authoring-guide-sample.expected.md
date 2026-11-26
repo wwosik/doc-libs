@@ -302,6 +302,7 @@ author: Planning team
 | `typography` | `true` sets typographic quotes, dashes, `…` and no-break spaces (`10 km`) for the language; type straight quotes. Default `false`. |
 | `highlight` | `true` colours fenced code in these languages: `csharp`, `vb`, `fsharp`, `cpp`, `java`, `javascript`, `typescript`, `php`, `python`, `powershell`, `sql`, `html`, `xml`, `css`, `markdown`, `haskell`, `json`, `yaml`, `bash`. Default `false`. |
 | `template` | The design: `neutral` or `sample`. |
+| `coverImage`, `coverImageSize`, `coverImagePosition` | An image on the cover, one of your image paths; `small`, `medium` or `large`; `below` or `right` of the title. |
 | `showDate` | `true` or `false`: today's date on the cover and in the footer. Default `true`. |
 | `showTagline` | `true` or `false`: the design's tagline on the cover, if it has one. Default `true`. |
 | `embedFonts` | `true` or `false`. Leave it out: by default the document carries its fonts. |
@@ -371,6 +372,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `typography-skipped`: with `typography: true`, a character the fonts lack was kept as typed. Nothing to fix.
 - `code-language-unknown`: with `highlight: true`, a code block's language is unknown. Check the spelling, or write `text`.
 - `audience-omitted`: this version left out parts marked for other versions (*Versions*). Nothing to fix.
+- `cover-image-ignored`: there is no cover (no leading `#`) or no room on it for `coverImage`. Start with a `#` heading, or leave it out.
 
 A check before generating writes nothing and returns these notes too, and also:
 

@@ -45,6 +45,9 @@ internal sealed record Design(ResolvedBrand Brand, bool ShowTagline, string? Dat
 
     /// <summary>The fill of code boxes.</summary>
     public string CodeBackground { get; init; } = "F3F4F6";
+
+    /// <summary>The image on the cover (<c>coverImage</c>), ready to place; <see langword="null"/>: none.</summary>
+    public PdfCoverImage? CoverImage { get; init; }
 }
 
 /// <summary>
@@ -52,7 +55,7 @@ internal sealed record Design(ResolvedBrand Brand, bool ShowTagline, string? Dat
 /// images, captions, the cover, the table of contents, footnotes at the foot of the page, justified text, and once the
 /// page count is known its page numbers, header and footer. Works only through <see cref="IFontMetrics"/>, never on a PDF.
 /// </summary>
-internal sealed class LayoutEngine
+internal sealed partial class LayoutEngine
 {
     private const double BodySize = 10.5;
     private const double LineFactor = 1.35;
@@ -1484,7 +1487,7 @@ internal sealed class LayoutEngine
 
         var title = this.Supported(cover.Title, RunStyle.Bold);
         this.Mark(title, 0, cover.Anchor);
-        var frame = new Frame(margin, this.geometry.ContentWidth * 0.85, this.TextColor, []);
+        var frame = new Frame(margin, this.CoverImageRight(this.geometry.ContentWidth * 0.85), this.TextColor, []);
         foreach (var line in this.Wrap(title, frame.Width, CoverTitleSize, RunStyle.Bold))
         {
             this.Line(line, frame, margin, CoverTitleSize, brand.Primary, keepOnPage: true);
@@ -1501,6 +1504,7 @@ internal sealed class LayoutEngine
             this.y += 4;
         }
 
+        this.CoverImageBelow();
         if (this.design.ShowTagline && brand.Tagline is { } tagline && ImageInfo.Read(tagline) is { } taglineInfo)
         {
             var w = width * 0.17;

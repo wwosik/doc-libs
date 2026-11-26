@@ -1,8 +1,7 @@
-## Writing Markdown for a deck
+﻿## Writing Markdown for a deck
 
-The deck is generated from Markdown: headings become slides, and the design (colours, fonts,
-logo, footer) is applied for you. Write content, not formatting. A slide is read in seconds:
-a title that states the point, then a few short lines.
+Headings become slides; the design (colours, fonts, logo, footer) is applied for you. Write
+content, not formatting: a title that states the point, then a few short lines.
 
 ## Structure
 
@@ -12,7 +11,7 @@ a title that states the point, then a few short lines.
 | Every later `#` heading | A section divider, with the text below it as subtitle. |
 | `##` heading | One slide with that title. |
 | `###` heading inside a slide | A bold line (in `::: cards`: a card's title). |
-| Text before the first heading, `---`, HTML comments | Nothing: they are dropped. |
+| Text before the first heading, `---`, HTML comments | Dropped. |
 
 - **Keep slides short:** at most about six bullets of one line each, or one table, image or
   diagram with a sentence. What does not fit is set smaller, then continues on a further slide with
@@ -282,7 +281,6 @@ Generation stops with a message that says what to fix: an unknown container (`::
 attribute (`{.wide}`), alert (`[!INFO]`), transition or marker (`{.note}`), a misplaced marker or
 `::: notes`, a `cards` or `rows` item without a bold start, a kind of slide with content it does
 not take, an image that is not among the files, an unknown front matter key, or a broken diagram.
-Fix the Markdown and generate again.
 
 ## Notes you may get back
 

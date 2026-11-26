@@ -186,6 +186,7 @@ public static class PptxGenerator
                 Written = written,
                 Marking = marking.IsEmpty ? null : marking.Text(language.Texts),
                 Confidential = marking.Classification == Classification.Confidential,
+                CoverImage = CoverImage.Resolve(frontMatter, document, resolved, Format.Pptx),
             };
             var slides = DeckParser.Parse(
                 document with { Markdown = frontMatter.Body },
@@ -263,8 +264,9 @@ public static class PptxGenerator
                     ? string.Create(CultureInfo.InvariantCulture, $"Shapes start at {rows + 3}.")
                     : "Leave the title room.",
                 ["limits"] = AuthoringGuides.Limits(options.Checks ?? CheckOptions.Default, Format.Pptx),
-                // classification-kept is left to the front matter table, which says when lower values have no effect.
-                ["notes"] = AuthoringGuides.Notes(Format.Pptx, NoteCodes.DrawingUnsupported, NoteCodes.FontMissing, NoteCodes.ClassificationKept, NoteCodes.AudienceOmitted),
+                // classification-kept is left to the front matter table, which says when lower values have no effect; cover-image-ignored
+                // too, to keep the guide short.
+                ["notes"] = AuthoringGuides.Notes(Format.Pptx, NoteCodes.DrawingUnsupported, NoteCodes.FontMissing, NoteCodes.ClassificationKept, NoteCodes.AudienceOmitted, NoteCodes.CoverImageIgnored),
             });
     }
 
