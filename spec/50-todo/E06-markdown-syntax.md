@@ -20,7 +20,7 @@ One syntax for every format means a writer learns it once and the same source go
 | [E06-S04](../60-verify/E06-S04-code-highlighting.md) | Code highlighting | in verification |
 | [E06-S05](../60-verify/E06-S05-heading-attributes-with-typography.md) | Heading attributes with typography (bug) | in verification |
 | [E06-S06](../60-verify/E06-S06-audience-versions.md) | Audience versions | in verification |
-| [E06-S07](E06-S07-backup-slides-and-appendices.md) | Backup slides and appendices | todo |
+| [E06-S07](../55-in-progress/port-1/E06-S07-backup-slides-and-appendices.md) | Backup slides and appendices | in progress (port-1) |
 
 Stories marked *to plan* come from the
 [2026-11-13 analysis](../10-analysis/2026-11-13%20feature-plan.md); each is written and agreed
