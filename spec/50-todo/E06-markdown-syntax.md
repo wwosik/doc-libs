@@ -23,7 +23,7 @@ One syntax for every format means a writer learns it once and the same source go
 | [E06-S07](E06-S07-backup-slides-and-appendices.md) | Backup slides and appendices | todo |
 
 Stories marked *to plan* come from the
-[2026-11-13 analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed
+[2026-11-13 analysis](../10-analysis/2026-11-13%20feature-plan.md); each is written and agreed
 on its own before it is implemented, and may split into several stories.
 
 ## Decisions

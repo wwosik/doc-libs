@@ -44,8 +44,8 @@ It also adds the Word side of two features whose syntax other stories own: page 
   - `TableBand`, `TableLine` and `Primary` for panels, rules and statements.
   - On a caller template, which has no brand, decks use theme colours (`SlidePalette.Scheme`) and
     the neutral label colours.
-- **Decided in the analysis:** the fork's yellow `==mark==` highlight and its status dot are its
-  client's look; ours stays (difference 7). Raw HTML stays text.
+- **Decided in the analysis:** a yellow `==mark==` highlight and a status dot are
+  not our look; ours stays (behaviour choice 7). Raw HTML stays text.
 - **The epic's rule:** paragraphs reference template styles by name only, and there is no direct
   formatting except in code.
 - **Shared syntax owned by other stories:**
@@ -249,7 +249,7 @@ It also adds the Word side of two features whose syntax other stories own: page 
 ## Open questions
 
 1. Alerts: a paragraph style per kind with a left border and shading (proposed: plain styles a
-   writer can apply in Word, as the fork does), or a one-cell table per alert, which keeps nested
+   writer can apply in Word), or a one-cell table per alert, which keeps nested
    lists and tables inside the box more reliably?
 
 > Answered by the human (2026-11-14): as proposed.
@@ -314,8 +314,8 @@ It also adds the Word side of two features whose syntax other stories own: page 
   - The analysis orders E09 before E03, so this story will probably add the shared pieces. The
     names and rules are the ones decided in the E03 plans, and those stories then write PDF and
     PPTX on them.
-- **Not taken from the fork:** its client's look (yellow marks, status dots, sizes), audience
-  versions and consulting containers.
+- **Not taken:** a different look (yellow marks, status dots, sizes), audience versions and
+  consulting containers.
 
 ## Implementation notes
 

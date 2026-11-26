@@ -137,7 +137,7 @@ write themselves, in English or German, and tags the text for spell checking and
 ## Open questions
 
 1. Where do footnotes go on slides? At the foot of the slide that references them (proposed);
-   dropped with a note, as the fork does; or collected on a last "Notes" slide?
+   dropped with a note; or collected on a last "Notes" slide?
 
 > Answered by the human (2026-11-13): At the foot of the slide that references them.
 

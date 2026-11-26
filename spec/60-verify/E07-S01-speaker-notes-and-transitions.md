@@ -229,7 +229,7 @@ back as `::: notes`. PDFs accept the same Markdown and leave the presenting part
 ## Open questions
 
 1. Split this story? It is three features of very different size: speaker notes with the converter
-   (about 150 lines in the fork plus the converter), transitions (about 100) and builds (about 680).
+   (about 150 lines plus the converter), transitions (about 100) and builds (about 680).
    Proposed: E07-S01 keeps speaker notes and transitions, and a new E07-S05 *Builds* takes steps 1
    (markers), 2 (builds), 5 and the build parts of 9–11, implemented after E07-S01. E07-S04 then
    depends on both. This plan stays one file until the split is agreed.

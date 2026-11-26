@@ -26,16 +26,15 @@ Markdown, often an AI agent, so they can fix the source instead of guessing.
     `MermaidRenderer.Supported`, and a `chart` block when no chart renderer is configured.
   - Raw HTML is written as text: `DeckParser.cs:206`, and the matching place in the PDF
     `MarkdownParser`. This stays, by the decision in the
-    [analysis](../10-analysis/2026-11-13%20python-fork-port.md) (question 5), but it gets a note.
+    [analysis](../10-analysis/2026-11-13%20feature-plan.md) (question 5), but it gets a note.
   - `PdfOptions.ReplaceUnsupported` replaces characters the fonts lack. The default stays an
     exception (question 6); a replacement gets a note.
-- This is the first plan from the analysis of the Python fork. The analysis decided that `Generate`
+- This is the first plan from the [feature plan](../10-analysis/2026-11-13%20feature-plan.md). It decided that `Generate`
   returns the result as a **breaking change** (question 4). Every later plan reports through these
   notes: speaker notes dropped, an image cropped by a placeholder, a scene drawn as a still, and so
   on.
-- The design follows the fork's `GenerationResult` / `GenerationNote(Code, Line, Message)`, which
-  came from another .NET derivative. Its codes are kept where the meaning is the same, so notes
-  read alike everywhere.
+- The design is a `GenerationResult` / `GenerationNote(Code, Line, Message)` record. Codes are
+  stable strings, so notes read alike in every generator.
 
 ## Proposed approach
 
@@ -154,7 +153,7 @@ Markdown, often an AI agent, so they can fix the source instead of guessing.
 
 > Yes: a short section listing the codes and what to change.
 
-5. The 2× threshold for `image-enlarged` (the fork's value): keep it, or tie it to
+5. The 2× threshold for `image-enlarged` (proposed): keep it, or tie it to
    `MaxImageUpscale`, reporting only when the cap is reached?
 
 > Keep 2×; an image's own `scale=` silences it.

@@ -24,7 +24,7 @@ A deck or PDF is only useful to a consumer if it looks like theirs. Everything a
 | [E01-S08](E01-S08-cover-image.md) | Cover image | todo |
 
 Stories marked *to plan* come from the
-[2026-11-13 analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed
+[2026-11-13 analysis](../10-analysis/2026-11-13%20feature-plan.md); each is written and agreed
 on its own before it is implemented, and may split into several stories.
 
 ## Decisions

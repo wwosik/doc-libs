@@ -179,7 +179,7 @@ shapes and PDFs vectors, as for diagrams. No new package.
 2. How many icons: the whole Tabler outline set, about 5 000 (proposed: writers, often AI agents,
    know Tabler names, and a subset would make "unknown icon" common; the size is measured by the
    import tool and the set is cut to a curated list only if it exceeds 1 MB compressed), or a
-   curated set of about 150–200 business icons as the fork has?
+   curated set of about 150–200 business icons?
 
 > Answered by the human (2026-11-14): as proposed.
 
@@ -206,8 +206,7 @@ shapes and PDFs vectors, as for diagrams. No new package.
 > Accepted as proposed (the human, 2026-11-14, without discussion).
 
 7. QR caption: the alt text under the code when the title says `caption`, as for images
-   (proposed), or the title itself as the caption text, as the fork writes it
-   (`"Scan for the survey"`)?
+   (proposed), or the title itself as the caption text (`"Scan for the survey"`)?
 
 > Accepted as proposed (the human, 2026-11-14, without discussion).
 

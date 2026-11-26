@@ -24,7 +24,7 @@ Writers, often AI agents, describe a graphic in text; the generators draw it, so
 | [E04-S08](../60-verify/E04-S08-steps-harvey-balls-and-risk-matrix.md) | Steps, Harvey balls and risk matrix | in verification |
 
 Stories marked *to plan* come from the
-[2026-11-13 analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed
+[2026-11-13 analysis](../10-analysis/2026-11-13%20feature-plan.md); each is written and agreed
 on its own before it is implemented, and may split into several stories.
 
 ## Decisions

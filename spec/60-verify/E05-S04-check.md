@@ -44,8 +44,8 @@ problem at once instead of the first exception.
     costly part and is not needed for a check.
 - **Speaker notes** (E07-S01, planned) give a better basis for talk time than slide text, where
   they exist.
-- **The analysis:** "limits as options, rules not tied to one language". The fork's rules counted
-  words and bullets; nothing language-specific (stop words, spelling) comes over.
+- **The analysis:** "limits as options, rules not tied to one language". The rules count
+  words and bullets; nothing language-specific (stop words, spelling).
 - **E05-S05** (AI tool) exposes the check as a mode of the tool.
 
 ## Proposed approach
@@ -215,7 +215,7 @@ problem at once instead of the first exception.
 > Accepted as proposed (the human, 2026-11-14, without discussion).
 
 5. Default limits: 6 bullets, 80 words per slide, 60 characters per title, 150 words per PDF
-   paragraph, alt text required (proposed, close to the fork's)? Or every rule off unless the
+   paragraph, alt text required (proposed)? Or every rule off unless the
    host sets a limit?
 
 > Answered by the human (2026-11-14): as proposed.

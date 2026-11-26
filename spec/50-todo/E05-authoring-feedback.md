@@ -22,7 +22,7 @@ The writer cannot see the generator's decisions in the output; telling them clos
 | [E05-S06](E05-S06-contact-sheet-in-the-tool-reply.md) | Contact sheet in the tool reply | todo |
 
 Stories marked *to plan* come from the
-[2026-11-13 analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed
+[2026-11-13 analysis](../10-analysis/2026-11-13%20feature-plan.md); each is written and agreed
 on its own before it is implemented, and may split into several stories.
 
 ## Decisions

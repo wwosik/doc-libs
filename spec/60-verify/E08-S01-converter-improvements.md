@@ -206,7 +206,7 @@ already done so (question 1).
 > Accepted as proposed (the human, 2026-11-14, without discussion).
 
 2. Superscripts: `[^n]` with its definition when the note is found at the page foot, otherwise
-   plain text on the line (proposed)? Or always plain text on the line, the fork's minimum?
+   plain text on the line (proposed)? Or always plain text on the line, the minimum?
 
 > Answered by the human (2026-11-14): as proposed.
 

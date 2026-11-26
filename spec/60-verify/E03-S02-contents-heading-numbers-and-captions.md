@@ -229,8 +229,7 @@ for these features, so the DOCX generator (E09) reads the same source the same w
 
 2. Table of contents: one layout pass with a fixed-width number column, numbers filled in
    afterwards (proposed: the contents cannot change height, so one pass is exact and there is
-   no loop to tune)? Or repeat the layout until the numbers settle, at most 4 passes, as the fork
-   does?
+   no loop to tune)? Or repeat the layout until the numbers settle, at most 4 passes?
 
 > Answered by the human (2026-11-14): as proposed.
 

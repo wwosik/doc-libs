@@ -36,9 +36,8 @@ not tie the host to a model vendor.
 - **Images.** A `MarkdownDocument` carries the Markdown, the resources (images by path) and
   metadata. An agent can only reference images the host gives it. The guides already tell the
   writer that images are "referenced by the path given to you".
-- **The fork's tool description** came from another .NET derivative. It offers name, schema, a
-  combined guide, and `Run` / `Reply` in fixed JSON (analysis, Foundations). Here, by decision,
-  it uses System.Text.Json only and English names.
+- **The tool description** offers name, schema, a combined guide, and `Run` / `Reply` in fixed
+  JSON (analysis, Foundations). By decision it uses System.Text.Json only and English names.
 - **Hosts call models through their own SDKs.** Vendors wrap the same three parts in different
   envelopes: `input_schema`, `parameters`, `inputSchema` for MCP. The library supplies the parts,
   not an envelope.

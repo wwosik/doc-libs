@@ -46,7 +46,7 @@ drawings ([E09-S03](E09-S03-charts-drawings-and-guide.md)) build on it.
   - headings by style name or id (`ClassifyHeading`: "heading N", "Title");
   - lists by `w:numPr` and the numbering's format;
   - tables, runs with bold, italic and strike, hyperlinks, and images (`a:blip`).
-  - It reads no footnotes and no code style yet (the fork's analysis puts those in E08).
+  - It reads no footnotes and no code style yet (the feature plan puts those in E08).
 - **The epic's rule:** paragraphs reference template styles by name only, and there is no direct
   formatting except in code.
 - **Agreed in E03-S02** (shared syntax and keys, which this story reads as defined there):
@@ -298,8 +298,7 @@ drawings ([E09-S03](E09-S03-charts-drawings-and-guide.md)) build on it.
 
 > Accepted as proposed (the human, 2026-11-14, without discussion).
 
-5. Lists deeper than three levels: stay at level 3 with a `list-too-deep` note (proposed, as the
-   fork does), or use Word's levels 4–9 with the definitions continued?
+5. Lists deeper than three levels: stay at level 3 with a `list-too-deep` note (proposed), or use Word's levels 4–9 with the definitions continued?
 
 > Accepted as proposed (the human, 2026-11-14, without discussion).
 

@@ -298,7 +298,7 @@ the pale fills become translucent.
   records. `FinancialChartOptions` holds brand, culture, scale, unit, labels, tolerance,
   rest share and width. `FinancialCharts.Draw` returns a `Drawing`, `ToSvg` returns SVG, and
   `CategoryColors` gives the two-year chart's colour per category.
-- **Drawing:** one file per chart, ported from the reference code with its reasoning kept as
+- **Drawing:** one file per chart, with the reasoning of each kept as
   comments. `FinancialCanvas` holds what all six share: the axis, number formats, verdict colours,
   gridlines, end labels pushed apart, label wrapping, hover points.
 - **Shared package:** `DrawingSpan.Color`, `DrawingItem.Hover` (`DrawingHover`), `DrawingHotspot`;

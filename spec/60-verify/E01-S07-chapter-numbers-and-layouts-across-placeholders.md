@@ -22,8 +22,7 @@ Two opt-in uses of the template roles from [E01-S06](E01-S06-template-roles-for-
     below it becomes its subtitle.
   - `WriteTitleSlide` writes the title into the title placeholder and the subtitle into
     `subTitle` or the next body.
-  - Nothing numbers sections. The fork numbers them and treats content under a `#` as an error.
-    Here content stays the subtitle (analysis, behaviour difference 2).
+  - Nothing numbers sections. Content under a `#` stays the subtitle (analysis, behaviour difference 2).
 - **`layout="…"` today** (E01-S05):
   - `HeadingAttributes` reads `layout`, and `DeckWriter.LayoutOf` finds the layout by name,
     case-insensitively, or throws.
@@ -47,7 +46,7 @@ Two opt-in uses of the template roles from [E01-S06](E01-S06-template-roles-for-
 - **Fitting** (`DeckWriter.Fitting.cs`) shrinks content slides with `normAutofit` and splits them
   between list groups. It knows nothing about several placeholders.
 - **Notes** (E05-S03): every code needs an entry in `NoteCodes.All` and a row in the docs table.
-  The fork's code for a picture cut by its placeholder is `image-cropped`.
+  A picture cut by its placeholder gets the code `image-cropped`.
 
 ## Proposed approach
 
@@ -187,7 +186,7 @@ Two opt-in uses of the template roles from [E01-S06](E01-S06-template-roles-for-
 
 > Accepted as proposed (the human, 2026-11-14, without discussion).
 
-3. Number format: two digits from "01" (proposed, as the fork), or plain "1", "2", or a pattern
+3. Number format: two digits from "01" (proposed), or plain "1", "2", or a pattern
    in the roles (`"00"`, `"0."`)?
 
 > Accepted as proposed (the human, 2026-11-14, without discussion).
@@ -198,8 +197,8 @@ Two opt-in uses of the template roles from [E01-S06](E01-S06-template-roles-for-
 
 > Accepted as proposed (the human, 2026-11-14, without discussion).
 
-5. Images in picture placeholders: cropped to fill, centred (proposed, as the fork and PowerPoint
-   do), or fitted inside like everywhere else, with cropping only after E04-S05's `fit=cover`?
+5. Images in picture placeholders: cropped to fill, centred (proposed, as PowerPoint
+   does), or fitted inside like everywhere else, with cropping only after E04-S05's `fit=cover`?
 
 > Answered by the human (2026-11-14): as proposed.
 

@@ -15,10 +15,9 @@ their meaning are shared, so the DOCX generator (E09) marks Word documents from 
 - Split from the epic's row E03-S02 (see
   [E03-S02](E03-S02-contents-heading-numbers-and-captions.md), question 1). The marking concerns
   the page furniture of every format, not the flow of text.
-- **The fork**, made for one client, has a classification marking (confidential / internal /
-  draft): in the Word header, on the cover, and as a draft watermark, with the same key for decks
-  and PDFs (analysis, DOCX table). Its values and texts were German and client-specific. Only the
-  mechanism comes here.
+- **The feature plan** lists a classification marking (confidential / internal / draft): in the
+  Word header, on the cover, and as a draft watermark, with the same key for decks and PDFs
+  (analysis, DOCX table). Values and texts come from options and generated texts.
 - **The DOCX plan (E09)** runs in parallel and assumes a front-matter key `classification:`. This
   story defines it.
 - **PDF furniture.** `LayoutEngine.Decorate` (`LayoutEngine.cs:892`) writes the header and footer
@@ -154,7 +153,7 @@ their meaning are shared, so the DOCX generator (E09) marks Word documents from 
 ## Open questions
 
 1. Two keys, `classification: public|internal|confidential` and `draft: true` (proposed: a draft
-   can be confidential too)? Or one key with `draft` as a fourth value, as in the fork? E09-S02
+   can be confidential too)? Or one key with `draft` as a fourth value? E09-S02
    currently assumes the single key `classification: confidential | internal | draft`, and
    follows whichever is chosen here.
 

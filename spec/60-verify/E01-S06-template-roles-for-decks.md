@@ -73,7 +73,7 @@ chapter dividers, `{layout="…"}` across placeholders) and E02-S05 (slide kinds
 - **Test template.** `brand-dark` (`DarkTemplate` in the PPTX tests) is built at test time from
   the built-in master, with two copied and renamed layouts. There is no binary sample.
 - **Decided.**
-  - In the [analysis](../10-analysis/2026-11-13%20python-fork-port.md) (answer 3): roles are
+  - In the [analysis](../10-analysis/2026-11-13%20feature-plan.md) (answer 3): roles are
     designed for templates in general, not to cover any particular design.
   - In the epic:
     - Roles are brand-pack data with English names, and nothing here names a client's layouts or
@@ -308,7 +308,7 @@ chapter dividers, `{layout="…"}` across placeholders) and E02-S05 (slide kinds
 
 ## Open questions
 
-1. Split the fork's "template roles" item into this story (model, discovery, text levels, footer,
+1. Split the feature plan.s "template roles" item into this story (model, discovery, text levels, footer,
    grid, built-in layouts) and E01-S07 (numbered dividers, `{layout="…"}` across placeholders,
    filling picture and chart placeholders)? Proposed: yes. Each half can be reviewed on its own,
    and E02-S05 depends on both.

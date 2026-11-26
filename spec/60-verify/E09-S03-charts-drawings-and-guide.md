@@ -43,8 +43,8 @@ generator understands.
     (SkiaSharp, E04-S04). It reaches the generators only as an `IImageConverter` in
     `ImageConverters`, empty by default. Asked for scale 2, it reports the natural size.
   - Its fonts are its own option (`SvgImageConverter.Fonts`).
-- **Decided by the human** (analysis question 7): Word drawings are SVG + PNG images, as in the
-  fork, not editable shape groups. SkiaSharp is accepted as a dependency of the generators
+- **Decided by the human** (analysis question 7): Word drawings are SVG + PNG images, not
+  editable shape groups. SkiaSharp is accepted as a dependency of the generators
   (question 9), but no generator references it today.
 - **[E09-S01](E09-S01-docx-package-and-templates.md)** puts the shared Open XML sources in
   `src/Shared/OpenXml/` (decided, its question 2) and starts `AuthoringGuide/Docx.md`.
@@ -251,7 +251,7 @@ generator understands.
 - **Shares with E03-S02** the caption syntax of code-block graphics (`Figure: …`, question 7),
   agreed there. Whichever of E03-S02 and E09-S04 is implemented first adds the shared `Captions`
   helper; this story reads it.
-- The fork's other Word visuals (icons, QR codes, timelines, Gantt) come with E04-S05 and are not
+- The other Word visuals (icons, QR codes, timelines, Gantt) come with E04-S05 and are not
   part of this story.
 
 ## Implementation notes

@@ -19,7 +19,7 @@ Markdown converted from a document is what an AI agent reads; what the converter
 | [E08-S03](E08-S03-comments-and-tracked-changes.md) | Comments and tracked changes from reviewed Word documents | to plan |
 
 Stories marked *to plan* come from the
-[2026-11-13 analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed
+[2026-11-13 analysis](../10-analysis/2026-11-13%20feature-plan.md); each is written and agreed
 on its own before it is implemented, and may split into several stories.
 
 ## Decisions

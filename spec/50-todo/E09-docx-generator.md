@@ -22,7 +22,7 @@ Word is the format most reports and proposals still have to be delivered in; the
 | [E09-S06](E09-S06-word-core-properties.md) | Word core properties | todo |
 
 Stories marked *to plan* come from the
-[2026-11-13 analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed
+[2026-11-13 analysis](../10-analysis/2026-11-13%20feature-plan.md); each is written and agreed
 on its own before it is implemented, and may split into several stories.
 
 ## Decisions

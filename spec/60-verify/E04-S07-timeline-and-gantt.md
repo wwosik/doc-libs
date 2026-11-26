@@ -33,8 +33,8 @@ ground for drawn containers that E04-S08 builds on.
   `PdfOptions.TimeProvider`), used for the cover date; tests pin it.
 - **Generated texts:** `GeneratedTexts` (E06-S02) holds per-language texts; there are no month
   names yet. The cover date is `dd.MM.yyyy` in every language (E06-S02, answer 5).
-- E09 (DOCX) will reuse the drawings as SVG + PNG; the fork also writes the Gantt table as an
-  editable table in Word, which stays for E09.
+- E09 (DOCX) will reuse the drawings as SVG + PNG; the Gantt plan as an editable table in Word
+  stays for E09.
 
 ## Proposed approach
 

@@ -222,7 +222,7 @@ the same content, and a note.
 ## Open questions
 
 1. The statement slide's class: `{.statement}` (proposed: it matches `::: statement` and the
-   layout role's name), or `{.interim}` as in the fork? `.statement` on a heading means the whole
+   layout role's name), or `{.interim}`? `.statement` on a heading means the whole
    slide; `::: statement` stays a block on a flow slide.
 
 > Accepted as proposed (the human, 2026-11-14, without discussion).

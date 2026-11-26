@@ -23,7 +23,7 @@ A generated deck should be ready to present without opening PowerPoint to add no
 | [E07-S07](E07-S07-slide-lines-for-editor-previews.md) | Slide lines for editor previews | todo |
 
 Stories marked *to plan* come from the
-[2026-11-13 analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed
+[2026-11-13 analysis](../10-analysis/2026-11-13%20feature-plan.md); each is written and agreed
 on its own before it is implemented, and may split into several stories.
 
 ## Decisions

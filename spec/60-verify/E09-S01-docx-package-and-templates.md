@@ -321,7 +321,7 @@ captions, images, code, quotes, footnotes, links, task and definition lists, `la
 > Answered by the human (2026-11-14): as proposed.
 
 4. A caller template lacks a role's style. Proposed: create it from the built-in definition based
-   on its `Normal`, as the fork does. Throw only when a name the caller mapped explicitly does not
+   on its `Normal`. Throw only when a name the caller mapped explicitly does not
    exist. The alternative is to throw for every missing style.
 
 > Accepted as proposed (the human, 2026-11-14, without discussion).
@@ -342,8 +342,7 @@ captions, images, code, quotes, footnotes, links, task and definition lists, `la
 - **Order within E09.** E09-S01 → E09-S04 → E09-S02 → E09-S03. E09-S04 got the next free number
   when the first plan of E09-S01 was split.
 - **Out of scope** by the human's decision: cross-references, abbreviations, accessibility, history,
-  compare, comments and review import. Landscape sections are also left out (they were a fork
-  draft).
+  compare, comments and review import. Landscape sections are also left out.
 
 ## Implementation notes
 

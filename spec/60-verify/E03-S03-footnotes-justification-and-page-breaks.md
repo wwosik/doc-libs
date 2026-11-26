@@ -125,7 +125,7 @@ generator (E09) reads it the same way.
      - `::: pagebreak` is accepted and shows its content as normal blocks. It does *not* make its
        section a flow slide: `UsesLayouts` skips it, so an old-style slide stays old-style.
      - `{.newpage}` is accepted and ignored.
-   - **Out of scope:** landscape sections, which were a fork draft.
+   - **Out of scope:** landscape sections.
 4. **Notes.** One new code, with advice and a docs row:
    - `footnote-split` (PDF): a footnote was too long for one page and continues on the next.
      The advice is to shorten it.
