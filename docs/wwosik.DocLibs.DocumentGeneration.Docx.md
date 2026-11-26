@@ -99,6 +99,7 @@ combined guide and JSON replies. See [A tool for AI agents](wwosik.DocLibs.Docum
 | `TimeProvider` | `TimeProvider.System` | the date on the cover and in the footer, and the created and modified dates |
 | `Classification` | `Classification.Public` | `Internal` or `Confidential` marks the document, see [Classification](#classification); front matter can raise it, not lower it |
 | `Draft` | `false` | marks the document a draft, with Word's watermark; front matter's `draft: true` also does |
+| `Audience` | `null` | the version to write, `Customer`, `Internal` or `Trainer`; wins over the front matter's `audience`, see [Audience versions](wwosik.DocLibs.DocumentGeneration.md#audience-versions) |
 
 ## Front matter
 

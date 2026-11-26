@@ -11,9 +11,10 @@ internal static class LayoutSyntax
 {
     /// <summary>
     /// The containers, for error messages: the layouts, <c>pagebreak</c>, <c>notes</c>, the drawn ones
-    /// (<see cref="VisualContainers"/>), then <c>scene</c> (<see cref="SceneSyntax"/>).
+    /// (<see cref="VisualContainers"/>), then <c>scene</c> (<see cref="SceneSyntax"/>), then the versions' containers
+    /// (<see cref="AudienceFilter"/>), which the generators take apart before they look at containers.
     /// </summary>
-    public static readonly string Containers = string.Join(", ", ["cards", "rows", "panel", "statement", "columns", PageBreak, SlideKinds.Conclusion, SlideKinds.Comment, Notes, .. VisualContainers.Names, SceneSyntax.Name]);
+    public static readonly string Containers = string.Join(", ", ["cards", "rows", "panel", "statement", "columns", PageBreak, SlideKinds.Conclusion, SlideKinds.Comment, Notes, .. VisualContainers.Names, SceneSyntax.Name, .. AudienceFilter.Containers]);
 
     /// <summary>The alerts, for error messages.</summary>
     public const string Alerts = "NOTE, TIP, IMPORTANT, WARNING, CAUTION";

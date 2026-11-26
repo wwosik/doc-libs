@@ -81,10 +81,11 @@ public static class DocxGenerator
         options = Apply(frontMatter, options);
         var template = options.Template ?? DocxOptions.Default.Template;
         var brand = template.BrandValue is { } value ? ResolvedBrand.Resolve(value) : null;
-        var marking = Marking.Resolve(frontMatter, options.Classification, options.Draft, notes, Format.Docx);
+        var audience = AudienceFilter.Resolve(frontMatter, options.Audience);
+        var marking = Marking.Resolve(frontMatter, options.Classification, options.Draft, notes, Format.Docx, audience);
         var language = DocumentLanguage.Resolve(frontMatter.Language, options.Language, options.Texts, notes, Format.Docx);
-        var content = DocxContent.Parse(frontMatter.Body);
         int LineOf(Markdig.Syntax.MarkdownObject block) => block.Line + 1 + frontMatter.BodyLine;
+        var content = DocxContent.Parse(frontMatter.Body, markdown => AudienceFilter.Apply(markdown, audience, Format.Docx, LineOf, language.Texts, notes));
         MarkdownSyntax.ReportMissingFootnotes(content.Source, LineOf, notes);
 
         // Build markers are for decks: checked like there, then left out wherever they are.
@@ -228,7 +229,8 @@ public static class DocxGenerator
                     registry.Expected,
                     options.Language,
                     [.. template.Keys.Concat([TocKey, TocDepthKey, HeadingNumbersKey, JustifyKey]).Select(k => (k, meanings[k])), classification, draft, deckKeys, labels],
-                    options.Typography, options.HighlightCode),
+                    options.Typography, options.HighlightCode, options.Audience),
+                ["versions"] = AuthoringGuides.Versions(options.Audience),
                 ["characters"] = Characters(brand?.Fonts, codeFont),
                 ["imageFormats"] = options.ImageConverters.Count > 0
                     ? "Images are PNG, JPEG or GIF, or SVG: an `.svg` image keeps its SVG, which Word draws sharp\n  at any size."
@@ -398,6 +400,8 @@ public static class DocxGenerator
         public GenerationResult Generate(MarkdownDocument document, Stream output) => DocxGenerator.Generate(document, output, options);
 
         public CheckResult Check(MarkdownDocument document) => DocxGenerator.Check(document, options);
+
+        public IMarkdownGenerator ForAudience(Audience audience) => options.Audience is null ? new Bound(options with { Audience = audience }) : this;
 
         public override string ToString() => $"{this.Title} ({this.Format})";
     }

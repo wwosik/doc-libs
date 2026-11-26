@@ -16,7 +16,7 @@ a title that states the point, then a few short lines.
 
 - **Keep slides short:** at most about six bullets of one line each, or one table, image or
   diagram with a sentence. What does not fit is set smaller, then continues on a further slide with
-  the same title; long tables repeat their header row. Better: split long content yourself.
+  the same title; long tables repeat their header row.
 - **A table, an image or a diagram gets a slide of its own,** titled like its section; text before
   it goes above, text after it below as a caption; a leading `Table: ` or `Figure: ` is dropped
   there (documents number such captions). A second one in the same section gets a further
@@ -98,8 +98,7 @@ of memory per plan.
   `::: rows` holds exactly one list; every item of a `cards` or `rows` list starts with
   `**bold**`.
 - Layout slides that do not fit are set smaller, then continued on a further slide between their
-  blocks; cards, a panel or columns stay together. Three or four cards with one or two lines each
-  fill a slide.
+  blocks; cards, a panel or columns stay together.
 
 **Kinds of slide:** a class on a `##` heading puts the slide on the design's layout for it.
 
@@ -214,8 +213,7 @@ Start with the **good news**, then the delays:
 :::
 ````
 
-- Speaker notes hold paragraphs and lists, with bold, italic, code and links. A table, code block,
-  image or quote in them is written as plain text.
+- Speaker notes hold paragraphs and lists; a table, code block, image or quote is written as text.
 - Put `::: notes` at the top level of a section, after its heading: not inside another container,
   a list or a quote.
 
@@ -223,8 +221,7 @@ Start with the **good news**, then the delays:
 front matter sets it for every slide; `transition="…"` on a heading (`## Results {transition="push"}`,
 also with other attributes) for that slide alone, and `transition="none"` turns it off there. The
 transitions: `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut` and
-`morph` (scene shapes of the same name move; viewers without it fade). Use one transition for
-the whole deck, and a different one only where it means something.
+`morph` (scene shapes of the same name move; viewers without it fade). Use one for the whole deck.
 
 **Builds:** a paragraph that is only a build marker, before a block, makes that block come in click
 by click in the slide show. Leave a blank line after it.
@@ -243,7 +240,7 @@ The end date does not move.
 | Marker | On a click |
 | ------ | ---------- |
 | `{.build}` | appears item by item: list items (with their sub-items), cards, rows, columns, images in a row; other blocks whole |
-| `{.build=fly}`, `{.build=wipe}` | the same, flying in or wiped in (`=appear` is `{.build}`) |
+| `{.build=fly}`, `{.build=wipe}` | the same, flying in or wiped in |
 | `{.frag}` | the whole block appears |
 | `{.exit}` | the block disappears |
 | `{.emphasize}` | the block pulses |
@@ -260,10 +257,8 @@ The end date does not move.
 `box|round|ellipse|text name x y w h "label"`, `arrow|line from to`, with `.accent`, `step=N`,
 `exit=N`. Shapes start at 22.
 
-Page breaks are for documents and have no effect on slides: a deck shows the content of
-`::: pagebreak` … `:::` as usual, without making its slide a flow slide, and ignores `{.newpage}`
-and `{.unnumbered}` on a heading, as it ignores `toc:`, `tocDepth:`, `headingNumbers:` and
-`justify:` (checked, then ignored).
+`::: pagebreak` … `:::` (its content stays), `{.newpage}`, `{.unnumbered}`, `toc:`, `tocDepth:`,
+`headingNumbers:` and `justify:` are for documents: decks check, then ignore them.
 
 This design has a layout for every kind of slide.
 
@@ -298,6 +293,18 @@ flowchart LR
   design.
 - A diagram with a syntax error is an error naming the line of its block; fix the Mermaid and try again.
 
+## Versions
+
+One Markdown holds three versions, picked by `audience:`: `customer`, `internal`, which adds what is marked
+internal, and `trainer`, which adds solutions too.
+
+- `::: internal` … `:::`, a line `{.internal}` before a block, or `{.internal}` on a `#` or `##` heading (the
+  whole chapter or slide) mark what is internal.
+- `::: exercise` shows to everyone as "Exercise 1"; a `::: solution` right after it, as "Solution 1", to the
+  trainer only.
+
+Versions but `customer` are marked internal unless `classification` is set.
+
 ## Front matter
 
 Settings go in a block at the very top, before anything else. One `key: value` per line, no
@@ -328,6 +335,7 @@ author: Planning team
 | `classification` | `public`, `internal` or `confidential`: a marking in the top right corner of every slide. Default `public`. |
 | `draft` | `true` adds "Draft" to the marking. Default `false`. |
 | `labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral` | The [status labels](#layouts) in that category, separated by `;`: `labels.success: Done; Delivered`. |
+| `audience` | `customer`, `internal` or `trainer`: the version, see *Versions*. Default `customer`. |
 
 An unknown key, a key given twice or an invalid value is an error that lists the valid keys.
 
@@ -375,12 +383,10 @@ A check before generating reports what goes beyond these: at most 6 bullets on a
 ## When something is wrong
 
 Generation stops with a message that says what to fix: an unknown container (`::: grid`), heading
-attribute (`{.wide}`), alert (`[!INFO]`), transition or build marker (`{.note}`), a marker that
-builds nothing, a `::: notes` inside another block, a
-`cards` or `rows` item without a bold start, a kind of slide with content it does not take, a
-`::: comment` first or a `::: conclusion` not last, an
-image that is not among the files, a front matter key that does not exist, or a broken diagram
-with its line. Fix the Markdown and generate again.
+attribute (`{.wide}`), alert (`[!INFO]`), transition or marker (`{.note}`), a misplaced marker or
+`::: notes`, a `cards` or `rows` item without a bold start, a kind of slide with content it does
+not take, an image that is not among the files, an unknown front matter key, or a broken diagram.
+Fix the Markdown and generate again.
 
 ## Notes you may get back
 

@@ -215,6 +215,18 @@ flowchart LR
   design.
 - A diagram with a syntax error is an error naming the line of its block; fix the Mermaid and try again.
 
+## Versions
+
+One Markdown holds three versions, picked by `audience:`: `customer`, `internal`, which adds what is marked
+internal, and `trainer`, which adds solutions too.
+
+- `::: internal` … `:::`, a line `{.internal}` before a block, or `{.internal}` on a `#` or `##` heading (the
+  whole chapter or slide) mark what is internal.
+- `::: exercise` shows to everyone as "Exercise 1"; a `::: solution` right after it, as "Solution 1", to the
+  trainer only.
+
+Versions but `customer` are marked internal unless `classification` is set.
+
 ## Front matter
 
 Settings go in a block at the very top, before anything else. One `key: value` per line, no
@@ -248,6 +260,7 @@ author: Planning team
 | `draft` | `true` adds "Draft" to the marking and a diagonal watermark. Default `false`. |
 | `transition`, `build`, `numberChapters` | Settings for decks. A PDF accepts them and ignores them. |
 | `labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral` | Status labels for decks, separated by `;`. A PDF accepts them and shows the labels as code. |
+| `audience` | `customer`, `internal` or `trainer`: the version, see *Versions*. Default `customer`. |
 
 An unknown key, a key given twice or an invalid value is an error that lists the valid keys.
 
@@ -313,6 +326,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `toc-empty`: `toc: true` asked for a table of contents, but the document has no headings at the depth it lists, so there is none. Add headings, raise `tocDepth`, or leave `toc` out.
 - `typography-skipped`: with `typography: true`, a character the fonts lack was kept as typed. Nothing to fix.
 - `code-language-unknown`: with `highlight: true`, a code block's language is unknown. Check the spelling, or write `text`.
+- `audience-omitted`: this version left out parts marked for other versions (*Versions*). Nothing to fix.
 
 A check before generating writes nothing and returns these notes too, and also:
 

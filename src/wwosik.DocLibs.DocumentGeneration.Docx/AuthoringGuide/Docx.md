@@ -131,6 +131,8 @@ already starts a page. No break makes an empty page, and the cover heading takes
 and into the document's properties. `draft: true` adds "Draft" and a watermark on every page. The
 host may already mark the document; the front matter can raise its classification, not lower it.
 
+{{versions}}
+
 {{frontMatter}}
 
 ## Characters

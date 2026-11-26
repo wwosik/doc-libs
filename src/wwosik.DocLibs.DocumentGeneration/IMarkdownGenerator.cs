@@ -33,4 +33,11 @@ public interface IMarkdownGenerator
     /// <summary>Checks <paramref name="document"/> without writing anything; document errors are returned, not thrown.</summary>
     /// <exception cref="ArgumentException">The options are invalid.</exception>
     CheckResult Check(MarkdownDocument document);
+
+    /// <summary>
+    /// This generator generating the version <paramref name="audience"/>, for <see cref="DocumentTool"/>'s
+    /// <c>audience</c> parameter: it wins over the front matter's <c>audience</c>, but not over a version the options
+    /// already set. The default implementation returns this generator unchanged.
+    /// </summary>
+    IMarkdownGenerator ForAudience(Audience audience) => this;
 }

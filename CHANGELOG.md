@@ -9,6 +9,21 @@ updating, breaking changes first.
 
 ## Unreleased
 
+### Breaking changes
+
+- **Audience versions take over some Markdown that failed or stayed text.** `### Title {.internal}`
+  (on `###` to `######`) used to read "Title {.internal}" and now throws
+  `DocumentConversionException`, in decks, PDFs and Word documents: `{.internal}` marks a chapter or
+  slide on `#` and `##` only. Write `\{.internal}` to keep the braces as text. `::: internal`,
+  `::: exercise`, `::: solution`, a paragraph `{.internal}` and `{.internal}` on `#` and `##` used to
+  throw and now work, see *New*.
+- **Error messages and guides.** The lists of valid front-matter keys name `audience` after `draft`,
+  and the list of valid containers ends with `internal, exercise, solution`; code that matches the
+  messages' text adjusts. The authoring guides of decks, PDFs and Word documents have a section
+  "Versions", an `audience` row in the front-matter table and, for PDFs and Word, the note
+  `audience-omitted`; a few sentences of the deck guide are shorter to stay under its word limit.
+  The tool's schema, guide and argument errors name the new optional parameter `audience`.
+
 ### New
 
 - **Contact sheet in the tool reply.** `DocumentToolOptions.Preview` takes an `IDeckPreview`; with
@@ -35,6 +50,22 @@ updating, breaking changes first.
   window too; when the slide changes, the deck sends `{ app: 'html-deck', kind: 'shown', slide: n,
   line: l }`. A deck in an `iframe` sends its messages to the page around it, so an editor can show
   the slide under the cursor and jump back to the Markdown.
+
+- **Audience versions.** One Markdown holds the customer's, the internal and the trainer's version
+  (`Audience.Customer`, `Internal`, `Trainer`): `::: internal` … `:::`, a paragraph `{.internal}`
+  before a block, and `{.internal}` on a `#` or `##` heading mark what only the internal and
+  trainer's versions show; `::: exercise` is shown to everyone, numbered "Exercise 1", and a
+  `::: solution` right after it to the trainer only, as "Solution 1". The front-matter key
+  `audience: customer | internal | trainer` or `PptxOptions.Audience`, `PdfOptions.Audience` and
+  `DocxOptions.Audience` (which win) pick the version; the default is the customer's, so documents
+  without the syntax are unchanged. A version other than the customer's is marked `internal` unless a
+  classification is set. The note `audience-omitted` counts what a version left out.
+  `GeneratedTexts.Exercise` and `Solution` ("Übung", "Lösung" in German) are the labels.
+- **`AudienceVersions.Distinct(document)`** names the versions whose content differs, so a host
+  generates only those.
+- **`DocumentTool` takes `audience`** (`customer`, `internal`, `trainer`), through the new
+  `IMarkdownGenerator.ForAudience`, which has a default implementation, so a host's own generators
+  keep compiling. The host's options win over it.
 
 ## 2611.15.12
 

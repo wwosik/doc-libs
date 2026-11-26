@@ -118,7 +118,8 @@ public static class PptxGenerator
         var template = PptxTemplateOptions.Apply(frontMatter, options.Template ?? PptxOptions.Default.Template, options.Brands);
         var labels = frontMatter.Labels();
 
-        var marking = Marking.Resolve(frontMatter, options.Classification, options.Draft, notes, Format.Pptx);
+        var audience = AudienceFilter.Resolve(frontMatter, options.Audience);
+        var marking = Marking.Resolve(frontMatter, options.Classification, options.Draft, notes, Format.Pptx, audience);
         if (template is CustomTemplateOptions custom && CustomRolesProblem(custom.Roles) is { } problem)
         {
             throw new ArgumentException($"{nameof(CustomTemplateOptions)}.{problem}.", nameof(options));
@@ -187,7 +188,7 @@ public static class PptxGenerator
             };
             var slides = DeckParser.Parse(
                 document with { Markdown = frontMatter.Body },
-                options with { Transition = template.TransitionOverride ?? options.Transition, Build = template.BuildOverride ?? options.Build },
+                options with { Transition = template.TransitionOverride ?? options.Transition, Build = template.BuildOverride ?? options.Build, Audience = audience },
                 brand is null ? null : dark ? ResolvedBrand.DarkSlideBrand(brand) : ResolvedBrand.SlideBrand(brand),
                 frontMatter.BodyLine,
                 notes,
@@ -249,7 +250,8 @@ public static class PptxGenerator
             new Dictionary<string, string>
             {
                 ["diagrams"] = AuthoringGuides.Renderers(options.CodeBlockRenderers),
-                ["frontMatter"] = AuthoringGuides.FrontMatter(registry.Expected, options.Language, [.. template.Keys.Select(k => (k, KeyMeanings[k])), classification, draft, Labels], options.Typography, options.HighlightCode),
+                ["frontMatter"] = AuthoringGuides.FrontMatter(registry.Expected, options.Language, [.. template.Keys.Select(k => (k, KeyMeanings[k])), classification, draft, Labels], options.Typography, options.HighlightCode, options.Audience),
+                ["versions"] = AuthoringGuides.Versions(options.Audience),
                 ["characters"] = Characters(brand?.Fonts, codeFont),
                 ["templateLayouts"] = TemplateLayouts(brand?.Pptx, (template as CustomTemplateOptions)?.Roles),
                 ["icons"] = AuthoringGuides.Icons(
@@ -261,7 +263,7 @@ public static class PptxGenerator
                     : "Leave the title room.",
                 ["limits"] = AuthoringGuides.Limits(options.Checks ?? CheckOptions.Default, Format.Pptx),
                 // classification-kept is left to the front matter table, which says when lower values have no effect.
-                ["notes"] = AuthoringGuides.Notes(Format.Pptx, NoteCodes.DrawingUnsupported, NoteCodes.FontMissing, NoteCodes.ClassificationKept),
+                ["notes"] = AuthoringGuides.Notes(Format.Pptx, NoteCodes.DrawingUnsupported, NoteCodes.FontMissing, NoteCodes.ClassificationKept, NoteCodes.AudienceOmitted),
             });
     }
 
@@ -451,6 +453,8 @@ public static class PptxGenerator
         public GenerationResult Generate(MarkdownDocument document, Stream output) => PptxGenerator.Generate(document, output, options);
 
         public CheckResult Check(MarkdownDocument document) => PptxGenerator.Check(document, options);
+
+        public IMarkdownGenerator ForAudience(Audience audience) => options.Audience is null ? new Bound(options with { Audience = audience }) : this;
 
         public override string ToString() => $"{this.Title} ({this.Format})";
     }

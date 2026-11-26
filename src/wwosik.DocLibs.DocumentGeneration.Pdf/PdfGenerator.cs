@@ -85,7 +85,8 @@ public static class PdfGenerator
         var frontMatter = FrontMatter.Read(document.Markdown, DocumentFormat.Pdf);
         frontMatter.Labels(); // checked like in decks; PDFs show status labels as code
 
-        var marking = Marking.Resolve(frontMatter, options.Classification, options.Draft, notes, DocumentFormat.Pdf);
+        var audience = AudienceFilter.Resolve(frontMatter, options.Audience);
+        var marking = Marking.Resolve(frontMatter, options.Classification, options.Draft, notes, DocumentFormat.Pdf, audience);
         options = Apply(frontMatter, options);
         var brand = ResolvedBrand.Resolve(options.Template.BrandValue);
         var fonts = FontSet.For(brand);
@@ -96,7 +97,7 @@ public static class PdfGenerator
             options.TypographyRules,
             c => TextFaces.All(face => fonts.HasGlyph(new Rune(c), face)),
             notes);
-        var model = MarkdownParser.Parse(document with { Markdown = frontMatter.Body }, options, options.Template.BrandValue, frontMatter.BodyLine, notes, language.Texts, typography,
+        var model = MarkdownParser.Parse(document with { Markdown = frontMatter.Body }, options with { Audience = audience }, options.Template.BrandValue, frontMatter.BodyLine, notes, language.Texts, typography,
             CodeHighlighting.For(frontMatter, options.HighlightCode, notes));
         if (options.TableOfContents && model.Contents is null)
         {
@@ -173,7 +174,8 @@ public static class PdfGenerator
                     registry.Expected,
                     options.Language,
                     [.. options.Template.Keys.Concat([PageSizeKey, OrientationKey, LayoutKey, TocKey, TocDepthKey, HeadingNumbersKey, JustifyKey]).Select(k => (k, meanings[k])), classification, draft, deckKeys, labels],
-                    options.Typography, options.HighlightCode),
+                    options.Typography, options.HighlightCode, options.Audience),
+                ["versions"] = AuthoringGuides.Versions(options.Audience),
                 ["characters"] = Characters(FontSet.For(ResolvedBrand.Resolve(options.Template.BrandValue)), options.ReplaceUnsupported is not null),
                 ["icons"] = AuthoringGuides.Icons(
                     options.Icons,
@@ -267,6 +269,8 @@ public static class PdfGenerator
         public GenerationResult Generate(MarkdownDocument document, Stream output) => PdfGenerator.Generate(document, output, options);
 
         public CheckResult Check(MarkdownDocument document) => PdfGenerator.Check(document, options);
+
+        public IMarkdownGenerator ForAudience(Audience audience) => options.Audience is null ? new Bound(options with { Audience = audience }) : this;
 
         public override string ToString() => $"{this.Title} ({this.Format})";
     }

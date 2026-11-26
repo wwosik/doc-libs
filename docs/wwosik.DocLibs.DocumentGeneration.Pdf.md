@@ -93,6 +93,7 @@ string guide = PdfGenerator.AuthoringGuide(options);   // starts at "##"
 | `Justify` | `false` | justified body text, see [Justified text](#justified-text) |
 | `Classification` | `Public` | `Internal` or `Confidential` marks every page, see [Classification marking](#classification-marking); front matter can raise it, not lower it |
 | `Draft` | `false` | "Draft" in the marking and a diagonal watermark on every page; front matter cannot undo it |
+| `Audience` | `null` | the version to write, `Customer`, `Internal` or `Trainer`; wins over the front matter's `audience`, see [Audience versions](wwosik.DocLibs.DocumentGeneration.md#audience-versions) |
 | `CodeBlockRenderers` | none | see [Diagrams](#diagrams) |
 | `ImageConverters` | none | images in other formats, such as SVG, see [Image converters](wwosik.DocLibs.DocumentGeneration.md#image-converters) |
 | `ReplaceUnsupported` | none (throws) | see [Characters the fonts lack](#characters-the-fonts-lack) |

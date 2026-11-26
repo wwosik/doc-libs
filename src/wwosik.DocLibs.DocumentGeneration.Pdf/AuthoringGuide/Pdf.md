@@ -188,6 +188,8 @@ around a table of 1–15 rows of risk, likelihood and impact (each 1–5) puts n
 
 {{diagrams}}
 
+{{versions}}
+
 {{frontMatter}}
 
 ## Characters

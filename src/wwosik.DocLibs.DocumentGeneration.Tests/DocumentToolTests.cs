@@ -130,7 +130,7 @@ public class DocumentToolTests
         Assert.Equal("object", root.GetProperty("type").GetString());
         Assert.False(root.GetProperty("additionalProperties").GetBoolean());
         var properties = root.GetProperty("properties");
-        Assert.Equal(["format", "markdown", "mode"], properties.EnumerateObject().Select(p => p.Name));
+        Assert.Equal(["format", "markdown", "audience", "mode"], properties.EnumerateObject().Select(p => p.Name));
         Assert.Equal(["pptx", "pdf", "docx"], properties.GetProperty("format").GetProperty("enum").EnumerateArray().Select(e => e.GetString()));
         Assert.Equal(["generate", "check"], properties.GetProperty("mode").GetProperty("enum").EnumerateArray().Select(e => e.GetString()));
         Assert.Equal(["format", "markdown"], root.GetProperty("required").EnumerateArray().Select(e => e.GetString()));
@@ -457,8 +457,8 @@ public class DocumentToolTests
     [Theory]
     [InlineData("", "The arguments are not valid JSON")]
     [InlineData("{\"format\": \"pdf\",", "The arguments are not valid JSON")]
-    [InlineData("[\"pdf\"]", "The arguments must be a JSON object with the properties 'format', 'markdown' and 'mode' (optional), not an array.")]
-    [InlineData("{\"format\":\"pdf\",\"markdown\":\"# A\",\"title\":\"A\"}", "Unknown property 'title'. The tool takes the properties 'format', 'markdown' and 'mode' (optional).")]
+    [InlineData("[\"pdf\"]", "The arguments must be a JSON object with the properties 'format', 'markdown', 'audience' (optional) and 'mode' (optional), not an array.")]
+    [InlineData("{\"format\":\"pdf\",\"markdown\":\"# A\",\"title\":\"A\"}", "Unknown property 'title'. The tool takes the properties 'format', 'markdown', 'audience' (optional) and 'mode' (optional).")]
     [InlineData("{\"format\":\"pdf\",\"markdown\":1}", "'markdown' must be a string, not a number.")]
     [InlineData("{\"format\":[\"pdf\"],\"markdown\":\"# A\"}", "'format' must be a string, not an array.")]
     [InlineData("{\"format\":\"pdf\",\"markdown\":\"# A\",\"mode\":true}", "'mode' must be a string, not a boolean.")]
@@ -488,7 +488,7 @@ public class DocumentToolTests
         var tool = Tool(new DocumentToolOptions { OfferCheck = false });
         var run = tool.Run("{\"format\":\"pdf\",\"markdown\":\"# A\",\"mode\":\"check\"}", [], Stream.Null);
 
-        Assert.Equal(Error("Unknown property 'mode'. The tool takes the properties 'format' and 'markdown'."), run.Reply);
+        Assert.Equal(Error("Unknown property 'mode'. The tool takes the properties 'format', 'markdown' and 'audience' (optional)."), run.Reply);
     }
 
     [Fact]
@@ -498,7 +498,7 @@ public class DocumentToolTests
 
         Assert.Equal(Error("Unknown format 'pptx': the only format is \"pdf\"."), tool.Run("{\"format\":\"pptx\",\"markdown\":\"# A\"}", [], Stream.Null).Reply);
         Assert.Equal(
-            Error("Unknown property 'x'. The tool takes the properties 'format' (optional), 'markdown' and 'mode' (optional)."),
+            Error("Unknown property 'x'. The tool takes the properties 'format' (optional), 'markdown', 'audience' (optional) and 'mode' (optional)."),
             tool.Run("{\"x\":1}", [], Stream.Null).Reply);
     }
 

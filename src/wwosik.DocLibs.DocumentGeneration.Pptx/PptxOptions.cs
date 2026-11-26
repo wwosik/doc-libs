@@ -135,6 +135,15 @@ public sealed record PptxOptions
     public bool Draft { get; init; }
 
     /// <summary>
+    /// The version of the deck to generate: <see cref="DocumentGeneration.Audience.Customer"/> leaves out what is
+    /// marked <c>internal</c> and the solutions, <see cref="DocumentGeneration.Audience.Internal"/> shows what is marked
+    /// <c>internal</c>, <see cref="DocumentGeneration.Audience.Trainer"/> also the solutions. A version other than the
+    /// customer's is marked internal unless a classification is set. Wins over the front matter's <c>audience</c>.
+    /// Default <see langword="null"/>: the front matter's, else the customer's.
+    /// </summary>
+    public Audience? Audience { get; init; }
+
+    /// <summary>
     /// The clock for the date of generation in the footer, and for today in timelines and Gantt charts that do not pin it
     /// with <c>today=</c>. Default <see cref="TimeProvider.System"/>.
     /// </summary>

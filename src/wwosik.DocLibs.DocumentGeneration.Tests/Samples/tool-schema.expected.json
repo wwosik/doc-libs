@@ -13,6 +13,16 @@
       "type": "string",
       "description": "The whole document as Markdown, front matter included, written as the guide describes for the format."
     },
+    "audience": {
+      "type": "string",
+      "enum": [
+        "customer",
+        "internal",
+        "trainer"
+      ],
+      "default": "customer",
+      "description": "The version to write, as the guide's section *Versions* describes: \"customer\" (the default) leaves out what is marked internal and the solutions, \"internal\" shows what is marked internal, \"trainer\" also the solutions. Wins over the front matter's 'audience'."
+    },
     "mode": {
       "type": "string",
       "enum": [

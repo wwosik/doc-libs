@@ -76,6 +76,9 @@ internal sealed partial class MarkdownParser(
 
         // Page breaks: their content stays where they were, and a PageBreakBlock goes before the block each comes before.
         parser.pageBreaks = PageBreaks.Flatten(markdown, DocumentFormat.Pdf);
+
+        // The version's content only, before anything is laid out.
+        AudienceFilter.Apply(markdown, options.Audience ?? Audience.Customer, DocumentFormat.Pdf, parser.LineOf, texts, notes);
         MarkdownSyntax.ReportMissingFootnotes(markdown, parser.LineOf, notes);
 
         // Build markers are for decks: checked like there, then left out wherever they are.

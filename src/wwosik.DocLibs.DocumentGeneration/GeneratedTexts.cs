@@ -39,6 +39,8 @@ public sealed record GeneratedTexts
         Confidential = "Vertraulich",
         Draft = "Entwurf",
         Chart = "Diagramm",
+        Exercise = "Übung",
+        Solution = "Lösung",
     };
 
     /// <summary>The title of <c>> [!NOTE]</c>.</summary>
@@ -109,6 +111,12 @@ public sealed record GeneratedTexts
 
     /// <summary>The marking of a draft (<c>draft: true</c>), and the text of its watermark: "Draft"; German "Entwurf".</summary>
     public string Draft { get; init; } = "Draft";
+
+    /// <summary>The label of an exercise (<c>::: exercise</c>), before its number: "Exercise 1"; German "Übung".</summary>
+    public string Exercise { get; init; } = "Exercise";
+
+    /// <summary>The label of a solution (<c>::: solution</c>), before its exercise's number: "Solution 1"; German "Lösung".</summary>
+    public string Solution { get; init; } = "Solution";
 
     /// <summary>The title of an alert of the kind <paramref name="kind"/> (<c>NOTE</c>, <c>TIP</c>, …).</summary>
     internal string Alert(string kind) => kind.ToUpperInvariant() switch

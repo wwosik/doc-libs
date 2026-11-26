@@ -8,7 +8,7 @@ namespace wwosik.DocLibs.DocumentGeneration;
 
 /// <summary>
 /// A tool an AI agent can call to write documents: a name, a description, the JSON Schema of its parameters
-/// (<c>format</c>, <c>markdown</c>, <c>mode</c>), a combined authoring guide for the formats it offers, and
+/// (<c>format</c>, <c>markdown</c>, <c>audience</c>, <c>mode</c>), a combined authoring guide for the formats it offers, and
 /// <see cref="Run"/>, which takes the agent's arguments as JSON and returns a reply in a fixed JSON shape. It supplies
 /// the parts, not a vendor's envelope: the host puts them into its model API's tool definition. It knows no generator;
 /// pass the formats to offer as <see cref="IMarkdownGenerator"/>s, e.g. <c>PdfGenerator.ForOptions(options)</c>.
@@ -20,6 +20,12 @@ public sealed class DocumentTool
 
     /// <summary>The parameter that holds the whole document.</summary>
     public const string MarkdownParameter = "markdown";
+
+    /// <summary>
+    /// The parameter that picks the version, <c>customer</c>, <c>internal</c> or <c>trainer</c> (<see cref="Audience"/>):
+    /// optional, it wins over the front matter's <c>audience</c> but not over a version the host's options set.
+    /// </summary>
+    public const string AudienceParameter = "audience";
 
     /// <summary>The parameter that picks <c>generate</c> or <c>check</c>.</summary>
     public const string ModeParameter = "mode";
@@ -101,7 +107,7 @@ public sealed class DocumentTool
 
     /// <summary>
     /// The JSON Schema of the arguments, as indented JSON: an object of <c>format</c> (an <c>enum</c> of the offered
-    /// formats, required when there are several), <c>markdown</c> (required) and, with
+    /// formats, required when there are several), <c>markdown</c> (required), <c>audience</c> (optional) and, with
     /// <see cref="DocumentToolOptions.OfferCheck"/>, <c>mode</c>; no other properties. It uses only <c>type</c>,
     /// <c>properties</c>, <c>enum</c>, <c>description</c>, <c>required</c>, <c>default</c> and
     /// <c>additionalProperties</c>, which the major tool APIs all accept.
@@ -140,11 +146,12 @@ public sealed class DocumentTool
             return new DocumentToolRun(ErrorReply(problem!));
         }
 
-        var (generator, markdown, check) = call.Value;
+        var (generator, markdown, check, audience) = call.Value;
         var document = new MarkdownDocument(markdown, resources, new Dictionary<string, string>());
+        var version = audience is { } asked ? generator.ForAudience(asked) : generator;
         if (check)
         {
-            var result = generator.Check(document);
+            var result = version.Check(document);
             return new DocumentToolRun(CheckedReply(generator, result)) { Generator = generator, Check = result };
         }
 
@@ -154,7 +161,7 @@ public sealed class DocumentTool
         GenerationResult generated;
         try
         {
-            generated = generator.Generate(document, buffer ?? output);
+            generated = version.Generate(document, buffer ?? output);
         }
         catch (DocumentConversionException exception)
         {
@@ -193,7 +200,7 @@ public sealed class DocumentTool
     private static bool IsValidName(string? name) =>
         name is { Length: >= 1 and <= 64 } && name.All(c => c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '_' or '-');
 
-    private (IMarkdownGenerator Generator, string Markdown, bool Check)? Parse(string arguments, out string? problem)
+    private (IMarkdownGenerator Generator, string Markdown, bool Check, Audience? Audience)? Parse(string arguments, out string? problem)
     {
         problem = null;
         JsonDocument json;
@@ -216,11 +223,11 @@ public sealed class DocumentTool
                 return null;
             }
 
-            string? format = null, markdown = null, mode = null;
+            string? format = null, markdown = null, mode = null, audience = null;
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var property in root.EnumerateObject())
             {
-                var known = property.Name is FormatParameter or MarkdownParameter || (this.offerCheck && property.Name == ModeParameter);
+                var known = property.Name is FormatParameter or MarkdownParameter or AudienceParameter || (this.offerCheck && property.Name == ModeParameter);
                 if (!known)
                 {
                     problem = $"Unknown property '{property.Name}'. The tool takes {this.PropertyList()}.";
@@ -250,6 +257,7 @@ public sealed class DocumentTool
                 {
                     case FormatParameter: format = value; break;
                     case MarkdownParameter: markdown = value; break;
+                    case AudienceParameter: audience = value; break;
                     default: mode = value; break;
                 }
             }
@@ -288,6 +296,23 @@ public sealed class DocumentTool
                 }
             }
 
+            Audience? version = null;
+            if (audience is not null)
+            {
+                version = audience.Trim().ToLowerInvariant() switch
+                {
+                    "customer" => Audience.Customer,
+                    "internal" => Audience.Internal,
+                    "trainer" => Audience.Trainer,
+                    _ => null,
+                };
+                if (version is null)
+                {
+                    problem = $"Unknown audience '{audience}': give \"customer\", \"internal\" or \"trainer\".";
+                    return null;
+                }
+            }
+
             if (markdown is null)
             {
                 problem = $"'{MarkdownParameter}' is missing: put the whole document in it, front matter included.";
@@ -300,7 +325,7 @@ public sealed class DocumentTool
                 return null;
             }
 
-            return (generator, markdown.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n'), check);
+            return (generator, markdown.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n'), check, version);
         }
     }
 
@@ -326,6 +351,7 @@ public sealed class DocumentTool
         var names = new List<string>();
         names.Add(this.generators.Length > 1 ? $"'{FormatParameter}'" : $"'{FormatParameter}' (optional)");
         names.Add($"'{MarkdownParameter}'");
+        names.Add($"'{AudienceParameter}' (optional)");
         if (this.offerCheck)
         {
             names.Add($"'{ModeParameter}' (optional)");
@@ -390,6 +416,19 @@ public sealed class DocumentTool
             writer.WriteString("description", "The whole document as Markdown, front matter included, written as the guide describes for the format.");
             writer.WriteEndObject();
 
+            writer.WriteStartObject(AudienceParameter);
+            writer.WriteString("type", "string");
+            writer.WriteStartArray("enum");
+            writer.WriteStringValue("customer");
+            writer.WriteStringValue("internal");
+            writer.WriteStringValue("trainer");
+            writer.WriteEndArray();
+            writer.WriteString("default", "customer");
+            writer.WriteString(
+                "description",
+                "The version to write, as the guide's section *Versions* describes: \"customer\" (the default) leaves out what is marked internal and the solutions, \"internal\" shows what is marked internal, \"trainer\" also the solutions. Wins over the front matter's 'audience'.");
+            writer.WriteEndObject();
+
             if (this.offerCheck)
             {
                 writer.WriteStartObject(ModeParameter);
@@ -432,6 +471,7 @@ public sealed class DocumentTool
         text.Append(several
             ? $"- **`format`** picks the file: {this.FormatList("or")}. It is required.\n"
             : $"- **`format`** may be left out: the only format is {Quoted(this.generators[0].Format)}.\n");
+        text.Append("- **`audience`** may be left out; it picks the version, `customer`, `internal` or `trainer`, as each format's section *Versions* says.\n");
         if (this.offerCheck)
         {
             text.Append("- **Check first.** With `\"mode\": \"check\"` the tool checks the Markdown and writes nothing. It returns every problem at once, ");

@@ -34,10 +34,11 @@ internal sealed record Marking(Classification Classification, bool Draft)
 
     /// <summary>
     /// The marking of a document: the higher of the host's classification and the front matter's, and a draft if
-    /// either says so.
+    /// either says so. A version other than the customer's (<paramref name="audience"/>) is internal unless the host
+    /// or the front matter sets a classification: <c>classification: public</c> keeps it public.
     /// </summary>
     /// <exception cref="DocumentConversionException">A value in the front matter is not one of the valid ones.</exception>
-    public static Marking Resolve(FrontMatter frontMatter, Classification host, bool hostDraft, GenerationNotes notes, DocumentFormat format)
+    public static Marking Resolve(FrontMatter frontMatter, Classification host, bool hostDraft, GenerationNotes notes, DocumentFormat format, Audience audience = Audience.Customer)
     {
         var classification = host;
         if (frontMatter.Value(FrontMatter.ClassificationKey) is { } value)
@@ -57,6 +58,10 @@ internal sealed record Marking(Classification Classification, bool Draft)
             }
 
             classification = asked > host ? asked : host;
+        }
+        else if (audience != Audience.Customer && host == Classification.Public)
+        {
+            classification = Classification.Internal;
         }
 
         var draft = hostDraft;

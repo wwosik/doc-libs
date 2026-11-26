@@ -34,12 +34,14 @@ internal sealed record DocxContent(DocxCover? Cover, IReadOnlyList<Block> Body)
 
     private static readonly MarkdownPipeline Pipeline = BuildPipeline();
 
-    public static DocxContent Parse(string markdown)
+    /// <summary>Parses <paramref name="markdown"/>; <paramref name="filter"/> changes the parsed blocks first (the version's content).</summary>
+    public static DocxContent Parse(string markdown, Action<Markdig.Syntax.MarkdownDocument>? filter = null)
     {
         var document = Markdown.Parse(markdown, Pipeline);
 
         // `::: pagebreak` is taken apart first, so that a heading an unclosed break holds starts its section as usual.
         var pageBreaks = DocumentGeneration.PageBreaks.Flatten(document, Format.Docx);
+        filter?.Invoke(document);
 
         // Speaker notes are for decks: checked like there, then left out.
         foreach (var notes in document.OfType<CustomContainer>().Where(c => c.Info == LayoutSyntax.Notes))

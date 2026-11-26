@@ -212,6 +212,15 @@ or `PptxOptions.Classification` and `Draft`, mark the deck (higher of the two wi
   none, so its output is unchanged.
 - The PPTX converter writes the label as text.
 
+## Audience versions
+
+`PptxOptions.Audience` or the front matter's `audience` picks the version of the deck: what is marked
+`internal`, and the solutions of exercises, are taken out before the deck is split into slides, so
+slide numbers, agendas and section dividers follow the version; a `#` with `{.internal}` takes its
+section divider and slides with it. A version other than the customer's gets the corner label
+"Internal" unless a classification is set. The HTML deck shows the version its `.pptx` holds. See
+[Audience versions](wwosik.DocLibs.DocumentGeneration.md#audience-versions).
+
 ## Presenting
 
 - **Speaker notes:** `::: notes` … `:::` at the top level of a `#` or `##` section is taken out of

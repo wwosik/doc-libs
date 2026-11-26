@@ -143,6 +143,12 @@ public static class NoteCodes
     /// </summary>
     public const string CodeLanguageUnknown = "code-language-unknown";
 
+    /// <summary>
+    /// The version generated (<see cref="Audience"/>) left out parts marked for other versions: <c>internal</c> parts or
+    /// solutions. One note per document, with the lines.
+    /// </summary>
+    public const string AudienceOmitted = "audience-omitted";
+
     /// <summary>Check only: a slide has more list items, at every level, than <see cref="CheckOptions.MaxBulletsPerSlide"/>.</summary>
     public const string TooManyBullets = "too-many-bullets";
 
@@ -202,6 +208,7 @@ public static class NoteCodes
         (ClassificationKept, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "front matter cannot lower the host's `classification`, which applies. Leave the key out."),
         (TypographySkipped, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "with `typography: true`, a character the fonts lack was kept as typed. Nothing to fix."),
         (CodeLanguageUnknown, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "with `highlight: true`, a code block's language is unknown. Check the spelling, or write `text`."),
+        (AudienceOmitted, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "this version left out parts marked for other versions (*Versions*). Nothing to fix."),
         (TooManyBullets, [DocumentFormat.Pptx], "a slide has more list items, counting every level, than *Limits* allows. Cut them, or split the slide into slides of your own."),
         (TooManyWords, [DocumentFormat.Pptx], "a slide has more words than *Limits* allows, its title and speaker notes not counted. Shorten it, or move detail into `::: notes`."),
         (LongParagraph, [DocumentFormat.Pdf, DocumentFormat.Docx], "a paragraph has more words than *Limits* allows. Split it, or make a list of it."),

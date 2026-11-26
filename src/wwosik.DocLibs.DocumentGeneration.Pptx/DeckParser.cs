@@ -93,6 +93,9 @@ internal sealed partial class DeckParser(
 
         // Slides have no pages to break: a page break's content stays where it is, the break itself is ignored.
         PageBreaks.Flatten(markdown, Format.Pptx);
+
+        // The version's content only, before anything is split into slides.
+        AudienceFilter.Apply(markdown, options.Audience ?? Audience.Customer, Format.Pptx, parser.LineOf, texts ?? GeneratedTexts.English, parser.Notes);
         MarkdownSyntax.ReportMissingFootnotes(markdown, parser.LineOf, parser.Notes);
         BuildMarker.Check(markdown, Format.Pptx, parser.LineOf);
         SceneSyntax.Check(markdown, Format.Pptx, parser.LineOf);

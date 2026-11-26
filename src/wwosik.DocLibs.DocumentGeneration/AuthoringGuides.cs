@@ -53,8 +53,9 @@ internal static partial class AuthoringGuides
     /// <param name="keys">The keys besides <c>title</c>, <c>author</c>, <c>lang</c>, <c>typography</c>, <c>highlight</c> and <c>template</c>, with their values and meaning.</param>
     /// <param name="typography">The options' typography, the default of <c>typography</c>.</param>
     /// <param name="highlight">The options' code highlighting, the default of <c>highlight</c>.</param>
+    /// <param name="audience">The version the options set, which the front matter's <c>audience</c> cannot change.</param>
     public static string FrontMatter(
-        string templates, string language, IEnumerable<(string Key, string Meaning)> keys, bool typography = false, bool highlight = false)
+        string templates, string language, IEnumerable<(string Key, string Meaning)> keys, bool typography = false, bool highlight = false, Audience? audience = null)
     {
         var text = new StringBuilder("""
             ## Front matter
@@ -87,7 +88,37 @@ internal static partial class AuthoringGuides
             text.Append(CultureInvariant($"| `{key}` | {meaning} |\n"));
         }
 
+        text.Append(audience is { } fixedVersion
+            ? CultureInvariant($"| `{DocumentGeneration.FrontMatter.AudienceKey}` | No effect here: the host writes the `{fixedVersion.ToString().ToLowerInvariant()}` version. |\n")
+            : $"| `{DocumentGeneration.FrontMatter.AudienceKey}` | `customer`, `internal` or `trainer`: the version, see *Versions*. Default `customer`. |\n");
+
         text.Append("\nAn unknown key, a key given twice or an invalid value is an error that lists the valid keys.\n");
+        return text.ToString();
+    }
+
+    /// <summary>
+    /// The section on versions (<see cref="Audience"/>): the containers and markers, and which version the host writes
+    /// when its options set one.
+    /// </summary>
+    public static string Versions(Audience? audience)
+    {
+        var picked = audience is { } fixedVersion
+            ? CultureInvariant($"here the host writes `{fixedVersion.ToString().ToLowerInvariant()}`")
+            : "picked by `audience:`";
+        var text = new StringBuilder(CultureInvariant($$"""
+            ## Versions
+
+            One Markdown holds three versions, {{picked}}: `customer`, `internal`, which adds what is marked
+            internal, and `trainer`, which adds solutions too.
+
+            - `::: internal` … `:::`, a line `{.internal}` before a block, or `{.internal}` on a `#` or `##` heading (the
+              whole chapter or slide) mark what is internal.
+            - `::: exercise` shows to everyone as "Exercise 1"; a `::: solution` right after it, as "Solution 1", to the
+              trainer only.
+
+            Versions but `customer` are marked internal unless `classification` is set.
+
+            """).ReplaceLineEndings("\n"));
         return text.ToString();
     }
 

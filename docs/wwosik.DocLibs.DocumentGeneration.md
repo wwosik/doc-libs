@@ -307,6 +307,7 @@ if (result.HasNotes)
 | `toc-empty` | PDF | `toc: true` (or `PdfOptions.TableOfContents`) asked for a table of contents, but no heading is at the depth it lists, so the PDF has none; the line is the `toc` key's, 0 when the option asked |
 | `list-too-deep` | DOCX | A list is nested deeper than three levels; the deeper items are set at the third level, once per list |
 | `classification-kept` | PPTX, PDF, DOCX | The front matter's `classification` is lower than the host's (`PptxOptions`, `PdfOptions` or `DocxOptions.Classification`); the host's applies. The PDF and deck guides leave it out of their notes list: their front matter table already says when lower values have no effect |
+| `audience-omitted` | PPTX, PDF, DOCX | The version generated left out parts marked for other versions (see [Audience versions](#audience-versions)): `internal` parts in the customer's version, solutions in all but the trainer's. Once per document, with the count and the lines; its line is the first of them. The deck guide leaves it out of its notes list |
 | `too-many-bullets` | PPTX | Check only: a `#` or `##` section has more list items, all levels, than `CheckOptions.MaxBulletsPerSlide` |
 | `too-many-words` | PPTX | Check only: a `#` or `##` section has more words than `CheckOptions.MaxWordsPerSlide`; its title, speaker notes, tables, code and drawn containers are not counted |
 | `long-paragraph` | PDF, DOCX | Check only: a paragraph (not a table cell) has more words than `CheckOptions.MaxWordsPerParagraph` |
@@ -439,7 +440,9 @@ return run.Reply;   // the tool result, as it is
   options, with `Format` (`pptx`, `pdf`, `docx`), `Title` (`PowerPoint deck`, `PDF document`,
   `Word document`), `FileExtension`, `ContentType`, `AuthoringGuide()`, `Generate(document,
   output)` and `Check(document)`. The options are checked when one of the methods runs. The static
-  methods stay as they were.
+  methods stay as they were. `ForAudience(audience)` returns the generator for that version, unless
+  its options already set one; its default implementation returns the generator itself, so a host's
+  own `IMarkdownGenerator` keeps compiling.
 - **No generator in the shared package.** `DocumentTool` knows only `IMarkdownGenerator`, so a host
   pays for the formats it offers: one that offers only PDFs references no Open XML SDK.
 - **`new DocumentTool(generators, options)`** offers the generators in their order. It throws
@@ -464,6 +467,7 @@ all accept:
 | --------- | ---- | ------- |
 | `format` | string, `enum` of the offered formats | The file to create. Required when more than one format is offered; with one it may be left out and defaults to it. |
 | `markdown` | string, required | The whole document, front matter included. |
+| `audience` | `"customer"` (default), `"internal"` or `"trainer"` | The version (see [Audience versions](#audience-versions)), through `IMarkdownGenerator.ForAudience`. Wins over the front matter's `audience`, not over a version the generator's options set. Optional. |
 | `mode` | `"generate"` (default) or `"check"` | Only with `OfferCheck`. `check` calls `Check` and writes nothing. |
 
 ### Replies
@@ -774,6 +778,64 @@ draft: true
   three pages or more, and the rotated watermark always; on shorter documents the marking comes back
   as text. The PPTX converter writes the corner label as text (it is not a placeholder).
 
+## Audience versions
+
+One Markdown source holds several versions of a document (`Audience`): the customer's
+(`Customer`, the default), the internal one (`Internal`), which adds the team's notes and parts, and
+the trainer's (`Trainer`), which also adds the solutions to exercises.
+
+```markdown
+---
+audience: internal
+---
+## Pricing {.internal}
+
+{.internal}
+
+Discount up to 10 % if asked.
+
+::: exercise
+Build a deck from this page.
+:::
+
+::: solution
+Call `PptxGenerator.Generate`.
+:::
+```
+
+- **Choosing the version:** `audience: customer | internal | trainer` in the front matter;
+  `PptxOptions.Audience`, `PdfOptions.Audience` and `DocxOptions.Audience` (`null` by default) win
+  over it. An unknown value throws, listing the valid ones; the front matter's value is checked even
+  when the options win.
+- **Marking parts:** `::: internal` … `:::` holds blocks for the internal and trainer's versions;
+  a paragraph `{.internal}` marks the block after it (with a blank line between, at the top level or
+  directly inside a `:::` container or alert; `{.internal}` and then a build marker mark the marker and
+  its block; `{.internal .frag}` keeps `{.frag}`); `{.internal}` on a `#` or `##` heading outside any
+  container marks the chapter (up to the next `#`) or the slide (up to the next `#` or `##`). The
+  token is taken off the heading's attributes in every version, so `{.dark .internal}` leaves `{.dark}`.
+- **Exercises:** `::: exercise` is shown in every version, after a bold label "Exercise 1"
+  (`GeneratedTexts.Exercise`, German "Übung"), numbered through the document in the version's order.
+  A `::: solution` right after an exercise is shown to the trainer only, labelled "Solution 1"
+  (`GeneratedTexts.Solution`, "Lösung") with its exercise's number.
+- **One filter before every generator:** right after parsing (and after page breaks are taken
+  apart), the generators remove what the version does not show and take the three containers apart,
+  so slide splitting, numbering, agendas and contents follow the version. A document without the
+  syntax is unchanged. The note `audience-omitted` counts what was left out.
+- **Marking:** a version other than the customer's is classified `internal` (see
+  [Classification](#classification)) unless the host's options or the front matter set a
+  classification: `classification: public` keeps it unmarked. The options cannot tell `Public` set on
+  purpose from the default.
+- **Mistakes throw** in every version, with the line: `{.internal}` on a `###` to `######` heading or
+  on a heading inside a container, a `{.internal}` followed by nothing, a heading, another
+  `{.internal}` or a `---`, one inside a list or quote, a `::: solution` that does not directly follow
+  a `::: exercise`, and arguments on any of the three containers.
+- **For hosts:** `AudienceVersions.Distinct(document)` lists the versions whose content differs, in
+  order: always `Customer`, `Internal` when anything is marked internal, `Trainer` when there is a
+  solution. Generate only those.
+- **Converters** are not changed: a converted document is one version.
+- **Not filtered:** the style checks of `Check` (words, bullets, titles) count every version's
+  content.
+
 ## Front matter
 
 Every generator reads options from a block at the very top of the Markdown; the keys each one
@@ -795,7 +857,7 @@ title: Network expansion 2027
   [Document language](#document-language)), `typography` (see [Typography](#typography)), `highlight`
   (see [Code highlighting](#code-highlighting)),
   `classification` and `draft` (see
-  [Classification](#classification)), and `labels.<category>` (see
+  [Classification](#classification)), `audience` (see [Audience versions](#audience-versions)), and `labels.<category>` (see
   [Slide layouts in Markdown](#slide-layouts-in-markdown)). The rest are the generator's.
 - **Document keys** (`FrontMatter.DocumentKeys`): `toc` (`true`/`false`), `tocDepth` (`1`–`3`),
   `headingNumbers` (`true`/`false`) and `justify` (`true`/`false`, justified body text), read by

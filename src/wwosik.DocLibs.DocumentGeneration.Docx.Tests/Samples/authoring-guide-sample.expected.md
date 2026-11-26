@@ -266,6 +266,18 @@ already starts a page. No break makes an empty page, and the cover heading takes
 and into the document's properties. `draft: true` adds "Draft" and a watermark on every page. The
 host may already mark the document; the front matter can raise its classification, not lower it.
 
+## Versions
+
+One Markdown holds three versions, picked by `audience:`: `customer`, `internal`, which adds what is marked
+internal, and `trainer`, which adds solutions too.
+
+- `::: internal` … `:::`, a line `{.internal}` before a block, or `{.internal}` on a `#` or `##` heading (the
+  whole chapter or slide) mark what is internal.
+- `::: exercise` shows to everyone as "Exercise 1"; a `::: solution` right after it, as "Solution 1", to the
+  trainer only.
+
+Versions but `customer` are marked internal unless `classification` is set.
+
 ## Front matter
 
 Settings go in a block at the very top, before anything else. One `key: value` per line, no
@@ -297,6 +309,7 @@ author: Planning team
 | `draft` | `true` or `false`: `true` adds "Draft" to the marking and a watermark to every page. Default `false`. |
 | `transition`, `build`, `numberChapters` | Settings for decks. A Word document accepts them and ignores them. |
 | `labels.success`, `labels.info`, `labels.warning`, `labels.danger`, `labels.neutral` | Status labels, separated by `;`: a table cell that is only one of them, as code (`` `Done` ``), is shown as a coloured label. |
+| `audience` | `customer`, `internal` or `trainer`: the version, see *Versions*. Default `customer`. |
 
 An unknown key, a key given twice or an invalid value is an error that lists the valid keys.
 
@@ -353,6 +366,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `classification-kept`: front matter cannot lower the host's `classification`, which applies. Leave the key out.
 - `typography-skipped`: with `typography: true`, a character the fonts lack was kept as typed. Nothing to fix.
 - `code-language-unknown`: with `highlight: true`, a code block's language is unknown. Check the spelling, or write `text`.
+- `audience-omitted`: this version left out parts marked for other versions (*Versions*). Nothing to fix.
 
 A check before generating writes nothing and returns these notes too, and also:
 
