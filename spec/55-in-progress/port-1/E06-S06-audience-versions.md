@@ -1,7 +1,7 @@
 # E06-S06 Audience versions
 
-> Status: todo
-> Epic: [E06 Markdown syntax](E06-markdown-syntax.md)
+> Status: in progress (port-1)
+> Epic: [E06 Markdown syntax](../../50-todo/E06-markdown-syntax.md)
 
 ## Summary
 
