@@ -1,7 +1,7 @@
 # E08-S02 Word round trip
 
-> Status: todo
-> Epic: [E08 Document converters](E08-document-converters.md)
+> Status: in progress (port-1)
+> Epic: [E08 Document converters](../../50-todo/E08-document-converters.md)
 
 ## Summary
 
