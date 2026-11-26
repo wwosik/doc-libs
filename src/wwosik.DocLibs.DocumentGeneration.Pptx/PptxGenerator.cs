@@ -18,7 +18,8 @@ public static class PptxGenerator
     /// <summary>
     /// Writes <paramref name="document"/> as a <c>.pptx</c> to <paramref name="output"/>. Returns the number of slides
     /// and the notes for the writer: slides split, set at the smallest size or still overfull, images enlarged, diagrams
-    /// left as code, HTML shown as text.
+    /// left as code, HTML shown as text; and in <see cref="GenerationResult.SlideLines"/> the Markdown line each slide
+    /// starts at, which each slide also keeps for <see cref="HtmlDeck.Write"/>.
     /// </summary>
     /// <exception cref="DocumentConversionException">
     /// An image is not among the document's resources or not a PNG, JPEG or GIF, the front matter is invalid or names
@@ -33,8 +34,9 @@ public static class PptxGenerator
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(output);
         var notes = new GenerationNotes();
-        var count = Write(document, output, options ?? PptxOptions.Default, notes, null);
-        return notes.Result(count);
+        var lines = new List<int>();
+        var count = Write(document, output, options ?? PptxOptions.Default, notes, null, lines);
+        return notes.Result(count, lines);
     }
 
     /// <summary>
@@ -108,8 +110,9 @@ public static class PptxGenerator
     }
 
     // Generate's work: the deck written to output, the notes added to notes, and when written is given, each slide
-    // written added to it (split parts included). Returns the number of slides.
-    private static int Write(MarkdownDocument document, Stream output, PptxOptions options, GenerationNotes notes, List<Slide>? written)
+    // written added to it (split parts included), and when lines is given, the Markdown line of each. Returns the number
+    // of slides.
+    private static int Write(MarkdownDocument document, Stream output, PptxOptions options, GenerationNotes notes, List<Slide>? written, List<int>? lines = null)
     {
         var frontMatter = FrontMatter.Read(document.Markdown, Format.Pptx);
         var template = PptxTemplateOptions.Apply(frontMatter, options.Template ?? PptxOptions.Default.Template, options.Brands);
@@ -195,6 +198,7 @@ public static class PptxGenerator
                 CodeHighlighting.For(frontMatter, options.HighlightCode, notes));
             var title = Typeset(typography, frontMatter.Title, frontMatter.LineOf(FrontMatter.TitleKey)) ?? Title(document, slides);
             count = writer.Write(slides, title);
+            lines?.AddRange(writer.SlideLines);
             if (template.EmbedsFonts && resolved?.Fonts is { } fonts)
             {
                 FontEmbedding.Embed(package.PresentationPart!, fonts, codeFont);

@@ -85,6 +85,7 @@ internal sealed partial class DeckWriter
     private readonly int bodySize;
     private readonly TemplateRoles roles;
     private readonly string? footerPattern;
+    private readonly List<int> slideLines = [];
     private string? deckTitle;
 
     // Whether the code being written is on a dark code box (a `.dark` flow slide), for the colours of highlighted runs.
@@ -222,6 +223,9 @@ internal sealed partial class DeckWriter
     /// <summary>Where <see cref="Write"/> adds each slide it writes, split parts included, for a check; <see langword="null"/>: nowhere.</summary>
     public List<Slide>? Written { get; init; }
 
+    /// <summary>The Markdown line each slide the last <see cref="Write"/> wrote starts at, split parts included; 0 if unknown.</summary>
+    public IReadOnlyList<int> SlideLines => this.slideLines;
+
     /// <summary>The classification marking ("Confidential · Draft") in the top right corner of every slide; <see langword="null"/>: none.</summary>
     public string? Marking { get; init; }
 
@@ -235,6 +239,7 @@ internal sealed partial class DeckWriter
     public int Write(IReadOnlyList<Slide> slides, string? deckTitle = null)
     {
         this.deckTitle = deckTitle;
+        this.slideLines.Clear();
         var number = 0;
         var speakerNotes = new List<(SlidePart Slide, IReadOnlyList<TextParagraph> Notes)>();
         foreach (var (slide, step) in slides.Select(this.Resolve).SelectMany(this.Fit))
@@ -270,6 +275,8 @@ internal sealed partial class DeckWriter
             this.Tag(canvas);
             Transitions.Write(canvas.Part.Slide!, slide.Transition);
             TimingWriter.Write(canvas.Part.Slide!, canvas.Targets);
+            SourceLines.Write(canvas.Part.Slide!, slide.Line);
+            this.slideLines.Add(slide.Line);
             if (slide.SpeakerNotes.Count > 0)
             {
                 speakerNotes.Add((canvas.Part, slide.SpeakerNotes));

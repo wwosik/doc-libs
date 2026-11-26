@@ -271,7 +271,8 @@ if (result.HasNotes)
 ```
 
 - **`GenerationResult(Notes)`**: `Pages` (slides for decks, pages for PDFs, 0 for Word documents,
-  whose pages Word lays out itself), `HasNotes`, and
+  whose pages Word lays out itself), `SlideLines` (for a deck, the Markdown line each slide starts
+  at, counted like a note's `Line`; `null` for PDFs and Word documents), `HasNotes`, and
   `ToString()`, one `- line N: …` per note or `No notes.`.
 - **`GenerationNote(Code, Line, Message)`**: `Code` is one of `NoteCodes`, stable, for filtering;
   `Line` is the Markdown line it concerns, from 1, front matter included, 0 if unknown; `Message`

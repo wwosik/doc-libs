@@ -17,6 +17,14 @@ public sealed record GenerationResult(IReadOnlyList<GenerationNote> Notes)
     /// </summary>
     public int Pages { get; init; }
 
+    /// <summary>
+    /// For a deck, the Markdown line (from 1, front matter included, counted like <see cref="GenerationNote.Line"/>) each
+    /// written slide starts at, in slide order: a slide split into parts gives each part its line. An editor can show the
+    /// slide under its cursor with it. <see langword="null"/> for PDFs, Word documents and HTML decks drawn from a deck
+    /// without these lines; 0 for a slide whose line is unknown.
+    /// </summary>
+    public IReadOnlyList<int>? SlideLines { get; init; }
+
     /// <summary>Whether there is anything to report.</summary>
     public bool HasNotes => this.Notes.Count > 0;
 
@@ -39,7 +47,8 @@ public sealed record GenerationResult(IReadOnlyList<GenerationNote> Notes)
 
     /// <inheritdoc/>
     public bool Equals(GenerationResult? other) =>
-        other is not null && this.Pages == other.Pages && this.Notes.SequenceEqual(other.Notes);
+        other is not null && this.Pages == other.Pages && this.Notes.SequenceEqual(other.Notes)
+        && (this.SlideLines is null ? other.SlideLines is null : other.SlideLines is not null && this.SlideLines.SequenceEqual(other.SlideLines));
 
     /// <inheritdoc/>
     public override int GetHashCode() => HashCode.Combine(this.Pages, this.Notes.Count);
@@ -237,7 +246,8 @@ internal sealed class GenerationNotes
     /// <summary>
     /// The notes ordered by line, those without one last; stable, so notes of one line keep the order they were added in.
     /// </summary>
-    public GenerationResult Result(int pages) => new([.. this.notes.OrderBy(n => n.Line > 0 ? n.Line : int.MaxValue)]) { Pages = pages };
+    public GenerationResult Result(int pages, IReadOnlyList<int>? slideLines = null) =>
+        new([.. this.notes.OrderBy(n => n.Line > 0 ? n.Line : int.MaxValue)]) { Pages = pages, SlideLines = slideLines };
 
     /// <summary>A short quote of <paramref name="text"/> for a message: its first line, cut at 40 characters.</summary>
     public static string Quote(string text)

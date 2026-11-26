@@ -25,6 +25,9 @@ internal sealed record SlideScene(int Number, string Title, SceneFill? Backgroun
 
     /// <summary>The transition into this slide; <see langword="null"/> for none.</summary>
     public SceneTransition? Transition { get; init; }
+
+    /// <summary>The Markdown line the slide was generated from (<see cref="SourceLines"/>); 0 if the slide does not say.</summary>
+    public int Line { get; init; }
 }
 
 /// <summary>Whether a paragraph of the speaker notes is a list item with a bullet or a number.</summary>

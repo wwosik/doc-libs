@@ -29,7 +29,8 @@
       steps: Array.isArray(steps) ? steps : [],
       transition: slide.getAttribute('data-transition'),
       direction: slide.getAttribute('data-direction'),
-      duration: parseInt(slide.getAttribute('data-duration') || '0', 10) || 0
+      duration: parseInt(slide.getAttribute('data-duration') || '0', 10) || 0,
+      line: parseInt(slide.getAttribute('data-line') || '0', 10) || 0
     };
   });
 
@@ -479,6 +480,11 @@
     if (!quiet) {
       send({ kind: 'state', slide: current, step: step });
     }
+
+    // An editor showing the deck beside its Markdown follows the slide back to its line.
+    if (previous !== index && !presenterMode) {
+      send({ kind: 'shown', slide: current + 1, line: info[current].line });
+    }
   }
 
   function next() {
@@ -555,6 +561,16 @@
 
   var peer = presenterMode ? window.opener : null;
   var channel = null;
+
+  // The page around a deck shown in an iframe, such as an editor's preview: it hears what the deck sends, and its
+  // messages never make it the presenter window.
+  var embedder = null;
+  try {
+    embedder = window.parent && window.parent !== window ? window.parent : null;
+  } catch (e) {
+    embedder = null;
+  }
+
   try {
     if (window.BroadcastChannel) {
       channel = new window.BroadcastChannel('html-deck:' + window.location.pathname);
@@ -577,6 +593,14 @@
       }
     }
 
+    if (embedder && embedder !== peer) {
+      try {
+        embedder.postMessage(message, '*');
+      } catch (e) {
+        embedder = null;
+      }
+    }
+
     if (channel) {
       try {
         channel.postMessage(message);
@@ -591,7 +615,7 @@
       return;
     }
 
-    if (source && (!peer || peer.closed)) {
+    if (source && source !== embedder && (!peer || peer.closed)) {
       peer = source;
     }
 
@@ -604,6 +628,13 @@
 
       var how = data.slide === current && data.step === step + 1 ? 'step' : data.slide === current + 1 && data.step === 0 ? 'slide' : null;
       go(data.slide, data.step, how, true);
+    } else if (data.kind === 'go') {
+      // Slide n (from 1) at once, every build shown; the answer is the new state, which the presenter window follows.
+      if (typeof data.slide !== 'number' || data.slide % 1 !== 0 || data.slide < 1 || data.slide > slides.length) {
+        return;
+      }
+
+      go(data.slide - 1, info[data.slide - 1].steps.length);
     }
   }
 

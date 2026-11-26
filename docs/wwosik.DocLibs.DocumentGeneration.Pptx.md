@@ -798,7 +798,8 @@ var generated = PptxGenerator.Generate(markdown, pptx, options);
 pptx.Position = 0;
 using var html = File.Create("deck.html");
 var drawn = HtmlDeck.Write(pptx, html, new HtmlDeckOptions { Title = "Quarterly review" });
-// drawn.Pages: slides written; drawn.Notes: drawing-unsupported, font-missing
+// drawn.Pages: slides written; drawn.Notes: drawing-unsupported, font-missing;
+// drawn.SlideLines: the Markdown line of each slide, as generated.SlideLines
 ```
 
 | `HtmlDeckOptions` | Default | |
@@ -940,6 +941,50 @@ on it × the `lnSpc` percent (less `lnSpcReduction`), or the `lnSpc` points; the
 font's Windows ascent below the top of a 100 % line, closer for tighter spacing. `spcBef` is not
 applied to the first paragraph. An empty paragraph has the height of its `endParaRPr`. No kerning,
 ligatures, shaping or hyphenation; East Asian and complex scripts are measured but not shaped.
+
+### Editor previews
+
+An editor that shows the deck beside its Markdown can follow the cursor. `GenerationResult.SlideLines`
+from `PptxGenerator.Generate` is the Markdown line (from 1, front matter included, counted like a
+note's `Line`) each slide starts at, in slide order: a cover, a divider or a closing slide has its
+heading's line, and every part of a split slide its slide's line. Each generated slide keeps its
+line in an extension of its own in its `p:extLst` (`<dl:source line="12"/>`), which PowerPoint and
+other viewers skip, so `HtmlDeck.Write` returns the same `SlideLines` and writes the line on each
+slide's `<section>` as `data-line`. A deck from elsewhere has no lines: its `SlideLines` is `null`;
+a slide added to a generated deck by other means has 0.
+
+**Messages.** The deck, its presenter window and the page around a deck in an `iframe` talk in
+objects with `app: 'html-deck'`, over `postMessage` (the opener, the presenter window, the
+embedding page) and a `BroadcastChannel`. Slides in `go` and `shown` count from 1, in `state` from 0
+(the deck's position in the page, as the presenter window uses it).
+
+| `kind` | Fields | |
+| ------ | ------ | - |
+| `hello` | | asks for the state; the deck answers with `state` |
+| `state` | `slide` (from 0), `step` | the current slide and build step, sent on every change; received, it sets them |
+| `go` | `slide` (from 1) | jumps to that slide at once, without an effect or transition, every build shown; answers with `state`, so the presenter window follows. A slide that is not in the deck, or not a whole number, is ignored |
+| `shown` | `slide` (from 1), `line` | sent by the deck (not the presenter window) whenever the slide changes, by keys, clicks, `go` or the presenter window; `line` is the slide's `data-line`, 0 when it has none |
+
+A page with the deck in an `iframe` drives it like this (the deck's Content Security Policy is its
+own, so `srcdoc` works as well as a file):
+
+```html
+<iframe id="preview" src="deck.html"></iframe>
+<script>
+  const deck = document.getElementById('preview');
+  // The cursor moved to a line: show the last slide starting at or before it.
+  function follow(line, slideLines) {
+    let slide = 1;
+    slideLines.forEach((start, i) => { if (start > 0 && start <= line) slide = i + 1; });
+    deck.contentWindow.postMessage({ app: 'html-deck', kind: 'go', slide }, '*');
+  }
+  window.addEventListener('message', (event) => {
+    if (event.source === deck.contentWindow && event.data?.app === 'html-deck' && event.data.kind === 'shown') {
+      moveCursorTo(event.data.line);  // the editor's own
+    }
+  });
+</script>
+```
 
 ### Slide SVGs for previews
 

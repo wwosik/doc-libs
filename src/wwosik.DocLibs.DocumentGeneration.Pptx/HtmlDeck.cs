@@ -42,7 +42,9 @@ public static class HtmlDeck
     /// Writes <paramref name="pptx"/> (any presentation, read best effort) as an HTML page to <paramref name="html"/>.
     /// <see cref="GenerationResult.Pages"/> is the number of slides written; the notes say what could not be drawn
     /// (<see cref="NoteCodes.DrawingUnsupported"/>) and which fonts were measured by stand-in or estimate
-    /// (<see cref="NoteCodes.FontMissing"/>).
+    /// (<see cref="NoteCodes.FontMissing"/>). For a deck from <see cref="PptxGenerator.Generate"/>,
+    /// <see cref="GenerationResult.SlideLines"/> is the Markdown line of each slide written, as the generator returned
+    /// it (0 for a slide added by other means); <see langword="null"/> for a deck whose slides do not carry their lines.
     /// </summary>
     /// <exception cref="DocumentConversions.DocumentConversionException">The file is not a presentation, or is damaged.</exception>
     public static GenerationResult Write(Stream pptx, Stream html, HtmlDeckOptions? options = null)
@@ -54,7 +56,8 @@ public static class HtmlDeck
         var page = HtmlDeckWriter.Page(deck, options);
         var bytes = new UTF8Encoding(false).GetBytes(page);
         html.Write(bytes);
-        return notes.Result(deck.Slides.Count);
+        var lines = deck.Slides.Any(s => s.Line > 0) ? deck.Slides.Select(s => s.Line).ToList() : null;
+        return notes.Result(deck.Slides.Count) with { SlideLines = lines };
     }
 }
 
@@ -148,7 +151,13 @@ internal static class HtmlDeckWriter
                 sections.Append(" data-steps=\"").Append(SceneSvg.Escape(Steps(slide.Steps))).Append('"');
             }
 
-            sections.Append(" aria-label=\"").Append(SceneSvg.Escape(slide.Title)).Append("\">")
+            sections.Append(" aria-label=\"").Append(SceneSvg.Escape(slide.Title)).Append('"');
+            if (slide.Line > 0)
+            {
+                sections.Append(FormattableString.Invariant($" data-line=\"{slide.Line}\""));
+            }
+
+            sections.Append('>')
                 .Append(SceneSvg.Write(deck, slide, SvgTarget.Html, Symbol, $"s{i + 1}-"));
             if (options.Notes && slide.Notes.Count > 0)
             {

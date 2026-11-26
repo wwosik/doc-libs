@@ -7,6 +7,23 @@ plus a counter for a further release within the same hour. The version says noth
 compatibility, so this file does. Read the sections between your version and the new one before
 updating, breaking changes first.
 
+## Unreleased
+
+### New
+
+- **Slide lines for editor previews.** `GenerationResult.SlideLines` gives, for a deck, the Markdown
+  line (from 1, front matter included) each slide starts at; the parts of a split slide share their
+  slide's line. `PptxGenerator.Generate` returns it and keeps each slide's line in the slide, in an
+  extension of its own that PowerPoint and other viewers skip, so `HtmlDeck.Write` returns it too
+  and writes it on each slide's `<section>` (`data-line`). It is `null` for PDFs, Word documents and
+  HTML decks drawn from other decks. Slides look the same as before; each slide's XML carries the
+  extension.
+- **The HTML deck takes `go` and sends `shown`.** `{ app: 'html-deck', kind: 'go', slide: n }` jumps
+  to slide n (from 1) at once with every build shown, answers with `state` and moves the presenter
+  window too; when the slide changes, the deck sends `{ app: 'html-deck', kind: 'shown', slide: n,
+  line: l }`. A deck in an `iframe` sends its messages to the page around it, so an editor can show
+  the slide under the cursor and jump back to the Markdown.
+
 ## 2611.15.12
 
 ### Fixed

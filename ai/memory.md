@@ -246,6 +246,9 @@ same change that made it untrue — a stale fact here is worse than a missing on
   heading's `Line` (set by `DeckParser.Section`, kept on split parts). Renderers report through
   `CodeBlockRequest.Report`, which is excluded from the request's equality. Notes never change the
   output: the files stay as before for the same input.
+- **Slide lines (E07-S07):** every generated slide keeps its heading's Markdown line in a `p:ext` of its
+  own (`SourceLines`), read back by `DeckReader` into `SlideScene.Line`. A test comparing two decks where
+  only one has front matter must ignore those values (`PresentingTests.Parts` does).
 - **Check (E05-S04):** `PptxGenerator.Check`, `PdfGenerator.Check`, `DocxGenerator.Check` all go through
   `DocumentCheck.Run` (shared): front matter, then a pass over the Markdown with its own Markdig pipeline
   (image sources, style rules, counts; bad images replaced by their alt text by source span), then the

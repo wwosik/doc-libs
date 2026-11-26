@@ -278,7 +278,8 @@ public class PresentingTests
         Assert.Contains(mono, Embedded("## One\n\nText.\n\n::: notes\nUse `code`.\n:::\n"));
     }
 
-    // Each part's content, for comparing two decks whose relationship ids are random.
+    // Each part's content, for comparing two decks whose relationship ids are random, and whose slides' Markdown lines
+    // differ by the front matter one of them has.
     internal static Dictionary<string, string> Parts(byte[] pptx)
     {
         using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(pptx));
@@ -287,7 +288,8 @@ public class PresentingTests
             e =>
             {
                 using var reader = new StreamReader(e.Open());
-                return System.Text.RegularExpressions.Regex.Replace(reader.ReadToEnd(), "R[0-9a-f]{16}", "R*");
+                var xml = System.Text.RegularExpressions.Regex.Replace(reader.ReadToEnd(), "R[0-9a-f]{16}", "R*");
+                return System.Text.RegularExpressions.Regex.Replace(xml, "(<dl:source [^>]*line=\")[0-9]+", "${1}*");
             });
     }
 }

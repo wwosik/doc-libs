@@ -29,6 +29,7 @@ public class SlideLayoutTests
                     label.Remove();
                 }
 
+                slide.GetFirstChild<DocumentFormat.OpenXml.Presentation.SlideExtensionList>()?.Remove();  // the lines move with the front matter
                 return System.Text.RegularExpressions.Regex.Replace(slide.OuterXml, "r:(id|embed)=\"[^\"]*\"", string.Empty);
             })];
         }

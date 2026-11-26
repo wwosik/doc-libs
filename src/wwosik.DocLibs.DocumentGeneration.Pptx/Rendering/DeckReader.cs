@@ -241,6 +241,7 @@ internal sealed partial class DeckReader
             Notes = this.SpeakerNotes(slidePart),
             Steps = this.Steps(slide.Root, own),
             Transition = this.Transition(slide.Root),
+            Line = SourceLines.Read(slide.Root),
         };
     }
 
