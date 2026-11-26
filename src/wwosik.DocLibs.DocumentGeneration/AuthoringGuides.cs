@@ -50,7 +50,7 @@ internal static partial class AuthoringGuides
     /// <summary>The front matter section: the syntax, then one table row per key.</summary>
     /// <param name="templates">The names <c>template</c> takes, as <see cref="BrandRegistry.Expected"/> lists them.</param>
     /// <param name="language">The options' document language, the default of <c>lang</c>.</param>
-    /// <param name="keys">The keys besides <c>title</c>, <c>author</c>, <c>lang</c>, <c>typography</c>, <c>highlight</c> and <c>template</c>, with their values and meaning.</param>
+    /// <param name="keys">The keys besides <c>title</c>, <c>author</c>, <c>description</c>, <c>keywords</c>, <c>lang</c>, <c>typography</c>, <c>highlight</c> and <c>template</c>, with their values and meaning.</param>
     /// <param name="typography">The options' typography, the default of <c>typography</c>.</param>
     /// <param name="highlight">The options' code highlighting, the default of <c>highlight</c>.</param>
     /// <param name="audience">The version the options set, which the front matter's <c>audience</c> cannot change.</param>
@@ -74,6 +74,8 @@ internal static partial class AuthoringGuides
             | --- | ------ |
             | `title` | The document title in the file's properties. Default: the first `#` heading. |
             | `author` | The author in the file's properties. |
+            | `description` | A description in the file's properties. |
+            | `keywords` | Keywords in the file's properties, separated by commas. |
 
             """.ReplaceLineEndings("\n"));
         text.Append(CultureInvariant(

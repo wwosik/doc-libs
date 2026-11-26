@@ -33,14 +33,20 @@ internal sealed class PdfRenderer
         this.fonts = fonts;
     }
 
-    /// <remarks><paramref name="language"/> is the document's language tag, for the catalog's <c>/Lang</c> and the XMP.</remarks>
-    public static byte[] Render(Layout layout, FontSet fonts, string? title, string? author, string language = "en")
+    /// <remarks>
+    /// <paramref name="language"/> is the document's language tag, for the catalog's <c>/Lang</c> and the XMP;
+    /// <paramref name="subject"/> goes to <c>/Subject</c> and XMP <c>dc:description</c>, <paramref name="keywords"/> to
+    /// <c>/Keywords</c> and XMP <c>pdf:Keywords</c> (joined by <c>", "</c>) and, one by one, <c>dc:subject</c>.
+    /// </remarks>
+    public static byte[] Render(Layout layout, FontSet fonts, string? title, string? author, string language = "en", string? subject = null, IReadOnlyList<string>? keywords = null)
     {
         var renderer = new PdfRenderer(fonts);
         var document = renderer.builder;
         var info = document.DocumentInformation;
         info.Title = title;
         info.Author = author;
+        info.Subject = string.IsNullOrWhiteSpace(subject) ? null : subject;
+        info.Keywords = keywords is { Count: > 0 } ? string.Join(", ", keywords) : null;
         info.Creator = Creator;
         info.Producer = Producer;
 
@@ -58,17 +64,18 @@ internal sealed class PdfRenderer
             document.Bookmarks = new Bookmarks(Nest(layout.Bookmarks, layout.Geometry));
         }
 
-        return AddLanguage(FixXmp(FlagAnnotations(document.Build()), language), language);
+        return AddLanguage(FixXmp(FlagAnnotations(document.Build()), language, info.Keywords), language);
     }
 
     private const string Creator = "wwosik.DocLibs.DocumentGeneration.Pdf";
     private const string Producer = "wwosik.DocLibs.DocumentGeneration.Pdf (PdfPig)";
 
-    // PdfPig writes dc:title and dc:creator as plain text; PDF/A wants a language alternative and an ordered list. The
-    // document language goes next to them. The packet is an uncompressed stream: rewritten in place, padded with the
+    // PdfPig writes dc:title, dc:creator and dc:description as plain text; PDF/A wants language alternatives and an
+    // ordered list. The document language goes next to them, and the keywords, which PdfPig leaves out, as pdf:Keywords
+    // (equal to /Keywords, as PDF/A wants) and one by one as dc:subject. The packet is an uncompressed stream: rewritten in place, padded with the
     // white space XMP allows, where the fixed XML (without PdfPig's indentation and its optional toolkit name) fits;
     // else the stream grows, and its /Length and the offsets behind it with it.
-    private static byte[] FixXmp(byte[] pdf, string language)
+    private static byte[] FixXmp(byte[] pdf, string language, string? keywords)
     {
         var span = pdf.AsSpan();
         var begin = span.IndexOf("<?xpacket begin"u8);
@@ -83,7 +90,7 @@ internal sealed class PdfRenderer
         xml.Root!.Attribute((XNamespace)"adobe:ns:meta/" + "xmptk")?.Remove();
         XNamespace rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
         XNamespace dc = "http://purl.org/dc/elements/1.1/";
-        foreach (var (name, container, isAlternative) in new[] { (dc + "title", rdf + "Alt", true), (dc + "creator", rdf + "Seq", false) })
+        foreach (var (name, container, isAlternative) in new[] { (dc + "title", rdf + "Alt", true), (dc + "creator", rdf + "Seq", false), (dc + "description", rdf + "Alt", true) })
         {
             foreach (var property in xml.Descendants(name).Where(e => !e.HasElements).ToList())
             {
@@ -100,6 +107,14 @@ internal sealed class PdfRenderer
         if (xml.Descendants(dc + "title").FirstOrDefault()?.Parent is { } description && !description.Elements(dc + "language").Any())
         {
             description.Add(new XElement(dc + "language", new XElement(rdf + "Bag", new XElement(rdf + "li", language))));
+        }
+
+        if (keywords is not null && xml.Descendants(dc + "title").FirstOrDefault()?.Parent is { } properties)
+        {
+            XNamespace pdfNamespace = "http://ns.adobe.com/pdf/1.3/";
+            properties.Add(
+                new XElement(pdfNamespace + "Keywords", keywords),
+                new XElement(dc + "subject", new XElement(rdf + "Bag", keywords.Split(", ").Select(k => new XElement(rdf + "li", k)))));
         }
 
         var replacement = Encoding.UTF8.GetBytes(xml.Root!.ToString(SaveOptions.DisableFormatting));

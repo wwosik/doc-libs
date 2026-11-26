@@ -496,6 +496,12 @@ same change that made it untrue — a stale fact here is worse than a missing on
   `classification-kept`), `draft` only adds; `Marking.Watermark` upper-cases the draft text in the document
   culture. `FrontMatter.LineOf(key)` gives a key's line. `CoreProperties.ContentStatus` writes
   `cp:contentStatus` (Word and decks, only when there is a marking).
+- **Core properties (E09-S06):** Word and decks call `CoreProperties.Reset` first (decks keep the template's dates),
+  then `Write`, `LastModifiedBy` (the author) and `Describe` (subject = the cover's / title slide's subtitle, lines
+  joined by " – "; `description`; `keywords`). Workbooks call only `Write` and `Describe`, so their bytes are
+  unchanged. PDFs: `/Subject` must equal XMP `dc:description` and `/Keywords` XMP `pdf:Keywords` (PDF/A); PdfPig
+  writes neither in the XMP form PDF/A wants, `PdfRenderer.FixXmp` does. So a PDF's subject is the subtitle, else
+  the description: never both.
 - **Classification marking in PDFs and decks (E03-S04):** PDFs: `Design.Marking`/`MarkingColor`/`Watermark`;
   `LayoutEngine.Decorate` puts the marking left of the logo in the header (the title's `Fit` width shrinks
   by it), `Cover` above the title, and inserts the watermark `TextItem` at index 0 of every page's items

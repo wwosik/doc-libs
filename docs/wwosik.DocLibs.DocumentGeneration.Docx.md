@@ -56,7 +56,10 @@ DocxGenerator.Generate(document, output, new DocxOptions
   title), the author (front matter `author`, else metadata `author`), the
   [document language](wwosik.DocLibs.DocumentGeneration.md#document-language) as `dc:language`, and
   the created and modified dates from `TimeProvider`, and the [classification](#classification) as
-  `cp:contentStatus`.
+  `cp:contentStatus`; the author also as `cp:lastModifiedBy`, the cover's subtitle (its lines joined
+  by " – ") as `dc:subject`, front matter `description` as `dc:description` and `keywords` as
+  `cp:keywords` (joined by ", "). A template's own core properties are dropped, never merged: no
+  previous author, title, keywords or revision survive.
 
 ## For hosts that let others write the Markdown
 
@@ -112,6 +115,7 @@ The shared syntax and rules are in
 | --- | ------ | --------- |
 | `template` | `neutral`, the brand of `Template`, or a brand in `DocxOptions.Brands` | all |
 | `title`, `author` | text | all |
+| `description`, `keywords` | text; keywords separated by commas | all — the core properties |
 | `lang` | a language tag such as `en`, `de`, `de-CH` | all |
 | `typography` | `true`, `false` | all — see [Typography](wwosik.DocLibs.DocumentGeneration.md#typography) |
 | `highlight` | `true`, `false` | all — see [Code highlighting](wwosik.DocLibs.DocumentGeneration.md#code-highlighting) |

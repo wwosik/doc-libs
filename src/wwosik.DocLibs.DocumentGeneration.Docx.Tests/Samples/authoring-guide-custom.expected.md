@@ -1,7 +1,7 @@
 ## Writing Markdown for a Word document
 
-The Word document is generated from Markdown: the design (styles, fonts, logo, header and footer,
-page numbers) comes from the template, applied for you. Write it as a document to read: full
+The design (styles, fonts, logo, header and footer, page numbers) comes from the template, applied
+for you. Write it as a document to read: full
 sentences and paragraphs, headings that say what a section is about.
 
 ## Structure
@@ -78,11 +78,9 @@ it.
   `![Sales](sales.png "Sales by region, 2026")` gives "Figure 1: Sales by region, 2026".
   `"caption"` alone uses the alt text as the caption. A title of only `scale=…` gives no caption.
 - Images are PNG, JPEG or GIF; an `.svg` image is an error here.
-- **Image attributes** in braces right after an image, without a space:
-  `![Team](team.jpg){.round .grey}`. `.round` crops it to a circle, `.grey` shows it in grey.
-  In a row of images, `fit=cover` fills the row's height
-  and crops what sticks out, and `focus=top`, `bottom`, `left`, `right` or `center` (the default)
-  says which part stays; an image of its own is never cropped. An unknown attribute is an error.
+- **Image attributes**, right after the image: `![Team](team.jpg){.round .grey}` crops it to a
+  circle and shows it grey. In a row of images, `{fit=cover focus=top}` fills the row's height and
+  keeps the top (or `bottom`, `left`, `right`, `center`). Unknown attributes are errors.
 
 - A paragraph of nothing but two or more images is a row of them, side by side in cells of equal
   width, each with its caption under it: `![North](north.png "North") ![South](south.png "South")`.
@@ -172,6 +170,8 @@ author: Planning team
 | --- | ------ |
 | `title` | The document title in the file's properties. Default: the first `#` heading. |
 | `author` | The author in the file's properties. |
+| `description` | A description in the file's properties. |
+| `keywords` | Keywords in the file's properties, separated by commas. |
 | `lang` | The document language, such as `en`, `de` or `de-CH`: of the texts the generator writes itself, and of spell checking. Default `en`. |
 | `typography` | `true` sets typographic quotes, dashes, `…` and no-break spaces (`10 km`) for the language; type straight quotes. Default `false`. |
 | `highlight` | `true` colours fenced code in these languages: `csharp`, `vb`, `fsharp`, `cpp`, `java`, `javascript`, `typescript`, `php`, `python`, `powershell`, `sql`, `html`, `xml`, `css`, `markdown`, `haskell`, `json`, `yaml`, `bash`. Default `false`. |

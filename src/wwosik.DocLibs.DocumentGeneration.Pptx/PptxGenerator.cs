@@ -207,8 +207,16 @@ public static class PptxGenerator
                 FontEmbedding.Embed(package.PresentationPart!, fonts, codeFont);
             }
 
+            // A template's own properties are dropped, never merged with the deck's; only its dates stay, as before.
             var core = package.CoreFilePropertiesPart ?? package.AddCoreFilePropertiesPart();
+            CoreProperties.Reset(core, keepDates: true);
             CoreProperties.Write(core, title, author, language.Tag);
+            CoreProperties.LastModifiedBy(core, author);
+            CoreProperties.Describe(
+                core,
+                Subject(slides),
+                Typeset(typography, frontMatter.Description, frontMatter.LineOf(FrontMatter.DescriptionKey)),
+                frontMatter.Keywords);
             if (!marking.IsEmpty)
             {
                 CoreProperties.ContentStatus(core, marking.Text(language.Texts));
@@ -429,6 +437,22 @@ public static class PptxGenerator
     // A front-matter title or author, typeset when typography is on.
     private static string? Typeset(Typography? typography, string? text, int line) =>
         text is null || typography is null ? text : typography.Apply(text, line);
+
+    // The title slide's subtitle as plain text, its lines joined by " – "; null when the deck does not start with one.
+    private static string? Subject(IReadOnlyList<Slide> slides)
+    {
+        if (slides.FirstOrDefault() is not TitleSlide { IsSection: false } cover)
+        {
+            return null;
+        }
+
+        var lines = cover.Subtitle
+            .SelectMany(p => string.Concat(p.Runs.Select(r => r.IsBreak ? "\n" : r.Text)).Split('\n'))
+            .Select(l => l.Trim())
+            .Where(l => l.Length > 0)
+            .ToList();
+        return lines.Count == 0 ? null : string.Join(" – ", lines);
+    }
 
     private static string? Title(MarkdownDocument document, IReadOnlyList<Slide> slides)
     {

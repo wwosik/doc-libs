@@ -46,7 +46,7 @@ public static class PdfGenerator
         var notes = new GenerationNotes();
         var laidOut = Lay(document, options, notes);
         Renders++;
-        output.Write(PdfRenderer.Render(laidOut.Layout, laidOut.Fonts, laidOut.Layout.Title, laidOut.Author, laidOut.LanguageTag));
+        output.Write(PdfRenderer.Render(laidOut.Layout, laidOut.Fonts, laidOut.Layout.Title, laidOut.Author, laidOut.LanguageTag, laidOut.Subject, laidOut.Keywords));
         return notes.Result(laidOut.Layout.Pages.Count);
     }
 
@@ -132,7 +132,9 @@ public static class PdfGenerator
             design = design with { Background = darkDesign.Background, QuoteColor = darkDesign.Quote, CodeBackground = darkDesign.CodeBackground };
         }
         var layout = new LayoutEngine(fonts, PageGeometry.For(options.PageSize, options.Orientation), design, options.ReplaceUnsupported, notes).Run(model);
-        return new LaidOut(layout, fonts, author, language.Tag);
+        // PDF/A wants the subject and XMP's dc:description alike: the cover's subtitle, else `description`.
+        var subject = Subject(model.Cover) ?? Typeset(typography, frontMatter.Description, frontMatter.LineOf(FrontMatter.DescriptionKey));
+        return new LaidOut(layout, fonts, author, language.Tag, subject, frontMatter.Keywords);
     }
 
     // The cover image, as PNG or JPEG; none, with a note, for a document without a cover.
@@ -280,7 +282,18 @@ public static class PdfGenerator
     }
 
     // A document laid out, with what rendering it needs besides.
-    private sealed record LaidOut(Layout Layout, FontSet Fonts, string? Author, string LanguageTag);
+    private sealed record LaidOut(Layout Layout, FontSet Fonts, string? Author, string LanguageTag, string? Subject, IReadOnlyList<string> Keywords);
+
+    // The cover's subtitle as plain text, its lines joined by " – "; null without one.
+    private static string? Subject(Cover? cover)
+    {
+        var lines = (cover?.Subtitle ?? [])
+            .SelectMany(p => string.Concat(p.Select(r => r.IsBreak ? "\n" : r.Text)).Split('\n'))
+            .Select(l => l.Trim())
+            .Where(l => l.Length > 0)
+            .ToList();
+        return lines.Count == 0 ? null : string.Join(" – ", lines);
+    }
 
     private sealed class Bound(PdfOptions options) : IMarkdownGenerator
     {

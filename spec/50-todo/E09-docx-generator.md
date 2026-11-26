@@ -19,7 +19,7 @@ Word is the format most reports and proposals still have to be delivered in; the
 | [E09-S03](../60-verify/E09-S03-charts-drawings-and-guide.md) | Charts, drawings and the DOCX authoring guide | in verification |
 | [E09-S04](../60-verify/E09-S04-docx-content.md) | DOCX content | in verification |
 | [E09-S05](../60-verify/E09-S05-image-styles-in-word.md) | Image styles in Word | in verification |
-| [E09-S06](../55-in-progress/port-1/E09-S06-word-core-properties.md) | Word core properties | in progress (port-1) |
+| [E09-S06](../60-verify/E09-S06-word-core-properties.md) | Word core properties | in verification |
 
 Stories marked *to plan* come from the
 [2026-11-13 analysis](../10-analysis/2026-11-13%20feature-plan.md); each is written and agreed

@@ -872,7 +872,8 @@ title: Network expansion 2027
   allowed; values may be quoted (`"…"` or `'…'`). Keys and choice values are case-insensitive. It
   looks like YAML but is only this flat subset — no nesting, no lists.
 - An opening `---` followed by a blank line is a thematic break, not front matter.
-- **Shared keys:** `template` (applied first, whatever its position), `title`, `author`, `lang` (see
+- **Shared keys:** `template` (applied first, whatever its position), `title`, `author`,
+  `description`, `keywords` (comma-separated; both for the file's properties), `lang` (see
   [Document language](#document-language)), `typography` (see [Typography](#typography)), `highlight`
   (see [Code highlighting](#code-highlighting)), `coverImage`, `coverImageSize` and `coverImagePosition` (see
   [Cover image](#cover-image)),

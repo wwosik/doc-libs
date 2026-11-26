@@ -166,8 +166,16 @@ public static class DocxGenerator
                     DocxFontEmbedding.Embed(main, fonts, codeFont);
                 }
 
+                // A template's own properties are dropped, never merged with the document's.
                 var core = package.CoreFilePropertiesPart ?? package.AddCoreFilePropertiesPart();
+                CoreProperties.Reset(core);
                 CoreProperties.Write(core, title, author, language.Tag, now);
+                CoreProperties.LastModifiedBy(core, author);
+                CoreProperties.Describe(
+                    core,
+                    Typeset(typography, Subject(content.Cover), 0),
+                    Typeset(typography, frontMatter.Description, frontMatter.LineOf(FrontMatter.DescriptionKey)),
+                    frontMatter.Keywords);
                 CoreProperties.ContentStatus(core, DocxMarking.Status(context));
             }
         }
@@ -380,6 +388,34 @@ public static class DocxGenerator
     // A front-matter title or author, or the cover's title, typeset when typography is on.
     private static string? Typeset(Typography? typography, string? text, int line) =>
         text is null || typography is null ? text : typography.Apply(text, line);
+
+    // The cover's subtitle as plain text, its lines joined by " – "; null without one.
+    private static string? Subject(DocxCover? cover)
+    {
+        var lines = new List<string>();
+        foreach (var paragraph in cover?.Subtitle ?? [])
+        {
+            var line = new StringBuilder();
+            foreach (var piece in paragraph.Append(TextPiece.Break))
+            {
+                if (piece.IsBreak)
+                {
+                    if (line.ToString().Trim() is { Length: > 0 } text)
+                    {
+                        lines.Add(text);
+                    }
+
+                    line.Clear();
+                }
+                else
+                {
+                    line.Append(piece.Text);
+                }
+            }
+        }
+
+        return lines.Count == 0 ? null : string.Join(" – ", lines);
+    }
 
     private static string Characters(ResolvedFonts? fonts, string codeFont)
     {

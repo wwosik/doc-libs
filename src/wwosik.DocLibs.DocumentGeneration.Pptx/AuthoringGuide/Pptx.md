@@ -41,7 +41,7 @@ content, not formatting: a title that states the point, then a few short lines.
 - `[words]{.success}` sets a few words bold in a status colour: `.success`, `.info`, `.warning`,
   `.danger` or `.neutral`, such as `[on schedule]{.success}`.
 - **Footnotes:** `[^1]` in the text and `[^1]: The source.` on a line of its own anywhere below.
-  The reference becomes a raised number, the note small text at the foot of its slide.
+  The note is set small at the foot of its slide.
 - **Task lists:** `- [ ] open` and `- [x] done` get an empty or ticked box instead of a bullet.
 - **Definition lists:** a term on a line of its own, then `:   ` and its description on the next
   line. They are shown like `::: rows`.
@@ -49,13 +49,12 @@ content, not formatting: a title that states the point, then a few short lines.
 ## Layouts
 
 A `##` slide can ask for more than bullets. It then stacks its blocks top to bottom, and several
-tables or diagrams share the slide. Use layouts where they help the point; a plain bullet slide
-is fine.
+tables or diagrams share the slide. Use layouts where they help the point.
 
 | Markdown | On the slide |
 | -------- | ------------ |
 | `## Title {kicker="Label"}` | A small label above the title: the chapter or topic. |
-| `## Title {.dark}` | The slide on a dark background; both: `{.dark kicker="Label"}`. Use it for one key message, not for many slides. |
+| `## Title {.dark}` | The slide on a dark background; both: `{.dark kicker="Label"}`. Use it for one key message. |
 | `# Thank you {.closing}` | The last slide, on the design's closing layout. |
 | `# Backup {.backup}` | This and every later chapter go behind the closing slide: out of agenda, numbering and talk time, footer saying Backup. |
 | `::: cards` … `:::` with one `###` per card | Two to four boxes side by side: parallel points, options, figures. A line that is only `**bold**` right after the `###` is a big figure. |

@@ -45,6 +45,16 @@ updating, breaking changes first.
   PNG only, without the SVG. Remove the attributes to keep the old pictures. Documents without them
   are unchanged. The DOCX authoring guide describes the attributes instead of saying they do
   nothing.
+- **File properties carry more, and templates' own ones are gone.** Word documents and decks now
+  write the cover's (title slide's) subtitle as `dc:subject` and the author also as
+  `cp:lastModifiedBy`; PDFs with a cover subtitle write it as `/Subject` and XMP `dc:description`.
+  A caller's Word template or deck template keeps none of its core properties (title, author,
+  subject, keywords, last editor, revision, category …) in the output any more; a deck keeps only the
+  template's created and modified dates, as before. Code that read a template's properties back from
+  the output sets them through front matter instead. The lists of valid front-matter keys in error
+  messages name `description` and `keywords` after `author`; every authoring guide's front-matter
+  table has rows for them, and a few sentences of the deck and Word guides are shorter to stay under
+  their word limits.
 - **`wwosik.DocLibs.DocumentGeneration.Docx` depends on SkiaSharp**, loaded only for `.grey` images.
   On Linux an application that uses `.grey` in Word adds `SkiaSharp.NativeAssets.Linux` (or
   `.NoDependencies`), as for PDFs; without it a grey image throws `DocumentConversionException`
@@ -156,6 +166,11 @@ updating, breaking changes first.
   without one a column is `Text`, a column of formulas `Number` or `Currency`. Nothing else changes for
   workbooks without totals and formulas.
 
+- **Front-matter keys `description` and `keywords`** (comma-separated), in every generator:
+  `dc:description` and `cp:keywords` in Word documents and decks; in PDFs `keywords` are `/Keywords`,
+  XMP `pdf:Keywords` and `dc:subject`, and `description` is the `/Subject` and XMP `dc:description`
+  when there is no cover subtitle (PDF/A wants both alike, and the subtitle comes first). Documents
+  without them are unchanged by these keys.
 - **`.round`, `.grey` and `fit=cover` / `focus` in Word documents**, as in PDFs: cropped with
   `a:srcRect`, drawn as an ellipse for `.round` (the pixels stay whole), and grey pixels made with
   SkiaSharp, each grey image converted and embedded once. See *Image attributes* on the DOCX page.

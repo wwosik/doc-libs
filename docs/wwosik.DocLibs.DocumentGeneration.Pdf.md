@@ -35,7 +35,10 @@ PdfGenerator.Generate(document, output, new PdfOptions
   code points: `'😀' (U+1F600)`, `'👍🏽' (U+1F44D U+1F3FD)`).
 - **Metadata:** the title (front matter `title`, else metadata `title`, else the cover title) and
   the author (front matter `author`, else metadata `author`) go into the document info and the XMP
-  metadata. The title also heads every page. The
+  metadata. The cover's subtitle (its lines joined by " – "), else front matter `description`, is
+  the `/Subject` and XMP `dc:description` (PDF/A wants both alike, so with a subtitle the description
+  is not written); `keywords` are `/Keywords` and XMP `pdf:Keywords`, joined by ", ", and each a
+  `dc:subject` entry. The title also heads every page. The
   [document language](wwosik.DocLibs.DocumentGeneration.md#document-language) is the catalog's
   `/Lang` and `dc:language`, and picks the alert titles and the labels of captions.
 - **Footnotes** are printed at the foot of their page, see [Footnotes](#footnotes).
@@ -128,6 +131,8 @@ The shared syntax and rules are in
 | `classification` | `public`, `internal`, `confidential` | all — see [Classification marking](#classification-marking) |
 | `draft` | `true`, `false` | all |
 | `title`, `author` | text | all |
+| `description` | text: the subject when there is no cover subtitle, see *Metadata* | all |
+| `keywords` | text, keywords separated by commas | all |
 | `lang` | a language tag such as `en`, `de`, `de-CH` | all |
 | `typography` | `true`, `false` | all — see [Typography](wwosik.DocLibs.DocumentGeneration.md#typography) |
 | `highlight` | `true`, `false` | all — see [Code highlighting](wwosik.DocLibs.DocumentGeneration.md#code-highlighting) |
@@ -434,8 +439,9 @@ fonts embedded). Three gaps in PdfPig 0.1.16 are closed after it has written the
 
 - **Link annotations** get the print flag `/F 4`, which PDF/A requires; it replaces the optional
   `/Type /Annot` in the same space.
-- **XMP:** `dc:title` becomes a language alternative and `dc:creator` an ordered list, as PDF/A
-  requires; PdfPig writes plain text. `dc:language` is added. The packet is rewritten without
+- **XMP:** `dc:title` and `dc:description` become language alternatives and `dc:creator` an ordered
+  list, as PDF/A requires; PdfPig writes plain text. `dc:language` is added, and with keywords
+  `pdf:Keywords` (equal to `/Keywords`) and `dc:subject`, which PdfPig leaves out. The packet is rewritten without
   PdfPig's indentation and toolkit name, padded to its old length where it fits; otherwise the
   stream grows, with its `/Length`.
 - **The catalog** gets `/Lang`.

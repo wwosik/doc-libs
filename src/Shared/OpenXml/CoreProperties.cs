@@ -8,7 +8,8 @@ namespace wwosik.DocLibs.DocumentGeneration;
 /// Writes the core properties (<c>docProps/core.xml</c>) of a generated Open XML package: title, creator, language and,
 /// when given, the dates of creation and modification. Shared source, linked into each generator that writes Open XML,
 /// so the shared package needs no Open XML SDK. Written by hand rather than through <c>PackageProperties</c> so that the
-/// part keeps the name <c>docProps/core.xml</c>; a template's other properties are kept.
+/// part keeps the name <c>docProps/core.xml</c>; a template's other properties are kept unless <see cref="Reset"/> drops
+/// them first.
 /// </summary>
 internal static class CoreProperties
 {
@@ -60,6 +61,53 @@ internal static class CoreProperties
     }
 
     /// <summary>
+    /// Drops every property a template brought (title, author, subject, keywords, last editor, revision …), so none of it
+    /// reaches the document; with <paramref name="keepDates"/> its <c>dcterms:created</c> and <c>dcterms:modified</c> stay.
+    /// </summary>
+    public static void Reset(CoreFilePropertiesPart part, bool keepDates = false)
+    {
+        XElement? old = null;
+        using (var stream = part.GetStream(FileMode.Open, FileAccess.Read))
+        {
+            if (stream.Length > 0)
+            {
+                old = XDocument.Load(stream).Root;
+            }
+        }
+
+        var root = new XElement(
+            Properties + "coreProperties",
+            new XAttribute(XNamespace.Xmlns + "cp", Properties),
+            new XAttribute(XNamespace.Xmlns + "dc", DublinCore));
+        if (keepDates && old is not null)
+        {
+            foreach (var date in old.Elements().Where(e => e.Name == Terms + "created" || e.Name == Terms + "modified").ToList())
+            {
+                Declare(root, "dcterms", Terms);
+                Declare(root, "xsi", Instance);
+                root.Add(new XElement(date));
+            }
+        }
+
+        using var output = part.GetStream(FileMode.Create, FileAccess.Write);
+        new XDocument(root).Save(output);
+    }
+
+    /// <summary>Sets <c>cp:lastModifiedBy</c>, so Office does not show a template's last editor; empty removes it.</summary>
+    public static void LastModifiedBy(CoreFilePropertiesPart part, string? author)
+    {
+        XDocument xml;
+        using (var stream = part.GetStream(FileMode.Open, FileAccess.Read))
+        {
+            xml = XDocument.Load(stream);
+        }
+
+        Replace(xml.Root!, Properties + "lastModifiedBy", author);
+        using var output = part.GetStream(FileMode.Create, FileAccess.Write);
+        xml.Save(output);
+    }
+
+    /// <summary>
     /// Sets <c>cp:contentStatus</c>, which Office and Explorer show as the document's status, to
     /// <paramref name="status"/>, such as the classification marking; <see langword="null"/> removes it.
     /// </summary>
@@ -77,10 +125,10 @@ internal static class CoreProperties
     }
 
     /// <summary>
-    /// Sets <c>dc:subject</c> and <c>dc:description</c>, which Office shows as the subject and the comments; each left out
-    /// when empty.
+    /// Sets <c>dc:subject</c> and <c>dc:description</c>, which Office shows as the subject and the comments, and, when
+    /// <paramref name="keywords"/> is given, <c>cp:keywords</c> (Office's tags), joined by <c>", "</c>; each left out when empty.
     /// </summary>
-    public static void Describe(CoreFilePropertiesPart part, string? subject, string? description)
+    public static void Describe(CoreFilePropertiesPart part, string? subject, string? description, IReadOnlyList<string>? keywords = null)
     {
         XDocument xml;
         using (var stream = part.GetStream(FileMode.Open, FileAccess.Read))
@@ -90,6 +138,11 @@ internal static class CoreProperties
 
         Replace(xml.Root!, DublinCore + "subject", subject);
         Replace(xml.Root!, DublinCore + "description", description);
+        if (keywords is not null)
+        {
+            Replace(xml.Root!, Properties + "keywords", string.Join(", ", keywords));
+        }
+
         using var output = part.GetStream(FileMode.Create, FileAccess.Write);
         xml.Save(output);
     }

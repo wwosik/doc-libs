@@ -39,7 +39,10 @@ PptxGenerator.Generate(document, output, new PptxOptions
   `DocumentConversionException` with `Format = Pptx`.
 - **Metadata:** the title (front matter `title`, else metadata `title`, else the first `#`
   heading) and the author (front matter `author`, else metadata `author`) go into the core
-  properties.
+  properties, the author also as `cp:lastModifiedBy`; the title slide's subtitle (its lines joined by
+  " – ") as `dc:subject`, front matter `description` as `dc:description` and `keywords` as
+  `cp:keywords` (joined by ", "). A caller's template keeps none of its own properties but its
+  created and modified dates.
 
 ## For hosts that let others write the Markdown
 
@@ -755,6 +758,7 @@ author: Team Docs
 | `layouts.title`, `layouts.content`, `layouts.titleOnly`, `layouts.sectionHeader`, `layouts.closing` | layout name | custom |
 | `layouts.twoContent`, `layouts.textAndPicture`, `layouts.picture`, `layouts.agenda`, `layouts.quote`, `layouts.statement`, `layouts.contact`, `layouts.chart`, `layouts.twoCharts`, `layouts.dark` | layout name | custom — see [Template roles](#template-roles) |
 | `title`, `author` | text | all — the core properties |
+| `description`, `keywords` | text; keywords separated by commas | all — the core properties |
 | `lang` | a language tag such as `en`, `de`, `de-CH`; default `PptxOptions.Language` (`en`), with `PptxOptions.Texts` for further languages | all — see [Document language](wwosik.DocLibs.DocumentGeneration.md#document-language) |
 | `typography` | `true`, `false`; default `PptxOptions.Typography` (`false`), with `PptxOptions.TypographyRules` for further languages | all — typographic quotes, dashes, `…` and no-break spaces in the document language, see [Typography](wwosik.DocLibs.DocumentGeneration.md#typography) |
 | `highlight` | `true`, `false`; default `PptxOptions.HighlightCode` (`false`) | all — colours fenced code blocks that name their language, on plain and flow slides, light and dark, see [Code highlighting](wwosik.DocLibs.DocumentGeneration.md#code-highlighting) |

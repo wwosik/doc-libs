@@ -15,6 +15,12 @@ internal sealed partial class FrontMatter
     public const string TitleKey = "title";
     public const string AuthorKey = "author";
 
+    /// <summary>A description of the document for its file properties (E09-S06).</summary>
+    public const string DescriptionKey = "description";
+
+    /// <summary>Keywords for the document's file properties, separated by commas (E09-S06).</summary>
+    public const string KeywordsKey = "keywords";
+
     /// <summary>The prefix of the keys that assign status labels to categories: <c>labels.success: Done; Delivered</c>.</summary>
     public const string LabelsPrefix = "labels.";
 
@@ -69,6 +75,14 @@ internal sealed partial class FrontMatter
     public string? Title => this.Value(TitleKey);
 
     public string? Author => this.Value(AuthorKey);
+
+    /// <summary><c>description</c>, as written.</summary>
+    public string? Description => this.Value(DescriptionKey);
+
+    /// <summary><c>keywords</c>, split at commas and trimmed, empty ones left out; empty without the key.</summary>
+    public IReadOnlyList<string> Keywords => this.Value(KeywordsKey) is { } keywords
+        ? [.. keywords.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)]
+        : [];
 
     /// <summary>The document language, <c>lang</c>, as written.</summary>
     public string? Language => this.Value(DocumentLanguage.Key);
@@ -162,6 +176,8 @@ internal sealed partial class FrontMatter
             if (key.Equals(TemplateKey, StringComparison.OrdinalIgnoreCase)
                 || key.Equals(TitleKey, StringComparison.OrdinalIgnoreCase)
                 || key.Equals(AuthorKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(DescriptionKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(KeywordsKey, StringComparison.OrdinalIgnoreCase)
                 || key.Equals(DocumentLanguage.Key, StringComparison.OrdinalIgnoreCase)
                 || key.Equals(ClassificationKey, StringComparison.OrdinalIgnoreCase)
                 || key.Equals(DraftKey, StringComparison.OrdinalIgnoreCase)
@@ -185,7 +201,7 @@ internal sealed partial class FrontMatter
             var known = supported.FirstOrDefault(k => k.Equals(key, StringComparison.OrdinalIgnoreCase))
                 ?? throw this.Error(
                     $"The front matter key '{key}' is not supported by the template '{templateName(options)}'. "
-                    + $"Valid keys: {string.Join(", ", new[] { TemplateKey, TitleKey, AuthorKey, DocumentLanguage.Key, ClassificationKey, DraftKey, AudienceKey, TypographyKey, CodeHighlighting.Key }.Concat(CoverImage.Keys).Concat(supported))}.");
+                    + $"Valid keys: {string.Join(", ", new[] { TemplateKey, TitleKey, AuthorKey, DescriptionKey, KeywordsKey, DocumentLanguage.Key, ClassificationKey, DraftKey, AudienceKey, TypographyKey, CodeHighlighting.Key }.Concat(CoverImage.Keys).Concat(supported))}.");
             options = with(options, known, value);
         }
 
