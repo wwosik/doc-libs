@@ -19,7 +19,7 @@ The writer cannot see the generator's decisions in the output; telling them clos
 | [E05-S03](../60-verify/E05-S03-generation-results-and-notes.md) | Generation results and notes | in verification |
 | [E05-S04](../60-verify/E05-S04-check.md) | Check | in verification |
 | [E05-S05](../60-verify/E05-S05-ai-tool-description.md) | AI tool description | in verification |
-| [E05-S06](E05-S06-contact-sheet-in-the-tool-reply.md) | Contact sheet in the tool reply | todo |
+| [E05-S06](../55-in-progress/port-1/E05-S06-contact-sheet-in-the-tool-reply.md) | Contact sheet in the tool reply | in progress (port-1) |
 
 Stories marked *to plan* come from the
 [2026-11-13 analysis](../10-analysis/2026-11-13%20feature-plan.md); each is written and agreed

@@ -1,7 +1,7 @@
 # E05-S06 Contact sheet in the tool reply
 
-> Status: todo
-> Epic: [E05 Authoring feedback](E05-authoring-feedback.md)
+> Status: in progress (port-1)
+> Epic: [E05 Authoring feedback](../../50-todo/E05-authoring-feedback.md)
 
 ## Summary
 
