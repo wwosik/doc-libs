@@ -1,7 +1,7 @@
 # E09-S06 Word core properties
 
-> Status: todo
-> Epic: [E09 DOCX generator](E09-docx-generator.md)
+> Status: in progress (port-1)
+> Epic: [E09 DOCX generator](../../50-todo/E09-docx-generator.md)
 
 ## Summary
 
