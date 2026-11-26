@@ -9,18 +9,6 @@ updating, breaking changes first.
 
 ## Unreleased
 
-- **Totals and formulas in workbooks.** `XlsxColumn.Total` (`Sum`, `Average`, `Count`, `Min`,
-  `Max`) adds a totals row under the table, written as `SUBTOTAL` so a filter changes it to the
-  visible rows, with cached values and the label `XlsxSheet.TotalsLabel` or `GeneratedTexts.Total`
-  ("Total" / "Summe"). `XlsxCell.Formula("[Price]*[Quantity]")` holds a formula: `[Header]` is the
-  cell of that column in the same row, `{row}` the row number, A1 references stay as written, and
-  functions newer than Excel 2007 get their `_xlfn.` prefix. Formulas are parsed before writing;
-  `Check` reports `formula-invalid` (with the character) and the warning `function-unknown`, both new
-  note codes. Workbooks with formulas ask Excel to calculate on opening (`fullCalcOnLoad`); formulas
-  have no cached values, and `Preview` shows them as code. `XlsxColumn`'s `Type` is now nullable:
-  without one a column is `Text`, a column of formulas `Number` or `Currency`. Nothing else changes for
-  workbooks without totals and formulas.
-
 ### Breaking changes
 
 - **Audience versions take over some Markdown that failed or stayed text.** `### Title {.internal}`
@@ -142,6 +130,17 @@ updating, breaking changes first.
   `PageOfFormat` (English and German); `CheckStatistics.Sheets`; note codes `cell-type`,
   `sheet-name`, `column-invalid`, `row-too-wide`, `excel-limit` and `character-missing`, used only
   by workbooks. Decks, PDFs and Word documents do not change, nor do their guides.
+- **Totals and formulas in workbooks.** `XlsxColumn.Total` (`Sum`, `Average`, `Count`, `Min`,
+  `Max`) adds a totals row under the table, written as `SUBTOTAL` so a filter changes it to the
+  visible rows, with cached values and the label `XlsxSheet.TotalsLabel` or `GeneratedTexts.Total`
+  ("Total" / "Summe"). `XlsxCell.Formula("[Price]*[Quantity]")` holds a formula: `[Header]` is the
+  cell of that column in the same row, `{row}` the row number, A1 references stay as written, and
+  functions newer than Excel 2007 get their `_xlfn.` prefix. Formulas are parsed before writing;
+  `Check` reports `formula-invalid` (with the character) and the warning `function-unknown`, both new
+  note codes. Workbooks with formulas ask Excel to calculate on opening (`fullCalcOnLoad`); formulas
+  have no cached values, and `Preview` shows them as code. `XlsxColumn`'s `Type` is now nullable:
+  without one a column is `Text`, a column of formulas `Number` or `Currency`. Nothing else changes for
+  workbooks without totals and formulas.
 
 ## 2611.15.12
 
