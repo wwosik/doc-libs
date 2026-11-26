@@ -1,7 +1,7 @@
 # E03-S06 Dark brands in PDFs
 
-> Status: todo
-> Epic: [E03 PDF layout](E03-pdf-layout.md)
+> Status: in progress (port-1)
+> Epic: [E03 PDF layout](../../50-todo/E03-pdf-layout.md)
 
 ## Summary
 
