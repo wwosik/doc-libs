@@ -30,6 +30,7 @@ table colours (`TableHeader`, `TableBand`, `TableLine`), a diagram palette and a
 | [E10-S03](E10-S03-charts-on-sheet-cells.md) | Charts on sheet cells | todo |
 | [E10-S04](E10-S04-workbooks-from-markdown.md) | Workbooks from Markdown | todo |
 | [E10-S05](E10-S05-workbooks-as-json-and-structured-tool-input.md) | Workbooks as JSON, and structured input for the document tool | todo |
+| [E10-S06](E10-S06-cross-sheet-references.md) | Cross-sheet references in formulas | to plan |
 
 Order: S01 first; S02 and S03 in any order; S04 after S01 (the totals, formulas and charts of S02 and
 S03 come into Markdown as they land); S05 last, because the JSON schema describes the whole model.

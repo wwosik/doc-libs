@@ -32,9 +32,11 @@ checked by a parser of Excel's formula grammar before the workbook is written.
    - `XlsxCell.Formula("…")` holds a formula, written without the leading `=`.
    - **References:**
      - `[Header]` is the cell of the column with that header in the same row.
-     - `[Sheet!Header]` is a column on another sheet, as a whole column range, for lookups.
      - `{row}` is the row number.
      - A1 references are allowed as written.
+     - References to another sheet are E10-S06.
+   - **No evaluator:** ordinary formulas are written without a cached value; Excel computes them on
+     opening. Only totals carry cached values.
    - **Function names** are English. `_xlfn.` is added for functions that need it (`XLOOKUP`,
      `IFS`, `CONCAT`, `TEXTJOIN`, …) from a table in the parser.
    - `fullCalcOnLoad` is set only when a workbook has formulas other than totals.
@@ -70,11 +72,11 @@ checked by a parser of Excel's formula grammar before the workbook is written.
    and the common functions), or leave them empty and rely on `fullCalcOnLoad`? The preview shows
    them only if computed.
 
->
+> No evaluator: ordinary formulas get no cached value and the workbook sets `fullCalcOnLoad`; totals keep their cached values. The preview shows the formula. (2026-11-26)
 
 2. Cross-sheet references `[Sheet!Header]`: include now, or only same-row references at first?
 
->
+> Later: only same-row references now; cross-sheet references are E10-S06. (2026-11-26)
 
 ## Notes
 

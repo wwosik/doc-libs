@@ -32,7 +32,8 @@ The front matter or the host's options choose the version, in every generator.
    - `{.internal}` on a `#` or `##` heading marks the whole chapter or slide;
    - `::: exercise` is shown to everyone, and the `::: solution` after it to `trainer` only.
 
-   A `::: solution` that does not follow an exercise is an error.
+   A `::: solution` that does not follow an exercise is an error. Exercises are numbered
+   ("Exercise 1", `GeneratedTexts.Exercise`), and a solution carries its exercise's number.
 3. **One filter before every generator.** `AudienceFilter.Apply(document, audience)` removes what the
    version does not show, before parsing into slides or pages. Generators therefore see only their
    version, and slide splitting, numbering and contents follow it.
@@ -58,11 +59,11 @@ The front matter or the host's options choose the version, in every generator.
 
 1. Are the names right (`customer`, `internal`, `trainer`), or should they be configurable by the host?
 
->
+> Fixed names: `customer`, `internal`, `trainer`. (2026-11-26)
 
 2. Should exercises be numbered ("Exercise 1") by the generator?
 
->
+> Yes: the generator numbers `::: exercise` and gives its `::: solution` the same number. (2026-11-26)
 
 ## Notes
 

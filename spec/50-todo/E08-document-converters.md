@@ -16,6 +16,7 @@ Markdown converted from a document is what an AI agent reads; what the converter
 | ----- | ----- | ----- |
 | [E08-S01](../60-verify/E08-S01-converter-improvements.md) | Converter improvements | in verification |
 | [E08-S02](E08-S02-word-round-trip.md) | Word round trip | todo |
+| [E08-S03](E08-S03-comments-and-tracked-changes.md) | Comments and tracked changes from reviewed Word documents | to plan |
 
 Stories marked *to plan* come from the
 [2026-11-13 analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed

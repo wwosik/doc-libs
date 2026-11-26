@@ -39,7 +39,7 @@ Image attributes take effect in Word documents as they do in decks and PDFs:
    (or the shared folder) so both generators use it. A picture used several times in grey is converted
    and embedded once. SkiaSharp is loaded only by documents with `.grey`, as in PDFs.
 4. **Alt text, captions and SVG pictures** behave as now. For an SVG with `.grey`, the PNG fallback is
-   made grey and the SVG is dropped, with a note, unless question 1 decides otherwise.
+   made grey and the SVG is dropped, with a note.
 5. **The authoring guide and docs** list the attributes as working in Word; the `attribute-ignored`
    texts for them go.
 
@@ -55,12 +55,12 @@ Image attributes take effect in Word documents as they do in decks and PDFs:
 
 1. SVG images with `.grey`: grey PNG only (SVG dropped), or a grey filter on the SVG too?
 
->
+> Grey PNG only; the SVG is dropped for a grey image. (2026-11-26)
 
 2. Should Word's own picture recolouring (`a:grayscl`) be used instead of converting pixels? It needs
    no SkiaSharp, but PDFs and Word would then differ in how grey looks.
 
->
+> No: pixels are converted with SkiaSharp, as in PDFs, so both formats look the same. (2026-11-26)
 
 ## Notes
 

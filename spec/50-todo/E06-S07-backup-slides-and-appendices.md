@@ -32,6 +32,8 @@
    - The first backup slide is named `Backup` (`p:cSld/@name`), and `PptxConverter` reads it back as
      `# … {.backup}`.
    - `Check` counts backup slides as their own kind and leaves them out of words and talk time.
+   - Backup slides stay in every audience version (E06-S06); `{.internal}` on the backup chapter hides
+     them from the customer's.
 2. **`.appendix` in PDFs and Word.** The heading and every later `#` are appendices.
    - They are numbered `A`, `B` and so on, with sub-headings `A.1`, in the text, the contents and the
      bookmarks.
@@ -54,11 +56,11 @@
 
 1. Should "Appendix A" prefix the heading text, or only the number change to the letter?
 
->
+> The generated word and the letter before the title, e.g. "Appendix A Glossary". (2026-11-26)
 
 2. Should backup slides be dropped entirely from the customer's version (E06-S06)?
 
->
+> They stay in the customer's version; `{.internal}` on the backup chapter hides it. (2026-11-26)
 
 ## Notes
 

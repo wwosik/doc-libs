@@ -27,10 +27,14 @@ size.
 
 1. **The keys.** Two front-matter keys shared by every generator:
    - `coverImage: mark.png`, a resource path;
-   - `coverImageSize: small | medium | large`, giving 1/10, 1/6 (default) or 1/4 of the cover's height.
+   - `coverImageSize: small | medium | large`, giving 1/10, 1/6 (default) or 1/4 of the cover's height;
+   - `coverImagePosition: below | right`: under the subtitle (default) or right of the title block.
+   A brand can set a default (`Brand.CoverImage`, `coverImage` in `brand.json`), which the front
+   matter overrides.
 2. **The image.** It is PNG, JPEG or SVG, as other images are. SVG goes through the image converters,
    so it is a vector in PDFs and decks, and a PNG with its SVG in Word.
-3. **Placement.** The image sits under the subtitle, left-aligned with the title, and keeps its aspect
+3. **Placement.** With `below`, the image sits under the subtitle; with `right`, it stands right of
+   the title block, top-aligned with the title. Below, it is left-aligned with the title, and keeps its aspect
    ratio. It never covers the logo, the artwork or the tagline: when space runs short it is made
    smaller, never moved over them.
    - Decks: a picture on the title slide. On a caller's template, it goes into a picture placeholder of
@@ -55,11 +59,11 @@ size.
 1. Should a brand be able to set a default cover image (`Brand.CoverImage`), with the front matter
    overriding it?
 
->
+> Yes: `Brand.CoverImage`, overridden by the front matter. (2026-11-26)
 
 2. Placement: always under the subtitle, or a `coverImagePosition` (for example `right`)?
 
->
+> Yes: `coverImagePosition` (`below`, the default, or `right`). (2026-11-26)
 
 ## Notes
 

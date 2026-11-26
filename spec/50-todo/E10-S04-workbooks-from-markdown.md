@@ -67,8 +67,8 @@ the other formats, or names the table's columns. The package gets an authoring g
    - **Column form:** settings only, which name columns: `category`, `series` (comma-separated),
      `type`, `stacked`, `title`, `unit`, `source`, and the workbook keys `placement: beside|sheet`
      and `sheet`.
-   - **Data form:** settings, `---` and CSV, as in the other formats. Its data becomes a hidden table
-     on a sheet of its own, so the chart still refers to cells.
+   - **Data form:** settings, `---` and CSV, as in the other formats. Its data becomes a visible table
+     on the chart's sheet, beside the chart, so the chart refers to cells the reader can see and edit.
    - In decks, PDFs and Word documents a `chart` block with `category` or `series` and no data is an
      error naming the workbook form, so the block means the same thing everywhere.
 
@@ -93,12 +93,12 @@ the other formats, or names the table's columns. The package gets an authoring g
 1. In the data form of the `chart` block, where should the chart's data go: a visible table on the
    chart's sheet, or a hidden sheet?
 
->
+> A visible table on the chart's sheet, beside the chart. (2026-11-26)
 
 2. Should a `###` heading be allowed to start a further table on the same sheet (several tables per
    sheet), instead of being left out?
 
->
+> No: one table per sheet; a further table under the same `##` goes to the sheet `Name 2`. (2026-11-26)
 
 ## Notes
 

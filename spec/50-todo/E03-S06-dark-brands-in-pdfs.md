@@ -23,8 +23,9 @@ valid PDF/A.
 
 ## Proposed approach
 
-1. **The switch.** `BrandPdfTemplateOptions.Tone` (`Light` by default, `Dark`). It also follows the
-   brand when the brand is dark throughout (question 1).
+1. **The switch.** `BrandPdfTemplateOptions.Tone` (`Light` by default, `Dark`). The front-matter key
+   `tone: dark` sets it too. A dark brand alone never makes a dark PDF, so existing PDFs stay as
+   they are.
 2. **Painting.** Every page, the cover included, starts with a rectangle filling the page in the dark
    background colour. Text, rules, table lines and footnote rules then use the slide colours. Code
    boxes, alert boxes and table bands use the dark variants that decks use. The logo is `LogoOnDark`.
@@ -49,11 +50,11 @@ valid PDF/A.
 
 1. Should a dark brand give a dark PDF by default, or only when the host sets `Tone = Dark`?
 
->
+> Only on request: a dark brand gives a dark PDF only when the host sets `Tone = Dark` or the front matter says `tone: dark`. Existing PDFs do not change. (2026-11-26)
 
 2. A front-matter key (`tone: dark`) as well, or host options only?
 
->
+> Both: the host option and the front-matter key `tone: dark`. (2026-11-26)
 
 ## Notes
 

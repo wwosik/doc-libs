@@ -52,6 +52,7 @@ also read from any `.docx`.
    without a language, a `chart` block from the chart's cached values, a picture, a table.
 3. **Front matter** from the core properties and the cover:
    - `title`, `author`, `lang`;
+   - `subtitle` and `date` from the cover;
    - `classification` and `draft` (content status);
    - `toc`, `tocDepth`, `headingNumbers`, `justify` from the settings, styles and fields the
      generator writes.
@@ -93,12 +94,12 @@ also read from any `.docx`.
 1. Should the cover's subtitle and date go back as front matter, or as the paragraphs under the first
    `#` that the generator reads them from?
 
->
+> As front matter (`subtitle:`, `date:`). (2026-11-26)
 
 2. Should a comment or tracked change in a reviewed document be read at all (accepted insertions are
    read through today), or left for a later story?
 
->
+> Later: insertions are read through as today; comments and tracked changes are E08-S03. (2026-11-26)
 
 ## Notes
 

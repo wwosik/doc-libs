@@ -24,9 +24,9 @@ sheet), so an agent that sees images can check its own deck. This needs no brows
 1. **A hook in `DocumentGeneration`.** `IDeckPreview` with
    `byte[]? ContactSheet(ReadOnlyMemory<byte> pptx, GenerationResult result)`, set as
    `DocumentToolOptions.Preview`. Without it, nothing changes.
-2. **The implementation.** It lives where `DeckSvg` and `DeckPreview` meet: a small class in the Pptx
-   package that takes the Skia painting as a delegate, or a class in the Svg package if it may
-   reference the Pptx package (question 1). It renders the deck's slides and lays them out as a
+2. **The implementation.** It lives where `DeckSvg` and `DeckPreview` meet: a class in the Svg
+   package, which already paints the slides and references the Pptx package. PDFs get no contact
+   sheet for now. It renders the deck's slides and lays them out as a
    contact sheet: four columns, numbered.
 3. **The run.**
    - `DocumentToolRun.ContactSheet` holds the PNG.
@@ -48,11 +48,11 @@ sheet), so an agent that sees images can check its own deck. This needs no brows
 1. Where does the implementation live: the Pptx package with a delegate for painting, or the Svg
    package with a reference to the Pptx package?
 
->
+> The Svg package, which already paints slides, provides the hook for `DocumentTool`. (2026-11-26)
 
 2. Should PDFs get a contact sheet of their pages too (needs a PDF painter)?
 
->
+> Not now: decks only. (2026-11-26)
 
 ## Notes
 

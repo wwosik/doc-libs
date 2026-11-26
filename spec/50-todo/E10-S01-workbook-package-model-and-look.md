@@ -61,10 +61,11 @@ plain HTML.
    - `Check(XlsxWorkbook, XlsxOptions?)` returns a `CheckResult` with every problem, each naming its
      sheet, row, column and cell (`B7`), capped at 500 notes. `Statistics` counts sheets, tables,
      charts and words.
-   - **`XlsxOptions`**: `Brand`, `Brands`, `Info` (default `true`), `ShowDate` (default `true`),
+   - **`XlsxOptions`**: `Brand`, `Brands`, `Info` (default: on when the workbook has a title or a description), `ShowDate` (default `true`),
      `Culture` (overrides the language's culture), `Texts`, `Marking`, `TimeProvider`.
 
-4. **Info sheet** (first, unless `Info` is `false`):
+4. **Info sheet** (first, when the workbook has a title or a description, unless `Info` is
+   `false`; the marking shows only here and in the print header, never as a custom property):
    - the logo, title, subtitle and description;
    - author, date and language;
    - the marking;
@@ -130,12 +131,12 @@ plain HTML.
 
 1. Should the info sheet be on by default, or only when the workbook has a title or a description?
 
->
+> On when the workbook has a title or a description; `info: false` turns it off. (2026-11-26)
 
 2. Should the marking also be written as a sensitivity label in the custom properties, or only
    shown on the info sheet and in the page header?
 
->
+> Only visible: on the info sheet and in the print header. No custom property. (2026-11-26)
 
 ## Notes
 

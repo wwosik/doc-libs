@@ -57,6 +57,10 @@ workbook as data instead of writing a Markdown table.
      - `Generate(JsonElement, resources, Stream)`;
      - `Check(JsonElement)`;
      - a guide section.
+   - The interface is generic: any structured model can implement it later; the workbook is the
+     first.
+   - The tool takes the structured input inline in the arguments or as an attached `.json`
+     resource (`workbookResource`: the resource's path).
    - `XlsxGenerator.ForOptions` returns an object that implements both interfaces.
    - `DocumentTool` accepts both kinds of generator:
      - The parameters schema gets each structured generator's parameter with its schema.
@@ -87,12 +91,12 @@ workbook as data instead of writing a Markdown table.
 1. Should `IStructuredGenerator` be generic (any structured format, for example a future
    financial-chart or deck model), or specific to workbooks for now?
 
->
+> Generic: `IStructuredGenerator` for any structured model; the workbook is its first implementation. (2026-11-26)
 
 2. Should the tool also accept a workbook as an attached `.json` resource, or only inline in the
    arguments?
 
->
+> Both: inline in the arguments and as an attached `.json` resource. (2026-11-26)
 
 ## Notes
 

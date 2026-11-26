@@ -40,6 +40,8 @@ they are.
    - Numeric and date categories become `c:numRef` with their format.
    - The values' number format is source-linked, so the axis shows the column's format.
    - `Source` becomes a second, smaller paragraph of the chart title.
+   - `ChartCells` and the overload are shared, not internal to workbooks, so decks and Word documents
+     can later draw a chart from cells of a workbook the caller passes.
    - The existing `Add` keeps its output byte for byte. A test compares a deck's and a Word
      document's chart part before and after.
 
@@ -71,7 +73,7 @@ they are.
    a chart's data comes from a workbook the caller passes? Or does the overload stay internal to
    workbooks?
 
->
+> Usable later by decks and Word documents too: the `ChartCells` overload is shared, not internal to workbooks. (2026-11-26)
 
 ## Notes
 

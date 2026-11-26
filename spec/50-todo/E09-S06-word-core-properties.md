@@ -33,12 +33,18 @@ the title, author and language they already have. Decks get the same where Power
 3. `cp:lastModifiedBy` is the author, so Word does not show the template's last editor.
 4. A template's own core properties are replaced, never merged: no previous author, title or keywords
    survive.
-5. Tests read the core part of a generated document.
+5. A new front-matter key `keywords` (a comma-separated list), shared by every generator, goes to
+   `cp:keywords` in Word and decks and to `Keywords` in the PDF's document information and XMP
+   (`pdf:Keywords`).
+6. The PDF's subject takes the subtitle as Word's does; with `description:` as well, the subject is
+   the subtitle and the description goes to `dc:description`.
+7. Tests read the core part of a generated document.
 
 ## Acceptance criteria
 
 - [ ] A document with a subtitle and `description:` has `dc:subject` and `dc:description` in Word,
       PowerPoint and the PDF's metadata.
+- [ ] `keywords:` is written to Word, PowerPoint and the PDF; the PDF's subject is the subtitle.
 - [ ] Nothing of a caller's template's core properties survives.
 - [ ] The front-matter tables in the docs and authoring guides list `description`.
 
@@ -46,11 +52,11 @@ the title, author and language they already have. Decks get the same where Power
 
 1. Is `keywords` (`cp:keywords`, PDF `Keywords`) wanted as a front-matter key too?
 
->
+> Yes: a front-matter key `keywords`, written to `cp:keywords` and the PDF's `Keywords`. (2026-11-26)
 
 2. Should the subtitle also go into the PDF's subject, which today holds nothing?
 
->
+> Yes: the PDF's subject takes the subtitle, as Word does. (2026-11-26)
 
 ## Notes
 

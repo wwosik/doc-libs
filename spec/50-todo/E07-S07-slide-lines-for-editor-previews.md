@@ -32,7 +32,10 @@ says on which Markdown line each slide starts, and the deck accepts a message th
 3. **The jump message.** `{ app: 'html-deck', kind: 'go', slide: n }` (from 1) jumps to slide n
    without an effect, with every build of the slide shown, and answers with `kind: 'state'`. Unknown
    slides are ignored. It goes through the same receiver as `state`, so a presenter window follows too.
-4. **Docs.** The HTML deck section describes the protocol: `hello`, `state` and `go`. A small sample
+4. **The shown slide.** When the slide changes (keys, clicks or `go`), the deck sends
+   `{ app: 'html-deck', kind: 'shown', slide: n, line: l }`, so an editor can jump back to the
+   Markdown line.
+5. **Docs.** The HTML deck section describes the protocol: `hello`, `state`, `go` and `shown`. A small sample
    page shows an editor `iframe` driving the deck.
 
 ## Acceptance criteria
@@ -47,7 +50,7 @@ says on which Markdown line each slide starts, and the deck accepts a message th
 1. Should the deck also report the slide under the mouse (`kind: 'shown'`), so the editor can jump
    back to the Markdown?
 
->
+> Yes: the deck reports the shown slide with `kind: 'shown'`. (2026-11-26)
 
 ## Notes
 
