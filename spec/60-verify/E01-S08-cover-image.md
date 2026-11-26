@@ -104,7 +104,9 @@ size.
   the artwork, tagline and logo boxes as `Cover` computes them, with a 14 pt gap. `right` is
   top-aligned with the capitals of the title's first line and narrows the title and subtitle frame.
   **Deviation:** an SVG is embedded as the converter's PNG (PDFs embed no SVG anywhere today), not as
-  a vector. A plain PDF (`layout: plain`) has no cover, so it gets the note.
+  a vector. A plain PDF (`layout: plain`) has no cover, so it gets the note. On dark pages (`tone: dark`) the image is drawn over
+  the page background, and the dark brand keeps the brand's `CoverImage` (the logo obstacle is then
+  `LogoOnDark` where the brand has one).
 - **Decks.** `DeckWriter.CoverImage.cs`; `Write` wraps `WriteTitleSlide` (`WithCoverImage`) and
   reports a leftover image after the loop. The image goes on the first non-section, non-closing title
   slide. A `picture` placeholder the title layout's roles **declare** takes it, fitted (contain, top

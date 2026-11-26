@@ -90,6 +90,21 @@ public class CoverImageTests
     }
 
     [Fact]
+    public void OnDarkPages_TheImageIsDrawnOverTheBackground_AndClearOfTheLogo()
+    {
+        var brand = Samples.Brand with { CoverImage = new BrandImage(Mark.Content) };
+        var (result, pdf) = Generate("---\ntone: dark\ncoverImagePosition: right\n---\n# Report\n\nA subtitle\n", new PdfOptions { Template = new BrandPdfTemplateOptions { Brand = brand } });
+
+        Assert.DoesNotContain(result.Notes, n => n.Code == NoteCodes.CoverImageIgnored);
+        Assert.Contains("pdfaid:part", System.Text.Encoding.Latin1.GetString(pdf), StringComparison.Ordinal);
+        using var document = PdfDocument.Open(pdf);
+        var images = document.GetPage(1).GetImages().Select(i => i.BoundingBox).ToList();
+        var mark = images.Single(b => Math.Abs((b.Width / b.Height) - 2) < 0.01);
+        Assert.All(images.Where(b => b != mark), other => Assert.False(other.Left < mark.Right && mark.Left < other.Right && other.Bottom < mark.Top && mark.Bottom < other.Top, "it covers another image"));
+        Samples.WriteForReview("cover-image-dark.pdf", pdf);
+    }
+
+    [Fact]
     public void TheBrandsCoverImage_IsTheDefault()
     {
         var brand = Samples.Brand with { CoverImage = new BrandImage(Mark.Content) };
