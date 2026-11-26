@@ -48,6 +48,7 @@ public sealed record GeneratedTexts
         PageOfFormat = "Seite {0} von {1}",
         Backup = "Backup",
         Appendix = "Anhang",
+        Total = "Summe",
     };
 
     /// <summary>The title of <c>> [!NOTE]</c>.</summary>
@@ -145,6 +146,9 @@ public sealed record GeneratedTexts
 
     /// <summary>The word before an appendix's letter in its heading (<c>{.appendix}</c>): "Appendix A Glossary"; German "Anhang".</summary>
     public string Appendix { get; init; } = "Appendix";
+
+    /// <summary>The label of a workbook table's totals row: "Total"; German "Summe".</summary>
+    public string Total { get; init; } = "Total";
 
     /// <summary>The title of an alert of the kind <paramref name="kind"/> (<c>NOTE</c>, <c>TIP</c>, …).</summary>
     internal string Alert(string kind) => kind.ToUpperInvariant() switch

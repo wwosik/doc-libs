@@ -8,7 +8,7 @@ namespace wwosik.DocLibs.DocumentGeneration.Xlsx;
 /// <summary>
 /// Writes Excel workbooks (<c>.xlsx</c>) from an <see cref="XlsxWorkbook"/> in a brand's look: an info sheet first, then
 /// one table per sheet with typed values in the culture's number formats, a frozen and filtered header row, banding that
-/// survives sorting, and print setup. <see cref="Check"/> reports every problem at once; <see cref="Preview"/> shows the
+/// survives sorting, totals that follow the filter, formulas, and print setup. <see cref="Check"/> reports every problem at once; <see cref="Preview"/> shows the
 /// workbook as plain HTML.
 /// </summary>
 public static class XlsxGenerator
@@ -20,7 +20,7 @@ public static class XlsxGenerator
     /// </summary>
     /// <exception cref="DocumentConversionException">
     /// The workbook has problems (a value that does not fit its column, an invalid sheet name or column, a row wider than
-    /// the columns, something past Excel's limits; the message lists the first ten, <see cref="Check"/> all of them), names
+    /// the columns, a formula that does not parse, names an unknown column or refers to itself, something past Excel's limits; the message lists the first ten, <see cref="Check"/> all of them), names
     /// an unknown brand, or its language is not a language tag.
     /// </exception>
     /// <exception cref="ArgumentException">A brand is invalid, or two of <see cref="XlsxOptions.Brands"/> share a name.</exception>
@@ -128,28 +128,84 @@ public static class XlsxGenerator
 
             html.Append("</tr>\n</thead>\n<tbody>\n");
             var rows = sheet.Sheet.Rows ?? [];
+            var n = sheet.FirstDataRow;
             foreach (var row in rows.Take(maxRows))
             {
                 html.Append("<tr>");
                 foreach (var column in sheet.Columns)
                 {
                     var cell = row is not null && column.Index < row.Count ? row[column.Index] ?? XlsxCell.Empty : XlsxCell.Empty;
-                    html.Append(column.Format.IsNumeric ? "<td class=\"num\">" : "<td>").Append(Encode(column.Format.Display(cell))).Append("</td>");
+                    html.Append(column.Format.IsNumeric ? "<td class=\"num\">" : "<td>");
+                    if (cell.Kind == XlsxCellKind.Formula)
+                    {
+                        html.Append("<code>").Append(Encode(Formula(plan, sheet, cell.Text!, n))).Append("</code>");
+                    }
+                    else
+                    {
+                        html.Append(Encode(column.Format.Display(cell)));
+                    }
+
+                    html.Append("</td>");
                 }
 
                 html.Append("</tr>\n");
+                n++;
             }
 
             html.Append("</tbody>\n");
-            if (rows.Count > maxRows)
+            if (rows.Count > maxRows || sheet.Totals is not null)
             {
-                html.Append(string.Create(CultureInfo.InvariantCulture, $"<tfoot>\n<tr><td colspan=\"{Math.Max(1, sheet.Columns.Count)}\">… +{rows.Count - maxRows}</td></tr>\n</tfoot>\n"));
+                html.Append("<tfoot>\n");
+                if (rows.Count > maxRows)
+                {
+                    html.Append(string.Create(CultureInfo.InvariantCulture, $"<tr><td colspan=\"{Math.Max(1, sheet.Columns.Count)}\">… +{rows.Count - maxRows}</td></tr>\n"));
+                }
+
+                if (sheet.Totals is { } totals)
+                {
+                    html.Append("<tr>");
+                    foreach (var column in sheet.Columns)
+                    {
+                        var total = totals[column.Index];
+                        html.Append((total?.Format ?? (column.Index == sheet.LabelColumn ? null : column.Format))?.IsNumeric == true ? "<td class=\"num\">" : "<td>");
+                        if (total is { Shown: { } shown })
+                        {
+                            html.Append(Encode(total.Format.Display(shown)));
+                        }
+                        else if (total is { Error: { } error })
+                        {
+                            html.Append(Encode(error));
+                        }
+                        else if (total is not null)
+                        {
+                            var letter = XlsxPlan.ColumnName(column.Index);
+                            html.Append(string.Create(CultureInfo.InvariantCulture, $"<code>=SUBTOTAL({total.Function},{letter}{sheet.FirstDataRow}:{letter}{sheet.LastRow})</code>"));
+                        }
+                        else if (column.Index == sheet.LabelColumn && sheet.TotalsLabel is { } label)
+                        {
+                            html.Append(Encode(label));
+                        }
+
+                        html.Append("</td>");
+                    }
+
+                    html.Append("</tr>\n");
+                }
+
+                html.Append("</tfoot>\n");
             }
 
             html.Append("</table>\n</section>\n");
         }
 
         return html.ToString();
+    }
+
+    // A formula as Excel shows it in the formula bar, for one row; as given when it does not parse.
+    private static string Formula(XlsxPlan plan, SheetPlan sheet, string source, int row)
+    {
+        var formula = plan.Formula(source);
+        return "=" + (formula.Error is null ? formula.Write(row, sheet.Letter, prefixes: false) : source);
     }
 
     private static string Encode(string text) => WebUtility.HtmlEncode(text).Replace("\n", "<br>", StringComparison.Ordinal);

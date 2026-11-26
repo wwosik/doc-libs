@@ -575,6 +575,11 @@ same change that made it untrue — a stale fact here is worse than a missing on
   deterministic — any new part must get an explicit id. The logo is one image part shared by the info sheet's
   drawing and every sheet's header VML. Number formats come from `XlsxFormat.For` (culture patterns mapped to
   Excel codes, literals escaped); separators stay Excel's `,`/`.`, which Excel localises itself.
+- **Workbook formulas (E10-S02):** `XlsxFormula` parses each distinct formula once per plan (`XlsxPlan.Formula`) and
+  writes it per row by token (`[Header]` → column letter + row, `{row}`, `_xlfn.`/`_xlpm.` prefixes from the table in
+  `XlsxFunctions.cs`); there is no evaluator, so formulas carry no cached value and set `fullCalcOnLoad`, while totals
+  (`SUBTOTAL` in a row under the data, outside filter and banding) carry values the plan computes. A new Excel
+  function goes into that table with its argument counts and prefix.
 
 ## Traps
 

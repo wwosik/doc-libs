@@ -328,6 +328,8 @@ if (result.HasNotes)
 | `row-too-wide` | XLSX | A row has more cells than its sheet has columns |
 | `excel-limit` | XLSX | Excel cannot hold it: too many rows or columns, a text over 32,767 characters, a date before 1900, or no sheet at all |
 | `character-missing` | XLSX | A character the brand's fonts lack, which Excel shows in a substitute font; once per character, without a line |
+| `formula-invalid` | XLSX | A formula does not parse, names a `[Header]` the sheet does not have or two columns share, holds a bare name, refers to itself within its row, or gives a function the wrong number of arguments; with the character it happens at, see [the workbook generator](wwosik.DocLibs.DocumentGeneration.Xlsx.md#formulas) |
+| `function-unknown` | XLSX | A formula calls a function the generator does not know; it is written as it is, for Excel or an add-in to know. Once per function, without a line |
 
 ## Checking a document
 

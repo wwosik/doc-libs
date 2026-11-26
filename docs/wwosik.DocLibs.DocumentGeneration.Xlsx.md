@@ -2,7 +2,8 @@
 
 Generates Excel workbooks (`.xlsx`) from a typed model, in a brand's colours and fonts: an info
 sheet first, then one table per sheet with real, typed values in the culture's number formats, a
-frozen and filtered header row, banding that survives sorting, and print setup. `Check` reports
+frozen and filtered header row, banding that survives sorting, totals that follow the filter,
+formulas checked before they are written, and print setup. `Check` reports
 every problem of a workbook at once, `Preview` shows it as plain HTML. Cross-platform, no Office
 needed. Depends on the Open XML SDK and
 [wwosik.DocLibs.DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md). AOT-compatible.
@@ -29,11 +30,12 @@ var workbook = new XlsxWorkbook
                 new XlsxColumn("Revenue", XlsxColumnType.Currency) { Currency = "EUR" },
                 new XlsxColumn("Share", XlsxColumnType.Percent) { Decimals = 1 },
                 new XlsxColumn("Since", XlsxColumnType.Date),
+                new XlsxColumn("Per unit") { Total = XlsxTotal.Average },
             ],
             Rows =
             [
-                ["North", 1200, 15000.50m, 0.25, new DateOnly(2024, 1, 1)],
-                ["South", 800, 9800m, 0.18, new DateOnly(2025, 6, 1)],
+                ["North", 1200, 15000.50m, 0.25, new DateOnly(2024, 1, 1), XlsxCell.Formula("[Revenue]/[Units]")],
+                ["South", 800, 9800m, 0.18, new DateOnly(2025, 6, 1), XlsxCell.Formula("[Revenue]/[Units]")],
             ],
         },
     ],
@@ -48,8 +50,8 @@ GenerationResult result = XlsxGenerator.Generate(workbook, output, new XlsxOptio
   listing the first ten; so does a brand name the options do not know, or a language that is not a
   language tag. An invalid brand throws `ArgumentException`.
 - **Result:** `Generate` returns a `GenerationResult`; its `Pages` is the number of sheets, the info
-  sheet included, and its notes are `character-missing`, `language-unknown` and
-  `classification-kept`.
+  sheet included, and its notes are `character-missing`, `language-unknown`,
+  `classification-kept` and `function-unknown`.
 - **Deterministic:** the same workbook, options and clock give the same bytes: relationship ids are
   fixed, and every entry of the package has the same time.
 - **Core properties:** the title, the subtitle as subject, the author as creator, the description,
@@ -63,10 +65,10 @@ All types are sealed records in `wwosik.DocLibs.DocumentGeneration.Xlsx`.
 | Type | Holds |
 | ---- | ----- |
 | `XlsxWorkbook` | `Title`, `Subtitle`, `Description`, `Author`, `Date` (default: today), `Language` (BCP 47, default `en`), `Marking` (`XlsxMarking(Classification, Draft)`), `Brand` (a name), `Sheets` |
-| `XlsxSheet` | `Name` (the tab), `Title` and `Description` above the table, `Columns`, `Rows` |
-| `XlsxColumn(Header, Type)` | `Decimals` (0–10, for `Number`, `Currency`, `Percent`), `Currency` (ISO 4217, only on `Currency`), `Width` (1–255 characters; measured without), `Align` (`Left`, `Center`, `Right`; text left, booleans centred, numbers and dates right without) |
+| `XlsxSheet` | `Name` (the tab), `Title` and `Description` above the table, `Columns`, `Rows`, `TotalsLabel` (default `GeneratedTexts.Total`, "Total" / "Summe") |
+| `XlsxColumn(Header, Type)` | `Type` (default `Text`; a column of formulas `Number` or `Currency`, see [Formulas](#formulas)), `Total` (`Sum`, `Average`, `Count`, `Min`, `Max`), `Decimals` (0–10, for `Number`, `Currency`, `Percent`), `Currency` (ISO 4217, only on `Currency`), `Width` (1–255 characters; measured without), `Align` (`Left`, `Center`, `Right`; text left, booleans centred, numbers and dates right without) |
 | `XlsxColumnType` | `Text`, `Number`, `Integer`, `Currency`, `Percent`, `Date`, `DateTime`, `Boolean` |
-| `XlsxCell` | text, a number, a date, a date and time, a truth value, or `XlsxCell.Empty`; converts implicitly from `string`, `int`, `long`, `double`, `decimal`, `DateOnly`, `DateTime` and `bool` (a `null` or empty string is empty, as is a `null` cell) |
+| `XlsxCell` | text, a number, a date, a date and time, a truth value, a formula (`XlsxCell.Formula("[Price]*[Quantity]")`), or `XlsxCell.Empty`; converts implicitly from `string`, `int`, `long`, `double`, `decimal`, `DateOnly`, `DateTime` and `bool` (a `null` or empty string is empty, as is a `null` cell) |
 
 A sheet name follows Excel's rules: 1 to 31 characters, none of `[]:*?/\`, no apostrophe at either
 end, unique ignoring case. A row has at most as many cells as there are columns; a short row is
@@ -105,6 +107,66 @@ printed page header.
   stays right after sorting; thin lines in `TableLine`; no gridlines.
 - Widths are measured in the brand's table font (estimated without brand fonts), from the header
   and the shown values of the first 10,000 rows: 6 to 50 characters, unless the column sets one.
+
+## Totals
+
+A column with a `Total` gets it in a totals row right under the table: `Sum`, `Average`, `Count`,
+`Min` or `Max`, written as `SUBTOTAL(109|101|103|105|104, range)` over the data rows, so a filter
+changes the totals to the visible rows. `Count` counts the cells that are not empty, and is the only
+total of a text or boolean column (others are `column-invalid`). A sum, minimum, maximum and average
+have the column's format, an average of an `Integer` column the culture's decimals, a count a whole
+number.
+
+- The row is bold on a light shade of the header's colour, with the table's lines; it is outside the
+  filter and the banding.
+- Its label, `TotalsLabel` or `GeneratedTexts.Total`, stands in the first column without a total; when
+  every column has one, there is no label.
+- Every total carries its value, computed by the generator, so a viewer that does not calculate shows
+  it too; Excel recalculates it anyway. A total over formulas has no value, except a count: the
+  generator does not compute formulas. An average of no numbers is `#DIV/0!`, as in Excel.
+- A sheet without rows has no totals row.
+
+## Formulas
+
+`XlsxCell.Formula("…")` holds a formula in Excel's English form, with commas between arguments and
+English function names, with or without the leading `=`:
+
+- `[Header]` is the cell of the column with that header in the same row: `[Price]*[Quantity]` in the
+  third data row of a sheet whose header is row 4 is written `B7*C7`. Headers are matched ignoring
+  case and the spaces around them; inside the brackets, `'` takes the next character as it is
+  (`[Size '[cm']]`).
+- `{row}` is the number of the row: `SUM(B{row}:D{row})`.
+- A1 references (`A1`, `$B$2`, `A1:C9`, `B:B`, `3:3`) are kept as written. References to other sheets
+  and to Excel tables are not supported yet (`formula-invalid`).
+- Function names are written in upper case. Those newer than Excel 2007 get the prefix the file needs,
+  or Excel shows `#NAME?`: `XLOOKUP` is stored as `_xlfn.XLOOKUP`, `FILTER` and `SORT` as
+  `_xlfn._xlws.…`, the names of `LET` and `LAMBDA` as `_xlpm.…`; `SUM` stays `SUM`. A prefix written by
+  hand is taken as it is.
+- The workbook stores no value for a formula: with any formula other than the totals, it asks Excel to
+  calculate everything on opening (`fullCalcOnLoad`). A viewer that does not calculate shows such cells
+  empty. A workbook with no formulas but totals does not ask.
+
+**Checks.** Before writing, a parser of Excel's grammar reads every formula: numbers, strings,
+`TRUE`/`FALSE`, error values, references and ranges, operators by precedence (comparison, `&`, `+ -`,
+`* /`, `^`, `%`, signs, `:`), function calls, array constants `{1,2;3,4}`, and functions nested at most
+64 deep. It knows about 450 functions with their numbers of arguments. As `formula-invalid` it reports,
+with the character it happens at:
+
+- a formula that does not parse, or calls a function with too few or too many arguments;
+- a `[Header]` that names no column (with the closest headers as a suggestion), or two columns;
+- a bare name such as `Price*2`, which the workbook does not define (with `[Price]` as a suggestion when
+  there is such a column);
+- a circular reference within a row: `[A]` uses `[B]`, which uses `[A]`, or a cell's own A1 reference.
+  Circles across rows are Excel's to find;
+- more than 8,192 characters is `excel-limit`.
+
+A function the generator does not know is only a warning, `function-unknown`, once per function: Excel
+or an add-in may know it. It is written as given.
+
+**Types.** A column of formulas has its declared type. Without one, it is `Number`, or `Currency` when
+its formulas refer, through `[Header]`, only to `Currency` columns of one currency (also through other
+formula columns), or when it names a `Currency` itself. Formulas are not checked against the column's
+type.
 
 ## Values
 
@@ -154,9 +216,11 @@ return. With problems, `Error` is the message `Generate` would throw. `Statistic
 | ---- | ---- |
 | `cell-type` | A value does not fit its column's type: text in a number column, a number with decimals in an `Integer` column, a date with a time in a `Date` column, a number that is not finite |
 | `sheet-name` | A sheet name is empty, longer than 31 characters, holds one of `[]:*?/\` or a control character, starts or ends with `'`, or repeats another ignoring case |
-| `column-invalid` | A sheet has no columns, or a column has no header, decimals outside 0–10 or on a type without them, a currency on a column that is not `Currency`, an unknown currency code, a width outside 1–255 |
+| `column-invalid` | A sheet has no columns, or a column has no header, decimals outside 0–10 or on a type without them, a currency on a column that is not `Currency`, an unknown currency code, a width outside 1–255, a total other than `Count` on a text or boolean column |
 | `row-too-wide` | A row has more cells than the sheet has columns |
-| `excel-limit` | More than 1,048,576 rows or 16,384 columns, more than 32,767 characters in a cell, a date before 1900, or no sheet at all |
+| `excel-limit` | More than 1,048,576 rows or 16,384 columns, more than 32,767 characters in a cell or 8,192 in a formula, a date before 1900, or no sheet at all |
+| `formula-invalid` | A formula does not parse, names an unknown or shared `[Header]`, holds a bare name, refers to itself within its row, or gives a function the wrong number of arguments; the message names the character |
+| `function-unknown` | A warning: a formula calls a function the generator does not know |
 
 ## Preview
 
@@ -164,7 +228,9 @@ return. With problems, `Error` is the message `Generate` would throw. `Statistic
 `<section>` per sheet (the info sheet first), each with an `<h2>` and a `<table>` of at most
 `maxRows` rows, and a `<tfoot>` saying how many more there are. Values are shown as Excel shows them
 in the workbook's culture; numeric columns carry `class="num"` on their cells, for the host to align
-them right. There are no styles and no scripts, and every text is HTML-encoded. Problems are not
+them right. A formula is shown as Excel shows it in the formula bar, in `<code>` (`=B7*C7`, without
+prefixes), since the generator does not compute it; the totals row is a row of the `<tfoot>`, with its
+values (a total over formulas as its formula). There are no styles and no scripts, and every text is HTML-encoded. Problems are not
 checked: a value of the wrong kind is shown as it is.
 
 ## Known limits
@@ -175,4 +241,7 @@ checked: a value of the wrong kind is shown as it is.
   writes TRUE and FALSE).
 - Banding follows the row number, so rows a filter hides can put two banded rows next to each
   other.
-- Totals and formulas, charts on the sheet's cells, Markdown and JSON input come in later stories.
+- Formulas are written as ordinary formulas. A dynamic-array function such as `FILTER`, `SORT` or
+  `UNIQUE` then shows only its first value, with `@` before it in Excel's formula bar.
+- References to other sheets, charts on the sheet's cells, Markdown and JSON input come in later
+  stories.

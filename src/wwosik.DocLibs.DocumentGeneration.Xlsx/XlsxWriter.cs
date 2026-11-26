@@ -92,7 +92,7 @@ internal sealed class XlsxWriter
         Feed(workbook, "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
             + $"<workbook xmlns=\"{Main}\" xmlns:r=\"{Relationships}\"><bookViews><workbookView activeTab=\"0\"/></bookViews>"
             + $"<sheets>{sheets}</sheets>{(defined.Length > 0 ? $"<definedNames>{defined}</definedNames>" : string.Empty)}"
-            + "<calcPr calcId=\"191029\"/></workbook>");
+            + (this.plan.HasFormulas ? "<calcPr calcId=\"191029\" fullCalcOnLoad=\"1\"/>" : "<calcPr calcId=\"191029\"/>") + "</workbook>");
         Feed(stylesPart, this.styles.Xml());
         Feed(stringsPart, this.SharedStrings());
 
@@ -259,10 +259,47 @@ internal sealed class XlsxWriter
             foreach (var column in sheet.Columns)
             {
                 var cell = column.Index < row.Count ? row[column.Index] ?? XlsxCell.Empty : XlsxCell.Empty;
-                xml.Append(this.Cell(XlsxPlan.ColumnName(column.Index) + n.ToString(CultureInfo.InvariantCulture), cell, cells[column.Index]));
+                var reference = XlsxPlan.ColumnName(column.Index) + n.ToString(CultureInfo.InvariantCulture);
+                xml.Append(cell.Kind == XlsxCellKind.Formula
+                    ? Invariant($"<c r=\"{reference}\" s=\"{cells[column.Index]}\"><f>{XlsxXml.Text(this.plan.Formula(cell.Text!).Write(n, sheet.Letter))}</f></c>")
+                    : this.Cell(reference, cell, cells[column.Index]));
             }
 
             rows.Add(n, xml.ToString());
+        }
+
+        if (sheet.Totals is { } totals && sheet.TotalsRow is { } t)
+        {
+            // Like the header, lighter: bold black text on a light shade of the header's colour.
+            var totalFont = new XlsxFont(this.tableFont, 11, Bold: true);
+            var xml = new StringBuilder();
+            foreach (var column in sheet.Columns)
+            {
+                var letter = XlsxPlan.ColumnName(column.Index);
+                var reference = letter + t.ToString(CultureInfo.InvariantCulture);
+                var total = totals[column.Index];
+                var style = this.styles.Of(new XlsxStyle(totalFont, colors.Totals, true, total?.Format.Code ?? (column.Index == sheet.LabelColumn ? XlsxFormat.TextCode : column.Format.Code), column.Align));
+                if (total is not null)
+                {
+                    var value = total switch
+                    {
+                        { Value: { } v } => Invariant($"<v>{v.ToString("R", CultureInfo.InvariantCulture)}</v>"),
+                        { Error: { } e } => $"<v>{e}</v>",
+                        _ => string.Empty,
+                    };
+                    xml.Append(Invariant($"<c r=\"{reference}\" s=\"{style}\"{(total.Error is null ? string.Empty : " t=\"e\"")}><f>SUBTOTAL({total.Function},{letter}{sheet.FirstDataRow}:{letter}{sheet.LastRow})</f>{value}</c>"));
+                }
+                else if (column.Index == sheet.LabelColumn && sheet.TotalsLabel is { } label)
+                {
+                    xml.Append(this.Cell(reference, XlsxCell.FromText(label), style));
+                }
+                else
+                {
+                    xml.Append(Invariant($"<c r=\"{reference}\" s=\"{style}\"/>"));
+                }
+            }
+
+            rows.Add(t, xml.ToString());
         }
 
         var lastRow = Math.Max(sheet.LastRow, h);
@@ -291,7 +328,7 @@ internal sealed class XlsxWriter
         return this.Worksheet(
             part,
             index,
-            Invariant($"A1:{last}{lastRow}"),
+            Invariant($"A1:{last}{sheet.TotalsRow ?? lastRow}"),
             h,
             sheet.Columns.Count > 0 ? $"<cols>{widths}</cols>" : string.Empty,
             rows,

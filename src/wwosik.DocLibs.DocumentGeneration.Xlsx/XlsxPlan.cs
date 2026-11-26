@@ -28,6 +28,8 @@ internal sealed class XlsxPlan
 
     private readonly List<GenerationNote> problems = [];
     private readonly HashSet<int> missing = [];
+    private readonly Dictionary<string, XlsxFormula> formulas = new(StringComparer.Ordinal);
+    private readonly HashSet<string> unknownFunctions = new(StringComparer.Ordinal);
 
     private XlsxPlan(XlsxWorkbook workbook, XlsxOptions options)
     {
@@ -68,6 +70,9 @@ internal sealed class XlsxPlan
     public DateTimeOffset Now { get; private set; }
 
     public IReadOnlyList<SheetPlan> Sheets { get; private set; } = [];
+
+    /// <summary>Whether a sheet has a formula other than its totals: the workbook then asks Excel to calculate on opening.</summary>
+    public bool HasFormulas { get; private set; }
 
     /// <summary>The colours as the sheet shows them, readable on Excel's white.</summary>
     public SheetColors Colors { get; private set; } = null!;
@@ -154,6 +159,17 @@ internal sealed class XlsxPlan
 
     /// <summary>A sheet name in a reference: <c>'Sales 2026'</c>, an apostrophe doubled.</summary>
     public static string Quoted(string sheet) => "'" + sheet.Replace("'", "''", StringComparison.Ordinal) + "'";
+
+    /// <summary>The parsed formula of <paramref name="source"/>, parsed once per workbook.</summary>
+    public XlsxFormula Formula(string source)
+    {
+        if (!this.formulas.TryGetValue(source, out var formula))
+        {
+            this.formulas[source] = formula = XlsxFormula.Parse(source);
+        }
+
+        return formula;
+    }
 
     private static int Words(string? text) => string.IsNullOrWhiteSpace(text) ? 0 : DocumentCheck.Words(text);
 
@@ -309,15 +325,18 @@ internal sealed class XlsxPlan
             this.Problem(NoteCodes.ExcelLimit, string.Create(CultureInfo.InvariantCulture, $"{label} has {columns.Count:N0} columns; Excel allows {MaxColumns:N0}."));
         }
 
-        if (headerRow + rows.Count > MaxRows)
+        var hasTotals = rows.Count > 0 && columns.Any(c => c?.Total is not null);
+        if (headerRow + rows.Count + (hasTotals ? 1 : 0) > MaxRows)
         {
             this.Problem(NoteCodes.ExcelLimit, string.Create(CultureInfo.InvariantCulture, $"{label} has {rows.Count:N0} rows below row {headerRow}; Excel allows {MaxRows:N0} rows in all. Split the data over sheets."));
         }
 
+        var lookup = Lookup(columns);
+        var (types, currencies) = this.Types(columns, rows, lookup);
         var plans = new List<ColumnPlan>(columns.Count);
         for (var c = 0; c < columns.Count; c++)
         {
-            plans.Add(this.Column(columns[c], c, label, headerRow, rows, measure));
+            plans.Add(this.Column(columns[c], c, types[c], currencies[c], label, headerRow, rows, measure));
         }
 
         for (var r = 0; r < rows.Count && this.problems.Count < MaxProblems; r++)
@@ -329,16 +348,344 @@ internal sealed class XlsxPlan
                 this.Problem(NoteCodes.RowTooWide, string.Create(CultureInfo.InvariantCulture, $"{label}, row {r + 1} ({ColumnName(columns.Count)}{excelRow}): the row has {row.Count} cells, but the sheet has {columns.Count} columns."));
             }
 
+            var hasFormula = false;
             for (var c = 0; c < Math.Min(row.Count, columns.Count); c++)
             {
-                this.Cell(row[c] ?? XlsxCell.Empty, plans[c], string.Create(CultureInfo.InvariantCulture, $"{label}, row {r + 1}, column '{plans[c].Column.Header}' ({ColumnName(c)}{excelRow})"));
+                var cell = row[c] ?? XlsxCell.Empty;
+                var where = string.Create(CultureInfo.InvariantCulture, $"{label}, row {r + 1}, column '{plans[c].Column.Header}' ({ColumnName(c)}{excelRow})");
+                if (cell.Kind == XlsxCellKind.Formula)
+                {
+                    hasFormula = true;
+                    this.FormulaCell(cell.Text!, lookup, where);
+                }
+                else
+                {
+                    this.Cell(cell, plans[c], where);
+                }
+            }
+
+            if (hasFormula)
+            {
+                this.Circular(row, plans, lookup, label, r, excelRow);
             }
         }
 
-        return new SheetPlan(sheet, index, title, subtitle, showsDate, headerRow, plans);
+        var totals = hasTotals ? plans.Select(p => this.Total(p, rows)).ToList() : null;
+        string? totalsLabel = null;
+        var labelColumn = -1;
+        if (totals is not null && plans.FindIndex(p => p.Column.Total is null) is >= 0 and var first)
+        {
+            labelColumn = first;
+            totalsLabel = string.IsNullOrWhiteSpace(sheet.TotalsLabel) ? this.Texts.Total : sheet.TotalsLabel.Trim();
+            this.CheckText(totalsLabel, $"{label}, its totals label");
+            this.CheckCharacters(totalsLabel, false, $"{label}, its totals label");
+        }
+
+        if (totals is not null && measure)
+        {
+            for (var c = 0; c < plans.Count; c++)
+            {
+                var shown = c == labelColumn ? totalsLabel : totals[c] is { Shown: { } cell } total ? total.Format.Display(cell) : null;
+                if (plans[c].Column.Width is null && shown is not null)
+                {
+                    plans[c] = plans[c] with { Width = Math.Max(plans[c].Width, Math.Round(Math.Clamp(this.Characters(shown, true) + 1, MinWidth, MaxWidth), 2)) };
+                }
+            }
+        }
+
+        return new SheetPlan(sheet, index, title, subtitle, showsDate, headerRow, plans)
+        {
+            Lookup = lookup,
+            Totals = totals,
+            TotalsLabel = totalsLabel,
+            LabelColumn = labelColumn,
+        };
     }
 
-    private ColumnPlan Column(XlsxColumn? column, int index, string label, int headerRow, IReadOnlyList<IReadOnlyList<XlsxCell>> rows, bool measure)
+    // Each header, trimmed and ignoring case, to its column; -1 for a header two columns share.
+    private static Dictionary<string, int> Lookup(IReadOnlyList<XlsxColumn?> columns)
+    {
+        var lookup = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        for (var c = 0; c < columns.Count; c++)
+        {
+            if (columns[c]?.Header?.Trim() is { Length: > 0 } header)
+            {
+                lookup[header] = lookup.ContainsKey(header) ? -1 : c;
+            }
+        }
+
+        return lookup;
+    }
+
+    // The type of each column: as declared; without one Text, or for a column of formulas Number, or Currency when its
+    // formulas refer only to currency columns of one currency (or it names a currency itself).
+    private (XlsxColumnType[] Types, string?[] Currencies) Types(IReadOnlyList<XlsxColumn?> columns, IReadOnlyList<IReadOnlyList<XlsxCell>> rows, Dictionary<string, int> lookup)
+    {
+        var types = new XlsxColumnType[columns.Count];
+        var currencies = new string?[columns.Count];
+        var sources = new List<int>?[columns.Count];
+        for (var c = 0; c < columns.Count; c++)
+        {
+            var column = columns[c];
+            types[c] = column?.Type ?? XlsxColumnType.Text;
+            currencies[c] = column?.Currency?.Trim().ToUpperInvariant();
+            if (column is null || column.Type is not null)
+            {
+                continue;
+            }
+
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            List<int>? referred = [];
+            foreach (var row in rows)
+            {
+                if (row is not null && c < row.Count && row[c] is { Kind: XlsxCellKind.Formula, Text: { } text } && seen.Add(text))
+                {
+                    var formula = this.Formula(text);
+                    if (formula.Headers.Count == 0 || formula.Error is not null)
+                    {
+                        referred = null;
+                    }
+
+                    foreach (var (name, _) in formula.Headers)
+                    {
+                        if (referred is not null && lookup.TryGetValue(name, out var d) && d >= 0 && d != c)
+                        {
+                            referred.Add(d);
+                        }
+                        else
+                        {
+                            referred = null;
+                        }
+                    }
+                }
+            }
+
+            if (seen.Count == 0)
+            {
+                continue;
+            }
+
+            types[c] = currencies[c] is null ? XlsxColumnType.Number : XlsxColumnType.Currency;
+            sources[c] = currencies[c] is null ? referred : null;
+        }
+
+        // Currency spreads from column to column; a column only ever becomes Currency, so this ends.
+        for (var changed = true; changed;)
+        {
+            changed = false;
+            for (var c = 0; c < columns.Count; c++)
+            {
+                if (sources[c] is { Count: > 0 } referred && types[c] != XlsxColumnType.Currency
+                    && referred.All(d => types[d] == XlsxColumnType.Currency && currencies[d] == currencies[referred[0]]))
+                {
+                    types[c] = XlsxColumnType.Currency;
+                    currencies[c] = currencies[referred[0]];
+                    changed = true;
+                }
+            }
+        }
+
+        return (types, currencies);
+    }
+
+    // A formula cell: it parses, its [Header]s name columns, its names are parameters, its functions are known.
+    private void FormulaCell(string source, Dictionary<string, int> lookup, string where)
+    {
+        this.HasFormulas = true;
+        if (source.Length > XlsxFormula.MaxLength)
+        {
+            this.Problem(NoteCodes.ExcelLimit, string.Create(CultureInfo.InvariantCulture, $"{where}: the formula has {source.Length:N0} characters; Excel holds {XlsxFormula.MaxLength:N0}."));
+            return;
+        }
+
+        var formula = this.Formula(source);
+        var quoted = GenerationNotes.Quote(source);
+        if (formula.Error is { } error)
+        {
+            this.Problem(NoteCodes.FormulaInvalid, string.Create(CultureInfo.InvariantCulture, $"{where}: the formula '{quoted}' cannot be read at character {error.Position}: {error.Message}."));
+            return;
+        }
+
+        foreach (var (name, position) in formula.Headers)
+        {
+            if (!lookup.TryGetValue(name, out var column))
+            {
+                var close = XlsxFormula.Closest(name, lookup.Keys);
+                var hint = close.Count > 0 ? $" Did you mean {string.Join(" or ", close.Select(h => "[" + h + "]"))}?" : $" The columns are {string.Join(", ", lookup.Keys.Select(h => "[" + h + "]"))}.";
+                this.Problem(NoteCodes.FormulaInvalid, string.Create(CultureInfo.InvariantCulture, $"{where}: the formula '{quoted}' refers to [{name}] at character {position}, but the sheet has no column of that header.{hint}"));
+            }
+            else if (column < 0)
+            {
+                this.Problem(NoteCodes.FormulaInvalid, string.Create(CultureInfo.InvariantCulture, $"{where}: the formula '{quoted}' refers to [{name}] at character {position}, which is the header of more than one column. Give the columns different headers."));
+            }
+        }
+
+        foreach (var (name, position) in formula.Names)
+        {
+            var hint = lookup.ContainsKey(name) ? $" To refer to the column, write [{name}]." : " Write text in double quotes, a column as [Header], or a cell as A1.";
+            this.Problem(NoteCodes.FormulaInvalid, string.Create(CultureInfo.InvariantCulture, $"{where}: the formula '{quoted}' holds the name '{name}' at character {position}, which is neither a function, a reference nor TRUE or FALSE.{hint}"));
+        }
+
+        foreach (var (name, position) in formula.UnknownFunctions)
+        {
+            if (this.unknownFunctions.Add(name))
+            {
+                var close = XlsxFormula.Closest(name, XlsxFormula.Functions.Keys);
+                var hint = close.Count > 0 ? $" Did you mean {string.Join(" or ", close)}?" : string.Empty;
+                this.Notes.Add(
+                    NoteCodes.FunctionUnknown,
+                    0,
+                    string.Create(CultureInfo.InvariantCulture, $"{where}: the formula '{quoted}' calls {name} at character {position}, a function the generator does not know; it is written as it is, and Excel shows #NAME? unless it or an add-in knows it.{hint}"));
+            }
+        }
+    }
+
+    // A formula that needs its own value within its row, through [Header] or an A1 reference to the row: once per row.
+    private void Circular(IReadOnlyList<XlsxCell> row, List<ColumnPlan> plans, Dictionary<string, int> lookup, string label, int index, int excelRow)
+    {
+        var count = Math.Min(row.Count, plans.Count);
+        var edges = new List<(int Target, int Position)>?[count];
+        for (var c = 0; c < count; c++)
+        {
+            if (row[c] is not { Kind: XlsxCellKind.Formula, Text: { Length: <= XlsxFormula.MaxLength } text } || this.Formula(text) is not { Error: null } formula)
+            {
+                continue;
+            }
+
+            var list = new List<(int, int)>();
+            foreach (var (name, position) in formula.Headers)
+            {
+                if (lookup.TryGetValue(name, out var d) && d >= 0)
+                {
+                    list.Add((d, position));
+                }
+            }
+
+            foreach (var (column, cellRow, position) in formula.Cells)
+            {
+                if ((cellRow ?? excelRow) == excelRow && column < plans.Count)
+                {
+                    list.Add((column, position));
+                }
+            }
+
+            edges[c] = list;
+        }
+
+        // Depth first: 0 unseen, 1 on the path, 2 done.
+        var state = new int[count];
+        var path = new List<(int Column, int Position)>();
+        bool Visit(int c)
+        {
+            state[c] = 1;
+            foreach (var (target, position) in edges[c] ?? [])
+            {
+                if (target >= count || edges[target] is null)
+                {
+                    continue;
+                }
+
+                path.Add((c, position));
+                if (state[target] == 1)
+                {
+                    var start = path.FindIndex(p => p.Column == target);
+                    var cycle = path[start..];
+                    var names = string.Join(" → ", cycle.Select(p => "[" + plans[p.Column].Column.Header + "]").Append("[" + plans[target].Column.Header + "]"));
+                    var (from, at) = cycle[0];
+                    this.Problem(NoteCodes.FormulaInvalid, string.Create(CultureInfo.InvariantCulture, $"{label}, row {index + 1}, column '{plans[from].Column.Header}' ({ColumnName(from)}{excelRow}): the formula refers to itself within its row at character {at}: {names}. Excel cannot compute a circular reference; take one of the references out."));
+                    return true;
+                }
+
+                if (state[target] == 0 && Visit(target))
+                {
+                    return true;
+                }
+
+                path.RemoveAt(path.Count - 1);
+            }
+
+            state[c] = 2;
+            return false;
+        }
+
+        for (var c = 0; c < count; c++)
+        {
+            if (edges[c] is not null && state[c] == 0 && Visit(c))
+            {
+                return;
+            }
+        }
+    }
+
+    // A column's total: the SUBTOTAL function, its format, and its value when the column holds no formula (Count always).
+    private TotalPlan? Total(ColumnPlan column, IReadOnlyList<IReadOnlyList<XlsxCell>> rows)
+    {
+        if (column.Column.Total is not { } total || !Enum.IsDefined(total) || (column.Format.Type is XlsxColumnType.Text or XlsxColumnType.Boolean && total != XlsxTotal.Count))
+        {
+            return null;
+        }
+
+        var values = new List<double>();
+        var filled = 0;
+        var formula = false;
+        foreach (var row in rows)
+        {
+            if (row is null || column.Index >= row.Count || row[column.Index] is not { Kind: not XlsxCellKind.Empty } cell)
+            {
+                continue;
+            }
+
+            filled++;
+            switch (cell.Kind)
+            {
+                case XlsxCellKind.Formula:
+                    formula = true;
+                    break;
+                case XlsxCellKind.Number:
+                    values.Add(cell.Number);
+                    break;
+                case XlsxCellKind.Date or XlsxCellKind.DateTime:
+                    values.Add(Serial(cell.DateTime));
+                    break;
+            }
+        }
+
+        var format = total switch
+        {
+            XlsxTotal.Count => XlsxFormat.For(XlsxColumnType.Integer, null, null, this.Culture),
+            XlsxTotal.Average when column.Format.Type == XlsxColumnType.Integer => XlsxFormat.For(XlsxColumnType.Number, null, null, this.Culture),
+            _ => column.Format,
+        };
+        var function = total switch
+        {
+            XlsxTotal.Sum => 109,
+            XlsxTotal.Average => 101,
+            XlsxTotal.Count => 103,
+            XlsxTotal.Min => 105,
+            _ => 104,
+        };
+        if (formula && total != XlsxTotal.Count)
+        {
+            return new TotalPlan(function, format, null, null);
+        }
+
+        if (total == XlsxTotal.Average && values.Count == 0)
+        {
+            return new TotalPlan(function, format, null, "#DIV/0!");
+        }
+
+        var value = total switch
+        {
+            XlsxTotal.Sum => values.Sum(),
+            XlsxTotal.Average => values.Average(),
+            XlsxTotal.Count => filled,
+            XlsxTotal.Min => values.Count == 0 ? 0 : values.Min(),
+            _ => values.Count == 0 ? 0 : values.Max(),
+        };
+        return new TotalPlan(function, format, value, null);
+    }
+
+    private ColumnPlan Column(XlsxColumn? column, int index, XlsxColumnType type, string? inferred, string label, int headerRow, IReadOnlyList<IReadOnlyList<XlsxCell>> rows, bool measure)
     {
         column ??= new XlsxColumn(string.Empty);
         var where = string.Create(CultureInfo.InvariantCulture, $"{label}, column {index + 1} ('{column.Header}', {ColumnName(index)}{headerRow})");
@@ -352,9 +699,9 @@ internal sealed class XlsxPlan
         var decimals = column.Decimals;
         if (decimals is { } d)
         {
-            if (column.Type is not (XlsxColumnType.Number or XlsxColumnType.Currency or XlsxColumnType.Percent))
+            if (type is not (XlsxColumnType.Number or XlsxColumnType.Currency or XlsxColumnType.Percent))
             {
-                this.Problem(NoteCodes.ColumnInvalid, $"{where}: a {column.Type} column has no decimals; only Number, Currency and Percent columns do.");
+                this.Problem(NoteCodes.ColumnInvalid, $"{where}: a {type} column has no decimals; only Number, Currency and Percent columns do.");
                 decimals = null;
             }
             else if (d is < 0 or > 10)
@@ -364,12 +711,17 @@ internal sealed class XlsxPlan
             }
         }
 
-        var currency = column.Currency?.Trim();
+        var currency = column.Currency?.Trim() ?? (type == XlsxColumnType.Currency ? inferred : null);
         if (currency is not null)
         {
-            if (column.Type != XlsxColumnType.Currency)
+            if (type != XlsxColumnType.Currency)
             {
-                this.Problem(NoteCodes.ColumnInvalid, $"{where}: the currency '{currency}' is set on a {column.Type} column; only a Currency column has one.");
+                this.Problem(NoteCodes.ColumnInvalid, $"{where}: the currency '{currency}' is set on a {type} column; only a Currency column has one.");
+                currency = null;
+            }
+            else if (column.Currency is null && !XlsxFormat.IsKnownCurrency(currency))
+            {
+                // Taken from a referred column, which reports it.
                 currency = null;
             }
             else if (!XlsxFormat.IsKnownCurrency(currency))
@@ -389,13 +741,25 @@ internal sealed class XlsxPlan
             this.Problem(NoteCodes.ColumnInvalid, $"{where}: the alignment {align} is not one of Left, Center, Right.");
         }
 
-        if (!Enum.IsDefined(column.Type))
+        if (!Enum.IsDefined(type))
         {
-            this.Problem(NoteCodes.ColumnInvalid, $"{where}: the type {column.Type} is not a column type.");
+            this.Problem(NoteCodes.ColumnInvalid, $"{where}: the type {type} is not a column type.");
         }
 
-        var format = XlsxFormat.For(Enum.IsDefined(column.Type) ? column.Type : XlsxColumnType.Text, decimals, currency, this.Culture);
-        var alignment = column.Align is { } a && Enum.IsDefined(a) ? a : column.Type switch
+        if (column.Total is { } total)
+        {
+            if (!Enum.IsDefined(total))
+            {
+                this.Problem(NoteCodes.ColumnInvalid, $"{where}: the total {total} is not one of Sum, Average, Count, Min, Max.");
+            }
+            else if (type is XlsxColumnType.Text or XlsxColumnType.Boolean && total != XlsxTotal.Count)
+            {
+                this.Problem(NoteCodes.ColumnInvalid, $"{where}: a {type} column cannot have the total {total}; only Count. Give the column a numeric type, or count it.");
+            }
+        }
+
+        var format = XlsxFormat.For(Enum.IsDefined(type) ? type : XlsxColumnType.Text, decimals, currency, this.Culture);
+        var alignment = column.Align is { } a && Enum.IsDefined(a) ? a : type switch
         {
             XlsxColumnType.Text => XlsxAlign.Left,
             XlsxColumnType.Boolean => XlsxAlign.Center,
@@ -410,7 +774,7 @@ internal sealed class XlsxPlan
         var type = column.Format.Type;
         switch (cell.Kind)
         {
-            case XlsxCellKind.Empty:
+            case XlsxCellKind.Empty or XlsxCellKind.Formula:
                 return;
             case XlsxCellKind.Text:
                 this.CheckText(cell.Text, where);
@@ -502,7 +866,12 @@ internal sealed class XlsxPlan
         var widest = this.Characters(column.Header ?? string.Empty, true) + 2.5;
         foreach (var row in rows.Take(MeasuredRows))
         {
-            if (row is not null && index < row.Count && row[index] is { Kind: not XlsxCellKind.Empty } cell)
+            if (row is not null && index < row.Count && row[index] is { Kind: XlsxCellKind.Formula })
+            {
+                // Its value is Excel's to compute: room for a sum in the thousands.
+                widest = Math.Max(widest, this.Characters(format.Display(XlsxCell.FromNumber(123_456.78)), false));
+            }
+            else if (row is not null && index < row.Count && row[index] is { Kind: not XlsxCellKind.Empty } cell)
             {
                 foreach (var line in format.Display(cell).Split('\n'))
                 {
@@ -541,6 +910,35 @@ internal sealed record SheetPlan(XlsxSheet Sheet, int Index, string? Title, stri
     public int FirstDataRow => this.HeaderRow + 1;
 
     public int LastRow => this.HeaderRow + (this.Sheet.Rows?.Count ?? 0);
+
+    /// <summary>Each header, trimmed and ignoring case, to its column from 0; -1 for a header two columns share.</summary>
+    public IReadOnlyDictionary<string, int> Lookup { get; init; } = new Dictionary<string, int>();
+
+    /// <summary>Each column's total, <see langword="null"/> where it has none; the list is <see langword="null"/> without a totals row.</summary>
+    public IReadOnlyList<TotalPlan?>? Totals { get; init; }
+
+    /// <summary>The label of the totals row, in <see cref="LabelColumn"/>; <see langword="null"/> when every column has a total.</summary>
+    public string? TotalsLabel { get; init; }
+
+    public int LabelColumn { get; init; } = -1;
+
+    /// <summary>The totals row, right under the table, or <see langword="null"/>.</summary>
+    public int? TotalsRow => this.Totals is null ? null : this.LastRow + 1;
+
+    /// <summary>The column letter of the header <paramref name="header"/>, for <see cref="XlsxFormula.Write"/>.</summary>
+    public string? Letter(string header) => this.Lookup.TryGetValue(header, out var c) && c >= 0 ? XlsxPlan.ColumnName(c) : null;
+}
+
+/// <summary>
+/// A column's total: the <c>SUBTOTAL</c> function number, the format, and the cached value, or the error value Excel
+/// gives; neither for a total over formulas, which Excel computes.
+/// </summary>
+internal sealed record TotalPlan(int Function, XlsxFormat Format, double? Value, string? Error)
+{
+    /// <summary>The value as a cell to show, a date for a date format; <see langword="null"/> without one.</summary>
+    public XlsxCell? Shown => this.Value is not { } value ? null
+        : this.Format.Type is XlsxColumnType.Date or XlsxColumnType.DateTime && value is >= 1 and < 2_958_466 ? XlsxCell.FromDateTime(DateTime.FromOADate(value))
+        : XlsxCell.FromNumber(value);
 }
 
 /// <summary>One column's format, alignment and width.</summary>
@@ -552,6 +950,9 @@ internal sealed record ColumnPlan(XlsxColumn Column, int Index, XlsxFormat Forma
 /// </summary>
 internal sealed record SheetColors(string Title, string Muted, string Link, string Header, string Band, string Line)
 {
+    /// <summary>The fill of the totals row: the header's colour, lighter, with black text readable on it.</summary>
+    public string Totals => ResolvedBrand.Readable(ResolvedBrand.Mix(this.Header, 0.3), Text, true, 7);
+
     public const string White = "FFFFFF";
     public const string Text = "000000";
 

@@ -71,13 +71,29 @@ public sealed record XlsxSheet
 
     /// <summary>The rows, each at most as many cells as there are columns; a short row is filled with empty cells.</summary>
     public IReadOnlyList<IReadOnlyList<XlsxCell>> Rows { get; init; } = [];
+
+    /// <summary>
+    /// The label of the totals row, in the first column without a <see cref="XlsxColumn.Total"/>. Default:
+    /// <see cref="GeneratedTexts.Total"/> ("Total").
+    /// </summary>
+    public string? TotalsLabel { get; init; }
 }
 
 /// <summary>A column of a sheet's table: its header and the type of its values.</summary>
-/// <param name="Header">The text of the header row.</param>
-/// <param name="Type">What the values are, and so how they are shown.</param>
-public sealed record XlsxColumn(string Header, XlsxColumnType Type = XlsxColumnType.Text)
+/// <param name="Header">The text of the header row, and the name a formula refers to it by: <c>[Header]</c>.</param>
+/// <param name="Type">
+/// What the values are, and so how they are shown. Default: <see cref="XlsxColumnType.Text"/>; for a column of formulas,
+/// <see cref="XlsxColumnType.Number"/>, or <see cref="XlsxColumnType.Currency"/> when its formulas refer only to
+/// currency columns of one currency.
+/// </param>
+public sealed record XlsxColumn(string Header, XlsxColumnType? Type = null)
 {
+    /// <summary>
+    /// The column's total in the totals row under the table, written as <c>SUBTOTAL</c> so that a filter changes it to the
+    /// visible rows. Only <see cref="XlsxTotal.Count"/> on a text or boolean column. Default: none.
+    /// </summary>
+    public XlsxTotal? Total { get; init; }
+
     /// <summary>
     /// Digits after the decimal point, 0 to 10, for <see cref="XlsxColumnType.Number"/>, <see cref="XlsxColumnType.Currency"/>
     /// and <see cref="XlsxColumnType.Percent"/>. Default: the culture's (the currency's for a currency of another country).
@@ -125,6 +141,25 @@ public enum XlsxColumnType
     Boolean,
 }
 
+/// <summary>What a column's total is.</summary>
+public enum XlsxTotal
+{
+    /// <summary>The sum of the visible values: <c>SUBTOTAL(109, …)</c>.</summary>
+    Sum,
+
+    /// <summary>Their average: <c>SUBTOTAL(101, …)</c>.</summary>
+    Average,
+
+    /// <summary>How many visible cells are not empty: <c>SUBTOTAL(103, …)</c>.</summary>
+    Count,
+
+    /// <summary>The smallest visible value: <c>SUBTOTAL(105, …)</c>.</summary>
+    Min,
+
+    /// <summary>The largest visible value: <c>SUBTOTAL(104, …)</c>.</summary>
+    Max,
+}
+
 /// <summary>The horizontal alignment of a column.</summary>
 public enum XlsxAlign
 {
@@ -158,10 +193,13 @@ public enum XlsxCellKind
 
     /// <summary>A truth value.</summary>
     Boolean,
+
+    /// <summary>A formula, which Excel computes on opening.</summary>
+    Formula,
 }
 
 /// <summary>
-/// One value of a row: text, a number, a date, a date and time, a truth value, or nothing. Converts implicitly from
+/// One value of a row: text, a number, a date, a date and time, a truth value, a formula (<see cref="Formula"/>), or nothing. Converts implicitly from
 /// <see cref="string"/>, <see cref="int"/>, <see cref="long"/>, <see cref="double"/>, <see cref="decimal"/>,
 /// <see cref="DateOnly"/>, <see cref="System.DateTime"/> and <see cref="bool"/>; a <see langword="null"/> or empty string is
 /// <see cref="Empty"/>.
@@ -183,7 +221,10 @@ public sealed record XlsxCell
     /// <summary>What the cell holds.</summary>
     public XlsxCellKind Kind { get; }
 
-    /// <summary>The text of a <see cref="XlsxCellKind.Text"/> cell; else <see langword="null"/>.</summary>
+    /// <summary>
+    /// The text of a <see cref="XlsxCellKind.Text"/> cell, or the formula of a <see cref="XlsxCellKind.Formula"/> cell
+    /// without its leading <c>=</c>; else <see langword="null"/>.
+    /// </summary>
     public string? Text { get; }
 
     /// <summary>The value of a <see cref="XlsxCellKind.Number"/> cell; else 0.</summary>
@@ -213,6 +254,20 @@ public sealed record XlsxCell
     /// <summary>A truth-value cell.</summary>
     public static XlsxCell FromBoolean(bool value) => new(XlsxCellKind.Boolean, boolean: value);
 
+    /// <summary>
+    /// A formula in Excel's English form, with or without the leading <c>=</c>: <c>[Price]*[Quantity]</c>,
+    /// <c>IF([Paid],0,[Amount])</c>, <c>SUM(B{row}:D{row})</c>. <c>[Header]</c> is the cell of the column with that header in
+    /// the same row, <c>{row}</c> the row's number; A1 references are kept as written. Excel computes it on opening; the
+    /// workbook stores no value for it.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="formula"/> is empty.</exception>
+    public static XlsxCell Formula(string formula)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(formula);
+        var text = formula.Trim();
+        return new(XlsxCellKind.Formula, text.StartsWith('=') ? text[1..].TrimStart() : text);
+    }
+
     /// <summary>A text cell, or <see cref="Empty"/>.</summary>
     public static implicit operator XlsxCell(string? text) => FromText(text);
 
@@ -237,7 +292,7 @@ public sealed record XlsxCell
     /// <summary>A truth-value cell.</summary>
     public static implicit operator XlsxCell(bool value) => FromBoolean(value);
 
-    /// <summary>The value, written invariantly: text as it is, <c>1234.5</c>, <c>2026-03-15</c>, <c>2026-03-15T14:30:00</c>, <c>true</c>; empty for an empty cell.</summary>
+    /// <summary>The value, written invariantly: text as it is, a formula with its <c>=</c>, <c>1234.5</c>, <c>2026-03-15</c>, <c>2026-03-15T14:30:00</c>, <c>true</c>; empty for an empty cell.</summary>
     public override string ToString() => this.Kind switch
     {
         XlsxCellKind.Text => this.Text!,
@@ -245,6 +300,7 @@ public sealed record XlsxCell
         XlsxCellKind.Date => this.DateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         XlsxCellKind.DateTime => this.DateTime.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture),
         XlsxCellKind.Boolean => this.Boolean ? "true" : "false",
+        XlsxCellKind.Formula => "=" + this.Text,
         _ => string.Empty,
     };
 }

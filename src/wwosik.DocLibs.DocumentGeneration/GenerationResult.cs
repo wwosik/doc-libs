@@ -209,6 +209,12 @@ public static class NoteCodes
     /// </summary>
     public const string CoverImageIgnored = "cover-image-ignored";
 
+    /// <summary>Workbooks: a formula does not parse, names a column the sheet does not have, refers to itself within its row, or calls a function with the wrong number of arguments.</summary>
+    public const string FormulaInvalid = "formula-invalid";
+
+    /// <summary>Workbooks: a formula calls a function the generator does not know; Excel or an add-in may know it. Once per function.</summary>
+    public const string FunctionUnknown = "function-unknown";
+
     /// <summary>Every code, with the formats it occurs in and what a writer changes about it, for the authoring guides.</summary>
     internal static readonly IReadOnlyList<(string Code, DocumentFormat[] Formats, string Advice)> All =
     [
@@ -251,6 +257,8 @@ public static class NoteCodes
         (ExcelLimit, [DocumentFormat.Xlsx], "Excel cannot hold the sheet or the value: too many rows or columns, too long a text, or a date before 1900. Split the data or shorten the text."),
         (CharacterMissing, [DocumentFormat.Xlsx], "the brand's fonts lack a character, which Excel shows in a substitute font. Write it as a plain character, or leave it out."),
         (CoverImageIgnored, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "there is no cover (no leading `#`) or no room on it for `coverImage`. Start with a `#` heading, or leave it out."),
+        (FormulaInvalid, [DocumentFormat.Xlsx], "a formula does not parse, names a column the sheet does not have, refers to itself within its row, or gives a function the wrong number of arguments. Fix the formula at the position named."),
+        (FunctionUnknown, [DocumentFormat.Xlsx], "a formula calls a function the generator does not know. Check the spelling and use the English name; an add-in's function is fine as it is."),
     ];
 
     /// <summary>The codes only a check returns, never <c>Generate</c>: the guides list them apart.</summary>
