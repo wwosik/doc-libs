@@ -19,9 +19,11 @@ One syntax for every format means a writer learns it once and the same source go
 | [E06-S03](../60-verify/E06-S03-typography.md) | Typography | in verification |
 | [E06-S04](../60-verify/E06-S04-code-highlighting.md) | Code highlighting | in verification |
 | [E06-S05](../60-verify/E06-S05-heading-attributes-with-typography.md) | Heading attributes with typography (bug) | in verification |
+| [E06-S06](E06-S06-audience-versions.md) | Audience versions | todo |
+| [E06-S07](E06-S07-backup-slides-and-appendices.md) | Backup slides and appendices | todo |
 
 Stories marked *to plan* come from the
-[Python fork analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed
+[2026-11-13 analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed
 on its own before it is implemented, and may split into several stories.
 
 ## Decisions

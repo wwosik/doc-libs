@@ -1,6 +1,6 @@
 # E08 Document converters
 
-> Status: todo
+> Status: in progress
 
 ## Goal
 
@@ -15,9 +15,10 @@ Markdown converted from a document is what an AI agent reads; what the converter
 | Story | Title | State |
 | ----- | ----- | ----- |
 | [E08-S01](../60-verify/E08-S01-converter-improvements.md) | Converter improvements | in verification |
+| [E08-S02](E08-S02-word-round-trip.md) | Word round trip | todo |
 
 Stories marked *to plan* come from the
-[Python fork analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed
+[2026-11-13 analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed
 on its own before it is implemented, and may split into several stories.
 
 ## Decisions

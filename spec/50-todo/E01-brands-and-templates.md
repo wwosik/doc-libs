@@ -21,9 +21,10 @@ A deck or PDF is only useful to a consumer if it looks like theirs. Everything a
 | [E01-S05](../60-verify/E01-S05-brand-template-features.md) | Brand template features | in verification |
 | [E01-S06](../60-verify/E01-S06-template-roles-for-decks.md) | Template roles for decks | in verification |
 | [E01-S07](../60-verify/E01-S07-chapter-numbers-and-layouts-across-placeholders.md) | Chapter numbers and layouts across placeholders | in verification |
+| [E01-S08](E01-S08-cover-image.md) | Cover image | todo |
 
 Stories marked *to plan* come from the
-[Python fork analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed
+[2026-11-13 analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed
 on its own before it is implemented, and may split into several stories.
 
 ## Decisions

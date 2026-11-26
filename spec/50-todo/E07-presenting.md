@@ -1,6 +1,6 @@
 # E07 Presenting
 
-> Status: todo
+> Status: in progress
 
 ## Goal
 
@@ -20,9 +20,10 @@ A generated deck should be ready to present without opening PowerPoint to add no
 | [E07-S04](../60-verify/E07-S04-scenes.md) | Scenes | in verification |
 | [E07-S05](../60-verify/E07-S05-builds.md) | Builds | in verification |
 | [E07-S06](../60-verify/E07-S06-presenting-the-html-deck.md) | Presenting the HTML deck | in verification |
+| [E07-S07](E07-S07-slide-lines-for-editor-previews.md) | Slide lines for editor previews | todo |
 
 Stories marked *to plan* come from the
-[Python fork analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed
+[2026-11-13 analysis](../10-analysis/2026-11-13%20python-fork-port.md); each is written and agreed
 on its own before it is implemented, and may split into several stories.
 
 ## Decisions

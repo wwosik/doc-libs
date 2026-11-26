@@ -1,0 +1,142 @@
+# E10-S01 Workbook package: model, look, values, print, check and preview
+
+> Status: todo
+> Epic: [E10 Workbook generator](E10-workbook-generator.md)
+
+## Summary
+
+This story adds the new package `wwosik.DocLibs.DocumentGeneration.Xlsx`. It writes a typed workbook
+model as an `.xlsx` in the brand's look, with:
+
+- an info sheet first;
+- styled tables with a frozen, filtered header and banding that survives sorting;
+- typed values in the culture's number formats;
+- print setup.
+
+It also adds `Check`, which reports every problem at once, and `Preview`, which shows the workbook as
+plain HTML.
+
+## Context
+
+- **The generators** (`DocumentGeneration.Pptx`, `.Pdf`, `.Docx`) share these types in
+  `src/wwosik.DocLibs.DocumentGeneration/`:
+  - `Brand` and `ResolvedBrand`; the table colours are `TableHeader`, `TableBand` and `TableLine` in
+    `Brand.cs`;
+  - `GenerationResult` and `GenerationNote`;
+  - `CheckResult` and `CheckOptions`;
+  - `GeneratedTexts` (English and German);
+  - `Marking` and `Classification`;
+  - `IMarkdownGenerator`;
+  - `TextMetrics` and `TrueTypeInfo`, which measure text with the brand's fonts.
+- **Core properties** are written by `src/Shared/OpenXml/CoreProperties.cs`, shared source.
+- **The only workbook written today** is the one embedded in a chart
+  (`src/Shared/OpenXml/ChartWriter.cs`, `Workbook`). `DocumentConversions` only detects `.xlsx`
+  (`DocumentFormat.Xlsx`).
+- A brand's fonts cannot be embedded in a workbook. Excel finds them by name on the reader's
+  machine.
+
+## Proposed approach
+
+1. **Package.** Add `src/wwosik.DocLibs.DocumentGeneration.Xlsx/` with its tests project. It
+   references `DocumentGeneration` and links the shared `CoreProperties.cs`. Add it to the solution,
+   the pack, the README's package table and a new `docs/` page.
+
+2. **Model** (namespace `wwosik.DocLibs.DocumentGeneration.Xlsx`), all sealed records:
+   - **`XlsxWorkbook`**: `Title`, `Subtitle`, `Description`, `Author`, `Date`, `Language`, `Marking`,
+     `Brand` (name), `Sheets`.
+   - **`XlsxSheet`**: `Name` (Excel's rules: at most 31 characters, no `[]:*?/\`, unique ignoring
+     case), `Title`, `Description`, `Columns`, `Rows`.
+   - **`XlsxColumn`**: `Header`; `Type`; `Decimals` (0–10); `Currency` (ISO 4217, only with
+     `Currency`); `Width` (1–255 characters; automatic without); `Align` (left, center, right;
+     default by type).
+   - **`XlsxColumnType`**: `Text`, `Number`, `Integer`, `Currency`, `Percent`, `Date`, `DateTime`,
+     `Boolean`.
+   - **`XlsxCell`**: text, number, date, date-time, boolean or empty, with implicit conversions from
+     `string`, `int`, `long`, `double`, `decimal`, `DateOnly`, `DateTime` and `bool`. Formulas come
+     in S02.
+
+3. **`XlsxGenerator`**:
+   - `Generate(XlsxWorkbook, Stream, XlsxOptions?)` returns a `GenerationResult`. Errors throw
+     `DocumentConversionException` listing the first ten problems.
+   - `Check(XlsxWorkbook, XlsxOptions?)` returns a `CheckResult` with every problem, each naming its
+     sheet, row, column and cell (`B7`), capped at 500 notes. `Statistics` counts sheets, tables,
+     charts and words.
+   - **`XlsxOptions`**: `Brand`, `Brands`, `Info` (default `true`), `ShowDate` (default `true`),
+     `Culture` (overrides the language's culture), `Texts`, `Marking`, `TimeProvider`.
+
+4. **Info sheet** (first, unless `Info` is `false`):
+   - the logo, title, subtitle and description;
+   - author, date and language;
+   - the marking;
+   - a contents list with a link to each sheet.
+
+5. **Table sheet**:
+   - title, subtitle and date above the table;
+   - the header row in `TableHeader` with the brand's header text colour, frozen, with an autofilter;
+   - banding in `TableBand` as a conditional format `MOD(ROW()-h,2)=0`, so it stays right after
+     sorting;
+   - thin lines in `TableLine`;
+   - gridlines off.
+
+6. **Values**:
+   - Numbers, dates and booleans are typed cells with a number format built from the culture's
+     `NumberFormatInfo` and `DateTimeFormatInfo`: decimals, thousands separator, the currency symbol
+     and its position, percent, short date, date with time.
+   - Text columns get the format `@`, and Excel's "number stored as text" warning is off for them, so
+     `01234` stays as written.
+   - Widths are measured with `TextMetrics` in the brand's font: 6 to 50 characters, unless the
+     column sets one.
+
+7. **Fonts and colours**:
+   - Fonts are written by name.
+   - A character the font lacks gives `character-missing`, as in the other generators.
+   - A dark brand's colours are darkened onto Excel's white sheet, so text keeps a 4.5:1 contrast.
+
+8. **Print**:
+   - Landscape, one page wide, with the header row repeated (`Print_Titles`).
+   - The page size comes from the options (A4 by default) and the margins from the PDF.
+   - The page header shows the title, the marking and the logo, as a header picture.
+   - The footer shows "Page n of m" from `GeneratedTexts`.
+
+9. **Metadata**: title, subject, creator, description and language in the core properties.
+
+10. **Preview**:
+    - `XlsxGenerator.Preview(XlsxWorkbook, XlsxOptions?, int maxRows = 200)` returns HTML: one
+      `section` per sheet, with a heading and a table.
+    - Values are shown as Excel would show them, and numbers are right-aligned (`td.num`).
+    - There are no styles and no scripts, and everything is HTML-encoded, so a host can embed it.
+
+11. **Generated texts and notes**:
+    - New `GeneratedTexts`: `Info`, `Author`, `Date`, `Language`, `PageOfFormat`, in English and
+      German.
+    - New note codes: `cell-type` (the value does not fit the column type), `sheet-name`,
+      `column-invalid`, `row-too-wide`, `excel-limit` (1,048,576 rows, 16,384 columns, 32,767
+      characters per cell).
+
+## Acceptance criteria
+
+- [ ] A workbook with three sheets of every column type opens in Excel without repair, and passes
+      the Open XML validator in the tests.
+- [ ] Sorting and filtering in Excel keep the banding and the header.
+- [ ] Number and date formats follow `de-DE`, `en-US`, `en-GB` and `fr-FR` in tests. A currency
+      column with `EUR` and one with `USD` show their own symbols.
+- [ ] `01234` in a text column stays text, with no warning triangle.
+- [ ] `Check` reports all problems of an invalid workbook in one result, each with sheet and cell.
+- [ ] The same workbook and clock give identical bytes.
+- [ ] `Preview` output contains no `<script>`, no `style` attribute and no unencoded user text.
+- [ ] The package's `docs/` page, the README table and the CHANGELOG describe it.
+
+## Open questions
+
+1. Should the info sheet be on by default, or only when the workbook has a title or a description?
+
+>
+
+2. Should the marking also be written as a sensitivity label in the custom properties, or only
+   shown on the info sheet and in the page header?
+
+>
+
+## Notes
+
+<!-- Free space for remarks that are not answers to the questions above. -->
