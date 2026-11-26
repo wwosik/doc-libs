@@ -59,6 +59,24 @@ updating, breaking changes first.
   On Linux an application that uses `.grey` in Word adds `SkiaSharp.NativeAssets.Linux` (or
   `.NoDependencies`), as for PDFs; without it a grey image throws `DocumentConversionException`
   naming the package. Its licences are in the package's new `THIRD-PARTY-NOTICES.txt`.
+- **`DocxConverter` reads a document of `DocxGenerator` back into its Markdown** (E08-S02): front
+  matter (`title`, `subtitle`, `author`, `description`, `keywords`, `date`, `coverImage…`, `lang`,
+  `audience`, `classification`, `draft`, `toc`, …), appendices, image styles, alerts, code fences with their language, captions, image rows, task and definition lists, marks,
+  labels, coloured words, icons, and every `:::` container and drawn block as the Markdown it was
+  written in. Generating that Markdown again with the same options gives the same document. The
+  Markdown of such documents is therefore different from before (the table of contents is no longer
+  in it); other Word documents convert as before, apart from footnotes.
+- **`DocxConverter` reads footnotes from any `.docx`:** a reference becomes `[^n]`, and the
+  footnotes follow as definitions at the end of the Markdown. Nothing to do, unless something
+  depended on their absence.
+- **Generated Word files carry the namespace `urn:wwosik:doclibs:wordprocessingml`** (prefix `dl`,
+  ignorable, so Word and other readers skip it): a marker in `word/settings.xml` and attributes on
+  body elements and pictures that keep what Word cannot express. An icon's picture has the title
+  `Icon: <name>`. Documents look the same in Word; code that compares the XML of generated files
+  adjusts.
+- **The Word authoring guide** has a row for the front-matter keys `subtitle` and `date`, and two
+  sentences of its cover table are shorter to stay under its word limit; the tool guide changes
+  with it.
 
 ### New
 
@@ -183,6 +201,11 @@ updating, breaking changes first.
 - **`.round`, `.grey` and `fit=cover` / `focus` in Word documents**, as in PDFs: cropped with
   `a:srcRect`, drawn as an ellipse for `.round` (the pixels stay whole), and grey pixels made with
   SkiaSharp, each grey image converted and embedded once. See *Image attributes* on the DOCX page.
+
+- **Front matter `subtitle` and `date`** for Word documents: the cover's first subtitle paragraph
+  (which is also the file's subject), and the date on the cover and in the footer as written,
+  instead of today's. Every generator
+  accepts them; PDFs and decks ignore them.
 
 ## 2611.15.12
 

@@ -197,7 +197,8 @@ public class AudienceTests
         var customer = Generate(format, plain, Audience.Customer);
         var trainer = Generate(format, plain, Audience.Trainer);
 
-        Assert.Equal(customer.Text, trainer.Text);
+        // DocxConverter writes the version a Word document was generated as back into its front matter (E08-S02).
+        Assert.Equal(customer.Text, trainer.Text.Replace("audience: trainer\n", string.Empty, StringComparison.Ordinal));
         Assert.Equal(customer.Result.Notes, trainer.Result.Notes);
         Assert.DoesNotContain(customer.Result.Notes, n => n.Code == NoteCodes.AudienceOmitted);
     }

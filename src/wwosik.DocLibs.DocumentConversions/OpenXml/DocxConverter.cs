@@ -6,7 +6,8 @@ namespace wwosik.DocLibs.DocumentConversions.OpenXml;
 
 /// <summary>
 /// Converts Word documents (<c>.docx</c>) into Markdown: headings from paragraph styles, lists from
-/// numbering, tables, bold and italic, hyperlinks, line breaks, text boxes and images.
+/// numbering, tables, bold and italic, hyperlinks, line breaks, text boxes, images and footnotes. A document
+/// that <c>DocxGenerator</c> wrote is read back into the Markdown it came from.
 /// </summary>
 public sealed class DocxConverter : IDocumentConverter
 {
@@ -33,6 +34,15 @@ public sealed class DocxConverter : IDocumentConverter
         return OpenXmlPackage.Guard(DocumentFormat.Docx, () =>
         {
             using var package = new OpenXmlPackage(input);
+            if (GeneratedDocx.Of(package, options) is { } generated)
+            {
+                // A document of DocxGenerator: read back into the Markdown it came from.
+                var (markdown, resources) = generated.Read();
+                var properties = new Dictionary<string, string>(StringComparer.Ordinal);
+                package.AddCoreProperties(properties);
+                return new MarkdownDocument(markdown, resources, properties);
+            }
+
             var body = package.ReadXml(DocumentPart)?.Root?.Element(W + "body")
                 ?? throw new DocumentConversionException(DocumentFormat.Docx, "word/document.xml has no body.");
             var context = new Context(
@@ -40,13 +50,16 @@ public sealed class DocxConverter : IDocumentConverter
                 package.Relationships(DocumentPart),
                 LoadStyles(package),
                 LoadNumbering(package),
-                options.IncludeImages ? new ResourceCollector(options.ResourcePathPrefix) : null);
+                options.IncludeImages ? new ResourceCollector(options.ResourcePathPrefix) : null,
+                []);
 
             var builder = new StringBuilder();
             foreach (var block in body.Elements())
             {
                 RenderBlock(block, context, builder);
             }
+
+            RenderFootnotes(package, context, builder);
 
             var metadata = new Dictionary<string, string>(StringComparer.Ordinal);
             package.AddCoreProperties(metadata);
@@ -62,7 +75,34 @@ public sealed class DocxConverter : IDocumentConverter
         IReadOnlyDictionary<string, string> Rels,
         IReadOnlyDictionary<string, string> Styles,
         IReadOnlyDictionary<(string NumId, int Level), bool> NumberingIsOrdered,
-        ResourceCollector? Images);
+        ResourceCollector? Images,
+        List<string> Footnotes);
+
+    // The footnotes the text refers to, `[^1]` on, at the end: one definition per reference, its paragraphs indented.
+    private static void RenderFootnotes(OpenXmlPackage package, Context context, StringBuilder builder)
+    {
+        if (context.Footnotes.Count == 0)
+        {
+            return;
+        }
+
+        const string Part = "word/footnotes.xml";
+        var notes = package.ReadXml(Part)?.Root?.Elements(W + "footnote")
+            .Where(f => f.Attribute(W + "type") is null && f.Attribute(W + "id") is not null)
+            .GroupBy(f => f.Attribute(W + "id")!.Value)
+            .ToDictionary(g => g.Key, g => g.First()) ?? [];
+        var inner = context with { Rels = package.Relationships(Part), Footnotes = [] };
+        for (var n = 0; n < context.Footnotes.Count; n++)
+        {
+            var paragraphs = notes.TryGetValue(context.Footnotes[n], out var note)
+                ? note.Descendants(W + "p").Select(p => RenderRuns(p, inner).Trim()).Where(t => t.Length > 0).ToList()
+                : [];
+            EnsureBlankLine(builder);
+            builder.Append(CultureInfo.InvariantCulture, $"[^{n + 1}]: ")
+                .Append(string.Join("\n\n", paragraphs.Select((p, i) => i == 0 ? p : "    " + p.Replace("\n", "\n    ", StringComparison.Ordinal))))
+                .Append("\n\n");
+        }
+    }
 
     private static Dictionary<string, string> LoadStyles(OpenXmlPackage package)
     {
@@ -328,6 +368,13 @@ public sealed class DocxConverter : IDocumentConverter
         var properties = run.Element(W + "rPr");
         var bold = IsOn(properties?.Element(W + "b"));
         var italic = IsOn(properties?.Element(W + "i"));
+
+        if (run.Element(W + "footnoteReference")?.Attribute(W + "id")?.Value is { } footnote)
+        {
+            context.Footnotes.Add(footnote);
+            segments.Add(($"[^{context.Footnotes.Count.ToString(CultureInfo.InvariantCulture)}]", string.Empty));
+            return;
+        }
 
         var content = new StringBuilder();
         foreach (var child in run.Elements())

@@ -50,7 +50,10 @@ internal static partial class DocxCoverImage
             + $"<pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext {size}/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr>"
             + "</pic:pic></a:graphicData></a:graphic>";
         var common = $"<wp:extent {size}/><wp:effectExtent l=\"0\" t=\"0\" r=\"0\" b=\"0\"/>";
-        var frame = $"<wp:docPr id=\"{id}\" name=\"{name}\" descr=\"{description}\"/>"
+        // What the converter writes back as front matter (E08-S02): whose image it is, its size and position.
+        var kept = $" xmlns:{DocxRoundTrip.Prefix}=\"{DocxRoundTrip.Namespace}\" {DocxRoundTrip.Prefix}:source=\"{(image.FromFrontMatter ? "frontMatter" : "brand")}\""
+            + $" {DocxRoundTrip.Prefix}:size=\"{image.Size.ToString().ToLowerInvariant()}\" {DocxRoundTrip.Prefix}:position=\"{image.Position.ToString().ToLowerInvariant()}\"";
+        var frame = $"<wp:docPr id=\"{id}\" name=\"{name}\" descr=\"{description}\"{kept}/>"
             + "<wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect=\"1\"/></wp:cNvGraphicFramePr>" + graphic;
         var placement = right
             ? $"<wp:anchor distT=\"0\" distB=\"0\" distL=\"{N(WrapGap)}\" distR=\"0\" simplePos=\"0\" relativeHeight=\"251659264\" behindDoc=\"0\" locked=\"0\" layoutInCell=\"1\" allowOverlap=\"0\">"

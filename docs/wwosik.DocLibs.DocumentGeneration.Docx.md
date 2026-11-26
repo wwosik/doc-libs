@@ -116,6 +116,8 @@ The shared syntax and rules are in
 | `template` | `neutral`, the brand of `Template`, or a brand in `DocxOptions.Brands` | all |
 | `title`, `author` | text | all |
 | `description`, `keywords` | text; keywords separated by commas | all — the core properties |
+| `subtitle` | text: the cover's first subtitle paragraph, before those under the `#` | all; no effect without a cover |
+| `date` | text: the date on the cover and in the footer, as written, instead of today's | all; no effect with `showDate: false` |
 | `lang` | a language tag such as `en`, `de`, `de-CH` | all |
 | `typography` | `true`, `false` | all — see [Typography](wwosik.DocLibs.DocumentGeneration.md#typography) |
 | `highlight` | `true`, `false` | all — see [Code highlighting](wwosik.DocLibs.DocumentGeneration.md#code-highlighting) |
@@ -243,9 +245,9 @@ document looks related in both formats.
 ## Cover
 
 A document whose first block is a `#` heading gets a cover, as in the PDF: the heading in `Title`,
-each paragraph after it (up to the next heading or image) in `Subtitle`, then the author (front
-matter `author`, else the document's metadata) and the date (with `ShowDate` on the built-in
-template) in `CoverDetails`. The content starts on the next page. A document that does not start
+front matter `subtitle` and each paragraph after it (up to the next heading or image) in `Subtitle`,
+then the author (front matter `author`, else the document's metadata) and the date (front matter
+`date`, else today as `dd.MM.yyyy`; with `ShowDate` on the built-in template) in `CoverDetails`. The content starts on the next page. A document that does not start
 with `#` has no cover, and its first page gets the headers and footers of the others (the
 section's `w:titlePg` is removed).
 
@@ -444,6 +446,30 @@ The document language goes into `w:lang` of the document defaults and `w:themeFo
 settings, so Word spell-checks in it; on every template, leaving the languages of the template's
 own styles alone.
 
+## Word round trip
+
+`DocxConverter` recognises a document of this generator and reads it back into its Markdown, so
+that generating that Markdown again, with the same options, gives the same document (E08-S02;
+[what it reads](wwosik.DocLibs.DocumentConversions.md#word-documents-of-docxgenerator)). For that a
+generated document keeps what Word cannot express in an ignorable namespace of its own,
+`urn:wwosik:doclibs:wordprocessingml` (prefix `dl`, listed in `mc:Ignorable`, so Word and other
+readers skip it):
+
+- `word/settings.xml`: `dl:generated`, the marker, with the heading shift, the marking and the
+  style id of every role;
+- on the first element written for a `:::` container (layouts and drawn ones) or a drawn code
+  block, `dl:md`, its Markdown, and `dl:skip` on its other elements;
+- `dl:code`, the language, on the first line of a code block; `dl:attrs`, the heading attributes as
+  written, on a heading; `dl:id`, the Markdown id, on a heading's bookmark where the bookmark differs;
+  `dl:before` on the element after a heading that writes nothing, such as `## {.quote}`;
+- on a picture's `wp:docPr`, `dl:title`, `dl:attrs` and, for a `qr:` image, `dl:url`, and
+  `dl:skip` on the caption its title made; on the cover image's, `dl:source`, `dl:size` and
+  `dl:position`; `dl:label` on an appendix heading whose "Appendix A" is text.
+
+An icon's picture is named in its title (`Icon: circle-check`), which Word keeps.
+
+Word drops the namespace when a person saves the file; the converter then reads what Word shows.
+
 ## Notes
 
 `code-not-drawn` (also a drawing without an image converter), `icon-not-drawn` (an icon without an
@@ -461,10 +487,8 @@ renderer's own notes are passed on. See
   of images from becoming an image row. Harvey balls (`[3/4]` in a cell) stay text.
 - A chart's size cannot be set in the `chart` block; it is always the text width by 9/16.
 - A footnote referenced twice gets two footnotes with the same text.
-- `DocxConverter` reads the content back without footnotes, code style and the formatting styles
-  give (marks, labels and statements come back as plain text), and reads the `Container Heading`
-  style as a heading, because its name contains "heading". Charts do not come back (E08); drawings
-  come back as their PNG.
+- `DocxConverter` reads a generated document back into Markdown that generates the same document
+  again; see [Word round trip](#word-round-trip) for what it cannot restore.
 - Landscape sections, history, compare, comments, review import, cross-references, abbreviations
   and accessibility checks are out of scope.
 - The table of contents shows page numbers only once Word (or another program that updates fields)

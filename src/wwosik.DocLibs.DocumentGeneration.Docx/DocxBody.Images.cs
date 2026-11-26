@@ -18,7 +18,11 @@ internal sealed partial class DocxBody
     private readonly Dictionary<DocumentResource, (DocumentResource Image, ImageInfo Info)> greyImages = [];
 
     // An image read from the Markdown, not yet placed.
-    private sealed record MarkdownImage(int Line, DocumentResource Resource, ImageAttributes Attributes, double Scale, string Alt, string? Caption);
+    private sealed record MarkdownImage(int Line, DocumentResource Resource, ImageAttributes Attributes, double Scale, string Alt, string? Caption)
+    {
+        /// <summary>What the picture keeps for the converter on its wp:docPr (E08-S02), raw attributes.</summary>
+        public string Kept { get; init; } = string.Empty;
+    }
 
     // An image of its own: fitted as before, a round one as the square in it. It has no box to fill, so `fit=cover`
     // does nothing.
@@ -76,7 +80,7 @@ internal sealed partial class DocxBody
     {
         var attributes = image.Attributes;
         var crop = attributes.Fit == ImageFit.Cover || attributes.Round ? attributes.Crop(info.Width, info.Height, (double)cx / cy) : default;
-        return new Run(this.Picture(id, cx, cy, image.Alt, svg, crop, attributes.Round));
+        return new Run(this.Picture(id, cx, cy, image.Alt, svg, crop, attributes.Round, image.Kept));
     }
 
     // The natural size in pixels times the scale; a round image is the square of its shorter side.

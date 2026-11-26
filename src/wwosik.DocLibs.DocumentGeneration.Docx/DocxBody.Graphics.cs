@@ -30,6 +30,9 @@ internal sealed partial class DocxBody
 
     private const string ConverterAdvice = "Register SvgImageConverter from wwosik.DocLibs.DocumentConversions.Svg to draw diagrams in Word.";
 
+    /// <summary>The start of an icon picture's title, before the icon's name.</summary>
+    public const string IconTitle = "Icon: ";
+
     private readonly Dictionary<(OpenXmlPart, string), (string Png, string Svg)> icons = [];
 
     /// <summary>
@@ -54,7 +57,8 @@ internal sealed partial class DocxBody
             this.icons[(part, icon.Name)] = ids;
         }
 
-        return new Run(this.Picture(ids.Png, IconSize, IconSize, icon.Name, ids.Svg));
+        // Named in its title as well, so that the converter gives the icon back, also after Word saved the file.
+        return new Run(this.Picture(ids.Png, IconSize, IconSize, icon.Name, ids.Svg, docPr: $" title=\"{SecurityElement.Escape(IconTitle + icon.Name)}\""));
     }
 
     // A fenced block a renderer draws: a chart, a picture of a drawing or the renderer's image. False when it stays code:
@@ -199,7 +203,7 @@ internal sealed partial class DocxBody
         var alt = AltText(link);
         var attributes = ImageAttributes.Take(link, line, Format.Docx);
         var (drawing, _) = QrDrawing.ForImage(url, alt, link.Title, attributes, ResolvedBrand.Resolve(this.Context.Brand), line, Format.Docx);
-        if (this.DrawingPicture(drawing, alt, this.Context.Page.TextWidth * DocxPage.EmuPerTwip, frame.Part) is { } picture)
+        if (this.DrawingPicture(drawing, alt, this.Context.Page.TextWidth * DocxPage.EmuPerTwip, frame.Part, ImageKept(link.Title, attributes.Text, url)) is { } picture)
         {
             target.Add(this.PictureParagraph(frame, picture, keepNext: false));
             return;
@@ -238,7 +242,7 @@ internal sealed partial class DocxBody
     }
 
     // A drawing as a picture at its natural size, fitted; null when no image converter makes a PNG of it.
-    private Run? DrawingPicture(Drawing drawing, string alt, double maxWidth, OpenXmlPart part)
+    private Run? DrawingPicture(Drawing drawing, string alt, double maxWidth, OpenXmlPart part, string docPr = "")
     {
         if (this.DrawingParts(drawing, part) is not var (png, svg, width, height))
         {
@@ -246,7 +250,7 @@ internal sealed partial class DocxBody
         }
 
         var (cx, cy) = this.Fit(width, height, maxWidth);
-        return new Run(this.Picture(png, cx, cy, alt, svg));
+        return new Run(this.Picture(png, cx, cy, alt, svg, docPr: docPr));
     }
 
     // The drawing's SVG, in the brand's family (Arial without one), and the PNG the image converters make of it at twice

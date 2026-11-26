@@ -1,93 +1,85 @@
+---
+title: Long document
+subtitle: Many items and a long table.
+author: DocLibs
+date: 09.03.2026
+lang: en
+toc: true
+tocDepth: 2
+justify: true
+---
+
 # Long document
 
-Many items and a long table.
+## A long list
 
-DocLibs\
-09.03.2026\
-
-Contents
-
-1 A long list
-
-2 A long table
-
-3 A tall row
-
-4 Figures
-
-5 Notes on notes\
-
-# A long list
-
-The list below is long enough to run over several pages, and this paragraph is long enough to be justified: every line but its last ends at the right margin, and its spaces grow a little to get there, and notes go to the foot of the page that refers to them.
+The list below is long enough to run over several pages, and this paragraph is long enough to be justified: every line but its last ends at the right margin, and its spaces grow a little to get there[^1], and notes go to the foot of the page that refers to them.
 
 1. Item number 1 with some words so that it is not too short
-1. Item number 2 with some words so that it is not too short
-1. Item number 3 with some words so that it is not too short
-1. Item number 4 with some words so that it is not too short
-1. Item number 5 with some words so that it is not too short
-1. Item number 6 with some words so that it is not too short
-1. Item number 7 with some words so that it is not too short
-1. Item number 8 with some words so that it is not too short
-1. Item number 9 with some words so that it is not too short
-1. Item number 10 with some words so that it is not too short
-1. Item number 11 with some words so that it is not too short
-1. Item number 12 with some words so that it is not too short
-1. Item number 13 with some words so that it is not too short
-1. Item number 14 with some words so that it is not too short
-1. Item number 15 with some words so that it is not too short
-1. Item number 16 with some words so that it is not too short
-1. Item number 17 with some words so that it is not too short
-1. Item number 18 with some words so that it is not too short
-1. Item number 19 with some words so that it is not too short
-1. Item number 20 with some words so that it is not too short
-1. Item number 21 with some words so that it is not too short
-1. Item number 22 with some words so that it is not too short
-1. Item number 23 with some words so that it is not too short
-1. Item number 24 with some words so that it is not too short
-1. Item number 25 with some words so that it is not too short
-1. Item number 26 with some words so that it is not too short
-1. Item number 27 with some words so that it is not too short
-1. Item number 28 with some words so that it is not too short
-1. Item number 29 with some words so that it is not too short
-1. Item number 30 with some words so that it is not too short
-1. Item number 31 with some words so that it is not too short
-1. Item number 32 with some words so that it is not too short
-1. Item number 33 with some words so that it is not too short
-1. Item number 34 with some words so that it is not too short
-1. Item number 35 with some words so that it is not too short
-1. Item number 36 with some words so that it is not too short
-1. Item number 37 with some words so that it is not too short
-1. Item number 38 with some words so that it is not too short
-1. Item number 39 with some words so that it is not too short
-1. Item number 40 with some words so that it is not too short
-1. Item number 41 with some words so that it is not too short
-1. Item number 42 with some words so that it is not too short
-1. Item number 43 with some words so that it is not too short
-1. Item number 44 with some words so that it is not too short
-1. Item number 45 with some words so that it is not too short
-1. Item number 46 with some words so that it is not too short
-1. Item number 47 with some words so that it is not too short
-1. Item number 48 with some words so that it is not too short
-1. Item number 49 with some words so that it is not too short
-1. Item number 50 with some words so that it is not too short
-1. Item number 51 with some words so that it is not too short
-1. Item number 52 with some words so that it is not too short
-1. Item number 53 with some words so that it is not too short
-1. Item number 54 with some words so that it is not too short
-1. Item number 55 with some words so that it is not too short
-1. Item number 56 with some words so that it is not too short
-1. Item number 57 with some words so that it is not too short
-1. Item number 58 with some words so that it is not too short
-1. Item number 59 with some words so that it is not too short
-1. Item number 60 with some words so that it is not too short
+2. Item number 2 with some words so that it is not too short
+3. Item number 3 with some words so that it is not too short
+4. Item number 4 with some words so that it is not too short
+5. Item number 5 with some words so that it is not too short
+6. Item number 6 with some words so that it is not too short
+7. Item number 7 with some words so that it is not too short
+8. Item number 8 with some words so that it is not too short
+9. Item number 9 with some words so that it is not too short
+10. Item number 10 with some words so that it is not too short
+11. Item number 11 with some words so that it is not too short
+12. Item number 12 with some words so that it is not too short
+13. Item number 13 with some words so that it is not too short
+14. Item number 14 with some words so that it is not too short
+15. Item number 15 with some words so that it is not too short
+16. Item number 16 with some words so that it is not too short
+17. Item number 17 with some words so that it is not too short
+18. Item number 18 with some words so that it is not too short
+19. Item number 19 with some words so that it is not too short
+20. Item number 20 with some words so that it is not too short
+21. Item number 21 with some words so that it is not too short
+22. Item number 22 with some words so that it is not too short
+23. Item number 23 with some words so that it is not too short
+24. Item number 24 with some words so that it is not too short
+25. Item number 25 with some words so that it is not too short
+26. Item number 26 with some words so that it is not too short
+27. Item number 27 with some words so that it is not too short
+28. Item number 28 with some words so that it is not too short
+29. Item number 29 with some words so that it is not too short
+30. Item number 30 with some words so that it is not too short[^2]
+31. Item number 31 with some words so that it is not too short
+32. Item number 32 with some words so that it is not too short
+33. Item number 33 with some words so that it is not too short
+34. Item number 34 with some words so that it is not too short
+35. Item number 35 with some words so that it is not too short
+36. Item number 36 with some words so that it is not too short
+37. Item number 37 with some words so that it is not too short
+38. Item number 38 with some words so that it is not too short
+39. Item number 39 with some words so that it is not too short
+40. Item number 40 with some words so that it is not too short
+41. Item number 41 with some words so that it is not too short
+42. Item number 42 with some words so that it is not too short
+43. Item number 43 with some words so that it is not too short
+44. Item number 44 with some words so that it is not too short
+45. Item number 45 with some words so that it is not too short
+46. Item number 46 with some words so that it is not too short
+47. Item number 47 with some words so that it is not too short
+48. Item number 48 with some words so that it is not too short
+49. Item number 49 with some words so that it is not too short
+50. Item number 50 with some words so that it is not too short
+51. Item number 51 with some words so that it is not too short
+52. Item number 52 with some words so that it is not too short
+53. Item number 53 with some words so that it is not too short
+54. Item number 54 with some words so that it is not too short
+55. Item number 55 with some words so that it is not too short
+56. Item number 56 with some words so that it is not too short
+57. Item number 57 with some words so that it is not too short
+58. Item number 58 with some words so that it is not too short
+59. Item number 59 with some words so that it is not too short
+60. Item number 60 with some words so that it is not too short
 
-# A long table
-
-**Table 1:** Eighty rows, the header repeated on every page
+## A long table
 
 | # | Name | Description |
-| --- | --- | --- |
+| ---: | --- | --- |
 | 1 | Row 1 | A description that is long enough to wrap inside its cell now and then, row 1 |
 | 2 | Row 2 | A description that is long enough to wrap inside its cell now and then, row 2 |
 | 3 | Row 3 | A description that is long enough to wrap inside its cell now and then, row 3 |
@@ -127,7 +119,7 @@ The list below is long enough to run over several pages, and this paragraph is l
 | 37 | Row 37 | A description that is long enough to wrap inside its cell now and then, row 37 |
 | 38 | Row 38 | A description that is long enough to wrap inside its cell now and then, row 38 |
 | 39 | Row 39 | A description that is long enough to wrap inside its cell now and then, row 39 |
-| 40 | Row 40 | A description that is long enough to wrap inside its cell now and then, row 40 |
+| 40 | Row 40 | A description that is long enough to wrap inside its cell now and then, row 40[^3] |
 | 41 | Row 41 | A description that is long enough to wrap inside its cell now and then, row 41 |
 | 42 | Row 42 | A description that is long enough to wrap inside its cell now and then, row 42 |
 | 43 | Row 43 | A description that is long enough to wrap inside its cell now and then, row 43 |
@@ -169,22 +161,35 @@ The list below is long enough to run over several pages, and this paragraph is l
 | 79 | Row 79 | A description that is long enough to wrap inside its cell now and then, row 79 |
 | 80 | Row 80 | A description that is long enough to wrap inside its cell now and then, row 80 |
 
-# A tall row
+Table: Eighty rows, the header repeated on every page
+
+## A tall row
 
 | Key | Value |
 | --- | --- |
 | tall | word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word |
 
-# Figures
+## Figures
 
-![Photo](images/image.png)
+![Photo](images/image.png "A photo, its title under it")
 
-**Figure 1:** A photo, its title under it
-
+```mermaid
 graph TD; A-->B;
+```
 
 Figure: A diagram with a caption under it
 
-# Notes on notes
+::: pagebreak
+:::
 
-A page break comes before this section, and its closing line is left out, so it runs to the end of the document.
+## Notes on notes
+
+A page break comes before this section[^4], and its closing line is left out, so it runs to the end of the document.
+
+[^1]: A note at the foot of the page of its reference, numbered through the whole document.
+
+[^2]: A note from a list item.
+
+[^3]: A note from a table cell, at the foot of the page that holds the row.
+
+[^4]: The last note.

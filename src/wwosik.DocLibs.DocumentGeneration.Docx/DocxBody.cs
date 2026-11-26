@@ -60,6 +60,13 @@ internal sealed partial class DocxBody
     private int bookmarkId;
     private int controlId;
 
+    // The body's own element list, and how deep Blocks is nested: only the body's own blocks keep their Markdown.
+    private List<OpenXmlElement>? root;
+    private int depth;
+
+    // The Markdown of headings that wrote nothing, such as `## {.quote}`, kept on the body's next element.
+    private readonly List<(int At, string Markdown)> unwritten = [];
+
     private DocxBody(DocxContext context)
     {
         this.Context = context;
@@ -154,10 +161,16 @@ internal sealed partial class DocxBody
         this.numbers = new HeadingNumbering(1);
 
         var elements = new List<OpenXmlElement>();
+        this.root = elements;
         this.Blocks(blocks, new Frame(DocxRoles.Normal, this.MainPart), elements);
         this.PageBreaksBefore(elements);
+        foreach (var group in this.unwritten.Where(u => u.At < elements.Count).GroupBy(u => u.At))
+        {
+            DocxRoundTrip.Set(elements[group.Key], "before", string.Join("\n\n", group.Select(u => u.Markdown)));
+        }
         this.numbering.Save();
         this.footnotes.Save();
+        DocxRoundTrip.Mark(this.Context.Main, this.Context.Styles, this.shift, this.Context.Marking, this.Context.Audience);
         return (elements, this.headings);
     }
 
@@ -251,10 +264,25 @@ internal sealed partial class DocxBody
     // it its caption; any other `Table:` or `Figure:` paragraph stays text.
     private void Blocks(IReadOnlyList<Block> blocks, Frame frame, List<OpenXmlElement> target)
     {
+        var top = this.depth == 0 && ReferenceEquals(target, this.root);
+        this.depth++;
+        try
+        {
+            this.Blocks(blocks, frame, target, top);
+        }
+        finally
+        {
+            this.depth--;
+        }
+    }
+
+    private void Blocks(IReadOnlyList<Block> blocks, Frame frame, List<OpenXmlElement> target, bool top)
+    {
         for (var i = 0; i < blocks.Count; i++)
         {
             var block = blocks[i];
             this.MarkBreak(block, frame, target);
+            var start = target.Count;
             if (block is ParagraphBlock title && IsTableTitle(title) && i + 1 < blocks.Count && blocks[i + 1] is MarkdigTable)
             {
                 var table = (MarkdigTable)blocks[i + 1];
@@ -276,7 +304,14 @@ internal sealed partial class DocxBody
             if (block is FencedCodeBlock fenced)
             {
                 var figure = i + 1 < blocks.Count && blocks[i + 1] is ParagraphBlock next && Captions.Kind(next) == CaptionKind.Figure ? next : null;
-                if (this.Code(fenced, frame, target, figure is not null) && figure is not null)
+                var drawn = this.Code(fenced, frame, target, figure is not null);
+                if (drawn && top)
+                {
+                    // A drawn block keeps its Markdown, which Word cannot show; its caption is read from the caption.
+                    DocxRoundTrip.Source(target[start..], this.SourceOf(fenced));
+                }
+
+                if (drawn && figure is not null)
                 {
                     Captions.TakePrefix(figure, CaptionKind.Figure);
                     target.Add(this.Caption(CaptionKind.Figure, this.runs.Runs(figure.Inline), frame.Part));
@@ -295,8 +330,17 @@ internal sealed partial class DocxBody
             }
 
             this.Add(block, frame, target);
+            if (top && block is CustomContainer)
+            {
+                // A container keeps its Markdown: Word shows its content, not its layout.
+                DocxRoundTrip.Source(target[start..], this.SourceOf(block));
+            }
         }
     }
+
+    // The Markdown a block was parsed from, without the line break after it.
+    private string SourceOf(Block block) =>
+        this.Context.Markdown.Substring(block.Span.Start, Math.Min(block.Span.Length, this.Context.Markdown.Length - block.Span.Start)).TrimEnd('\r', '\n');
 
     private static ParagraphBlock? CaptionAfter(IReadOnlyList<Block> blocks, int table) =>
         table + 1 < blocks.Count && blocks[table + 1] is ParagraphBlock paragraph && Captions.Kind(paragraph) == CaptionKind.Table ? paragraph : null;
@@ -412,6 +456,7 @@ internal sealed partial class DocxBody
         // A kind of slide without a title, such as `## {.quote}`, has no heading here.
         if (runs.Count == 0 && attributes?.Kind is not null)
         {
+            this.unwritten.Add((target.Count, this.SourceOf(heading)));
             return;
         }
 
@@ -434,6 +479,7 @@ internal sealed partial class DocxBody
         var number = unnumbered || !this.Context.HeadingNumbers ? null : this.numbers.Next(level);
         var shown = number?.Number;
         var numId = DocxNumbering.HeadingNumId;
+        string? label = null;
 
         // Appendices: each `#` reads "Appendix A", from the numbering in letters when headings are numbered, else as text;
         // the numbered headings below it take that numbering too (`A.1`).
@@ -442,14 +488,15 @@ internal sealed partial class DocxBody
             numId = number is null ? numId : this.numbering.Appendix(this.Context.Texts.Appendix);
             if (heading.Level == 1)
             {
-                var label = $"{this.Context.Texts.Appendix} {BackMatter.Letter(++this.appendixCount)}";
+                var appendixLabel = $"{this.Context.Texts.Appendix} {BackMatter.Letter(++this.appendixCount)}";
                 if (number is null)
                 {
-                    runs = [new DocxRun(runs.Count > 0 ? label + " " : label, RunFlags.None, null), .. runs];
+                    label = runs.Count > 0 ? appendixLabel + " " : appendixLabel;
+                    runs = [new DocxRun(label, RunFlags.None, null), .. runs];
                 }
                 else
                 {
-                    shown = label;
+                    shown = appendixLabel;
                 }
             }
         }
@@ -465,9 +512,34 @@ internal sealed partial class DocxBody
         }
 
         var paragraph = new Paragraph(properties);
+        if (attributes is not null && this.RawAttributes(heading) is { } raw)
+        {
+            // The attributes as written: Word shows some of them, but the heading's id is made from all.
+            DocxRoundTrip.Set(paragraph, "attrs", raw);
+        }
+
+        if (label is not null)
+        {
+            // "Appendix A " written as text before the heading's own.
+            DocxRoundTrip.Set(paragraph, "label", label);
+        }
+
         var bookmark = this.Bookmarked(paragraph, heading, runs);
         target.Add(paragraph);
         this.headings.Add(new TocEntry(level, DocxRuns.Text(runs).Trim()) { Number = shown, Bookmark = bookmark });
+    }
+
+    // The `{…}` at the end of a heading, as written.
+    private string? RawAttributes(HeadingBlock heading)
+    {
+        var runs = this.runs.Runs(heading.Inline, typeset: false);
+        if (runs.Count == 0 || runs[^1].Text.TrimEnd() is not { Length: > 0 } last || !last.EndsWith('}'))
+        {
+            return null;
+        }
+
+        var start = last.LastIndexOf('{');
+        return start < 0 ? null : last[start..];
     }
 
     // The heading's runs inside its bookmark, if it has one; returns the bookmark.
@@ -477,7 +549,14 @@ internal sealed partial class DocxBody
         var id = (this.bookmarkId++).ToString(CultureInfo.InvariantCulture);
         if (bookmark is not null)
         {
-            paragraph.Append(new BookmarkStart { Id = id, Name = bookmark });
+            var start = new BookmarkStart { Id = id, Name = bookmark };
+            if (heading.GetAttributes().Id is { Length: > 0 } markdownId && markdownId != bookmark)
+            {
+                // The heading's id in the Markdown, which links name, where the bookmark had to differ from it.
+                DocxRoundTrip.Set(start, "id", markdownId);
+            }
+
+            paragraph.Append(start);
         }
 
         paragraph.Append(this.runs.Elements(runs, this.MainPart));
@@ -938,6 +1017,23 @@ internal sealed partial class DocxBody
     private void CodeLines(CodeBlock code, List<OpenXmlElement> target)
     {
         var text = code.Lines.ToString().Replace("\t", "    ", StringComparison.Ordinal);
+        var first = target.Count;
+        try
+        {
+            this.CodeLines(code, text, target);
+        }
+        finally
+        {
+            // The first line keeps the block's language, which Word cannot show.
+            if (target.Count > first)
+            {
+                DocxRoundTrip.Set(target[first], "code", code is FencedCodeBlock { Info: { } info } ? info : string.Empty);
+            }
+        }
+    }
+
+    private void CodeLines(CodeBlock code, string text, List<OpenXmlElement> target)
+    {
         if (code is FencedCodeBlock fenced && this.Context.Highlighting?.Lines(fenced.Info, text, this.LineOf(fenced)) is { } lines)
         {
             this.HighlightedLines(lines, target);
@@ -1238,7 +1334,7 @@ internal sealed partial class DocxBody
         target.Add(this.PictureParagraph(frame, picture, keepNext: caption is not null));
         if (caption is not null)
         {
-            target.Add(this.Caption(CaptionKind.Figure, [new DocxRun(caption, RunFlags.None, null)], frame.Part));
+            target.Add(TitleCaption(this.Caption(CaptionKind.Figure, [new DocxRun(caption, RunFlags.None, null)], frame.Part)));
         }
     }
 
@@ -1270,7 +1366,7 @@ internal sealed partial class DocxBody
                 paragraph);
             if (caption is not null)
             {
-                cell.Append(this.Caption(CaptionKind.Figure, [new DocxRun(caption, RunFlags.None, null)], frame.Part));
+                cell.Append(TitleCaption(this.Caption(CaptionKind.Figure, [new DocxRun(caption, RunFlags.None, null)], frame.Part)));
             }
 
             row.Append(cell);
@@ -1305,15 +1401,40 @@ internal sealed partial class DocxBody
         }
 
         var scale = titleScale ?? attributes.Scale ?? 1.0;
-        return new MarkdownImage(line, resource, attributes, scale, alt, Captions.OfImage(link.Title, attributes.Caption, alt));
+        return new MarkdownImage(line, resource, attributes, scale, alt, Captions.OfImage(link.Title, attributes.Caption, alt))
+        {
+            Kept = ImageKept(link.Title, attributes.Text),
+        };
+    }
+
+    // A caption an image's title or attributes made: the converter gives the image its title back instead.
+    private static Paragraph TitleCaption(Paragraph caption)
+    {
+        DocxRoundTrip.Set(caption, "skip", "1");
+        return caption;
+    }
+
+    // What an image keeps for the converter on its wp:docPr: its title, its attributes and, for a `qr:` image, its address.
+    private static string ImageKept(string? title, string attributes, string? url = null)
+    {
+        var kept = new StringBuilder();
+        foreach (var (name, value) in new[] { ("title", title), ("attrs", attributes), ("url", url) })
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                kept.Append(CultureInfo.InvariantCulture, $" {DocxRoundTrip.Prefix}:{name}=\"{SecurityElement.Escape(XmlSafe(value))}\"");
+            }
+        }
+
+        return kept.ToString();
     }
 
     // An image resource as an inline picture at its natural size times `scale`, fitted; an SVG keeps its SVG beside.
-    private Run ResourcePicture(DocumentResource resource, double scale, string alt, double maxWidth, OpenXmlPart part)
+    private Run ResourcePicture(DocumentResource resource, double scale, string alt, double maxWidth, OpenXmlPart part, string kept = "")
     {
         var (id, info, svg) = this.ImagePart(resource, scale, part);
         var (cx, cy) = this.Fit(info.Width * scale, info.Height * scale, maxWidth);
-        return new Run(this.Picture(id, cx, cy, alt, svg));
+        return new Run(this.Picture(id, cx, cy, alt, svg, docPr: kept));
     }
 
     // A natural size in pixels at 96 DPI, in EMU, fitted to `maxWidth` (EMU) and 80 % of the text height, never enlarged.
@@ -1394,8 +1515,8 @@ internal sealed partial class DocxBody
     }
 
     // An inline picture, its alt text in wp:docPr/@descr; with `svg`, the SVG Word 2016 and later draw instead of the PNG.
-    // `crop` is cut off the image (`a:srcRect`), `round` draws it as an ellipse.
-    private WordDrawing Picture(string relationship, long cx, long cy, string alt, string? svg = null, ImageCrop crop = default, bool round = false)
+    // `crop` is cut off the image (`a:srcRect`), `round` draws it as an ellipse; `docPr` is more attributes of wp:docPr, raw.
+    private WordDrawing Picture(string relationship, long cx, long cy, string alt, string? svg = null, ImageCrop crop = default, bool round = false, string docPr = "")
     {
         var id = ++this.drawingId;
         var name = "Picture " + id.ToString(CultureInfo.InvariantCulture);
@@ -1406,9 +1527,10 @@ internal sealed partial class DocxBody
             + "xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" "
             + "xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
             + "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" "
-            + "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
+            + "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\""
+            + (docPr.Contains(DocxRoundTrip.Prefix + ":", StringComparison.Ordinal) ? $" xmlns:{DocxRoundTrip.Prefix}=\"{DocxRoundTrip.Namespace}\"" : string.Empty) + ">"
             + $"<wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent {size}/><wp:effectExtent l=\"0\" t=\"0\" r=\"0\" b=\"0\"/>"
-            + $"<wp:docPr id=\"{id.ToString(CultureInfo.InvariantCulture)}\" name=\"{name}\" descr=\"{description}\"/>"
+            + $"<wp:docPr id=\"{id.ToString(CultureInfo.InvariantCulture)}\" name=\"{name}\" descr=\"{description}\"{docPr}/>"
             + "<wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect=\"1\"/></wp:cNvGraphicFramePr>"
             + "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic>"
             + $"<pic:nvPicPr><pic:cNvPr id=\"{id.ToString(CultureInfo.InvariantCulture)}\" name=\"{name}\" descr=\"{description}\"/><pic:cNvPicPr/></pic:nvPicPr>"

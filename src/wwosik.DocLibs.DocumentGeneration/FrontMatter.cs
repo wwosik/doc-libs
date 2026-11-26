@@ -21,6 +21,12 @@ internal sealed partial class FrontMatter
     /// <summary>Keywords for the document's file properties, separated by commas (E09-S06).</summary>
     public const string KeywordsKey = "keywords";
 
+    /// <summary>The cover's subtitle, before the paragraphs under the cover heading; Word documents only (E08-S02).</summary>
+    public const string SubtitleKey = "subtitle";
+
+    /// <summary>The date on the cover and in the footer, as written; Word documents only (E08-S02).</summary>
+    public const string DateKey = "date";
+
     /// <summary>The prefix of the keys that assign status labels to categories: <c>labels.success: Done; Delivered</c>.</summary>
     public const string LabelsPrefix = "labels.";
 
@@ -178,6 +184,8 @@ internal sealed partial class FrontMatter
                 || key.Equals(AuthorKey, StringComparison.OrdinalIgnoreCase)
                 || key.Equals(DescriptionKey, StringComparison.OrdinalIgnoreCase)
                 || key.Equals(KeywordsKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(SubtitleKey, StringComparison.OrdinalIgnoreCase)
+                || key.Equals(DateKey, StringComparison.OrdinalIgnoreCase)
                 || key.Equals(DocumentLanguage.Key, StringComparison.OrdinalIgnoreCase)
                 || key.Equals(ClassificationKey, StringComparison.OrdinalIgnoreCase)
                 || key.Equals(DraftKey, StringComparison.OrdinalIgnoreCase)

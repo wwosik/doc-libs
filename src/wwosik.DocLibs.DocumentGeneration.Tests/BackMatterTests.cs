@@ -248,8 +248,9 @@ public partial class BackMatterTests
         DocxGenerator.Generate(Markdown(Report.Replace("headingNumbers: true", "headingNumbers: false", StringComparison.Ordinal)), output);
         var markdown = new DocxConverter().Convert(new MemoryStream(output.ToArray()), ConversionOptions.Default).Markdown;
 
-        Assert.Contains("# Appendix A Glossary", markdown, StringComparison.Ordinal);
-        Assert.Contains("# Appendix B Sources", markdown, StringComparison.Ordinal);
+        // The converter reads the appendices back as their Markdown (E08-S02), without the label written as text.
+        Assert.Contains("# Glossary {.appendix}", markdown, StringComparison.Ordinal);
+        Assert.Contains("# Sources\n", markdown, StringComparison.Ordinal);
         Assert.Contains("## Terms", markdown, StringComparison.Ordinal);
     }
 

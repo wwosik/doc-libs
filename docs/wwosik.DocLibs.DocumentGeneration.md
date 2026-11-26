@@ -881,7 +881,9 @@ title: Network expansion 2027
   [Cover image](#cover-image)),
   `classification` and `draft` (see
   [Classification](#classification)), `audience` (see [Audience versions](#audience-versions)), and `labels.<category>` (see
-  [Slide layouts in Markdown](#slide-layouts-in-markdown)). The rest are the generator's.
+  [Slide layouts in Markdown](#slide-layouts-in-markdown)). `subtitle` and `date` (the cover's
+  subtitle and date, as `DocxConverter` writes them back) are accepted by every generator and used
+  by Word documents only; PDFs and decks ignore them. The rest are the generator's.
 - **Document keys** (`FrontMatter.DocumentKeys`): `toc` (`true`/`false`), `tocDepth` (`1`–`3`),
   `headingNumbers` (`true`/`false`) and `justify` (`true`/`false`, justified body text), read by
   PDFs and Word documents (see [Contents and heading numbers](#contents-and-heading-numbers) and

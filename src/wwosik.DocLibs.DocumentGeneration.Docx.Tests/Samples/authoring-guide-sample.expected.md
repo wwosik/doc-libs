@@ -8,10 +8,10 @@ sentences and paragraphs, headings that say what a section is about.
 
 | Markdown | Becomes |
 | -------- | ------- |
-| A `#` heading as the very first line | The cover page. The paragraphs below it, up to the next heading, are the subtitle; the author and the date follow. Without it, there is no cover. |
+| A `#` heading as the very first line | The cover page. The paragraphs below it, up to the next heading, are the subtitle, then the author and date. |
 | The highest heading level after the cover | Heading 1, and each level below it the next heading style: with `#` chapters, `#` is Heading 1 and `##` Heading 2; with only `##` sections, `##` is Heading 1. |
 | A later `#` heading | Starts a new page. |
-| Text before the first heading | Normal text on the first page; the document then has no cover. |
+| Text before the first heading | Normal text; then there is no cover. |
 
 - Every paragraph uses a style of the template. Do not try to format text by other means; bold,
   italic and strike-through are the only formatting inside a paragraph.
@@ -307,6 +307,7 @@ author: Planning team
 | `highlight` | `true` colours fenced code in these languages: `csharp`, `vb`, `fsharp`, `cpp`, `java`, `javascript`, `typescript`, `php`, `python`, `powershell`, `sql`, `html`, `xml`, `css`, `markdown`, `haskell`, `json`, `yaml`, `bash`. Default `false`. |
 | `template` | The design: `neutral` or `sample`. |
 | `coverImage`, `coverImageSize`, `coverImagePosition` | An image on the cover, one of your image paths; `small`, `medium` or `large`; `below` or `right` of the title. |
+| `subtitle`, `date` | The cover's subtitle line and date (default: today). |
 | `showDate` | `true` or `false`: today's date on the cover and in the footer. Default `true`. |
 | `showTagline` | `true` or `false`: the design's tagline on the cover, if it has one. Default `true`. |
 | `embedFonts` | `true` or `false`. Leave it out: by default the document carries its fonts. |

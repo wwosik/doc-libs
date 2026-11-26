@@ -15,7 +15,7 @@ Markdown converted from a document is what an AI agent reads; what the converter
 | Story | Title | State |
 | ----- | ----- | ----- |
 | [E08-S01](../60-verify/E08-S01-converter-improvements.md) | Converter improvements | in verification |
-| [E08-S02](../55-in-progress/port-1/E08-S02-word-round-trip.md) | Word round trip | in progress (port-1) |
+| [E08-S02](../60-verify/E08-S02-word-round-trip.md) | Word round trip | in verification |
 | [E08-S03](E08-S03-comments-and-tracked-changes.md) | Comments and tracked changes from reviewed Word documents | to plan |
 
 Stories marked *to plan* come from the

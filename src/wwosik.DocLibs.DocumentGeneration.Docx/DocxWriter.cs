@@ -53,6 +53,9 @@ internal sealed record DocxContext(
 
     /// <summary>The classification marking; <see cref="DocumentGeneration.Marking.None"/>: none.</summary>
     public Marking Marking { get; init; } = Marking.None;
+
+    /// <summary>The version the document is, which the converter writes back (E08-S02).</summary>
+    public Audience Audience { get; init; }
 }
 
 /// <summary>
@@ -142,6 +145,8 @@ internal static class DocxWriter
             }
         }
 
+        // What the converter reads back (E08-S02).
+        DocxRoundTrip.Declare(document);
         document.Save();
     }
 

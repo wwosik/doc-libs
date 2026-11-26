@@ -32,7 +32,14 @@ internal sealed class DocxFootnotes(MainDocumentPart main)
     }
 
     /// <summary>Saves the part if footnotes were added.</summary>
-    public void Save() => this.footnotes?.Save();
+    public void Save()
+    {
+        if (this.footnotes is not null)
+        {
+            DocxRoundTrip.Declare(this.footnotes);
+            this.footnotes.Save();
+        }
+    }
 
     private Footnotes Root()
     {

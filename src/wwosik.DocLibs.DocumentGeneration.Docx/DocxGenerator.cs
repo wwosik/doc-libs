@@ -91,13 +91,20 @@ public static class DocxGenerator
             BackMatter.Check(markdown, Format.Docx, LineOf, notes);
             AudienceFilter.Apply(markdown, audience, Format.Docx, LineOf, language.Texts, notes);
         });
+        if (frontMatter.Value(FrontMatter.SubtitleKey) is { } subtitle && content.Cover is { } withSubtitle)
+        {
+            // The front matter's subtitle comes first, before the paragraphs under the cover heading.
+            content = content with { Cover = withSubtitle with { Subtitle = [[new TextPiece(subtitle)], .. withSubtitle.Subtitle] } };
+        }
+
         MarkdownSyntax.ReportMissingFootnotes(content.Source, LineOf, notes);
 
         // Build markers are for decks: checked like there, then left out wherever they are.
         BuildMarker.Check(content.Source, Format.Docx, LineOf);
         SceneSyntax.Check(content.Source, Format.Docx, LineOf);
         var now = options.TimeProvider.GetUtcNow();
-        var date = template.ShowsDate ? options.TimeProvider.GetLocalNow().ToString("dd.MM.yyyy", CultureInfo.InvariantCulture) : null;
+        var date = !template.ShowsDate ? null
+            : frontMatter.Value(FrontMatter.DateKey) ?? options.TimeProvider.GetLocalNow().ToString("dd.MM.yyyy", CultureInfo.InvariantCulture);
         var typography = Typography.For(
             Typography.IsOn(frontMatter, options.Typography),
             language.Tag,
@@ -151,6 +158,7 @@ public static class DocxGenerator
                     Typography = typography,
                     Highlighting = CodeHighlighting.For(frontMatter, options.HighlightCode, notes),
                     CoverImage = coverImage,
+                    Audience = audience,
                 };
                 DocxWriter.Write(content, context, DocxBody.Instance, author, date, options.TableOfContents, options.TableOfContentsDepth);
                 DocxMarking.Apply(context, template.IsBuiltIn ? LogoIndent(brand) : null, (brand ?? ResolvedBrand.Neutral).FontFamily);
@@ -226,6 +234,9 @@ public static class DocxGenerator
             meanings[DocxRoles.KeyPrefix + role.Key] = $"The name of the template's style for {role.Description}, as Word shows it.";
         }
 
+        (string, string) cover = (
+            FrontMatter.SubtitleKey + "`, `" + FrontMatter.DateKey,
+            "The cover's subtitle line and date (default: today).");
         (string, string) deckKeys = (
             "transition`, `build`, `numberChapters",
             "Settings for decks. A Word document accepts them and ignores them.");
@@ -248,7 +259,7 @@ public static class DocxGenerator
                 ["frontMatter"] = AuthoringGuides.FrontMatter(
                     registry.Expected,
                     options.Language,
-                    [.. template.Keys.Concat([TocKey, TocDepthKey, HeadingNumbersKey, JustifyKey]).Select(k => (k, meanings[k])), classification, draft, deckKeys, labels],
+                    [cover, .. template.Keys.Concat([TocKey, TocDepthKey, HeadingNumbersKey, JustifyKey]).Select(k => (k, meanings[k])), classification, draft, deckKeys, labels],
                     options.Typography, options.HighlightCode, options.Audience),
                 ["versions"] = AuthoringGuides.Versions(options.Audience),
                 ["characters"] = Characters(brand?.Fonts, codeFont),

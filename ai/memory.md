@@ -597,6 +597,14 @@ same change that made it untrue — a stale fact here is worse than a missing on
   shift the sheets' ids and `localSheetId`s. `ChartWriter.Add` must stay byte for byte: `ChartPartTests` in the PPTX
   and DOCX tests compare its parts with `Samples/chart-parts-*.expected.md` (refresh only on an intended change, with
   `DOCLIBS_UPDATE_EXPECTED=1`).
+- **Word round trip (E08-S02):** `DocxConverter` hands a generated document to `GeneratedDocx`
+  (recognised by `dl:generated` in `settings.xml`, else by the styles `CoverDetails` + `ImageRow`);
+  everything else keeps the old path. The generator's `DocxRoundTrip` writes the ignorable
+  namespace `urn:wwosik:doclibs:wordprocessingml` (`dl:md`/`dl:skip` on top-level containers and
+  drawn fences, `dl:code`, `dl:attrs`, `dl:id`, `dl:before`, image `dl:title`/`dl:attrs`/`dl:url`);
+  the converter has the names as its own constants — change both together. `RoundTripTests`
+  regenerates every sample from its converted Markdown and compares the parts: a generator change
+  that a reader cannot undo shows up there.
 
 ## Traps
 

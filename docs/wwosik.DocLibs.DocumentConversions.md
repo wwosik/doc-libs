@@ -57,11 +57,53 @@ The stream must be seekable, and its position is restored afterwards.
 | Format | Structure | Images | Known limits |
 | ------ | --------- | ------ | ------------ |
 | `.pdf` | `## Page n` per page. Lines are joined into paragraphs (words hyphenated across lines rejoined), larger or bold-numbered lines become `###` headings. Ruled tables become pipe tables, bullets, boxes and numbered lines become lists, monospace lines code blocks, footnotes `[^n]` (see below) | JPEG data kept as `.jpg`, everything else re-encoded as `.png`, where it stands on the page | Text layer only, so scanned pages are empty. Headers and footers repeated on 3 or more pages are dropped, as is an image on every page and rotated text. An undecodable image is skipped and counted in `skippedImages`. No tables without rules, no multi-column layout, no inline code or emphasis |
-| `.docx` | Title and heading styles (English and German style names) become `#` headings. Numbering becomes lists, plus tables, bold and italic, hyperlinks, line breaks, and text boxes as `> [Text box]` quotes | DrawingML and VML pictures at their position, with the alt text from the picture description | Nested tables are flattened into their cell. Footnotes, comments, headers and footers are not read |
+| `.docx` | Title and heading styles (English and German style names) become `#` headings. Numbering becomes lists, plus tables, bold and italic, hyperlinks, line breaks, text boxes as `> [Text box]` quotes, and footnotes as `[^n]` with their definitions at the end. A document of `DocxGenerator` is read back into its Markdown (see below) | DrawingML and VML pictures at their position, with the alt text from the picture description | Nested tables are flattened into their cell. Comments, headers and footers are not read; tracked insertions are read as text |
 | `.pptx` | `## <slide title>` per slide, or `## Slide n` if it has none. Then the text of the other shapes, tables and pictures, in shape order, and the slide's speaker notes (the body placeholder of its notes page) as `::: notes` … `:::`, one paragraph per line of notes. The slide a generated deck names `Backup` (`p:cSld/@name`, the first of its backup) is `# <title> {.backup}` instead | Pictures with the alt text from the shape description | Charts are not read, nor slide number, date and footer placeholders, nor transitions. Bullet levels are not kept, in speaker notes neither. Speaker notes repeated on several slides come back on each |
 
 Plain text in all three is escaped only where it would otherwise turn into formatting (see
 `MarkdownText.Escape`). Identical images are stored once and referenced wherever they appear.
+
+### Word documents of DocxGenerator
+
+A document `DocxGenerator` wrote is recognised by its marker in `word/settings.xml` (in the
+namespace `urn:wwosik:doclibs:wordprocessingml`, which Word ignores), or, once Word has saved the
+file and dropped that namespace, by the styles the generator adds to every document (`Cover
+Details` and `Image Row`). It is read back into the Markdown it came from, so that generating that
+Markdown again with the same options gives the same document:
+
+- **Front matter** from the core properties, the cover and the settings: `title`, `subtitle` (the
+  cover's subtitle, when it is one line), `author`, `description`, `keywords`, `date` (the cover's),
+  `coverImage`, `coverImageSize`, `coverImagePosition`, `lang`, `audience` (a version other than the
+  customer's),
+  `classification` and `draft` (the content status), `toc` and `tocDepth` (the contents field),
+  `headingNumbers: false` (Heading 1 not numbered), `justify: true` (justified paragraphs) and
+  `labels.<category>` (the status labels in tables). The table of contents itself is not written
+  back.
+- **Blocks by their style's role:** headings (shifted back to their Markdown level, with
+  `{.unnumbered}`, `{.newpage}` and `{.appendix}`, without the "Appendix A" the generator adds), lists with their start numbers and task boxes, alerts
+  (`> [!NOTE]` …, their title dropped), quotes, code fences, definition lists, rules, table titles and
+  `Table:` / `Figure:` captions, tables with their column alignment, rows of images, and
+  `::: pagebreak` before an element that starts a page.
+- **Runs by their character style:** inline code, tags and status labels as code, `==marks==`,
+  `[words]{.success}`, bold, italic, strikethrough, links (to headings by their Markdown id),
+  footnote references and icons (`:icon-name:`).
+- **From the namespace, while it is there:** the Markdown of every `:::` container (cards, panels,
+  timelines, …) and of drawn code blocks (charts, diagrams), the language of code, the heading
+  attributes as written (`{kicker="…"}`, `{.backup}`), the titles and attributes of images
+  (`.round`, `.grey`, `fit=cover`, `focus`), the address of a `qr:` image, and the cover image's size
+  and position.
+
+**Fallbacks** once Word has saved the file: a code fence without its language, a `chart` block
+from the values a chart caches (its first column named `category`, without `unit` and `source`),
+a drawing as its picture, a container as the content Word shows (a card's heading as a bold
+paragraph), an image without its title (its caption becomes the title), headings with
+`{.unnumbered}` and `{.newpage}` read from the paragraph and the heading shift guessed from the page
+breaks. A caller's template whose role styles are renamed is then not recognised and converts like any
+other Word document.
+
+**Limits:** heading attributes other than `{.unnumbered}` and `{.newpage}`, and a heading that
+writes nothing (`## {.quote}`), come back only with the namespace; two images with the same content
+become one resource; a code block or table inside a list item ends the list there.
 
 ### What the PDF converter reads from a page
 

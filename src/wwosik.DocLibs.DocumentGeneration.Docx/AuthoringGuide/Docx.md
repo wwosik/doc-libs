@@ -8,10 +8,10 @@ sentences and paragraphs, headings that say what a section is about.
 
 | Markdown | Becomes |
 | -------- | ------- |
-| A `#` heading as the very first line | The cover page. The paragraphs below it, up to the next heading, are the subtitle; the author and the date follow. Without it, there is no cover. |
+| A `#` heading as the very first line | The cover page. The paragraphs below it, up to the next heading, are the subtitle, then the author and date. |
 | The highest heading level after the cover | Heading 1, and each level below it the next heading style: with `#` chapters, `#` is Heading 1 and `##` Heading 2; with only `##` sections, `##` is Heading 1. |
 | A later `#` heading | Starts a new page. |
-| Text before the first heading | Normal text on the first page; the document then has no cover. |
+| Text before the first heading | Normal text; then there is no cover. |
 
 - Every paragraph uses a style of the template. Do not try to format text by other means; bold,
   italic and strike-through are the only formatting inside a paragraph.
