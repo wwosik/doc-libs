@@ -189,6 +189,10 @@ The keys and the caption syntax are shared with Word documents:
 - **Heading numbers** (`headingNumbers: true`). The number is set in the heading's face, size and
   colour in a column as wide as the widest number of that level plus 0.6 em; wrapped lines of the
   heading start at its text (a hanging indent). Bookmarks read "1.2 Title"; anchors do not change.
+- **Appendices** (`{.appendix}`, see [the shared rule](wwosik.DocLibs.DocumentGeneration.md#contents-and-heading-numbers)):
+  an appendix `#` gets "Appendix A " put before its text, so the heading, its contents entry and its
+  bookmark all read "Appendix A Glossary", and it has no number column of its own; the headings
+  below it are numbered `A.1` with `headingNumbers: true`.
 - **Captions** are 9 pt in the text colour, centred, "Figure 1:" / "Table 1:" bold, then the text
   (links in it work).
   - Figures (images, and diagrams or charts a renderer drew) have theirs 4 pt below and stay on the

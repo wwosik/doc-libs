@@ -24,6 +24,10 @@ Headings of the first three levels are numbered `1`, `1.1`, `1.1.1`; deeper ones
 
 - `{.unnumbered}` at the end of a heading gives it no number, and it does not count:
   `## Preface {.unnumbered}`.
+- **Appendices:** `# Glossary {.appendix}` makes that chapter and every later `#` an appendix,
+  headed "Appendix A Glossary", "Appendix B …" in the document's language, also in the table of
+  contents; numbered sections in it are `A.1`, `A.1.1`. Once, on a `#` after the cover, outside
+  containers. A deck's `{.backup}` is ignored here.
 
 ## Table of contents
 
@@ -205,7 +209,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `html-as-text`: HTML is not interpreted: it is shown as text. Write Markdown instead.
 - `footnote-missing`: a footnote reference such as `[^1]` has no definition `[^1]: text`, so it is shown as written. Add the definition, or remove the reference.
 - `language-unknown`: the language in `lang` has no texts of its own, so alert titles and similar texts are in English. Use `en` or `de`.
-- `attribute-ignored`: an image attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `focus` on an image that is not cropped. Remove it, or use it where it works.
+- `attribute-ignored`: an image or heading attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `{.appendix}` in a deck. Remove it, or use it where it works.
 - `icon-not-drawn`: an icon was left out where it cannot be drawn. Move it as the *Icons* section says. In a Word document, icons are drawn only where an image converter is set up, and are left out otherwise.
 - `caption-ignored`: a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text.
 - `list-too-deep`: a list is nested deeper than three levels; the deeper items are set at the third level. Flatten the list to three levels.

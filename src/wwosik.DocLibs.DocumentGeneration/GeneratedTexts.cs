@@ -46,6 +46,8 @@ public sealed record GeneratedTexts
         Date = "Datum",
         Language = "Sprache",
         PageOfFormat = "Seite {0} von {1}",
+        Backup = "Backup",
+        Appendix = "Anhang",
     };
 
     /// <summary>The title of <c>> [!NOTE]</c>.</summary>
@@ -137,6 +139,12 @@ public sealed record GeneratedTexts
 
     /// <summary>A page number in a workbook's printed footer: <c>{0}</c> the page, <c>{1}</c> the pages. "Page 2 of 5"; German "Seite 2 von 5".</summary>
     public string PageOfFormat { get; init; } = "Page {0} of {1}";
+
+    /// <summary>The word the footer of a deck's backup slides adds (<c>{.backup}</c>): "Backup".</summary>
+    public string Backup { get; init; } = "Backup";
+
+    /// <summary>The word before an appendix's letter in its heading (<c>{.appendix}</c>): "Appendix A Glossary"; German "Anhang".</summary>
+    public string Appendix { get; init; } = "Appendix";
 
     /// <summary>The title of an alert of the kind <paramref name="kind"/> (<c>NOTE</c>, <c>TIP</c>, …).</summary>
     internal string Alert(string kind) => kind.ToUpperInvariant() switch

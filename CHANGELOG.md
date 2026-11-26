@@ -23,8 +23,35 @@ updating, breaking changes first.
   "Versions", an `audience` row in the front-matter table and, for PDFs and Word, the note
   `audience-omitted`; a few sentences of the deck guide are shorter to stay under its word limit.
   The tool's schema, guide and argument errors name the new optional parameter `audience`.
+- **Backup slides and appendices take over some Markdown that failed or stayed text.** `{.backup}`
+  and `{.appendix}` on a `#` heading used to throw as unknown attributes and now work, see *New*;
+  on `###` to `######` (`### Title {.appendix}`) they used to stay text and now throw, as they do on
+  `##`, inside a container, on the cover, twice, or with `.closing`; a `{.closing}` after a
+  `{.backup}` throws too. Write `\{.appendix}` to keep the braces as text. The list of valid heading
+  attributes in error messages names `.backup, .appendix` after `.unnumbered`.
+- **Guides, notes and statistics.** The deck guide has a `{.backup}` row (a few other sentences are
+  shorter, to stay under its word limit), the PDF and Word guides a paragraph *Appendices*; the advice
+  of `attribute-ignored` in every guide names heading attributes too. `CheckStatistics.SlideKinds`
+  ends with `backup`. `GeneratedTexts` has two more texts, `Backup` and `Appendix` ("Anhang"); a
+  language of a host's own made with `with { … }` gets the English ones. Decks, PDFs and Word
+  documents without the two attributes are unchanged.
 
 ### New
+
+- **Backup slides.** `# Backup {.backup}` makes that chapter and every later one a deck's backup:
+  slides behind the closing slide for questions, out of an empty `{.agenda}`, the chapter numbers and
+  the HTML deck's counter (which shows *12 + 1* on the first backup slide after twelve main ones).
+  Their footer adds " · Backup" (`GeneratedTexts.Backup`), or on the built-in master a small text box
+  "Backup" on the footer line. The first backup slide is named `Backup`, and `PptxConverter` reads it
+  back as `# … {.backup}`. `PptxGenerator.Check` counts backup slides as the kind `backup` and leaves
+  them out of `Words` and `TalkTime`. They stay in every audience version; `{.internal}` on the
+  backup heading hides the whole backup from the customer's. PDFs and Word documents ignore
+  `{.backup}` with the note `attribute-ignored`.
+- **Appendices.** `# Glossary {.appendix}` makes that chapter and every later `#` a document's
+  appendix: "Appendix A Glossary", "Appendix B …" (`GeneratedTexts.Appendix`) in the text, the
+  contents and the PDF bookmarks, with the headings below lettered `A.1` where headings are numbered.
+  Word uses a second numbering in letters on the headings' multilevel list. Decks ignore it with the
+  note `attribute-ignored`.
 
 - **Contact sheet in the tool reply.** `DocumentToolOptions.Preview` takes an `IDeckPreview`; with
   `new DeckContactSheet()` from `wwosik.DocLibs.DocumentConversions.Svg`, every deck `DocumentTool`

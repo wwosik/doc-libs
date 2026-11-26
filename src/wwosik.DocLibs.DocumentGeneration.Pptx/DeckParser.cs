@@ -43,6 +43,9 @@ internal sealed partial class DeckParser(
     // The number of the latest section divider, when chapters are numbered.
     private int chapters;
 
+    // Whether the sections being walked are the deck's backup: from the `#` heading with `{.backup}` on.
+    private bool backup;
+
     // Whether the section being walked fills a layout with picture placeholders, where every image is cropped.
     private bool pictureSlots;
 
@@ -94,6 +97,9 @@ internal sealed partial class DeckParser(
         // Slides have no pages to break: a page break's content stays where it is, the break itself is ignored.
         PageBreaks.Flatten(markdown, Format.Pptx);
 
+        // Where the backup starts, checked before a version takes anything out.
+        BackMatter.Check(markdown, Format.Pptx, parser.LineOf, parser.Notes);
+
         // The version's content only, before anything is split into slides.
         AudienceFilter.Apply(markdown, options.Audience ?? Audience.Customer, Format.Pptx, parser.LineOf, texts ?? GeneratedTexts.English, parser.Notes);
         MarkdownSyntax.ReportMissingFootnotes(markdown, parser.LineOf, parser.Notes);
@@ -127,7 +133,7 @@ internal sealed partial class DeckParser(
     // chapters are numbered; without chapters it keeps its title only, with a note.
     private void FillAgendas()
     {
-        var chapters = this.slides.OfType<TitleSlide>().Where(t => t.IsSection).ToList();
+        var chapters = this.slides.OfType<TitleSlide>().Where(t => t.IsSection && !t.Backup).ToList();
         for (var i = 0; i < this.slides.Count; i++)
         {
             if (this.slides[i] is not AgendaSlide { FromChapters: true } agenda)
@@ -212,6 +218,7 @@ internal sealed partial class DeckParser(
                 Footnotes = [.. footnotes.Where(f => references.Contains(f.Number))],
                 SpeakerNotes = paragraphs,
                 Transition = transition ?? options.Transition,
+                Backup = this.backup,
             };
         }
 
@@ -430,13 +437,16 @@ internal sealed partial class DeckParser(
         title = this.Typeset(title, this.LineOf(heading.Inline));
         if (isTitle && attributes is { Dark: true } or { Kicker: not null })
         {
-            throw Error("A '#' heading takes only the attributes layout=\"…\" and .closing; .dark and kicker=\"…\" go on '##' headings.");
+            throw Error("A '#' heading takes only the attributes layout=\"…\", .closing and .backup; .dark and kicker=\"…\" go on '##' headings.");
         }
 
         if (!isTitle && attributes is { Closing: true })
         {
             throw Error("{.closing} goes on a '#' heading: the closing slide.");
         }
+
+        // The backup (checked by BackMatter.Check): this chapter and every later one.
+        this.backup |= isTitle && attributes is { Backup: true };
 
         // A scene is a slide of its own (SceneSyntax.Check has made sure it is alone with its notes under a `##`).
         if (blocks.OfType<CustomContainer>().FirstOrDefault(SceneSyntax.IsScene) is { } scene)
@@ -477,7 +487,7 @@ internal sealed partial class DeckParser(
         {
             var closing = attributes?.Closing ?? false;
             var isSection = isTitle && this.hasCover && !closing;
-            var section = new SectionBuilder(this, this.slides, title, isTitle, isSection, attributes?.Layout, closing, isSection && numberChapters ? ++this.chapters : null);
+            var section = new SectionBuilder(this, this.slides, title, isTitle, isSection, attributes?.Layout, closing, isSection && numberChapters && !this.backup ? ++this.chapters : null);
             this.hasCover |= isTitle && !closing;
             if (!isTitle && attributes?.Layout is { } layout
                 && (split || (layoutSlots?.Invoke(layout) is { } slots && slots.Any(k => k is SlotKind.Picture or SlotKind.Chart))))

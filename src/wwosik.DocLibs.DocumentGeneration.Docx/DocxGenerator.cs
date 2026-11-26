@@ -85,7 +85,12 @@ public static class DocxGenerator
         var marking = Marking.Resolve(frontMatter, options.Classification, options.Draft, notes, Format.Docx, audience);
         var language = DocumentLanguage.Resolve(frontMatter.Language, options.Language, options.Texts, notes, Format.Docx);
         int LineOf(Markdig.Syntax.MarkdownObject block) => block.Line + 1 + frontMatter.BodyLine;
-        var content = DocxContent.Parse(frontMatter.Body, markdown => AudienceFilter.Apply(markdown, audience, Format.Docx, LineOf, language.Texts, notes));
+        var content = DocxContent.Parse(frontMatter.Body, markdown =>
+        {
+            // Where the appendices start, checked before the version takes anything out.
+            BackMatter.Check(markdown, Format.Docx, LineOf, notes);
+            AudienceFilter.Apply(markdown, audience, Format.Docx, LineOf, language.Texts, notes);
+        });
         MarkdownSyntax.ReportMissingFootnotes(content.Source, LineOf, notes);
 
         // Build markers are for decks: checked like there, then left out wherever they are.

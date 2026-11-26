@@ -53,6 +53,10 @@ internal sealed partial class MarkdownParser(
     private int top = 1;
     private HeadingNumbering? numbering;
 
+    // Whether the headings being added are appendices (from the `#` with `{.appendix}` on), and how many there are so far.
+    private bool appendices;
+    private int appendixCount;
+
     /// <remarks>
     /// <paramref name="brand"/> is the brand code-block renderers draw in; <paramref name="lineOffset"/> the lines of
     /// front matter cut off the Markdown, so renderers get the block's line in the original; <paramref name="notes"/>
@@ -76,6 +80,9 @@ internal sealed partial class MarkdownParser(
 
         // Page breaks: their content stays where they were, and a PageBreakBlock goes before the block each comes before.
         parser.pageBreaks = PageBreaks.Flatten(markdown, DocumentFormat.Pdf);
+
+        // Where the appendices start, checked before a version takes anything out.
+        BackMatter.Check(markdown, DocumentFormat.Pdf, parser.LineOf, notes);
 
         // The version's content only, before anything is laid out.
         AudienceFilter.Apply(markdown, options.Audience ?? Audience.Customer, DocumentFormat.Pdf, parser.LineOf, texts, notes);
@@ -312,7 +319,7 @@ internal sealed partial class MarkdownParser(
                 // A kind of slide without a title, such as `## {.quote}`, has no heading here.
                 if (text.Count > 0 || heading.Level > 2 || headingAttributes?.Kind is null)
                 {
-                    target.Add(this.Heading(heading, text, headingAttributes?.Unnumbered == true, headingAttributes?.NewPage == true));
+                    target.Add(this.Heading(heading, text, headingAttributes?.Unnumbered == true, headingAttributes?.NewPage == true, headingAttributes?.Appendix == true));
                 }
 
                 if (this.agendas.TryGetValue(heading, out var agenda))
@@ -447,13 +454,29 @@ internal sealed partial class MarkdownParser(
     }
 
     // A heading with its number, unless it is `{.unnumbered}` or inside a slide-layout container, where it is no chapter;
-    // listed in the table of contents down to its depth, with an anchor of its own if it has none.
-    private HeadingBlock Heading(Markdig.Syntax.HeadingBlock heading, List<TextRun> text, bool unnumbered, bool newPage)
+    // listed in the table of contents down to its depth, with an anchor of its own if it has none. From `{.appendix}` on,
+    // every `#` starts its text with "Appendix A" (in the text, the contents and the bookmarks), and the numbers below it
+    // with the letter: `A.1`.
+    private HeadingBlock Heading(Markdig.Syntax.HeadingBlock heading, List<TextRun> text, bool unnumbered, bool newPage, bool appendix)
     {
         var chapter = !HeadingNumbering.InLayoutContainer(heading);
+        if (appendix && chapter && !this.appendices)
+        {
+            this.appendices = true;
+            this.numbering?.StartAppendices();
+        }
+
+        var number = chapter && !unnumbered ? this.numbering?.Next(heading.Level)?.Number : null;
+        if (this.appendices && chapter && !unnumbered && heading.Level == 1)
+        {
+            var label = $"{texts.Appendix} {BackMatter.Letter(++this.appendixCount)}";
+            text = [new TextRun(text.Count > 0 ? label + " " : label, RunStyle.None), .. text];
+            number = null;
+        }
+
         var block = new HeadingBlock(heading.Level, text, Anchor(heading))
         {
-            Number = chapter && !unnumbered ? this.numbering?.Next(heading.Level)?.Number : null,
+            Number = number,
             NewPage = newPage,
         };
         var level = heading.Level - this.top + 1;

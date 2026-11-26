@@ -7,7 +7,8 @@ namespace wwosik.DocLibs.DocumentConversions.OpenXml;
 /// <summary>
 /// Converts PowerPoint presentations (<c>.pptx</c>) into Markdown: one section per slide with the
 /// slide title as its heading, then text, tables and pictures in shape order, and the slide's speaker notes as
-/// <c>::: notes</c>.
+/// <c>::: notes</c>. The first slide of a generated deck's backup (named <c>Backup</c>) becomes <c># Title {.backup}</c>, so
+/// that the slides from there on are read back as the backup.
 /// </summary>
 public sealed class PptxConverter : IDocumentConverter
 {
@@ -17,6 +18,9 @@ public sealed class PptxConverter : IDocumentConverter
     private static readonly XNamespace MC = "http://schemas.openxmlformats.org/markup-compatibility/2006";
 
     private const string PresentationPart = "ppt/presentation.xml";
+
+    // The name a generated deck gives the first slide of its backup (p:cSld/@name).
+    private const string BackupSlideName = "Backup";
     private const string NotesSlideType = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide";
 
     /// <inheritdoc/>
@@ -38,6 +42,7 @@ public sealed class PptxConverter : IDocumentConverter
             var builder = new StringBuilder();
             var number = 0;
             var anyContent = false;
+            var backup = false;
             foreach (var slideId in presentation.Descendants(P + "sldId"))
             {
                 var id = (string?)slideId.Attribute(R + "id");
@@ -47,7 +52,7 @@ public sealed class PptxConverter : IDocumentConverter
                 }
 
                 number++;
-                anyContent |= RenderSlide(package, part, number, images, builder);
+                anyContent |= RenderSlide(package, part, number, images, builder, ref backup);
             }
 
             var metadata = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -63,13 +68,17 @@ public sealed class PptxConverter : IDocumentConverter
     }
 
     // Returns whether the slide had any content beyond its heading.
-    private static bool RenderSlide(OpenXmlPackage package, string part, int number, ResourceCollector? images, StringBuilder builder)
+    private static bool RenderSlide(OpenXmlPackage package, string part, int number, ResourceCollector? images, StringBuilder builder, ref bool backup)
     {
-        var tree = package.ReadXml(part)?.Root?.Element(P + "cSld")?.Element(P + "spTree");
+        var slide = package.ReadXml(part)?.Root?.Element(P + "cSld");
+        var tree = slide?.Element(P + "spTree");
+        var startsBackup = !backup && (string?)slide?.Attribute("name") == BackupSlideName;
+        backup |= startsBackup;
         var titleShape = tree?.Descendants(P + "sp").FirstOrDefault(IsTitle);
         var title = titleShape is null ? string.Empty : string.Join(" ", Paragraphs(titleShape.Element(P + "txBody")!));
 
-        builder.Append("## ").Append(title.Length > 0 ? title : "Slide " + number.ToString(CultureInfo.InvariantCulture)).Append("\n\n");
+        builder.Append(startsBackup ? "# " : "## ").Append(title.Length > 0 ? title : "Slide " + number.ToString(CultureInfo.InvariantCulture))
+            .Append(startsBackup ? " {.backup}\n\n" : "\n\n");
         if (tree is null)
         {
             return title.Length > 0;

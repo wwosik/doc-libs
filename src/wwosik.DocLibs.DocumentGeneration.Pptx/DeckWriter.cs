@@ -12,6 +12,9 @@ namespace wwosik.DocLibs.DocumentGeneration.Pptx;
 /// <summary>Writes slides into an opened template whose own slides it removes first.</summary>
 internal sealed partial class DeckWriter
 {
+    /// <summary>The name (<c>p:cSld/@name</c>) of the first slide of the deck's backup.</summary>
+    public const string BackupSlideName = "Backup";
+
     private const long EmuPerPoint = 12700;
     private const long EmuPerPixel = 9525;
     private const long BulletIndent = 285750;
@@ -241,6 +244,7 @@ internal sealed partial class DeckWriter
         this.deckTitle = deckTitle;
         this.slideLines.Clear();
         var number = 0;
+        var backup = false;
         var speakerNotes = new List<(SlidePart Slide, IReadOnlyList<TextParagraph> Notes)>();
         foreach (var (slide, step) in slides.Select(this.Resolve).SelectMany(this.Fit))
         {
@@ -266,9 +270,17 @@ internal sealed partial class DeckWriter
 
             this.Footnotes(canvas, slide);
             number++;
+
+            // The first backup slide is named, so that the deck says where its backup starts (the converter and the HTML deck read it).
+            if (slide.Backup && !backup)
+            {
+                canvas.Part.Slide!.CommonSlideData!.Name = BackupSlideName;
+                backup = true;
+            }
+
             if (slide is not TitleSlide { IsSection: false } and not TitleSlide { Closing: true })
             {
-                this.Footer(canvas, number, this.PaintsDark(slide) ? SlideColor.White : null);
+                this.Footer(canvas, number, this.PaintsDark(slide) ? SlideColor.White : null, slide.Backup);
             }
 
             this.Classification(canvas, slide);
@@ -695,7 +707,7 @@ internal sealed partial class DeckWriter
 
     // Slide number and date, where the layout has placeholders for them; their position and style come from there. The
     // footer text, or the footer pattern filled in, goes into the footer placeholder.
-    private void Footer(Canvas canvas, int number, SlideColor? color = null)
+    private void Footer(Canvas canvas, int number, SlideColor? color = null, bool backup = false)
     {
         var layout = canvas.Part.SlideLayoutPart!;
         A.RunProperties Properties() => color is { } fill ? new A.RunProperties(fill.Fill()) : new A.RunProperties();
@@ -723,10 +735,57 @@ internal sealed partial class DeckWriter
                 _ => this.author,
             }) is { Length: > 0 } filled ? filled : null
             : this.footerText;
-        if (footer is not null && FindPlaceholder(layout, p => p.Type?.Value == P.PlaceholderValues.Footer) is { } placeholder)
+
+        // A backup slide says so: "Title · Backup" in the footer placeholder, or the word alone without a footer text.
+        var footerPlaceholder = FindPlaceholder(layout, p => p.Type?.Value == P.PlaceholderValues.Footer);
+        if (backup && footerPlaceholder is not null)
         {
-            canvas.Add(Placeholder(canvas, placeholder, "Footer", [new A.Paragraph(new A.Run(Properties(), new A.Text(XmlSafe(footer))), new A.EndParagraphRunProperties())]));
+            footer = footer is null ? this.texts.Backup : footer + " · " + this.texts.Backup;
         }
+
+        if (footer is not null && footerPlaceholder is not null)
+        {
+            canvas.Add(Placeholder(canvas, footerPlaceholder, "Footer", [new A.Paragraph(new A.Run(Properties(), new A.Text(XmlSafe(footer))), new A.EndParagraphRunProperties())]));
+        }
+        else if (backup)
+        {
+            this.BackupMark(canvas, color);
+        }
+    }
+
+    // On a layout without a footer placeholder (the built-in master draws its footer text itself): the word in a text box
+    // of its own on the footer line, right of the date and slide number; without them at the foot of the content area.
+    private void BackupMark(Canvas canvas, SlideColor? color)
+    {
+        var layout = canvas.Part.SlideLayoutPart!;
+        var boxes = new[] { P.PlaceholderValues.DateAndTime, P.PlaceholderValues.SlideNumber }
+            .Select(type => FindPlaceholder(layout, p => p.Type?.Value == type))
+            .OfType<P.PlaceholderShape>()
+            .Select(p => this.PlaceholderBox(layout, p))
+            .ToList();
+        const int size = TemplateBuilder.FooterSize;
+        var text = XmlSafe(this.texts.Backup);
+        var width = (long)((text.Length + 2) * size / 100.0 * 0.66 * EmuPerPoint);
+        var height = boxes.Count > 0 ? boxes.Max(b => b.H) : LineHeight(size);
+        var (x, y) = boxes.Count > 0
+            ? (boxes.Max(b => b.Right) + Gap, boxes.Min(b => b.Y))
+            : (this.FullContentArea(layout).X, this.slideHeight - height - (Gap / 2));
+        var id = canvas.NextId();
+        canvas.Add(new P.Shape(
+            new P.NonVisualShapeProperties(
+                new P.NonVisualDrawingProperties { Id = id, Name = BackupSlideName },
+                new P.NonVisualShapeDrawingProperties { TextBox = true },
+                new P.ApplicationNonVisualDrawingProperties()),
+            new P.ShapeProperties(
+                new Rect(x, y, Math.Min(width, Math.Max(this.slideWidth - x, 0)), height).Transform(),
+                new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle },
+                new A.NoFill()),
+            new P.TextBody(
+                new A.BodyProperties(new A.NoAutoFit()) { Wrap = A.TextWrappingValues.None, LeftInset = 0, RightInset = 0, TopInset = 0, BottomInset = 0, Anchor = A.TextAnchoringTypeValues.Center },
+                new A.ListStyle(),
+                new A.Paragraph(
+                    new A.Run(new A.RunProperties((color ?? this.palette.Footer).Fill()) { FontSize = size }, new A.Text(text)),
+                    new A.EndParagraphRunProperties { FontSize = size }))));
     }
 
     // Blocks top to bottom with a gap between them; returns the height they take. Without a canvas it only measures.

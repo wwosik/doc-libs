@@ -39,6 +39,7 @@ internal sealed partial class DeckWriter
             Footnotes = flow.Footnotes,
             SpeakerNotes = flow.SpeakerNotes,
             Transition = flow.Transition,
+            Backup = flow.Backup,
         };
     }
 
@@ -187,6 +188,7 @@ internal sealed partial class DeckWriter
             Footnotes = slide.Footnotes,
             SpeakerNotes = slide.SpeakerNotes,
             Transition = slide.Transition,
+            Backup = slide.Backup,
             NoTitle = noTitle,
         };
 

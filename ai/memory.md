@@ -573,7 +573,7 @@ same change that made it untrue — a stale fact here is worse than a missing on
 
 - **A shape with no extent one way** (a straight connector across or up, `cy="0"`) used to give `NaN` paths in
   the HTML deck reader (`Geometry.Path` divided by the zero height); it now keeps that axis' coordinates. The PPTX
-  guide is at about 3,499 of its 3,500 words (E06-S06, after trimming a few sentences for *Versions*): any addition needs a trim or the human raising the limit.
+  guide is at about 3,494 of its 3,500 words (E06-S07, after trimming a few sentences for `{.backup}`): any addition needs a trim or the human raising the limit.
   The PDF guide's limit was raised to 3,500 by the human (2026-11-15, E03-S05); it is at about 2,900-3,000.
 
 - **The role layouts give two placeholders the same `idx`** (e.g. a picture placeholder and the date both
@@ -624,6 +624,15 @@ same change that made it untrue — a stale fact here is worse than a missing on
   after `PageBreaks.Flatten`: it removes blocks and takes `::: internal`, `::: exercise` and `::: solution` apart,
   inserting a bold label paragraph built by hand (no source span of its own). A PDF or Word page break whose next
   block a version removes is lost. `DocumentCheck`'s style rules do not run the filter.
+- **Backup and appendices (E06-S07)** are checked by `BackMatter.Check` (shared) in every parser right after
+  `PageBreaks.Flatten` and before `AudienceFilter.Apply`, which removes a `{.internal}` backup or appendix heading
+  together with everything to the end of the document. Decks flag slides with `Slide.Backup` (a per-slide property:
+  copied in `Section`, `Fit` and the two `Kinds` constructors); the backup needs no reordering, since it runs to the
+  end and a closing slide after it is an error. The deck marks its start only by `p:cSld/@name = "Backup"`
+  (`DeckWriter.BackupSlideName`), read by `DeckReader` (`SlideScene.Backup`) and `PptxConverter`. The built-in
+  master's footer text is a drawn text box, not a placeholder, so backup slides there get a text box `Backup` of
+  their own. Appendix headings get "Appendix A " as text (PDF, and Word without numbers) or a second `w:num` with
+  an `upperLetter` level-0 override (Word with numbers); `HeadingNumbering.StartAppendices` letters the rest.
 - **The SDK's `ChangeDocumentType` renames the main part** (`word/document2.xml`), which Word accepts
   but `DocxConverter` (it reads `word/document.xml` by path) does not. The DOCX generator turns a
   `.dotx` into a document by the content type in `[Content_Types].xml` alone (`DocxPackage.ChangeMainType`).

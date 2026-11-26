@@ -53,6 +53,10 @@ headings that say what a section is about, lists where items really are parallel
 - `headingNumbers: true` numbers three heading levels from the highest one after the cover: `1`,
   `1.1`, `1.1.1`, also in the bookmarks and the contents. A skipped level does not count: a `###`
   right under a `#` is `1.1`. `{.unnumbered}` at the end of any heading gives it no number.
+- **Appendices:** `# Glossary {.appendix}` makes that chapter and every later `#` an appendix,
+  headed "Appendix A Glossary", "Appendix B …" in the document's language, also in the contents and
+  bookmarks; with `headingNumbers: true` its sections are `A.1`, `A.1.1`. Once, on a `#` after the
+  cover, outside containers. A deck's `{.backup}` is ignored here.
 - **Captions** are numbered through the document, figures and tables apart, as "Figure 1: …" and
   "Table 1: …" in the document's language (`lang`):
   - an image's title, besides `scale=`, is its caption: `![Sales](s.png "Sales by region")`;
@@ -322,7 +326,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `footnote-missing`: a footnote reference such as `[^1]` has no definition `[^1]: text`, so it is shown as written. Add the definition, or remove the reference.
 - `footnote-split`: a footnote was too long for the foot of its page and continues at the foot of the next. Shorten it, or move the detail into the text.
 - `language-unknown`: the language in `lang` has no texts of its own, so alert titles and similar texts are in English. Use `en` or `de`.
-- `attribute-ignored`: an image attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `focus` on an image that is not cropped. Remove it, or use it where it works.
+- `attribute-ignored`: an image or heading attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `{.appendix}` in a deck. Remove it, or use it where it works.
 - `icon-not-drawn`: an icon was left out where it cannot be drawn. Move it as the *Icons* section says.
 - `agenda-empty`: an empty `{.agenda}` found no `#` chapters to list. Add the chapters, or write the agenda as a list.
 - `caption-ignored`: a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text.

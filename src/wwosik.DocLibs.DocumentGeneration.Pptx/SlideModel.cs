@@ -131,6 +131,12 @@ internal abstract record Slide(IReadOnlyList<TextRun> Title)
     /// <summary>How the slide is brought on when presented: its heading's <c>transition="…"</c>, else the deck's.</summary>
     public SlideTransition Transition { get; init; }
 
+    /// <summary>
+    /// In the deck's backup (<c># … {.backup}</c> and every slide after it, E06-S07): behind the closing slide, out of the
+    /// agenda and the chapter numbers, the footer adding "Backup".
+    /// </summary>
+    public bool Backup { get; init; }
+
     /// <summary>Every run of the slide: its title and all its text, tables, cards and rows included.</summary>
     public IEnumerable<TextRun> AllRuns() => this.Title.Concat(this switch
     {

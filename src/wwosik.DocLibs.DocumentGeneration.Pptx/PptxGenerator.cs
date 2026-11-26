@@ -72,6 +72,7 @@ public static class PptxGenerator
 
     private static string Kind(Slide slide) => slide switch
     {
+        { Backup: true } => "backup",
         TitleSlide { Closing: true } => "closing",
         TitleSlide { IsSection: true } => "section",
         TitleSlide => "cover",
@@ -87,7 +88,7 @@ public static class PptxGenerator
     };
 
     // Each content slide its speaker notes' words, or its own without the title, at the options' rate; the parts of a split
-    // slide share their notes, which count on the first part only.
+    // slide share their notes, which count on the first part only. Backup slides are shown only when asked, so they take none.
     private static TimeSpan TalkTime(List<Slide> slides, CheckOptions checks)
     {
         static int Words(IEnumerable<TextRun> runs) =>
@@ -95,7 +96,7 @@ public static class PptxGenerator
 
         var spoken = new HashSet<IReadOnlyList<TextParagraph>>(ReferenceEqualityComparer.Instance);
         var total = TimeSpan.Zero;
-        foreach (var slide in slides)
+        foreach (var slide in slides.Where(s => !s.Backup))
         {
             total += slide switch
             {

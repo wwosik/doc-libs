@@ -359,7 +359,15 @@ never counts as 0. Word itself would count it (`1.0.1` for a `Heading 3` straigh
 `Heading 1`, `0.1` for a `Heading 2` before any `Heading 1`), so such a heading gets a paragraph
 `w:numPr` with the list level of its number (`w:ilvl` 1 for `1.1`) and the heading list's `numId`;
 its style, and so its look and its level in the table of contents, stay those of its Markdown level.
-The pre-filled numbers of the table of contents are the same. On `###` to `######` a trailing `{…}` is taken off only when every token in it is
+The pre-filled numbers of the table of contents are the same.
+
+**Appendices** (`{.appendix}`, see [the shared rule](wwosik.DocLibs.DocumentGeneration.md#contents-and-heading-numbers)):
+with numbered headings, a second `w:num` on the heading list's abstract numbering overrides its first
+level (`w:lvlOverride`: restart at 1, `upperLetter`, `w:lvlText` "Appendix %1", a space after it, no
+indent), and every numbered heading from the first appendix on carries a paragraph `w:numPr` with it,
+so Word shows "Appendix A" before the title and `A.1` below it, in the text and in the table of
+contents; the pre-filled entries read the same. Without numbers (`headingNumbers: false`, a caller's
+or brand's template) the words "Appendix A " are the heading's own text. On `###` to `######` a trailing `{…}` is taken off only when every token in it is
 `.unnumbered`; any other braces stay text.
 
 ### Captions

@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.RegularExpressions;
 using Markdig;
 using Markdig.Extensions.Alerts;
@@ -287,10 +287,12 @@ internal static partial class AudienceFilter
                     continue;
                 }
 
+                // A backup or the appendices (E06-S07) run to the end of the document, and so does the part an internal one hides.
+                var toEnd = heading.Level == 1 && BackMatter.Starts(tokens);
                 this.Omitted.Add(lineOf(heading));
                 var start = i;
                 document.RemoveAt(i);
-                while (i < document.Count && !(document[i] is HeadingBlock next && next.Level <= heading.Level))
+                while (i < document.Count && (toEnd || !(document[i] is HeadingBlock next && next.Level <= heading.Level)))
                 {
                     if (document[i] is FootnoteGroup or LinkReferenceDefinitionGroup)
                     {
@@ -426,7 +428,7 @@ internal static partial class AudienceFilter
     }
 
     // The tokens of a trailing `{…}` on a heading, made of classes and quoted pairs; null without one.
-    private static List<string>? HeadingTokens(HeadingBlock heading)
+    internal static List<string>? HeadingTokens(HeadingBlock heading)
     {
         var (text, _) = TrailingText(heading);
         var match = text is null ? null : HeadingPattern().Match(text);

@@ -24,6 +24,10 @@ sentences and paragraphs, headings that say what a section is about.
 
 - `{.unnumbered}` at the end of a heading gives it no number, and it does not count:
   `## Preface {.unnumbered}`.
+- **Appendices:** `# Glossary {.appendix}` makes that chapter and every later `#` an appendix,
+  headed "Appendix A Glossary", "Appendix B …" in the document's language, also in the table of
+  contents; numbered sections in it are `A.1`, `A.1.1`. Once, on a `#` after the cover, outside
+  containers. A deck's `{.backup}` is ignored here.
 
 ## Table of contents
 

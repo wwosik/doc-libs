@@ -15,6 +15,7 @@ namespace wwosik.DocLibs.DocumentGeneration;
 /// <item>a <c>{.unnumbered}</c> heading, and a heading inside a slide-layout container, gets no number and does not
 /// count: such headings are never passed to <see cref="Next"/>.</item>
 /// </list>
+/// From <see cref="StartAppendices"/> on, the first part is a letter: <c>A</c>, <c>A.1</c>.
 /// One instance numbers one document, in document order.
 /// </summary>
 internal sealed class HeadingNumbering(int top)
@@ -79,6 +80,20 @@ internal sealed class HeadingNumbering(int top)
         }
 
         this.open.Add(level);
-        return (string.Join(".", this.counters.Take(depth).Select(n => n.ToString(CultureInfo.InvariantCulture))), depth);
+        return (string.Join(".", this.counters.Take(depth).Select((n, i) => i == 0 && this.appendices ? BackMatter.Letter(n) : n.ToString(CultureInfo.InvariantCulture))), depth);
+    }
+
+    // From the first appendix on, the first part of a number is a letter (E06-S07).
+    private bool appendices;
+
+    /// <summary>
+    /// The appendices start (<c>{.appendix}</c>, E06-S07): the next top-level number is <c>A</c>, then <c>B</c>, and the
+    /// numbers below them <c>A.1</c>, <c>A.1.1</c>.
+    /// </summary>
+    public void StartAppendices()
+    {
+        this.appendices = true;
+        this.open.Clear();
+        Array.Clear(this.counters);
     }
 }

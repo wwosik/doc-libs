@@ -110,7 +110,7 @@ public sealed record CheckResult(IReadOnlyList<GenerationNote> Notes, CheckStati
 public sealed record CheckStatistics
 {
     /// <summary>The kinds of slide in <see cref="SlidesByKind"/>, in the order they are listed.</summary>
-    public static IReadOnlyList<string> SlideKinds { get; } = ["cover", "section", "text", "visual", "layout", "agenda", "quote", "statement", "contact", "chart", "scene", "closing"];
+    public static IReadOnlyList<string> SlideKinds { get; } = ["cover", "section", "text", "visual", "layout", "agenda", "quote", "statement", "contact", "chart", "scene", "closing", "backup"];
 
     /// <summary>The slides a deck would have, or the pages of a PDF; 0 for a Word document, and when the check found an error.</summary>
     public int Pages { get; init; }
@@ -121,7 +121,7 @@ public sealed record CheckStatistics
     /// <summary>
     /// The words of all text, tables, headings and footnotes included, speaker notes, code and alt text not: runs of letters
     /// and digits (with <c>'</c> or <c>-</c> inside), a code span one word, and in Chinese, Japanese and Thai each two
-    /// characters one word.
+    /// characters one word. A deck's backup (<c>{.backup}</c>) is not counted.
     /// </summary>
     public int Words { get; init; }
 
@@ -138,14 +138,15 @@ public sealed record CheckStatistics
     /// Decks: the slides by kind, split parts included, in the order of <see cref="SlideKinds"/>, kinds without a slide left
     /// out: <c>cover</c>, <c>section</c>, <c>text</c>, <c>visual</c> (a table, image or diagram), <c>layout</c> (a flow
     /// slide or one that fills a layout's placeholders), the slide kinds <c>agenda</c>, <c>quote</c>, <c>statement</c>,
-    /// <c>contact</c>, <c>chart</c>, and <c>closing</c>. Empty for other formats.
+    /// <c>contact</c>, <c>chart</c>, <c>scene</c>, <c>closing</c>, and <c>backup</c> (every slide of the backup, whatever its
+    /// kind). Empty for other formats.
     /// </summary>
     public IReadOnlyDictionary<string, int> SlidesByKind { get; init; } = new Dictionary<string, int>();
 
     /// <summary>
     /// Decks: the estimated talk time, in whole minutes. A content slide takes its speaker notes' words (else its own,
     /// title excluded) at <see cref="CheckOptions.WordsPerMinute"/>, and at least <see cref="CheckOptions.MinTimePerSlide"/>;
-    /// a cover, section or closing slide 10 seconds. <see langword="null"/> for other formats.
+    /// a cover, section or closing slide 10 seconds; backup slides none. <see langword="null"/> for other formats.
     /// </summary>
     public TimeSpan? TalkTime { get; init; }
 

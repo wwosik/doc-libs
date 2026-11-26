@@ -62,6 +62,7 @@ internal sealed partial class DeckWriter
             {
                 SpeakerNotes = slide.SpeakerNotes,
                 Transition = slide.Transition,
+                Backup = slide.Backup,
             },
             p.Step))];
     }

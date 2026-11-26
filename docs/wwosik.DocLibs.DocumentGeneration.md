@@ -305,7 +305,7 @@ if (result.HasNotes)
 | `typography-skipped` | PPTX, DOCX, PDF | With [typography](#typography) on, a typographic character (a quote, dash, `…` or the no-break space) was not used because a face the text can be set in lacks it; the character stays as typed. Once per character, with the line of its first paragraph |
 | `notes-dropped` | PPTX | A `::: notes` stands before the first heading, so it belongs to no slide and was left out |
 | `notes-simplified` | PPTX | Speaker notes held a table, code block, image, quote, alert, heading or other container, written as plain text; one note per block |
-| `attribute-ignored` | PPTX, DOCX, PDF | An image attribute has no effect where it is: `fit=cover` on an image of its own in a PDF, `focus` on an image that is not cropped, `scale` with `fit=cover`, `fit`, `focus`, `.round` and `.grey` in a Word document, or any attribute on an image shown as its alt text (in a heading or a table cell) |
+| `attribute-ignored` | PPTX, DOCX, PDF | An image attribute has no effect where it is: `fit=cover` on an image of its own in a PDF, `focus` on an image that is not cropped, `scale` with `fit=cover`, `fit`, `focus`, `.round` and `.grey` in a Word document, or any attribute on an image shown as its alt text (in a heading or a table cell); or a heading attribute of another format: `{.backup}` in a PDF or Word document, `{.appendix}` in a deck |
 | `icon-not-drawn` | PPTX, PDF, DOCX | An icon (`:icon-name:`) stands where the format cannot draw it and was left out of the text: in decks anywhere but a card's figure or an icon list (inside text, a heading, a table cell, speaker notes, a list where not every item starts with an icon); in PDFs in a heading, a table cell or on the cover; in Word documents anywhere when no image converter is registered |
 | `caption-ignored` | PPTX, DOCX, PDF | A `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text, prefix included |
 | `toc-empty` | PDF | `toc: true` (or `PdfOptions.TableOfContents`) asked for a table of contents, but no heading is at the depth it lists, so the PDF has none; the line is the `toc` key's, 0 when the option asked |
@@ -402,11 +402,12 @@ included; also first in `ToString()`), and for decks:
   slide), `visual` (a table, image or diagram on a slide of its own), `layout` (a flow slide, or a
   `layout="…"` slide that fills placeholders), `agenda`, `quote`, `statement`, `contact`, `chart`
   (the slide kinds; one drawn as a flow slide because the template lacks its layout counts as
-  `layout`), `scene` (a `::: scene`), and `closing`. The names are stable, like note codes.
+  `layout`), `scene` (a `::: scene`), `closing`, and `backup` (every slide of the deck's backup, `{.backup}`,
+  whatever its kind). The names are stable, like note codes. `Words` leaves a deck's backup out.
 - **`TalkTime`**, rounded to whole minutes: each content slide its speaker notes' words, or else its
   own words without the title, at `WordsPerMinute`, and at least `MinTimePerSlide`; the parts of a
   split slide share their notes, which count on the first part; cover, section and closing slides
-  10 seconds each.
+  10 seconds each; backup slides none.
 
 ## A tool for AI agents
 
@@ -1041,6 +1042,14 @@ Documents (PDFs and Word documents) read the same keys and number headings by on
     and that `#` is `3`.
   - **`{.unnumbered}`** at the end of a heading (any level) gives it no number, and it does not count.
     Headings inside a `:::` container are no chapters: no number, not in the contents.
+- **Appendices** (internally `BackMatter`): `# Glossary {.appendix}` makes that chapter and every
+  later `#` an appendix. Each appendix `#` (not `{.unnumbered}`, not in a container) reads
+  "Appendix A Glossary", "Appendix B …" (`GeneratedTexts.Appendix`, German "Anhang"; after Z come
+  AA, AB) in the text, the contents and the bookmarks, whether headings are numbered or not; with
+  numbers, the headings below it are `A.1`, `A.1.1`. The attribute goes once, on a top-level `#`
+  after the cover, never with `.closing`; anything else throws with the line. `{.internal}` on it
+  hides every appendix from the customer's version. Decks ignore it with `attribute-ignored`, as
+  documents ignore a deck's `{.backup}` (whose placement is checked alike).
 - Numbers and the contents never change a heading's anchor, so `[see](#costs)` keeps working.
 
 ## Captions

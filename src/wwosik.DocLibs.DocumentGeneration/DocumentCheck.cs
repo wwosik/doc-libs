@@ -176,6 +176,9 @@ internal static partial class DocumentCheck
         private int sectionBullets;
         private int sectionWords;
 
+        // In a deck's backup (from the `#` heading with `{.backup}` on), whose words do not count.
+        private bool backup;
+
         public void Walk(string body)
         {
             var markdown = Markdown.Parse(body, Pipeline);
@@ -184,6 +187,7 @@ internal static partial class DocumentCheck
             {
                 if (format == DocumentFormat.Pptx && block is Markdig.Syntax.HeadingBlock { Level: <= 2 } heading)
                 {
+                    this.backup |= heading.Level == 1 && AudienceFilter.HeadingTokens(heading) is { } tokens && tokens.Contains(BackMatter.Backup);
                     this.EndSection();
                     this.sectionHeading = heading;
                     this.Title(heading, "The slide title");
@@ -280,7 +284,7 @@ internal static partial class DocumentCheck
             var found = new List<LinkInline>();
             Collect(inline, runs, found);
             var count = Words([.. runs.Select(r => r.Code ? r : (ColourPattern().Replace(IconPattern().Replace(r.Text, " "), string.Empty), false))]);
-            this.words += count;
+            this.words += this.backup ? 0 : count;
             if (section is not null && !inTable && leaf != section)
             {
                 this.sectionWords += count;

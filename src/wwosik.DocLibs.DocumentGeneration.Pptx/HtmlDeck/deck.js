@@ -34,6 +34,14 @@
     };
   });
 
+  // The slides before the backup (data-backup), which the progress counts; a backup slide shows as the main count plus its
+  // place in the backup.
+  var main = slides.filter(function (slide) { return !slide.hasAttribute('data-backup'); }).length;
+
+  function progress(index) {
+    return index < main ? (index + 1) + ' / ' + main : main + ' + ' + (index - main + 1);
+  }
+
   function animated() {
     return !presenterMode && !(reducedMotion && reducedMotion.matches);
   }
@@ -464,7 +472,7 @@
     }
 
     var total = info[current].steps.length;
-    counter.textContent = (current + 1) + ' / ' + slides.length + (total > 0 ? ' · ' + step + '/' + total : '');
+    counter.textContent = progress(current) + (total > 0 ? ' · ' + step + '/' + total : '');
     if (!presenterMode) {
       var hash = '#' + (current + 1) + (step > 0 ? '.' + step : '');
       if (window.location.hash !== hash) {
@@ -720,7 +728,7 @@
     }
 
     var total = info[current].steps.length;
-    panel.position.textContent = 'Slide ' + (current + 1) + ' of ' + slides.length + (total > 0 ? ', step ' + step + ' of ' + total : '');
+    panel.position.textContent = 'Slide ' + progress(current) + (total > 0 ? ', step ' + step + ' of ' + total : '');
     while (panel.nextView.firstChild) {
       panel.nextView.removeChild(panel.nextView.firstChild);
     }

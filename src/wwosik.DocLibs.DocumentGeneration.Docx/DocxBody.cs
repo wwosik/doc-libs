@@ -52,6 +52,10 @@ internal sealed partial class DocxBody
     private DocxRuns runs = null!;
     private int shift;
     private HeadingNumbering numbers = null!;
+
+    // Whether the headings being written are appendices (from the `#` with `{.appendix}` on), and how many there are so far.
+    private bool appendices;
+    private int appendixCount;
     private int drawingId;
     private int bookmarkId;
     private int controlId;
@@ -421,21 +425,49 @@ internal sealed partial class DocxBody
             properties.Append(new PageBreakBefore());
         }
 
+        if (attributes?.Appendix == true && !this.appendices)
+        {
+            this.appendices = true;
+            this.numbers.StartAppendices();
+        }
+
         var number = unnumbered || !this.Context.HeadingNumbers ? null : this.numbers.Next(level);
+        var shown = number?.Number;
+        var numId = DocxNumbering.HeadingNumId;
+
+        // Appendices: each `#` reads "Appendix A", from the numbering in letters when headings are numbered, else as text;
+        // the numbered headings below it take that numbering too (`A.1`).
+        if (this.appendices && !unnumbered)
+        {
+            numId = number is null ? numId : this.numbering.Appendix(this.Context.Texts.Appendix);
+            if (heading.Level == 1)
+            {
+                var label = $"{this.Context.Texts.Appendix} {BackMatter.Letter(++this.appendixCount)}";
+                if (number is null)
+                {
+                    runs = [new DocxRun(runs.Count > 0 ? label + " " : label, RunFlags.None, null), .. runs];
+                }
+                else
+                {
+                    shown = label;
+                }
+            }
+        }
+
         if (unnumbered)
         {
             properties.Append(new NumberingProperties(new NumberingLevelReference { Val = 0 }, new NumberingId { Val = 0 }));
         }
-        else if (number is { } counted && counted.Depth != level)
+        else if (number is { } counted && (counted.Depth != level || numId != DocxNumbering.HeadingNumId))
         {
             // A level skipped above it: Word counts the number's own level, so that it never shows a 0 (`0.1`, `1.0.1`).
-            properties.Append(new NumberingProperties(new NumberingLevelReference { Val = counted.Depth - 1 }, new NumberingId { Val = DocxNumbering.HeadingNumId }));
+            properties.Append(new NumberingProperties(new NumberingLevelReference { Val = counted.Depth - 1 }, new NumberingId { Val = numId }));
         }
 
         var paragraph = new Paragraph(properties);
         var bookmark = this.Bookmarked(paragraph, heading, runs);
         target.Add(paragraph);
-        this.headings.Add(new TocEntry(level, DocxRuns.Text(runs).Trim()) { Number = number?.Number, Bookmark = bookmark });
+        this.headings.Add(new TocEntry(level, DocxRuns.Text(runs).Trim()) { Number = shown, Bookmark = bookmark });
     }
 
     // The heading's runs inside its bookmark, if it has one; returns the bookmark.

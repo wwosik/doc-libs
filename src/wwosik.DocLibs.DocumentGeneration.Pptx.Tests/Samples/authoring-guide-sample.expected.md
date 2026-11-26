@@ -58,6 +58,7 @@ is fine.
 | `## Title {kicker="Label"}` | A small label above the title: the chapter or topic. |
 | `## Title {.dark}` | The slide on a dark background; both: `{.dark kicker="Label"}`. Use it for one key message, not for many slides. |
 | `# Thank you {.closing}` | The last slide, on the design's closing layout. |
+| `# Backup {.backup}` | This and every later chapter go behind the closing slide: out of agenda, numbering and talk time, footer saying Backup. |
 | `::: cards` … `:::` with one `###` per card | Two to four boxes side by side: parallel points, options, figures. A line that is only `**bold**` right after the `###` is a big figure. |
 | `::: cards` around one list of `- **Title** – text` | The same, one card per item. |
 | `::: rows` around one list of `- **Term** – text` | Term on the left, explanation on the right, with rules: benefits, definitions. |
@@ -93,7 +94,7 @@ of memory per plan.
 
 - **Nesting:** a longer fence holds a shorter one, `:::: panel` around `::: cards` … `:::` and
   `::::`.
-- **Rules:** attributes `{…}` on `##` headings, and on `#` only `.closing`, `layout` and `transition`; in `::: cards`
+- **Rules:** attributes `{…}` on `##` headings, and on `#` only `.closing`, `.backup`, `layout` and `transition`; in `::: cards`
   nothing before the first `###`;
   `::: rows` holds exactly one list; every item of a `cards` or `rows` list starts with
   `**bold**`.
@@ -162,8 +163,8 @@ after the name pins today; `grid=week|month|quarter` sets a Gantt's grid.
 ````
 
 **Steps, Harvey balls and risk matrices:** `::: steps` around a list of 2–7 `- **Title** –
-description` draws them as chevrons in a row; `{.current}` at the end of one item marks it, the
-steps before it done, later ones outlined. A table cell that is only `[0/4]` to `[4/4]`, or
+description` draws them as chevrons; `{.current}` at the end of an item marks it: earlier
+steps done, later ones outlined. A table cell that is only `[0/4]` to `[4/4]`, or
 `[1/2]`, is a Harvey ball, a circle filled by quarters; `\[3/4]` keeps the text. `::: riskmatrix`
 around a table of 1–15 rows of risk, likelihood and impact (each 1–5) puts numbered dots on a
 5 × 5 grid with a legend.
@@ -196,8 +197,8 @@ around a table of 1–15 rows of risk, likelihood and impact (each 1–5) puts n
 
 ## Presenting
 
-**Speaker notes:** `::: notes` … `:::` under a heading holds what the presenter says. It is not
-shown on the slide but in PowerPoint's notes pane, on every slide the section produces.
+**Speaker notes:** `::: notes` … `:::` under a heading holds what the presenter says. It shows
+in PowerPoint's notes pane, not on the slide, on every slide of the section.
 
 ````markdown
 ## Where we stand
@@ -213,13 +214,12 @@ Start with the **good news**, then the delays:
 :::
 ````
 
-- Speaker notes hold paragraphs and lists; a table, code block, image or quote is written as text.
-- Put `::: notes` at the top level of a section, after its heading: not inside another container,
-  a list or a quote.
+- Speaker notes hold paragraphs and lists; anything else is written as text.
+- Put `::: notes` at the top level of a section, not inside a container, list or quote.
 
-**Transitions:** how a slide is brought on when the deck is presented. `transition: fade` in the
-front matter sets it for every slide; `transition="…"` on a heading (`## Results {transition="push"}`,
-also with other attributes) for that slide alone, and `transition="none"` turns it off there. The
+**Transitions:** how a slide comes on in the show. `transition: fade` in the
+front matter sets it for every slide; `transition="…"` on a heading (`## Results {transition="push"}`)
+for one slide; `transition="none"` turns it off. The
 transitions: `none`, `fade`, `push`, `wipe`, `split`, `cover`, `uncover`, `zoom`, `cut` and
 `morph` (scene shapes of the same name move; viewers without it fade). Use one for the whole deck.
 
@@ -258,7 +258,7 @@ The end date does not move.
 `exit=N`. Shapes start at 22.
 
 `::: pagebreak` … `:::` (its content stays), `{.newpage}`, `{.unnumbered}`, `toc:`, `tocDepth:`,
-`headingNumbers:` and `justify:` are for documents: decks check, then ignore them.
+`headingNumbers:`, `justify:` and `{.appendix}` are for documents: decks check, then ignore them.
 
 This design has a layout for every kind of slide.
 
@@ -403,7 +403,7 @@ The document is still written, but whoever passes it to you may also pass on not
 - `language-unknown`: the language in `lang` has no texts of its own, so alert titles and similar texts are in English. Use `en` or `de`.
 - `notes-dropped`: a `::: notes` stands before the first heading, so it belongs to no slide and was left out. Move it under the heading of the slide it is for.
 - `notes-simplified`: speaker notes hold only paragraphs and lists; a table, code block, image or quote in `::: notes` was written as plain text. Keep speaker notes to text and lists.
-- `attribute-ignored`: an image attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `focus` on an image that is not cropped. Remove it, or use it where it works.
+- `attribute-ignored`: an image or heading attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `{.appendix}` in a deck. Remove it, or use it where it works.
 - `icon-not-drawn`: an icon was left out where it cannot be drawn. Move it as the *Icons* section says.
 - `layout-fallback`: the design has no layout for that kind of slide (`{.quote}` and the others), so it is drawn as a layout slide with the same content. Nothing to fix, unless the design's own look matters.
 - `agenda-empty`: an empty `{.agenda}` found no `#` chapters to list. Add the chapters, or write the agenda as a list.

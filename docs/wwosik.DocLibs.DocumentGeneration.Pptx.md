@@ -388,6 +388,7 @@ as plain Markdown.
 | `[words]{.success}` (`.info`, `.warning`, `.danger`, `.neutral`) | The words bold in that status colour — on every slide. |
 | `## Title {layout="Name"}`, `# Title {layout="Name"}` | The slide on the template's layout of that name (case-insensitive), on a brand's own or a caller's template. Plain slides stay plain: text goes into the layout's body placeholder. A `##` with `---` lines, or with an image or chart where the layout has a picture or chart placeholder, fills the layout's placeholders instead, see [Layouts across placeholders](#layouts-across-placeholders). |
 | `# Thank you {.closing}` | The closing slide: on `PptxBrandTemplate.ClosingLayout` / `Layouts.Closing`, else a layout named like *Closing*, *End* or *Thank you*, else the cover's (the section layout on the built-in master). Title and subtitle go into the layout's placeholders if it has them; no footer. |
+| `# Backup {.backup}` | The deck's backup: this `#` chapter and every slide after it, kept behind the closing slide (a closing slide after it is an error) for questions. Backup dividers are left out of an empty `{.agenda}` and of the chapter numbers; the first backup slide is named `Backup` (`p:cSld/@name`), which `PptxConverter` reads back as `# Title {.backup}` and the HTML deck's counter reads as the end of the main slides. Every backup slide's footer adds " · Backup" (`GeneratedTexts.Backup`) to the footer text in the layout's footer placeholder, or says "Backup" alone; on a layout without a footer placeholder (the built-in master draws its footer text itself) a text box named `Backup` carries the word on the footer line, right of the date and slide number. `Check` counts the backup slides as the kind `backup` and leaves them out of `Words` and `TalkTime`. Once, on a `#` after the cover, outside containers, not with `.closing`; `{.internal}` on it hides the whole backup from the customer's version. `{.appendix}` is a document attribute: decks ignore it with the note `attribute-ignored`. |
 | `::: conclusion` … `:::`, the section's last block | A band across the full content width at the foot of the content area: the surface colour (`TableBand`) with a 2 pt rule in `Primary` on top, on dark slides the dark surface and a `Highlight` rule; its text bold in the heading colour at the flow text size. The other blocks share the room above it; on a split slide it is on the last part only. |
 | `::: comment` … `:::`, right after a block | A `wedgeRoundRectCallout` over the top right of that block: a third of the content width (at least 2.5″), as high as its text (14 pt), raised by a third of its own height, kept inside the content area, its pointer towards the block's centre; filled with the highlight at 15 % (on dark slides the highlight veil), outlined in the highlight. It takes no height of its own and moves with its block when a slide is split. |
 | `## Title {.agenda}` and the other kinds | A slide of that kind on the template's layout for it, see [Slide kinds](#slide-kinds). |
@@ -399,7 +400,7 @@ as plain Markdown.
 - **Heading attributes** count only as a trailing `{…}` made of `.class` and `key="value"` tokens;
   other braces (`## Sets {a, b}`) stay in the title. `##` headings take `.dark`, `kicker`,
   `layout` and a kind (`.agenda`, `.quote`, `.statement`, `.contact`, `.chart`); `#` headings take
-  `layout` and `.closing`.
+  `layout`, `.closing` and `.backup` (`.appendix` is ignored with a note).
 - **Mistakes throw** `DocumentConversionException`: an unknown attribute or a key given twice, an
   unknown container (the message lists `cards, rows, panel, statement, columns, conclusion, comment, notes, timeline, gantt, steps, riskmatrix`), arguments on a
   container other than `panel dark`, a `columns` ratio and the `key=value` pairs of `timeline` and `gantt`, a `timeline`, `gantt`,
@@ -880,12 +881,15 @@ bold, italic, line breaks and `http`, `https` and `mailto` links. A slide withou
 so does a page written with `Notes = false`.
 
 **Presenter window** (`P`): the same file opens again with `#presenter` and shows the current slide,
-the next step (the same slide one step on, else the next slide), the notes, *Slide n of m, step k of
+the next step (the same slide one step on, else the next slide), the notes, *Slide n / m, step k of
 j*, and the time since it opened with a reset button. The two windows stay in step: keys work in
 both, and the deck window plays the effects and transitions while the presenter window changes at
 once. They talk over `postMessage` (works from disk too) and a `BroadcastChannel` (from a web
 server, so a presenter tab opened by hand with `#presenter` also finds the deck). A browser that
 blocks pop-ups needs to allow this one.
+
+**The counter** shows *n / m* for the main slides and, on the backup slides (from the slide named
+`Backup` on), *m + k*: the backup does not count towards the deck's length.
 
 **The overview** shows each slide in its final build state. **Printing** gives one slide per sheet
 at the slide's size (`@page`), each in its final build state (what leaves in a build stays hidden),

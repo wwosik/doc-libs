@@ -157,6 +157,11 @@ internal static class HtmlDeckWriter
                 sections.Append(FormattableString.Invariant($" data-line=\"{slide.Line}\""));
             }
 
+            if (slide.Backup)
+            {
+                sections.Append(" data-backup");
+            }
+
             sections.Append('>')
                 .Append(SceneSvg.Write(deck, slide, SvgTarget.Html, Symbol, $"s{i + 1}-"));
             if (options.Notes && slide.Notes.Count > 0)

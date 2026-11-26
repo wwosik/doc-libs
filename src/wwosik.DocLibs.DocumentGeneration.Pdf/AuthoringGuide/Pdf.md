@@ -53,6 +53,10 @@ headings that say what a section is about, lists where items really are parallel
 - `headingNumbers: true` numbers three heading levels from the highest one after the cover: `1`,
   `1.1`, `1.1.1`, also in the bookmarks and the contents. A skipped level does not count: a `###`
   right under a `#` is `1.1`. `{.unnumbered}` at the end of any heading gives it no number.
+- **Appendices:** `# Glossary {.appendix}` makes that chapter and every later `#` an appendix,
+  headed "Appendix A Glossary", "Appendix B …" in the document's language, also in the contents and
+  bookmarks; with `headingNumbers: true` its sections are `A.1`, `A.1.1`. Once, on a `#` after the
+  cover, outside containers. A deck's `{.backup}` is ignored here.
 - **Captions** are numbered through the document, figures and tables apart, as "Figure 1: …" and
   "Table 1: …" in the document's language (`lang`):
   - an image's title, besides `scale=`, is its caption: `![Sales](s.png "Sales by region")`;

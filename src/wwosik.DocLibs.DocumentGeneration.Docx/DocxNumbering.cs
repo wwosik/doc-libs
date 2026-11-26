@@ -24,6 +24,7 @@ internal sealed class DocxNumbering
     private Numbering? numbering;
     private int? bullet;
     private int? orderedAbstract;
+    private int? appendix;
     private bool changed;
 
     public DocxNumbering(MainDocumentPart main, DocxStyles styles)
@@ -72,6 +73,33 @@ internal sealed class DocxNumbering
         return int.TryParse(lvl?.PreviousParagraphProperties?.Indentation?.Left?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var left)
             ? left
             : LevelIndent * (level + 1);
+    }
+
+    /// <summary>
+    /// The <c>w:numId</c> of the appendices' headings (E06-S07): a second numbering on the headings' multilevel list whose
+    /// first level counts in letters with <paramref name="word"/> before them, "Appendix A", restarting at A, so that the
+    /// levels below it read <c>A.1</c>, <c>A.1.1</c>.
+    /// </summary>
+    public int Appendix(string word)
+    {
+        if (this.appendix is { } known)
+        {
+            return known;
+        }
+
+        var id = this.AddNum(this.AbstractOf(HeadingNumId) ?? 0, null);
+        // A % in the word would be read as a level's number.
+        var level = new Level(
+            new StartNumberingValue { Val = 1 },
+            new NumberingFormat { Val = NumberFormatValues.UpperLetter },
+            new LevelSuffix { Val = LevelSuffixValues.Space },
+            new LevelText { Val = word.Replace("%", string.Empty, StringComparison.Ordinal) + " %1" },
+            new LevelJustification { Val = LevelJustificationValues.Left },
+            new PreviousParagraphProperties(new Indentation { Left = "0", FirstLine = "0" })) { LevelIndex = 0 };
+        this.Part().Elements<NumberingInstance>().First(n => n.NumberID?.Value == id)
+            .Append(new LevelOverride(new StartOverrideNumberingValue { Val = 1 }, level) { LevelIndex = 0 });
+        this.appendix = id;
+        return id;
     }
 
     /// <summary>Whether the style of <paramref name="role"/> numbers its paragraphs itself.</summary>

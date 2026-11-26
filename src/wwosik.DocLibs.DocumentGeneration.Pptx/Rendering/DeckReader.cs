@@ -135,6 +135,9 @@ internal sealed partial class DeckReader
         var slides = new List<SlideScene>();
         var number = 0;
         string? language = null;
+
+        // From the slide named Backup on (DeckWriter.BackupSlideName), the deck's backup.
+        var backup = false;
         foreach (var id in presentation.Element(Ns.P + "sldIdLst")?.Elements(Ns.P + "sldId") ?? [])
         {
             number++;
@@ -144,6 +147,7 @@ internal sealed partial class DeckReader
             }
 
             var slide = this.Xml(slidePart);
+            backup |= slide.Root.Element(Ns.P + "cSld")?.Attribute("name")?.Value == DeckWriter.BackupSlideName;
             language ??= slide.Root.Descendants(Ns.A + "rPr").Select(r => r.Attribute("lang")?.Value).FirstOrDefault(l => !string.IsNullOrEmpty(l));
             if (slide.Root.Attribute("show")?.Value is "0" or "false" || (only is not null && !only.Contains(number)))
             {
@@ -151,7 +155,7 @@ internal sealed partial class DeckReader
             }
 
             this.notes.Slide = number;
-            slides.Add(this.Slide(slidePart, slide, number));
+            slides.Add(this.Slide(slidePart, slide, number) with { Backup = backup });
         }
 
         this.notes.Slide = 0;
