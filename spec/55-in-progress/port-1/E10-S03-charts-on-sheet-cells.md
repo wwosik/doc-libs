@@ -1,7 +1,7 @@
 # E10-S03 Charts on sheet cells
 
-> Status: todo
-> Epic: [E10 Workbook generator](E10-workbook-generator.md)
+> Status: in progress (port-1)
+> Epic: [E10 Workbook generator](../../50-todo/E10-workbook-generator.md)
 
 ## Summary
 
