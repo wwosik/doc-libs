@@ -18,7 +18,7 @@ public sealed record Brand
     /// <summary>
     /// The colours of decks, when they differ from those of PDFs — for example a lighter primary colour for a template
     /// with dark slides. Every optional property left <see langword="null"/> takes the value from <see cref="Colors"/>.
-    /// <see langword="null"/> (the default): decks use <see cref="Colors"/>. PDFs never use these.
+    /// <see langword="null"/> (the default): decks use <see cref="Colors"/>. Light PDFs never use these; dark PDFs (<c>Tone = Dark</c>) do.
     /// </summary>
     public BrandColors? SlideColors { get; init; }
 
@@ -31,7 +31,7 @@ public sealed record Brand
     /// <summary>Top right on the cover, in the header of PDF pages and bottom right on slides.</summary>
     public BrandImage? Logo { get; init; }
 
-    /// <summary>The logo for dark backgrounds: bottom right on PPTX section dividers, which have the brand gradient.</summary>
+    /// <summary>The logo for dark backgrounds: bottom right on PPTX section dividers, which have the brand gradient, and in place of <see cref="Logo"/> in dark PDFs.</summary>
     public BrandImage? LogoOnDark { get; init; }
 
     /// <summary>Bottom right of the cover, as wide as the page and at most 42 % of its height.</summary>

@@ -82,7 +82,7 @@ string guide = PdfGenerator.AuthoringGuide(options);   // starts at "##"
 
 | Option | Default | |
 | ------ | ------- | --- |
-| `Template` | `BrandPdfTemplateOptions` with `Brand.Neutral` | `BrandPdfTemplateOptions { Brand, ShowDate, ShowTagline }`, both `true` by default |
+| `Template` | `BrandPdfTemplateOptions` with `Brand.Neutral` | `BrandPdfTemplateOptions { Brand, ShowDate, ShowTagline, Tone }`: `ShowDate` and `ShowTagline` `true` by default, `Tone` `Light` (`Dark`: see [Dark PDFs](#dark-pdfs)) |
 | `Brands` | none | brands front matter may select, see [Brands](wwosik.DocLibs.DocumentGeneration.md#brands) |
 | `PageSize` | `A4` | `A4`, `A3`, `Letter` |
 | `Orientation` | `Portrait` | `Portrait`, `Landscape` |
@@ -116,6 +116,7 @@ The shared syntax and rules are in
 | --- | ------ | --------- |
 | `template` | `neutral`, the brand of `Template`, or a brand in `PdfOptions.Brands` | all |
 | `showDate`, `showTagline` | `true`, `false` | all |
+| `tone` | `light`, `dark` | all — see [Dark PDFs](#dark-pdfs) |
 | `pageSize` | `A4`, `A3`, `Letter` | all |
 | `orientation` | `portrait`, `landscape` | all |
 | `layout` | `report`, `plain` | all — see [Plain documents](#plain-documents) |
@@ -357,7 +358,8 @@ or `PdfOptions.Classification` and `Draft`, mark the document (higher of the two
 - **Colour.** `Labels.Danger` for confidential, the footer colour otherwise.
 - **Watermark.** A draft gets the draft text in capitals (upper-cased in the document language,
   "DRAFT", "ENTWURF") across the centre of every page, the cover included: at 45°, as long as 70 % of
-  the page's diagonal, in the regular face, in the text colour at 15 % on white. It is the first item
+  the page's diagonal, in the regular face, in the text colour at 15 % on white (on a
+  [dark PDF](#dark-pdfs), at 15 % over the dark background). It is the first item
   of the page, so everything else is drawn over it; it is opaque (no transparency, which keeps
   PDF/A-2b simple).
 - **Rotated text.** `TextItem.Angle` rotates a text item about its start. The renderer writes it
@@ -366,6 +368,33 @@ or `PdfOptions.Classification` and `Draft`, mark the document (higher of the two
   letters (PdfPig's `TextOrientation` is not `Horizontal`), which the PDF converter leaves out.
 - **Metadata** is unchanged: PDF/A has no standard field for a classification.
 - Without a marking nothing is added: the PDFs are byte-identical to before (but `/ID` and dates).
+
+## Dark PDFs
+
+A brand's dark design gives a dark PDF only on request: `BrandPdfTemplateOptions.Tone = PdfTone.Dark`,
+or `tone: dark` in the front matter (`tone: light` undoes the option). The default is `Light`, whatever
+the brand, so existing PDFs do not change. Naming another brand with `template:` keeps the tone.
+
+- **Background.** Every page, the cover included, starts with a rectangle filling it in the
+  primary colour of the brand's slide colours (`Brand.SlideColors` laid over `Brand.Colors`),
+  darkened in steps where white text on it would fall short of 7:1.
+- **Text.** Body text, headings, the cover title, icons, rules and task boxes are white. Links,
+  the header and footer, quotes and alerts, status words (`[…]{.success}`) and a confidential
+  marking are their colours lightened until they reach 4.5:1 on the code box, the lightest surface
+  text stands on.
+- **Boxes.** As on dark slides, made opaque: table header rows a 40 % black veil over the
+  background, every other row and the grid lines 8 % and 35 % white veils, code boxes a 10 % white
+  veil with [highlighted code](wwosik.DocLibs.DocumentGeneration.md#code-highlighting) lightened to
+  4.5:1 on it. No transparency is used anywhere.
+- **Logo.** `Brand.LogoOnDark`, on the cover and in the header; without one, `Brand.Logo`.
+- **Graphics.** Mermaid diagrams, charts, scenes and visual containers are drawn for a dark
+  background, as on dark slides (white text and lines, nodes in a dark shade of the primary colour,
+  the highlight as accent, unless `SlideColors.Diagram` names its own). Pictures, the cover artwork
+  and the tagline are left as they are.
+- **Watermark.** A draft's watermark is the text colour at 15 % over the background, opaque, so a
+  dark draft stays PDF/A-2b without a transparency group.
+- **Printing.** A dark PDF prints dark. A host that wants a printable copy generates it again
+  with `Tone = Light`.
 
 ## Fonts
 

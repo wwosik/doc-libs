@@ -67,6 +67,16 @@ updating, breaking changes first.
   `IMarkdownGenerator.ForAudience`, which has a default implementation, so a host's own generators
   keep compiling. The host's options win over it.
 
+- **The PDF authoring guide** has a `tone` row in its front-matter table and a sentence on dark
+  pages; the tool guide changes with it. PDFs themselves are unchanged unless they ask for the dark tone.
+
+- **Dark PDFs.** `BrandPdfTemplateOptions.Tone = PdfTone.Dark`, or `tone: dark` in the front matter,
+  paints every page, the cover included, in the dark background of the brand's slide colours, with
+  light text, the dark table, code and alert colours of dark slides made opaque, `Brand.LogoOnDark`,
+  and diagrams and charts drawn for a dark background. A dark draft stays PDF/A-2b. The default is
+  `PdfTone.Light` whatever the brand, so existing PDFs are unchanged byte for byte. A dark PDF
+  prints dark; generate with `Tone = Light` for paper.
+
 ## 2611.15.12
 
 ### Fixed

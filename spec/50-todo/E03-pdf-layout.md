@@ -19,7 +19,7 @@ PDF/A reports are the second output of the generators; they are read on paper an
 | [E03-S03](../60-verify/E03-S03-footnotes-justification-and-page-breaks.md) | Footnotes at the page foot, justified text, page breaks | in verification |
 | [E03-S04](../60-verify/E03-S04-classification-marking.md) | Classification marking | in verification |
 | [E03-S05](../60-verify/E03-S05-columns-and-plain-documents.md) | Columns and plain documents (invoices) | in verification |
-| [E03-S06](../55-in-progress/port-1/E03-S06-dark-brands-in-pdfs.md) | Dark brands in PDFs | in progress (port-1) |
+| [E03-S06](../60-verify/E03-S06-dark-brands-in-pdfs.md) | Dark brands in PDFs | in verification |
 
 Stories marked *to plan* come from the
 [2026-11-13 analysis](../10-analysis/2026-11-13%20feature-plan.md); each is written and agreed

@@ -59,12 +59,12 @@ drawn.
 | `Fonts.Table` | Table cells, typically a condensed cut (see [Table fonts](#table-fonts)) | the text faces |
 | `FooterText` | Footer of every page and slide but the cover | none |
 | `Logo` | Cover top right; PDF page header right; slide footer right | none |
-| `LogoOnDark` | PPTX section dividers (on the gradient) | none |
+| `LogoOnDark` | PPTX section dividers (on the gradient); dark PDFs, in its place (`Tone = Dark`) | none (dark PDFs: `Logo`) |
 | `CoverArtwork` | Cover bottom right: PDF — page width, ≤ 42 % of the height; PPTX — slide width, below the subtitle | none |
 | `Tagline` | Cover bottom right, over the artwork; `ShowTagline` turns it off | none |
 | `Docx` | A `.dotx` / `.docx` Word documents are built on instead of the built-in template (a `DocxBrandTemplate`, compared by content), with `Styles`, a `DocxStyleNames` naming the template's style for each role (see the [DOCX docs](wwosik.DocLibs.DocumentGeneration.Docx.md#templates)) | none |
 | `Pptx` | A `.pptx` / `.potx` decks are built on instead of the built-in master (see the PPTX docs); with `ClosingLayout` (the closing slide's layout by name) and `Tone` (`Auto`, `Light`, `Dark`: whether its slides are dark) | none |
-| `SlideColors` | Colours of decks where they differ from PDFs (see [Slide colours](#slide-colours)) | `Colors` |
+| `SlideColors` | Colours of decks and dark PDFs where they differ from light PDFs (see [Slide colours](#slide-colours)) | `Colors` |
 
 - **Colours** are `#RRGGBB` or `RRGGBB`. **Images** are PNG or JPEG and keep their aspect ratio:
   logos and taglines are fitted into fixed boxes, aligned right.
@@ -79,7 +79,8 @@ drawn.
 `Brand.SlideColors` is a second `BrandColors` for decks: every optional colour it leaves `null`
 comes from `Brand.Colors`, so a brand states only what differs — typically a lighter `Primary` and
 `Highlight` for a template with dark slides, where the green or blue that suits white pages is too
-dark. PDFs never read them. Decks use them everywhere: the built-in master, flow-slide colours,
+dark. Light PDFs never read them; a dark PDF (`BrandPdfTemplateOptions.Tone = Dark`, see the
+[PDF docs](wwosik.DocLibs.DocumentGeneration.Pdf.md#dark-pdfs)) takes its colours from them. Decks use them everywhere: the built-in master, flow-slide colours,
 diagrams and charts. On dark slides, diagrams take white text and lines, nodes in a dark shade of the
 slide primary and the slide highlight as accent, unless `SlideColors.Diagram` names its own.
 

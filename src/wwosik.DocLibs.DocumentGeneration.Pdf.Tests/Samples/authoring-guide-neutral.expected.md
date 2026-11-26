@@ -83,6 +83,8 @@ Table: Sales by region, 2026
 - `layout: plain` in the front matter is for short business documents such as invoices and
   letters: no cover and no header. A leading `#` is the title at the top of page 1, with the logo
   beside it, and the text follows right below it. The footer and page numbers stay.
+- `tone: dark` in the front matter gives dark pages with light text, for reading on screen; it
+  prints dark too, so leave it out for documents meant for paper.
 - `::: columns` sets two or three parts side by side, equally wide or as `::: columns 1:2` says;
   a `---` after a blank line separates them. Columns that do not fit on the page move to the next
   one together, so keep them short: paragraphs, lists, small tables.
@@ -249,6 +251,7 @@ author: Planning team
 | `template` | The design: `neutral`. |
 | `showDate` | `true` or `false`: today's date in the footer. Default `true`. |
 | `showTagline` | `true` or `false`: the design's tagline on the cover, if it has one. Default `true`. |
+| `tone` | `light` or `dark`: `dark` paints every page in the design's dark background with light text, diagrams and charts; it prints dark too. Default `light`. |
 | `pageSize` | `A4`, `A3` or `Letter`. Default `A4`. |
 | `orientation` | `portrait` or `landscape`. Default `portrait`. |
 | `layout` | `report` or `plain`: `plain` has no cover and no header, for a short business document. Default `report`. |

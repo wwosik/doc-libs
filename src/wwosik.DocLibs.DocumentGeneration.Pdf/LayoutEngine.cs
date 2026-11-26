@@ -33,6 +33,18 @@ internal sealed record Design(ResolvedBrand Brand, bool ShowTagline, string? Dat
 
     /// <summary>A draft's watermark ("DRAFT"), diagonally under the content of every page; <see langword="null"/>: none.</summary>
     public string? Watermark { get; init; }
+
+    /// <summary>
+    /// Dark pages (<see cref="PdfTone.Dark"/>): every page starts with a rectangle filling it in this colour;
+    /// <see langword="null"/>: white pages, nothing drawn.
+    /// </summary>
+    public string? Background { get; init; }
+
+    /// <summary>The text of quotes and alerts.</summary>
+    public string QuoteColor { get; init; } = "4B5563";
+
+    /// <summary>The fill of code boxes.</summary>
+    public string CodeBackground { get; init; } = "F3F4F6";
 }
 
 /// <summary>
@@ -86,8 +98,6 @@ internal sealed class LayoutEngine
     private const double ContentsIndent = 16;
     private const int ContentsDigits = 3;
     private const double ContentsGap = 6;
-    private const string Grey = "4B5563";
-    private const string CodeBackground = "F3F4F6";
     private const string White = "FFFFFF";
 
     // A footnote reference: this share of the text size, raised by this share of it.
@@ -354,8 +364,8 @@ internal sealed class LayoutEngine
         }
     }
 
-    private static Frame QuoteFrame(Frame frame) =>
-        new(frame.Left + QuoteIndent, frame.Width - QuoteIndent, Grey, [.. frame.QuoteRules, frame.Left + 3]);
+    private Frame QuoteFrame(Frame frame) =>
+        new(frame.Left + QuoteIndent, frame.Width - QuoteIndent, this.design.QuoteColor, [.. frame.QuoteRules, frame.Left + 3]);
 
     private void Heading(HeadingBlock heading, Frame frame, IReadOnlyList<Block> siblings, int next)
     {
@@ -971,15 +981,16 @@ internal sealed class LayoutEngine
             lines.RemoveAt(lines.Count - 1);
         }
 
-        var colors = this.design.Brand.Code.On(CodeBackground);
+        var codeBackground = this.design.CodeBackground;
+        var colors = this.design.Brand.Code.On(codeBackground, dark: this.design.Background is not null);
 
         this.Ensure(CodePadding + lineHeight);
-        this.Page.Items.Add(new RectItem(frame.Left, this.y, frame.Width, CodePadding, CodeBackground));
+        this.Page.Items.Add(new RectItem(frame.Left, this.y, frame.Width, CodePadding, codeBackground));
         this.Advance(CodePadding, frame);
         foreach (var line in lines)
         {
             this.Ensure(lineHeight);
-            this.Page.Items.Add(new RectItem(frame.Left, this.y, frame.Width, lineHeight, CodeBackground));
+            this.Page.Items.Add(new RectItem(frame.Left, this.y, frame.Width, lineHeight, codeBackground));
             // A span after another starts where the one before it ends: the mono face's widths add up.
             var x = frame.Left + CodePadding;
             foreach (var span in line.Where(s => s.Text.Length > 0))
@@ -992,7 +1003,7 @@ internal sealed class LayoutEngine
         }
 
         this.Ensure(CodePadding);
-        this.Page.Items.Add(new RectItem(frame.Left, this.y, frame.Width, CodePadding, CodeBackground));
+        this.Page.Items.Add(new RectItem(frame.Left, this.y, frame.Width, CodePadding, codeBackground));
         this.Advance(CodePadding, frame);
         this.Gap(ParagraphGap, frame);
     }
@@ -1557,6 +1568,11 @@ internal sealed class LayoutEngine
                 items.Insert(0, watermark);
             }
 
+            if (this.design.Background is { } background)
+            {
+                items.Insert(0, new RectItem(0, 0, g.Width, g.Height, background));
+            }
+
             if (this.pages[i].IsCover)
             {
                 continue;
@@ -1599,7 +1615,8 @@ internal sealed class LayoutEngine
     }
 
     // The watermark: the text at 45°, as long as WatermarkShare of the page's diagonal, centred on the page, in a light
-    // tint of the text colour; opaque, since it lies under everything.
+    // tint of the text colour (on dark pages, the text colour at that share over the background); opaque, since it lies
+    // under everything and PDF/A-2b then needs no transparency group.
     private TextItem Watermark(string text)
     {
         var (width, height) = (this.geometry.Width, this.geometry.Height);
@@ -1613,7 +1630,9 @@ internal sealed class LayoutEngine
             text,
             FontFace.Regular,
             size,
-            ResolvedBrand.Mix(this.TextColor, WatermarkTint))
+            this.design.Background is { } background
+                ? DarkPages.Over(this.TextColor, WatermarkTint, background)
+                : ResolvedBrand.Mix(this.TextColor, WatermarkTint))
         {
             Angle = 45,
         };

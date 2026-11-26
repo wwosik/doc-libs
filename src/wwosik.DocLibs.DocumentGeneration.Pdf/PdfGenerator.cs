@@ -88,7 +88,8 @@ public static class PdfGenerator
         var audience = AudienceFilter.Resolve(frontMatter, options.Audience);
         var marking = Marking.Resolve(frontMatter, options.Classification, options.Draft, notes, DocumentFormat.Pdf, audience);
         options = Apply(frontMatter, options);
-        var brand = ResolvedBrand.Resolve(options.Template.BrandValue);
+        var dark = options.Template.ToneValue == PdfTone.Dark;
+        var (brand, darkDesign) = dark ? DarkPages.For(options.Template.BrandValue) : (ResolvedBrand.Resolve(options.Template.BrandValue), null);
         var fonts = FontSet.For(brand);
         var language = DocumentLanguage.Resolve(frontMatter.Language, options.Language, options.Texts, notes, DocumentFormat.Pdf);
         var typography = Typography.For(
@@ -97,7 +98,9 @@ public static class PdfGenerator
             options.TypographyRules,
             c => TextFaces.All(face => fonts.HasGlyph(new Rune(c), face)),
             notes);
-        var model = MarkdownParser.Parse(document with { Markdown = frontMatter.Body }, options with { Audience = audience }, options.Template.BrandValue, frontMatter.BodyLine, notes, language.Texts, typography,
+        // On dark pages, diagrams and charts are drawn as on dark slides.
+        var drawingBrand = dark ? ResolvedBrand.DarkSlideBrand(options.Template.BrandValue) : options.Template.BrandValue;
+        var model = MarkdownParser.Parse(document with { Markdown = frontMatter.Body }, options with { Audience = audience }, drawingBrand, frontMatter.BodyLine, notes, language.Texts, typography,
             CodeHighlighting.For(frontMatter, options.HighlightCode, notes));
         if (options.TableOfContents && model.Contents is null)
         {
@@ -120,9 +123,13 @@ public static class PdfGenerator
             Justify = options.Justify,
             Plain = options.Layout == PdfLayout.Plain,
             Marking = marking.IsEmpty ? null : marking.Text(language.Texts),
-            MarkingColor = marking.Classification == Classification.Confidential ? brand.Labels.Danger : brand.Footer,
+            MarkingColor = marking.Classification == Classification.Confidential ? darkDesign?.Danger ?? brand.Labels.Danger : brand.Footer,
             Watermark = marking.Draft ? Marking.Watermark(language.Texts, language.Tag) : null,
         };
+        if (darkDesign is not null)
+        {
+            design = design with { Background = darkDesign.Background, QuoteColor = darkDesign.Quote, CodeBackground = darkDesign.CodeBackground };
+        }
         var layout = new LayoutEngine(fonts, PageGeometry.For(options.PageSize, options.Orientation), design, options.ReplaceUnsupported, notes).Run(model);
         return new LaidOut(layout, fonts, author, language.Tag);
     }
@@ -150,6 +157,7 @@ public static class PdfGenerator
         {
             ["showDate"] = "`true` or `false`: today's date in the footer. Default `true`.",
             ["showTagline"] = "`true` or `false`: the design's tagline on the cover, if it has one. Default `true`.",
+            [BrandPdfTemplateOptions.ToneKey] = $"`light` or `dark`: `dark` paints every page in the design's dark background with light text, diagrams and charts; it prints dark too. Default `{options.Template.ToneValue.ToString().ToLowerInvariant()}`.",
             [PageSizeKey] = $"`A4`, `A3` or `Letter`. Default `{options.PageSize}`.",
             [OrientationKey] = $"`portrait` or `landscape`. Default `{options.Orientation.ToString().ToLowerInvariant()}`.",
             [TocKey] = $"`true` or `false`: a table of contents after the cover, with page numbers. Default `{(options.TableOfContents ? "true" : "false")}`.",
@@ -222,7 +230,7 @@ public static class PdfGenerator
             options,
             (current, name) => brands.Find(name) is not { } brand ? null
                 : current.Template.Name == brand.Name.ToLowerInvariant() ? current
-                : current with { Template = new BrandPdfTemplateOptions { Brand = brand } },
+                : current with { Template = new BrandPdfTemplateOptions { Brand = brand, Tone = current.Template.ToneValue } },
             brands.Expected,
             current => current.Template.Name,
             current => [.. current.Template.Keys, PageSizeKey, OrientationKey, LayoutKey, TocKey, TocDepthKey, HeadingNumbersKey, JustifyKey, TransitionKey, BuildKey, NumberChaptersKey],
