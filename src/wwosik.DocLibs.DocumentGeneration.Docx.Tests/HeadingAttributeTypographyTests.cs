@@ -87,7 +87,7 @@ public class HeadingAttributeTypographyTests
     }
 
     [Fact]
-    public void ImageAttributes_AreTakenOff_NotPrinted_ScaleApplies_AndTheOthersGiveANote()
+    public void ImageAttributes_AreTakenOff_NotPrinted_ScaleApplies_AndTheOthersApply()
     {
         static (WordprocessingDocument Package, GenerationResult Result) Generate(string markdown)
         {
@@ -111,7 +111,7 @@ public class HeadingAttributeTypographyTests
             Assert.Empty(Texts(scaled));
             Assert.InRange(Width(scaled), (Width(plain) / 2) - 1, (Width(plain) / 2) + 1);
             Assert.Equal(["Before", "after."], Texts(round).Select(t => t.Trim()));
-            Assert.Equal(2, result.Notes.Count(n => n.Code == NoteCodes.AttributeIgnored));
+            Assert.DoesNotContain(result.Notes, n => n.Code == NoteCodes.AttributeIgnored);
         }
     }
 

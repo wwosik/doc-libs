@@ -7,6 +7,7 @@
   <ItemGroup>
     <PackageReference Include="DocumentFormat.OpenXml" />
     <PackageReference Include="Markdig" />
+    <PackageReference Include="SkiaSharp" />
   </ItemGroup>
 
   <ItemGroup>
@@ -18,7 +19,13 @@
     <Compile Include="..\Shared\OpenXml\*.cs" Link="Shared\OpenXml\%(Filename)%(Extension)" />
   </ItemGroup>
 
+  <!-- `.grey` on images, shared with the PDF generator as internal source. -->
   <ItemGroup>
+    <Compile Include="..\Shared\Imaging\GreyImages.cs" Link="Shared\Imaging\GreyImages.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="THIRD-PARTY-NOTICES.txt" />
     <EmbeddedResource Include="AuthoringGuide\*.md" LogicalName="AuthoringGuide.%(Filename)%(Extension)" />
   </ItemGroup>
 

@@ -1258,9 +1258,10 @@ internal sealed partial class DocxBody
                 new TableLook { Val = "0000", FirstRow = false, LastRow = false, FirstColumn = false, LastColumn = false, NoHorizontalBand = true, NoVerticalBand = true }),
             new TableGrid(widths.Select(w => new GridColumn { Width = w.ToString(CultureInfo.InvariantCulture) })));
         var row = new TableRow(new TableRowProperties(new CantSplit()));
+        var pictures = this.RowPictures(images, [.. widths.Select(w => (w - (2 * Margin)) * DocxPage.EmuPerTwip)], frame.Part);
         for (var i = 0; i < images.Count; i++)
         {
-            var (picture, caption) = this.Picture(images[i], (widths[i] - (2 * Margin)) * DocxPage.EmuPerTwip, frame.Part);
+            var (picture, caption) = pictures[i];
             var paragraph = this.Paragraph(DocxRoles.Normal);
             paragraph.ParagraphProperties!.Append(new Justification { Val = JustificationValues.Center });
             paragraph.Append(picture);
@@ -1280,7 +1281,11 @@ internal sealed partial class DocxBody
     }
 
     // The picture of an image, fitted to `maxWidth` (EMU) and 80 % of the text height, and its caption, if it has one.
-    private (Run Picture, string? Caption) Picture(LinkInline link, double maxWidth, OpenXmlPart part)
+    private (Run Picture, string? Caption) Picture(LinkInline link, double maxWidth, OpenXmlPart part) =>
+        this.SinglePicture(this.ImageOf(link), maxWidth, part);
+
+    // An image of the Markdown, read but not yet placed: its resource, attributes, scale, alt text and caption.
+    private MarkdownImage ImageOf(LinkInline link)
     {
         var url = link.GetDynamicUrl?.Invoke() ?? link.Url ?? string.Empty;
         var line = this.LineOf(link);
@@ -1299,16 +1304,8 @@ internal sealed partial class DocxBody
                 $"The image '{url}' at line {line} has scale both in its title and in its attributes '{attributes.Text}'; keep one.");
         }
 
-        foreach (var (used, name) in new[] { (attributes.Fit == ImageFit.Cover, "fit=cover"), (attributes.Focus is not null, "focus"), (attributes.Round, ".round"), (attributes.Grey, ".grey") })
-        {
-            if (used)
-            {
-                this.Context.Notes.Add(NoteCodes.AttributeIgnored, line, $"The image attribute {name} in '{attributes.Text}' has no effect: a Word document shows the whole image as it is.");
-            }
-        }
-
         var scale = titleScale ?? attributes.Scale ?? 1.0;
-        return (this.ResourcePicture(resource, scale, alt, maxWidth, part), Captions.OfImage(link.Title, attributes.Caption, alt));
+        return new MarkdownImage(line, resource, attributes, scale, alt, Captions.OfImage(link.Title, attributes.Caption, alt));
     }
 
     // An image resource as an inline picture at its natural size times `scale`, fitted; an SVG keeps its SVG beside.
@@ -1340,6 +1337,18 @@ internal sealed partial class DocxBody
             return known;
         }
 
+        var (image, found) = this.Pixels(resource, scale);
+
+        // A converted SVG goes in as it came, beside its PNG.
+        var svg = ReferenceEquals(image, resource) || !SvgBlip.IsSvg(resource) ? null : AddImage(part, ImagePartType.Svg, resource.Content);
+        var result = (AddImage(part, PartType(found.Format), image.Content), found, svg);
+        this.images[(part, resource)] = result;
+        return result;
+    }
+
+    // The image as a PNG, JPEG or GIF and its natural size: as it is, or through the image converters at twice the size.
+    private (DocumentResource Image, ImageInfo Info) Pixels(DocumentResource resource, double scale)
+    {
         var image = resource;
         var info = ImageInfo.Read(resource.Content.Span);
         if (info is null
@@ -1357,11 +1366,7 @@ internal sealed partial class DocxBody
                 $"The image '{resource.Path}' is not a PNG, JPEG or GIF{(this.Context.Options.ImageConverters.Count == 0 ? string.Empty : ", and no image converter takes it")}.");
         }
 
-        // A converted SVG goes in as it came, beside its PNG.
-        var svg = ReferenceEquals(image, resource) || !SvgBlip.IsSvg(resource) ? null : AddImage(part, ImagePartType.Svg, resource.Content);
-        var result = (AddImage(part, PartType(found.Format), image.Content), found, svg);
-        this.images[(part, resource)] = result;
-        return result;
+        return (image, found);
     }
 
     private static PartTypeInfo PartType(ImageFormat format) => format switch
@@ -1389,7 +1394,8 @@ internal sealed partial class DocxBody
     }
 
     // An inline picture, its alt text in wp:docPr/@descr; with `svg`, the SVG Word 2016 and later draw instead of the PNG.
-    private WordDrawing Picture(string relationship, long cx, long cy, string alt, string? svg = null)
+    // `crop` is cut off the image (`a:srcRect`), `round` draws it as an ellipse.
+    private WordDrawing Picture(string relationship, long cx, long cy, string alt, string? svg = null, ImageCrop crop = default, bool round = false)
     {
         var id = ++this.drawingId;
         var name = "Picture " + id.ToString(CultureInfo.InvariantCulture);
@@ -1406,8 +1412,8 @@ internal sealed partial class DocxBody
             + "<wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect=\"1\"/></wp:cNvGraphicFramePr>"
             + "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic>"
             + $"<pic:nvPicPr><pic:cNvPr id=\"{id.ToString(CultureInfo.InvariantCulture)}\" name=\"{name}\" descr=\"{description}\"/><pic:cNvPicPr/></pic:nvPicPr>"
-            + $"<pic:blipFill><a:blip r:embed=\"{relationship}\">{(svg is null ? string.Empty : SvgBlip.Extension(svg))}</a:blip><a:stretch><a:fillRect/></a:stretch></pic:blipFill>"
-            + $"<pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext {size}/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr>"
+            + $"<pic:blipFill><a:blip r:embed=\"{relationship}\">{(svg is null ? string.Empty : SvgBlip.Extension(svg))}</a:blip>{SourceRectangle(crop)}<a:stretch><a:fillRect/></a:stretch></pic:blipFill>"
+            + $"<pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext {size}/></a:xfrm><a:prstGeom prst=\"{(round ? "ellipse" : "rect")}\"><a:avLst/></a:prstGeom></pic:spPr>"
             + "</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>");
     }
 

@@ -15,6 +15,11 @@
     <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration\wwosik.DocLibs.DocumentGeneration.csproj" />
   </ItemGroup>
 
+  <!-- `.grey` on images, shared with the DOCX generator as internal source. -->
+  <ItemGroup>
+    <Compile Include="..\Shared\Imaging\GreyImages.cs" Link="Shared\Imaging\GreyImages.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <None Include="THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="THIRD-PARTY-NOTICES.txt" />
     <EmbeddedResource Include="AuthoringGuide\*.md" LogicalName="AuthoringGuide.%(Filename)%(Extension)" />

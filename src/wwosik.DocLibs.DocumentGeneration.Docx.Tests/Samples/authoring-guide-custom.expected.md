@@ -78,7 +78,11 @@ it.
   `![Sales](sales.png "Sales by region, 2026")` gives "Figure 1: Sales by region, 2026".
   `"caption"` alone uses the alt text as the caption. A title of only `scale=…` gives no caption.
 - Images are PNG, JPEG or GIF; an `.svg` image is an error here.
-  `fit=`, `focus`, `.round` and `.grey` have no effect in a Word document.
+- **Image attributes** in braces right after an image, without a space:
+  `![Team](team.jpg){.round .grey}`. `.round` crops it to a circle, `.grey` shows it in grey.
+  In a row of images, `fit=cover` fills the row's height
+  and crops what sticks out, and `focus=top`, `bottom`, `left`, `right` or `center` (the default)
+  says which part stays; an image of its own is never cropped. An unknown attribute is an error.
 
 - A paragraph of nothing but two or more images is a row of them, side by side in cells of equal
   width, each with its caption under it: `![North](north.png "North") ![South](south.png "South")`.

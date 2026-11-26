@@ -4,7 +4,9 @@ Generates Word documents (`.docx`) from Markdown, on the built-in template in a 
 fonts and images, on a brand's own Word template, or on a caller's `.dotx` / `.docx`. Every
 paragraph references a style of the template by name, so the document looks like the template and
 stays editable the way Word users expect. Cross-platform, no Office needed. Depends on the Open XML
-SDK, Markdig and [wwosik.DocLibs.DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md).
+SDK, Markdig, SkiaSharp (only loaded for `.grey` images, see [Image attributes](#image-attributes))
+and [wwosik.DocLibs.DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md). Third-party licences
+are in the package's `THIRD-PARTY-NOTICES.txt`.
 
 ```csharp
 using wwosik.DocLibs.DocumentConversions;
@@ -291,6 +293,7 @@ key, and `w:embedTrueTypeFonts` in the settings.
 | `![alt](a.png "title")` | a centred `Normal` paragraph with the picture inline, at its natural size at 96 DPI times `scale=`, scaled down to the text width and 80 % of the text height, never up; the alt text in `wp:docPr/@descr`. Its caption below it, the picture kept with it. |
 | `Text[^1]`, `[^1]: …` | a Word footnote: `w:footnoteReference` in `footnote reference`, the text in `footnote text` in the footnotes part (made with its separators when the template has none). Each reference gets a footnote of its own. |
 | `![a](a.png) ![b](b.png)`, a paragraph of only images | a row of them, see [Syntax written for slides](#syntax-written-for-slides) |
+| `![a](a.png){.round .grey}` | see [Image attributes](#image-attributes) |
 | Raw HTML | text, with `html-as-text`; comments are left out |
 | Slide syntax | see [Syntax written for slides](#syntax-written-for-slides) |
 | `::: pagebreak`, `{.newpage}` | see [Page breaks](#page-breaks) |
@@ -315,7 +318,7 @@ Mistakes are checked as in decks.
 | A table row whose first cell is all `==…==` | every cell shaded in that tint (`w:shd` in `w:tcPr`): the one direct cell formatting, since a style cannot shade cells |
 | `[words]{.success}` | `Colour Success` (bold, in the category's colour), and so on |
 | A table cell that is one code span `labels.*` names | `Label Success` … `Label Neutral`: bold in the category's colour on a light tint of it. A code cell no key names stays `Code Character` |
-| A paragraph of two or more images (no `qr:` among them) | a borderless table (`Image Row`) of one row that does not split (`w:cantSplit`), a cell of equal width per image across the text width; each image scaled down to its cell, its caption under it in the same cell |
+| A paragraph of two or more images (no `qr:` among them) | a borderless table (`Image Row`) of one row that does not split (`w:cantSplit`), a cell of equal width per image across the text width; each image scaled down to its cell (or filling it with [`fit=cover`](#image-attributes)), its caption under it in the same cell |
 | Heading attributes | dropped, checked as in decks; `layout="…"` means nothing in Word |
 
 ### Page breaks
@@ -383,6 +386,27 @@ A `Figure:` paragraph right after a fenced code block that was drawn (a chart, a
 renderer's image) is that figure's caption, below it. A `Table:` or `Figure:` paragraph anywhere
 else, a block left as code included, stays text with `caption-ignored`.
 
+### Image attributes
+
+`![Team](team.jpg){.round .grey}` (the syntax is in
+[DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md#slide-layouts-in-markdown)) looks as in a
+PDF of the same Markdown:
+
+| Attribute | In Word |
+| --------- | ------- |
+| `fit=cover` | Only in a row of images: the image fills its cell at the row's height — that of its tallest other image, or 3/4 of the cell's width when every image in the row covers — cropped to that box by `a:srcRect` on its `pic:blipFill`. An image of its own has no box to fill: it is placed as before and the note `attribute-ignored` says so. `scale` has no effect with it in a row. |
+| `focus=top`, `bottom`, `left`, `right`, `center` | Which part stays when the image is cropped (default `center`); without `fit=cover` or `.round` it has no effect (`attribute-ignored`). |
+| `.round` | Cropped to a square by `focus` (`a:srcRect`), at the size of its shorter side, and drawn as `a:prstGeom prst="ellipse"`. The pixels are not touched: resetting the picture in Word shows all of it again. |
+| `.grey` | The pixels are made grey with SkiaSharp, as in PDFs (luminance, Rec. 709, alpha kept): a JPEG stays a JPEG at quality 90, a PNG or GIF becomes a PNG. An image used several times in grey is converted once and embedded once per part (body, footnotes); used in colour as well, it is embedded in both. An SVG in grey is only the grey PNG of the converter, without the SVG beside it, with `attribute-ignored`. |
+| `.caption` | The alt text as the image's caption, like `"caption"` in the title. |
+| `scale=N.N` | The same as `"scale=N.N"` in the title: a factor on the natural size. |
+
+**SkiaSharp's native library.** `.grey` needs it; documents without `.grey` never load it. On
+Windows and macOS it comes with SkiaSharp. On Linux the application adds
+`SkiaSharp.NativeAssets.Linux` (with fontconfig) or `SkiaSharp.NativeAssets.Linux.NoDependencies`
+(minimal containers), at the version of SkiaSharp this package references. Without it, a `.grey`
+image fails the generation with a `DocumentConversionException` that names the package.
+
 ### Diagrams and charts
 
 | Markdown | Word |
@@ -400,7 +424,7 @@ else, a block left as code included, stays text with `caption-ignored`.
 is its alt text, a drawn container shows its content in sequence, a scene is left out (each with `code-not-drawn`, whose
 message says to register `SvgImageConverter` from `wwosik.DocLibs.DocumentConversions.Svg`), and an
 icon is left out with `icon-not-drawn`. Charts and renderers' images need no converter. The
-Docx package itself references no SkiaSharp.
+Docx package draws no drawings itself; it uses SkiaSharp only for [`.grey`](#image-attributes).
 
 **Fonts of the PNG** are the converter's: pass the brand's fonts in `SvgImageConverter.Fonts`, so
 that the PNG matches the SVG, which names the brand's family.
@@ -419,9 +443,9 @@ own styles alone.
 ## Notes
 
 `code-not-drawn` (also a drawing without an image converter), `icon-not-drawn` (an icon without an
-image converter), `html-as-text`, `footnote-missing`, `attribute-ignored` (`fit`, `focus`,
-`.round`, `.grey` on an image, or any attribute on an image shown as its alt text in a heading or
-a cell), `caption-ignored`, `list-too-deep`, `classification-kept` and `language-unknown`. A
+image converter), `html-as-text`, `footnote-missing`, `attribute-ignored` (`fit=cover` on an
+image of its own, `focus` on an image that is not cropped, `scale` with `fit=cover` in a row,
+`.grey` on an SVG, or any attribute on an image shown as its alt text in a heading or a cell), `caption-ignored`, `list-too-deep`, `classification-kept` and `language-unknown`. A
 renderer's own notes are passed on. See
 [Generation results and notes](wwosik.DocLibs.DocumentGeneration.md#generation-results-and-notes).
 

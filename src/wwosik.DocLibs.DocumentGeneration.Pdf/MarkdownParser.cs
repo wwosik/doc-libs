@@ -846,7 +846,7 @@ internal sealed partial class MarkdownParser(
     {
         if (!this.greyImages.TryGetValue(image.Resource, out var grey))
         {
-            grey = GreyImages.Convert(image.Resource, image.Info.Format);
+            grey = GreyImages.Convert(image.Resource, image.Info.Format, DocumentFormat.Pdf);
             this.greyImages[image.Resource] = grey;
         }
 

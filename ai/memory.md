@@ -36,7 +36,8 @@ same change that made it untrue — a stale fact here is worse than a missing on
   - `wwosik.DocLibs.DocumentGeneration.Pptx` — Markdown → `.pptx`; Markdig and the Open XML SDK;
     and any `.pptx` → one HTML page (`HtmlDeck`, E07-S02).
   - `wwosik.DocLibs.DocumentGeneration.Docx` — Markdown → `.docx` (E09); Markdig and the Open XML
-    SDK, like Pptx, sharing Open XML code with it as linked source (`src/Shared/OpenXml/`).
+    SDK, like Pptx, sharing Open XML code with it as linked source (`src/Shared/OpenXml/`); SkiaSharp only
+    for `.grey` images (E09-S05).
   - `wwosik.DocLibs.DocumentGeneration.Xlsx` — typed workbook model → `.xlsx` (E10); the Open XML SDK only
     for the package, the parts written as XML text; links `src/Shared/OpenXml/CoreProperties.cs`.
   - `wwosik.DocLibs.DocumentGeneration.Pdf` — Markdown → PDF/A-2b; Markdig and PdfPig, own
@@ -354,7 +355,10 @@ same change that made it untrue — a stale fact here is worse than a missing on
   crop computation: decks write it as `a:srcRect` (plus `ellipse` for `.round`, `a:grayscl` for
   `.grey`), PDFs draw the whole image larger inside an `ImageItem.Clip` (`q`, path, `W n`, image,
   `Q`). PDF `.grey` converts pixels in `GreyImages` (SkiaSharp, cached per resource in the parser,
-  so the grey copy is one `ImageItem.Key`). Third-party licences of the PDF package are in its
+  so the grey copy is one `ImageItem.Key`). `GreyImages` is linked source in `src/Shared/Imaging/`, compiled into
+  Pdf and Docx (E09-S05). Word (`DocxBody.Images.cs`) follows the PDF's sizing rules exactly (`RowPictures` =
+  `LayoutEngine.RowSizes`) and writes the crop as `a:srcRect` plus `ellipse`, like decks, but greys pixels
+  like PDFs (no `a:grayscl`); a grey SVG loses its SVG part. Third-party licences of the PDF package are in its
   packed `THIRD-PARTY-NOTICES.txt`; a story that adds a dependency adds its entry there.
 - **Template roles (E01-S06):** `PptxTemplateRoles` (shared package, validated by `Problem()` in
   `ResolvedBrand.Resolve` and in `PptxGenerator.Generate` for caller templates) is resolved once per
@@ -518,7 +522,7 @@ same change that made it untrue — a stale fact here is worse than a missing on
   main part (a chart in a footnote falls back to its drawing). Every other drawing (renderer drawings,
   `qr:`, icons, drawn containers) goes `DrawingSvg.Write` (hover and hotspots stripped, brand family or
   Arial) → `ImageConverters` at scale 2 → PNG part plus SVG part, `SvgBlip.Extension` inside `a:blip`.
-  The Docx package draws no pixels itself (no SkiaSharp): without an image converter a drawing stays code /
+  The Docx package draws no drawings itself (SkiaSharp only for `.grey`, E09-S05): without an image converter a drawing stays code /
   alt text / content with `code-not-drawn`, an icon is left out with `icon-not-drawn`. Icon runs are
   `DocxRun.Icon` (empty text, not blank), turned into pictures in `DocxRuns.Run`, one per name and part.
   `NoteCodes.FormatAdvice` adds per-format advice to the guides' notes list. The Docx tests reference

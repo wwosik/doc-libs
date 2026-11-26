@@ -36,6 +36,20 @@ updating, breaking changes first.
   language of a host's own made with `with { … }` gets the English ones. Decks, PDFs and Word
   documents without the two attributes are unchanged.
 
+- **Image attributes take effect in Word documents.** `.round`, `.grey`, and `fit=cover` with
+  `focus` in a row of images used to give `attribute-ignored` and show the whole image; now they look
+  as in a PDF of the same Markdown: `.round` is a circle cropped by `focus`, `fit=cover` fills the
+  row's height and is cropped, `.grey` embeds grey pixels. Those notes are gone; `fit=cover` on an
+  image of its own, `focus` on an image that is not cropped and `scale` with `fit=cover` in a row
+  still give `attribute-ignored`, as in PDFs, and so does `.grey` on an SVG, which goes in as its grey
+  PNG only, without the SVG. Remove the attributes to keep the old pictures. Documents without them
+  are unchanged. The DOCX authoring guide describes the attributes instead of saying they do
+  nothing.
+- **`wwosik.DocLibs.DocumentGeneration.Docx` depends on SkiaSharp**, loaded only for `.grey` images.
+  On Linux an application that uses `.grey` in Word adds `SkiaSharp.NativeAssets.Linux` (or
+  `.NoDependencies`), as for PDFs; without it a grey image throws `DocumentConversionException`
+  naming the package. Its licences are in the package's new `THIRD-PARTY-NOTICES.txt`.
+
 ### New
 
 - **Backup slides.** `# Backup {.backup}` makes that chapter and every later one a deck's backup:
@@ -141,6 +155,10 @@ updating, breaking changes first.
   have no cached values, and `Preview` shows them as code. `XlsxColumn`'s `Type` is now nullable:
   without one a column is `Text`, a column of formulas `Number` or `Currency`. Nothing else changes for
   workbooks without totals and formulas.
+
+- **`.round`, `.grey` and `fit=cover` / `focus` in Word documents**, as in PDFs: cropped with
+  `a:srcRect`, drawn as an ellipse for `.round` (the pixels stay whole), and grey pixels made with
+  SkiaSharp, each grey image converted and embedded once. See *Image attributes* on the DOCX page.
 
 ## 2611.15.12
 

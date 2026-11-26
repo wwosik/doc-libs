@@ -307,6 +307,8 @@ if (result.HasNotes)
 | `notes-dropped` | PPTX | A `::: notes` stands before the first heading, so it belongs to no slide and was left out |
 | `notes-simplified` | PPTX | Speaker notes held a table, code block, image, quote, alert, heading or other container, written as plain text; one note per block |
 | `attribute-ignored` | PPTX, DOCX, PDF | An image attribute has no effect where it is: `fit=cover` on an image of its own in a PDF, `focus` on an image that is not cropped, `scale` with `fit=cover`, `fit`, `focus`, `.round` and `.grey` in a Word document, or any attribute on an image shown as its alt text (in a heading or a table cell); or a heading attribute of another format: `{.backup}` in a PDF or Word document, `{.appendix}` in a deck |
+
+| `attribute-ignored` | PPTX, DOCX, PDF | An image attribute has no effect where it is: `fit=cover` on an image of its own in a PDF or Word document, `focus` on an image that is not cropped, `scale` with `fit=cover`, `.grey` on an SVG in a Word document (only its grey PNG goes in), or any attribute on an image shown as its alt text (in a heading or a table cell) |
 | `icon-not-drawn` | PPTX, PDF, DOCX | An icon (`:icon-name:`) stands where the format cannot draw it and was left out of the text: in decks anywhere but a card's figure or an icon list (inside text, a heading, a table cell, speaker notes, a list where not every item starts with an icon); in PDFs in a heading, a table cell or on the cover; in Word documents anywhere when no image converter is registered |
 | `caption-ignored` | PPTX, DOCX, PDF | A `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text, prefix included |
 | `toc-empty` | PDF | `toc: true` (or `PdfOptions.TableOfContents`) asked for a table of contents, but no heading is at the depth it lists, so the PDF has none; the line is the `toc` key's, 0 when the option asked |
@@ -692,8 +694,9 @@ not) right after the image is taken off the text; any other braces stay text. Kn
 `scale=` in the title, which differs between decks and PDFs), `.round`, `.grey` and `.caption` (as
 `caption` in the title). An unknown name or value, a name given twice, or `scale` both in the title
 and the attributes throws `DocumentConversionException` listing the valid ones. What each does is
-on the [PPTX](wwosik.DocLibs.DocumentGeneration.Pptx.md#image-attributes) and
-[PDF](wwosik.DocLibs.DocumentGeneration.Pdf.md#image-attributes) pages; where one has no effect, the note
+on the [PPTX](wwosik.DocLibs.DocumentGeneration.Pptx.md#image-attributes),
+[PDF](wwosik.DocLibs.DocumentGeneration.Pdf.md#image-attributes) and
+[DOCX](wwosik.DocLibs.DocumentGeneration.Docx.md#image-attributes) pages; where one has no effect, the note
 `attribute-ignored` says so.
 The PDF generator accepts the same Markdown, so one source serves both, and shows it plainly: see
 [its documentation](wwosik.DocLibs.DocumentGeneration.Pdf.md#slide-layouts). Both reject the same
