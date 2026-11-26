@@ -215,6 +215,12 @@ public static class NoteCodes
     /// <summary>Workbooks: a formula calls a function the generator does not know; Excel or an add-in may know it. Once per function.</summary>
     public const string FunctionUnknown = "function-unknown";
 
+    /// <summary>Workbooks: a chart names a column the sheet does not have, takes a series from a column that is not numeric, stands on a sheet without rows, has no series, or its chart sheet's name is invalid or taken.</summary>
+    public const string ChartInvalid = "chart-invalid";
+
+    /// <summary>Workbooks: a chart has more series than the brand's diagram palette has colours, so colours repeat.</summary>
+    public const string ChartColorsRepeat = "chart-colors-repeat";
+
     /// <summary>Every code, with the formats it occurs in and what a writer changes about it, for the authoring guides.</summary>
     internal static readonly IReadOnlyList<(string Code, DocumentFormat[] Formats, string Advice)> All =
     [
@@ -259,6 +265,8 @@ public static class NoteCodes
         (CoverImageIgnored, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "there is no cover (no leading `#`) or no room on it for `coverImage`. Start with a `#` heading, or leave it out."),
         (FormulaInvalid, [DocumentFormat.Xlsx], "a formula does not parse, names a column the sheet does not have, refers to itself within its row, or gives a function the wrong number of arguments. Fix the formula at the position named."),
         (FunctionUnknown, [DocumentFormat.Xlsx], "a formula calls a function the generator does not know. Check the spelling and use the English name; an add-in's function is fine as it is."),
+        (ChartInvalid, [DocumentFormat.Xlsx], "a chart names a column the sheet does not have, takes a series from a column that is not a number, integer, currency or percent column, stands on a sheet without rows, has no series, or names a chart sheet that is invalid or taken. Fix the chart."),
+        (ChartColorsRepeat, [DocumentFormat.Xlsx], "a chart has more series than the brand's diagram palette has colours, so two series share a colour. Split the chart, or use fewer series."),
     ];
 
     /// <summary>The codes only a check returns, never <c>Generate</c>: the guides list them apart.</summary>

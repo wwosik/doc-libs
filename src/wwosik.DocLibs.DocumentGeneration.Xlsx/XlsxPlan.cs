@@ -132,8 +132,9 @@ internal sealed class XlsxPlan
 
         return new CheckStatistics
         {
-            Sheets = this.Sheets.Count + (this.Info ? 1 : 0),
+            Sheets = this.Sheets.Count + (this.Info ? 1 : 0) + this.Sheets.Sum(s => s.Charts.Count(c => c.SheetName is not null)),
             Tables = this.Sheets.Count(s => s.Columns.Count > 0),
+            Diagrams = this.Sheets.Sum(s => s.Charts.Count),
             Words = words,
         };
     }
@@ -205,11 +206,17 @@ internal sealed class XlsxPlan
         {
             this.CheckNames(workbook.Sheets);
             this.Sheets = [.. workbook.Sheets.Select((s, i) => this.Sheet(s, i, measure))];
+            this.CheckChartSheets();
         }
 
         if (this.Info)
         {
             this.InfoName = this.FreeName(this.Texts.Info);
+        }
+
+        this.NameChartSheets();
+        if (this.Info)
+        {
             this.CheckCharacters(workbook.Title, true, "the workbook's title");
             this.CheckCharacters(workbook.Subtitle, true, "the workbook's subtitle");
             this.CheckCharacters(workbook.Description, true, "the workbook's description");
@@ -240,7 +247,7 @@ internal sealed class XlsxPlan
 
     private string FreeName(string name)
     {
-        var taken = this.Sheets.Select(s => s.Sheet.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var taken = this.TakenNames();
         var candidate = name.Length > MaxSheetName ? name[..MaxSheetName] : name;
         for (var n = 2; taken.Contains(candidate); n++)
         {
@@ -251,6 +258,42 @@ internal sealed class XlsxPlan
         return candidate;
     }
 
+    // The names of the table sheets and of the chart sheets named so far, ignoring case.
+    private HashSet<string> TakenNames()
+    {
+        var taken = this.Sheets.Select(s => s.Sheet.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        taken.UnionWith(this.Sheets.SelectMany(s => s.Charts).Select(c => c.SheetName).OfType<string>());
+        return taken;
+    }
+
+    // What breaks Excel's rules for a sheet name, each as the end of a message.
+    private static IEnumerable<string> NameRules(string name)
+    {
+        if (name.Trim().Length == 0)
+        {
+            yield return "the name is empty. Give the sheet a name.";
+        }
+        else if (name.Length > MaxSheetName)
+        {
+            yield return string.Create(CultureInfo.InvariantCulture, $"the name has {name.Length} characters; Excel allows {MaxSheetName}.");
+        }
+
+        if (name.IndexOfAny(['[', ']', ':', '*', '?', '/', '\\']) is var bad and >= 0)
+        {
+            yield return $"the name holds '{name[bad]}'; Excel allows none of []:*?/\\ in a sheet name.";
+        }
+
+        if (name.StartsWith('\'') || name.EndsWith('\''))
+        {
+            yield return "the name starts or ends with an apostrophe, which Excel does not allow.";
+        }
+
+        if (name.Any(char.IsControl))
+        {
+            yield return "the name holds a control character.";
+        }
+    }
+
     private void CheckNames(IReadOnlyList<XlsxSheet> sheets)
     {
         var seen = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -259,28 +302,9 @@ internal sealed class XlsxPlan
             ArgumentNullException.ThrowIfNull(sheets[i], nameof(XlsxWorkbook.Sheets));
             var name = sheets[i].Name ?? string.Empty;
             var where = string.Create(CultureInfo.InvariantCulture, $"Sheet {i + 1} ('{name}')");
-            if (name.Trim().Length == 0)
+            foreach (var rule in NameRules(name))
             {
-                this.Problem(NoteCodes.SheetName, $"{where}: the name is empty. Give the sheet a name.");
-            }
-            else if (name.Length > MaxSheetName)
-            {
-                this.Problem(NoteCodes.SheetName, string.Create(CultureInfo.InvariantCulture, $"{where}: the name has {name.Length} characters; Excel allows {MaxSheetName}."));
-            }
-
-            if (name.IndexOfAny(['[', ']', ':', '*', '?', '/', '\\']) is var bad and >= 0)
-            {
-                this.Problem(NoteCodes.SheetName, $"{where}: the name holds '{name[bad]}'; Excel allows none of []:*?/\\ in a sheet name.");
-            }
-
-            if (name.StartsWith('\'') || name.EndsWith('\''))
-            {
-                this.Problem(NoteCodes.SheetName, $"{where}: the name starts or ends with an apostrophe, which Excel does not allow.");
-            }
-
-            if (name.Any(char.IsControl))
-            {
-                this.Problem(NoteCodes.SheetName, $"{where}: the name holds a control character.");
+                this.Problem(NoteCodes.SheetName, $"{where}: {rule}");
             }
 
             if (name.Length > 0 && seen.TryGetValue(name, out var first))
@@ -393,13 +417,229 @@ internal sealed class XlsxPlan
             }
         }
 
+        var charts = this.Charts(sheet, label, headerRow, plans, lookup);
         return new SheetPlan(sheet, index, title, subtitle, showsDate, headerRow, plans)
         {
+            Charts = charts,
             Lookup = lookup,
             Totals = totals,
             TotalsLabel = totalsLabel,
             LabelColumn = labelColumn,
         };
+    }
+
+    // The sheet's charts, checked: their columns, kind and placement; a chart sheet's name is checked across the workbook.
+    private List<ChartPlan> Charts(XlsxSheet sheet, string label, int headerRow, List<ColumnPlan> plans, Dictionary<string, int> lookup)
+    {
+        var charts = new List<ChartPlan>();
+        var rows = sheet.Rows ?? [];
+        var given = sheet.Charts ?? [];
+        for (var n = 0; n < given.Count; n++)
+        {
+            var chart = given[n];
+            ArgumentNullException.ThrowIfNull(chart, nameof(XlsxSheet.Charts));
+            var where = string.Create(CultureInfo.InvariantCulture, $"{label}, chart {n + 1}");
+            var problems = this.problems.Count;
+            int? Column(string? header, string role)
+            {
+                if (string.IsNullOrWhiteSpace(header))
+                {
+                    this.Problem(NoteCodes.ChartInvalid, $"{where}: the {role} names no column. Give a column header.");
+                    return null;
+                }
+
+                if (!lookup.TryGetValue(header.Trim(), out var c))
+                {
+                    var close = XlsxFormula.Closest(header.Trim(), lookup.Keys);
+                    var hint = close.Count > 0 ? $" Did you mean '{string.Join("' or '", close)}'?" : $" The columns are '{string.Join("', '", lookup.Keys)}'.";
+                    this.Problem(NoteCodes.ChartInvalid, $"{where}: the {role} '{header}' is not a column of the sheet.{hint}");
+                    return null;
+                }
+
+                if (c < 0)
+                {
+                    this.Problem(NoteCodes.ChartInvalid, $"{where}: the {role} '{header}' is the header of more than one column. Give the columns different headers.");
+                    return null;
+                }
+
+                return c;
+            }
+
+            var category = Column(chart.Category, "category");
+            var series = new List<int>();
+            foreach (var header in chart.Series ?? [])
+            {
+                if (Column(header, "series") is not { } c)
+                {
+                    continue;
+                }
+
+                var type = plans[c].Format.Type;
+                if (type is not (XlsxColumnType.Number or XlsxColumnType.Integer or XlsxColumnType.Currency or XlsxColumnType.Percent))
+                {
+                    this.Problem(NoteCodes.ChartInvalid, $"{where}: the series '{header}' is a {type} column; a series takes a Number, Integer, Currency or Percent column.");
+                    continue;
+                }
+
+                series.Add(c);
+            }
+
+            if (chart.Series is null || chart.Series.Count == 0)
+            {
+                this.Problem(NoteCodes.ChartInvalid, $"{where}: the chart has no series. Name at least one numeric column in Series.");
+            }
+
+            if (rows.Count == 0)
+            {
+                this.Problem(NoteCodes.ChartInvalid, $"{where}: the sheet has no rows to draw. Add rows, or leave the chart out.");
+            }
+
+            if (!Enum.IsDefined(chart.Kind))
+            {
+                this.Problem(NoteCodes.ChartInvalid, $"{where}: the kind {chart.Kind} is not one of Column, Bar, Line, Area.");
+            }
+
+            if (!Enum.IsDefined(chart.Placement))
+            {
+                this.Problem(NoteCodes.ChartInvalid, $"{where}: the placement {chart.Placement} is not one of Beside, Sheet.");
+            }
+
+            var title = string.IsNullOrWhiteSpace(chart.Title) ? null : chart.Title.Trim();
+            var unit = string.IsNullOrWhiteSpace(chart.Unit) ? null : chart.Unit.Trim();
+            var source = string.IsNullOrWhiteSpace(chart.Source) ? null : chart.Source.Trim();
+            this.CheckCharacters(title, true, $"{where}, its title");
+            this.CheckCharacters(unit, true, $"{where}, its unit");
+            this.CheckCharacters(source, true, $"{where}, its source");
+            var palette = this.Brand.Diagram.Palette;
+            if (series.Count > palette.Count)
+            {
+                this.Notes.Add(
+                    NoteCodes.ChartColorsRepeat,
+                    0,
+                    string.Create(CultureInfo.InvariantCulture, $"{where}: the chart has {series.Count} series, but the brand's diagram palette has {palette.Count} colours, so colours repeat. Split the chart, or use fewer series."));
+            }
+
+            if (this.problems.Count > problems || category is not { } at)
+            {
+                continue;
+            }
+
+            var sheetName = chart.Placement == XlsxChartPlacement.Sheet && !string.IsNullOrWhiteSpace(chart.SheetName) ? chart.SheetName : null;
+            charts.Add(this.Chart(chart, n + 1, sheet.Name, headerRow, plans[at], [.. series.Select(c => plans[c])], rows, title, unit, source) with { SheetName = sheetName });
+        }
+
+        return charts;
+    }
+
+    // The chart as the writer writes it: its data from the rows, as the cache, and the cells it refers to.
+    private ChartPlan Chart(XlsxChart chart, int number, string sheet, int headerRow, ColumnPlan category, IReadOnlyList<ColumnPlan> series, IReadOnlyList<IReadOnlyList<XlsxCell>> rows, string? title, string? unit, string? source)
+    {
+        XlsxCell At(IReadOnlyList<XlsxCell>? row, int column) => row is not null && column < row.Count ? row[column] ?? XlsxCell.Empty : XlsxCell.Empty;
+        static double? Number(XlsxCell cell) => cell.Kind switch
+        {
+            XlsxCellKind.Number => cell.Number,
+            XlsxCellKind.Date or XlsxCellKind.DateTime => Serial(cell.DateTime),
+            _ => null,
+        };
+
+        var numeric = category.Format.IsNumeric || category.Format.Type is XlsxColumnType.Date or XlsxColumnType.DateTime;
+        var labels = rows.Select(r => At(r, category.Index) is { Kind: not (XlsxCellKind.Empty or XlsxCellKind.Formula) } cell ? category.Format.Display(cell) : string.Empty).ToList();
+        var spec = new ChartSpec(
+            chart.Kind switch { XlsxChartKind.Line => ChartKind.Line, XlsxChartKind.Area => ChartKind.Area, _ => ChartKind.Bar },
+            labels,
+            [.. series.Select(s => new ChartSeries(s.Column.Header.Trim(), [.. rows.Select(r => Number(At(r, s.Index)))]))])
+        {
+            Stacked = chart.Stacked,
+            Title = title,
+            Unit = unit,
+            Source = source,
+            Colors = this.Brand.Diagram.Palette,
+        };
+
+        var first = headerRow + 1;
+        var last = headerRow + rows.Count;
+        string Range(int column) => string.Create(CultureInfo.InvariantCulture, $"${ColumnName(column)}${first}:${ColumnName(column)}${last}");
+        var cells = new ChartCells(
+            sheet,
+            Range(category.Index),
+            [.. series.Select(s => Range(s.Index))],
+            [.. series.Select(s => string.Create(CultureInfo.InvariantCulture, $"${ColumnName(s.Index)}${headerRow}"))])
+        {
+            CategoryNumbers = numeric ? [.. rows.Select(r => Number(At(r, category.Index)))] : null,
+            CategoryFormat = numeric ? category.Format.Code : null,
+            ValueFormats = [.. series.Select(s => s.Format.Code)],
+            Horizontal = chart.Kind == XlsxChartKind.Bar,
+            Note = source is null ? null : $"{this.Texts.Source}: {source}",
+        };
+        return new ChartPlan(chart, number, spec, cells, null);
+    }
+
+    // The names a workbook's charts give their chart sheets: valid, and taken by no other sheet.
+    private void CheckChartSheets()
+    {
+        var tables = this.Sheets.Select(s => s.Sheet.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var sheet in this.Sheets)
+        {
+            foreach (var chart in sheet.Charts)
+            {
+                if (chart.SheetName is not { } name)
+                {
+                    continue;
+                }
+
+                var where = string.Create(CultureInfo.InvariantCulture, $"Sheet '{sheet.Sheet.Name}', chart {chart.Number}");
+                foreach (var rule in NameRules(name))
+                {
+                    this.Problem(NoteCodes.ChartInvalid, $"{where}: its chart sheet's name '{name}': {rule}");
+                }
+
+                if (tables.Contains(name) || !seen.Add(name))
+                {
+                    this.Problem(NoteCodes.ChartInvalid, $"{where}: its chart sheet's name '{name}' is already the name of another sheet, ignoring case. Give the chart sheet a name of its own.");
+                }
+            }
+        }
+    }
+
+    // Chart sheets without a name of their own: GeneratedTexts.Chart and a number, "Chart 1", the next free one.
+    private void NameChartSheets()
+    {
+        var taken = this.TakenNames();
+        if (this.Info)
+        {
+            taken.Add(this.InfoName);
+        }
+
+        var next = 1;
+        var sheets = this.Sheets.ToList();
+        for (var s = 0; s < sheets.Count; s++)
+        {
+            var charts = sheets[s].Charts.ToList();
+            for (var c = 0; c < charts.Count; c++)
+            {
+                if (charts[c].Chart.Placement != XlsxChartPlacement.Sheet || charts[c].SheetName is not null)
+                {
+                    continue;
+                }
+
+                string name;
+                do
+                {
+                    var suffix = string.Create(CultureInfo.InvariantCulture, $" {next++}");
+                    var word = this.Texts.Chart;
+                    name = (word.Length + suffix.Length > MaxSheetName ? word[..(MaxSheetName - suffix.Length)] : word) + suffix;
+                }
+                while (taken.Contains(name));
+
+                taken.Add(name);
+                charts[c] = charts[c] with { SheetName = name };
+            }
+
+            sheets[s] = sheets[s] with { Charts = charts };
+        }
+
+        this.Sheets = sheets;
     }
 
     // Each header, trimmed and ignoring case, to its column; -1 for a header two columns share.
@@ -911,6 +1151,9 @@ internal sealed record SheetPlan(XlsxSheet Sheet, int Index, string? Title, stri
 
     public int LastRow => this.HeaderRow + (this.Sheet.Rows?.Count ?? 0);
 
+    /// <summary>The sheet's charts that passed their checks, in order; those on chart sheets with their sheet's name.</summary>
+    public IReadOnlyList<ChartPlan> Charts { get; init; } = [];
+
     /// <summary>Each header, trimmed and ignoring case, to its column from 0; -1 for a header two columns share.</summary>
     public IReadOnlyDictionary<string, int> Lookup { get; init; } = new Dictionary<string, int>();
 
@@ -940,6 +1183,12 @@ internal sealed record TotalPlan(int Function, XlsxFormat Format, double? Value,
         : this.Format.Type is XlsxColumnType.Date or XlsxColumnType.DateTime && value is >= 1 and < 2_958_466 ? XlsxCell.FromDateTime(DateTime.FromOADate(value))
         : XlsxCell.FromNumber(value);
 }
+
+/// <summary>
+/// A chart of a sheet: its number on the sheet from 1, what it draws (the values as the cache), the cells it refers to,
+/// and the name of its chart sheet, <see langword="null"/> beside the table.
+/// </summary>
+internal sealed record ChartPlan(XlsxChart Chart, int Number, ChartSpec Spec, ChartCells Cells, string? SheetName);
 
 /// <summary>One column's format, alignment and width.</summary>
 internal sealed record ColumnPlan(XlsxColumn Column, int Index, XlsxFormat Format, XlsxAlign Align, double Width);

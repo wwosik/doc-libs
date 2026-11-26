@@ -39,7 +39,8 @@ same change that made it untrue — a stale fact here is worse than a missing on
     SDK, like Pptx, sharing Open XML code with it as linked source (`src/Shared/OpenXml/`); SkiaSharp only
     for `.grey` images (E09-S05).
   - `wwosik.DocLibs.DocumentGeneration.Xlsx` — typed workbook model → `.xlsx` (E10); the Open XML SDK only
-    for the package, the parts written as XML text; links `src/Shared/OpenXml/CoreProperties.cs`.
+    for the package, the parts written as XML text; links `src/Shared/OpenXml/CoreProperties.cs`, `ChartWriter.cs`
+    and `ChartCells.cs`.
   - `wwosik.DocLibs.DocumentGeneration.Pdf` — Markdown → PDF/A-2b; Markdig and PdfPig, own
     layout engine, the Liberation fonts from the shared package; SkiaSharp only for `.grey` images (E04-S05).
 - Public on GitHub as `wwosik/doc-libs`, MIT, published to nuget.org by tag (see
@@ -590,6 +591,12 @@ same change that made it untrue — a stale fact here is worse than a missing on
   `XlsxFunctions.cs`); there is no evaluator, so formulas carry no cached value and set `fullCalcOnLoad`, while totals
   (`SUBTOTAL` in a row under the data, outside filter and banding) carry values the plan computes. A new Excel
   function goes into that table with its argument counts and prefix.
+- **Workbook charts (E10-S03):** `XlsxPlan.Charts` builds a `ChartPlan` (a `ChartSpec` as the cache plus `ChartCells`)
+  per valid chart; `XlsxWriter` writes it with `ChartWriter.Write(ChartPart, ChartSpec, ChartCells, …)`, linked shared
+  source like `Add`. A table sheet's chart drawing is `rId2` (VML header `rId1`); chart sheets follow their table and
+  shift the sheets' ids and `localSheetId`s. `ChartWriter.Add` must stay byte for byte: `ChartPartTests` in the PPTX
+  and DOCX tests compare its parts with `Samples/chart-parts-*.expected.md` (refresh only on an intended change, with
+  `DOCLIBS_UPDATE_EXPECTED=1`).
 
 ## Traps
 

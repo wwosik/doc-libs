@@ -3,7 +3,7 @@
 Generates Excel workbooks (`.xlsx`) from a typed model, in a brand's colours and fonts: an info
 sheet first, then one table per sheet with real, typed values in the culture's number formats, a
 frozen and filtered header row, banding that survives sorting, totals that follow the filter,
-formulas checked before they are written, and print setup. `Check` reports
+formulas checked before they are written, native charts on the tables' own cells, and print setup. `Check` reports
 every problem of a workbook at once, `Preview` shows it as plain HTML. Cross-platform, no Office
 needed. Depends on the Open XML SDK and
 [wwosik.DocLibs.DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md). AOT-compatible.
@@ -37,6 +37,7 @@ var workbook = new XlsxWorkbook
                 ["North", 1200, 15000.50m, 0.25, new DateOnly(2024, 1, 1), XlsxCell.Formula("[Revenue]/[Units]")],
                 ["South", 800, 9800m, 0.18, new DateOnly(2025, 6, 1), XlsxCell.Formula("[Revenue]/[Units]")],
             ],
+            Charts = [new XlsxChart { Category = "Region", Series = ["Revenue"], Title = "Revenue by region" }],
         },
     ],
 };
@@ -50,8 +51,8 @@ GenerationResult result = XlsxGenerator.Generate(workbook, output, new XlsxOptio
   listing the first ten; so does a brand name the options do not know, or a language that is not a
   language tag. An invalid brand throws `ArgumentException`.
 - **Result:** `Generate` returns a `GenerationResult`; its `Pages` is the number of sheets, the info
-  sheet included, and its notes are `character-missing`, `language-unknown`,
-  `classification-kept` and `function-unknown`.
+  sheet and chart sheets included, and its notes are `character-missing`, `language-unknown`,
+  `classification-kept`, `function-unknown` and `chart-colors-repeat`.
 - **Deterministic:** the same workbook, options and clock give the same bytes: relationship ids are
   fixed, and every entry of the package has the same time.
 - **Core properties:** the title, the subtitle as subject, the author as creator, the description,
@@ -65,7 +66,8 @@ All types are sealed records in `wwosik.DocLibs.DocumentGeneration.Xlsx`.
 | Type | Holds |
 | ---- | ----- |
 | `XlsxWorkbook` | `Title`, `Subtitle`, `Description`, `Author`, `Date` (default: today), `Language` (BCP 47, default `en`), `Marking` (`XlsxMarking(Classification, Draft)`), `Brand` (a name), `Sheets` |
-| `XlsxSheet` | `Name` (the tab), `Title` and `Description` above the table, `Columns`, `Rows`, `TotalsLabel` (default `GeneratedTexts.Total`, "Total" / "Summe") |
+| `XlsxSheet` | `Name` (the tab), `Title` and `Description` above the table, `Columns`, `Rows`, `TotalsLabel` (default `GeneratedTexts.Total`, "Total" / "Summe"), `Charts` |
+| `XlsxChart` | `Category` and `Series` (column headers), `Kind` (`Column`, `Bar`, `Line`, `Area`), `Stacked`, `Title`, `Unit`, `Source`, `Placement` (`Beside`, `Sheet`), `SheetName`; see [Charts](#charts) |
 | `XlsxColumn(Header, Type)` | `Type` (default `Text`; a column of formulas `Number` or `Currency`, see [Formulas](#formulas)), `Total` (`Sum`, `Average`, `Count`, `Min`, `Max`), `Decimals` (0–10, for `Number`, `Currency`, `Percent`), `Currency` (ISO 4217, only on `Currency`), `Width` (1–255 characters; measured without), `Align` (`Left`, `Center`, `Right`; text left, booleans centred, numbers and dates right without) |
 | `XlsxColumnType` | `Text`, `Number`, `Integer`, `Currency`, `Percent`, `Date`, `DateTime`, `Boolean` |
 | `XlsxCell` | text, a number, a date, a date and time, a truth value, a formula (`XlsxCell.Formula("[Price]*[Quantity]")`), or `XlsxCell.Empty`; converts implicitly from `string`, `int`, `long`, `double`, `decimal`, `DateOnly`, `DateTime` and `bool` (a `null` or empty string is empty, as is a `null` cell) |
@@ -168,6 +170,43 @@ its formulas refer, through `[Header]`, only to `Currency` columns of one curren
 formula columns), or when it names a `Currency` itself. Formulas are not checked against the column's
 type.
 
+## Charts
+
+`XlsxSheet.Charts` holds native charts whose series refer to the table's own cells: change a value in
+Excel and the chart follows; a filter hides the rows' points too. `Category` names the column that
+labels the categories, of any type; `Series` the columns drawn, each a `Number`, `Integer`,
+`Currency` or `Percent` column. Headers are matched as in formulas, ignoring case and the spaces
+around them. The totals row is not part of the chart.
+
+- **Kinds:** `Column` (upright), `Bar` (across, the first row on top), `Line` (with markers), `Area`;
+  `Stacked` stacks columns, bars and areas. Columns, bars and areas start at zero, or below for
+  negative values.
+- **Formats:** number and date categories keep their column's format on the axis (a date column
+  shows dates), text and boolean categories are text. The value axis takes the format of the first
+  series' column, so a currency series shows its currency there. `Unit` is a title on the value axis.
+- **Title:** `Title` in bold; `Source` a second, smaller line under it, after `GeneratedTexts.Source`
+  ("Source: Ledger", "Quelle: …"). The text is in the brand's text family, the grid in `TableLine`.
+- **Colours:** the brand's diagram palette (`Colors.Diagram.Palette`), in series order. More series
+  than colours repeat them, with the warning `chart-colors-repeat`.
+- **Beside** (the default): on the table's sheet, right of the table after a blank column, 8 columns
+  by 16 rows from the first row of data; further charts stack below, a blank row apart.
+- **Sheet:** a chart sheet of its own, right after the table's sheet, landscape, with the table
+  sheets' page header and footer, and a link in the info sheet's contents (with the chart's title
+  beside it). Its name is `SheetName`, or `GeneratedTexts.Chart` with the next free number ("Chart 1",
+  "Diagramm 1").
+- The chart stores the values the workbook holds as its cache, for viewers that do not calculate;
+  a formula column has no cached values until Excel calculates.
+
+**Checks**, as `chart-invalid`, naming the sheet and the chart's number (`Sheet 'Sales', chart 2: …`):
+a category or series that names no column, an unknown column (with the closest headers) or a header
+two columns share, a series column that is not numeric, a chart without series, a sheet without rows,
+an unknown kind or placement, and a chart sheet name that breaks the rules of sheet names or is taken
+by another sheet, ignoring case.
+
+The chart parts are written by the same `ChartWriter` as decks and Word documents, through its
+cell-reference path (`ChartCells`): formulas (`c:f`) with a value cache and no embedded workbook. Charts
+in decks and Word documents keep their embedded workbook and do not change.
+
 ## Values
 
 Numbers, dates and booleans are typed cells, never formatted text. Each column's number format is
@@ -210,7 +249,7 @@ brand's logo at the right as a header picture; the footer the brand's footer tex
 problem, each naming its sheet, row, column and cell (`Sheet 'Sales', row 3, column 'Units' (B7):
 …`, the row counted from the first row of data), at most 500 notes; then the notes `Generate` would
 return. With problems, `Error` is the message `Generate` would throw. `Statistics` counts `Sheets`,
-`Tables`, charts (`Diagrams`, 0 until charts on sheets land) and `Words`; its `Pages` is 0.
+`Tables`, charts (`Diagrams`) and `Words`, chart sheets counted among the `Sheets`; its `Pages` is 0.
 
 | Code | When |
 | ---- | ---- |
@@ -221,6 +260,8 @@ return. With problems, `Error` is the message `Generate` would throw. `Statistic
 | `excel-limit` | More than 1,048,576 rows or 16,384 columns, more than 32,767 characters in a cell or 8,192 in a formula, a date before 1900, or no sheet at all |
 | `formula-invalid` | A formula does not parse, names an unknown or shared `[Header]`, holds a bare name, refers to itself within its row, or gives a function the wrong number of arguments; the message names the character |
 | `function-unknown` | A warning: a formula calls a function the generator does not know |
+| `chart-invalid` | A chart names an unknown or shared column, takes a series from a column that is not numeric, has no series, stands on a sheet without rows, or names a chart sheet that is invalid or taken |
+| `chart-colors-repeat` | A warning: a chart has more series than the diagram palette has colours |
 
 ## Preview
 
@@ -230,7 +271,9 @@ return. With problems, `Error` is the message `Generate` would throw. `Statistic
 in the workbook's culture; numeric columns carry `class="num"` on their cells, for the host to align
 them right. A formula is shown as Excel shows it in the formula bar, in `<code>` (`=B7*C7`, without
 prefixes), since the generator does not compute it; the totals row is a row of the `<tfoot>`, with its
-values (a total over formulas as its formula). There are no styles and no scripts, and every text is HTML-encoded. Problems are not
+values (a total over formulas as its formula). Charts are not drawn: a chart beside the table is a
+`<p>` after it naming `GeneratedTexts.Chart`, its kind, title and series ("Chart – Column – Revenue –
+Revenue, Units"), a chart sheet a `<section>` of its own with that line. There are no styles and no scripts, and every text is HTML-encoded. Problems are not
 checked: a value of the wrong kind is shown as it is.
 
 ## Known limits
@@ -243,5 +286,7 @@ checked: a value of the wrong kind is shown as it is.
   other.
 - Formulas are written as ordinary formulas. A dynamic-array function such as `FILTER`, `SORT` or
   `UNIQUE` then shows only its first value, with `@` before it in Excel's formula bar.
-- References to other sheets, charts on the sheet's cells, Markdown and JSON input come in later
-  stories.
+- A chart's value axis is fixed to start at zero (or below) from the values written; a value turned
+  negative in Excel later falls below the axis until its minimum is reset.
+- The info sheet links a chart sheet like any sheet (`'Chart 1'!A1`).
+- References to other sheets, Markdown and JSON input come in later stories.

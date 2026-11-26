@@ -77,6 +77,72 @@ public sealed record XlsxSheet
     /// <see cref="GeneratedTexts.Total"/> ("Total").
     /// </summary>
     public string? TotalsLabel { get; init; }
+
+    /// <summary>The sheet's native charts on its table's cells, beside the table or each on a chart sheet of its own.</summary>
+    public IReadOnlyList<XlsxChart> Charts { get; init; } = [];
+}
+
+/// <summary>
+/// A native chart whose series refer to the cells of its sheet's table, so that changing a value changes the chart: the
+/// categories from one column, a series from each further column.
+/// </summary>
+public sealed record XlsxChart
+{
+    /// <summary>The header of the column whose values label the categories; any type. Numbers and dates keep their format on the axis.</summary>
+    public required string Category { get; init; }
+
+    /// <summary>The headers of the columns drawn as series, in order: each a number, integer, currency or percent column.</summary>
+    public IReadOnlyList<string> Series { get; init; } = [];
+
+    /// <summary>Upright columns, bars across, lines or areas. Default <see cref="XlsxChartKind.Column"/>.</summary>
+    public XlsxChartKind Kind { get; init; } = XlsxChartKind.Column;
+
+    /// <summary>Columns, bars or areas stacked on each other rather than side by side or overlapping; lines ignore it.</summary>
+    public bool Stacked { get; init; }
+
+    /// <summary>The chart's title; <see langword="null"/>: none.</summary>
+    public string? Title { get; init; }
+
+    /// <summary>The unit of the values, shown with the value axis (<c>k</c>, <c>%</c>); the axis also shows the first series' number format.</summary>
+    public string? Unit { get; init; }
+
+    /// <summary>Where the data comes from: a second, smaller line of the title, after <see cref="GeneratedTexts.Source"/> ("Source: Annual report").</summary>
+    public string? Source { get; init; }
+
+    /// <summary>Beside the table, or on a chart sheet of its own after the table's sheet. Default <see cref="XlsxChartPlacement.Beside"/>.</summary>
+    public XlsxChartPlacement Placement { get; init; } = XlsxChartPlacement.Beside;
+
+    /// <summary>
+    /// The name of the chart sheet, for <see cref="XlsxChartPlacement.Sheet"/>, by the rules of <see cref="XlsxSheet.Name"/>.
+    /// Default: <see cref="GeneratedTexts.Chart"/> with the number of the chart sheet in the workbook ("Chart 1").
+    /// </summary>
+    public string? SheetName { get; init; }
+}
+
+/// <summary>The kinds of workbook chart.</summary>
+public enum XlsxChartKind
+{
+    /// <summary>Upright columns, clustered or stacked.</summary>
+    Column,
+
+    /// <summary>Bars across, the categories down the left from top to bottom, clustered or stacked.</summary>
+    Bar,
+
+    /// <summary>Lines with markers.</summary>
+    Line,
+
+    /// <summary>Filled areas, overlapping or stacked.</summary>
+    Area,
+}
+
+/// <summary>Where a workbook chart stands.</summary>
+public enum XlsxChartPlacement
+{
+    /// <summary>On the table's sheet, right of the table, 8 columns by 16 rows; further charts below it.</summary>
+    Beside,
+
+    /// <summary>On a chart sheet of its own, right after the table's sheet, linked from the info sheet's contents.</summary>
+    Sheet,
 }
 
 /// <summary>A column of a sheet's table: its header and the type of its values.</summary>

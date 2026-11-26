@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Generates Excel workbooks (.xlsx) from a typed model in a brand's look: an info sheet with a contents list, tables with typed values in the culture's number formats, a frozen and filtered header and banding that survives sorting, print setup, a check that reports every problem at once, and a plain HTML preview.</Description>
+    <Description>Generates Excel workbooks (.xlsx) from a typed model in a brand's look: an info sheet with a contents list, tables with typed values in the culture's number formats, a frozen and filtered header and banding that survives sorting, print setup, native charts on the tables' cells, a check that reports every problem at once, and a plain HTML preview.</Description>
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
@@ -13,9 +13,11 @@
     <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration\wwosik.DocLibs.DocumentGeneration.csproj" />
   </ItemGroup>
 
-  <!-- The core properties are written by the same code as in decks and Word documents. -->
+  <!-- The core properties and the charts are written by the same code as in decks and Word documents. -->
   <ItemGroup>
     <Compile Include="..\Shared\OpenXml\CoreProperties.cs" Link="Shared\OpenXml\CoreProperties.cs" />
+    <Compile Include="..\Shared\OpenXml\ChartWriter.cs" Link="Shared\OpenXml\ChartWriter.cs" />
+    <Compile Include="..\Shared\OpenXml\ChartCells.cs" Link="Shared\OpenXml\ChartCells.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -90,6 +90,14 @@ the legend at the bottom; text in the brand's table font and diagram text colour
 line (10 px, left-aligned) under the legend and 18 px to the drawing's height; charts without one
 keep 640 × 380.
 
+## In workbooks
+
+Workbooks do not take `chart` blocks: an `XlsxChart` names the columns of its sheet's table, and the
+chart refers to those cells instead of carrying a workbook of its own, through the same chart writer
+(see [the workbook generator](wwosik.DocLibs.DocumentGeneration.Xlsx.md#charts)). The writer's
+cell-reference path is shared, so decks and Word documents can later draw a chart from cells of a
+workbook the caller passes; today their charts keep their embedded workbook, unchanged.
+
 ## Financial charts
 
 The charts of a monthly performance review. The caller keeps its data and decides which months are

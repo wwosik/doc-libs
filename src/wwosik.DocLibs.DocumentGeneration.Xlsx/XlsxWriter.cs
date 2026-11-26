@@ -80,6 +80,15 @@ internal sealed class XlsxWriter
                 .Append(XlsxXml.Text(Invariant($"{reference}!${sheet.HeaderRow}:${sheet.HeaderRow}")))
                 .Append("</definedName>");
             index++;
+
+            // Its chart sheets right after it.
+            foreach (var chart in sheet.Charts.Where(c => c.SheetName is not null))
+            {
+                var chartSheet = workbook.AddNewPart<ChartsheetPart>(Id(index + 1));
+                Feed(chartSheet, this.ChartSheet(chartSheet, chart, index));
+                names.Add(chart.SheetName!);
+                index++;
+            }
         }
 
         for (var i = 0; i < names.Count; i++)
@@ -193,6 +202,17 @@ internal sealed class XlsxWriter
 
                 links.Append(Invariant($"<hyperlink ref=\"A{r}\" location=\"{XlsxXml.Attribute(XlsxPlan.Quoted(name) + "!A1")}\" display=\"{XlsxXml.Attribute(name)}\"/>"));
                 r++;
+                foreach (var chart in sheet.Charts.Where(c => c.SheetName is not null))
+                {
+                    rows.Add(r, this.Text("A", r, chart.SheetName!, link));
+                    if (chart.Spec.Title is { } chartTitle)
+                    {
+                        rows.Add(r, this.Text("B", r, chartTitle, value));
+                    }
+
+                    links.Append(Invariant($"<hyperlink ref=\"A{r}\" location=\"{XlsxXml.Attribute(XlsxPlan.Quoted(chart.SheetName!) + "!A1")}\" display=\"{XlsxXml.Attribute(chart.SheetName!)}\"/>"));
+                    r++;
+                }
             }
         }
 
@@ -334,8 +354,75 @@ internal sealed class XlsxWriter
             rows,
             after.ToString(),
             string.Join(' ', asText),
-            null);
+            this.Charts(part, sheet));
     }
+
+    // The charts beside the table: one drawing, each chart 8 columns by 16 rows, right of the table after a blank column,
+    // from the first row of data down, one under the other with a blank row between; null without such charts.
+    private string? Charts(WorksheetPart part, SheetPlan sheet)
+    {
+        var charts = sheet.Charts.Where(c => c.SheetName is null).ToList();
+        if (charts.Count == 0)
+        {
+            return null;
+        }
+
+        var drawing = part.AddNewPart<DrawingsPart>("rId2");
+        var anchors = new StringBuilder();
+        var column = Math.Max(sheet.Columns.Count, 1) + 1;
+        for (var i = 0; i < charts.Count; i++)
+        {
+            var id = Id(i + 1);
+            this.ChartPart(drawing.AddNewPart<ChartPart>(id), charts[i]);
+            var row = sheet.HeaderRow + (i * 17);
+            anchors.Append(Invariant($"<xdr:twoCellAnchor editAs=\"oneCell\"><xdr:from><xdr:col>{column}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>{row}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>"))
+                .Append(Invariant($"<xdr:to><xdr:col>{column + 8}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>{row + 16}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>"))
+                .Append(Frame(i + 2, charts[i], id))
+                .Append("<xdr:clientData/></xdr:twoCellAnchor>");
+        }
+
+        Feed(drawing, Drawing(anchors.ToString()));
+        return "rId2";
+    }
+
+    // A chart sheet: the chart filling the page, landscape, with the page header and footer of the table sheets.
+    private string ChartSheet(ChartsheetPart part, ChartPlan chart, int index)
+    {
+        var drawing = part.AddNewPart<DrawingsPart>("rId1");
+        this.ChartPart(drawing.AddNewPart<ChartPart>("rId1"), chart);
+
+        // Excel's own size of a chart sheet's chart; zoomToFit fits it to the window.
+        Feed(drawing, Drawing("<xdr:absoluteAnchor><xdr:pos x=\"0\" y=\"0\"/><xdr:ext cx=\"9309100\" cy=\"6072188\"/>" + Frame(2, chart, "rId1") + "<xdr:clientData/></xdr:absoluteAnchor>"));
+        var paper = this.plan.Options.PageSize switch
+        {
+            XlsxPageSize.A3 => 8,
+            XlsxPageSize.Letter => 1,
+            _ => 9,
+        };
+        return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+            + $"<chartsheet xmlns=\"{Main}\" xmlns:r=\"{Relationships}\">"
+            + Invariant($"<sheetViews><sheetView{(index == 0 ? " tabSelected=\"1\"" : string.Empty)} zoomToFit=\"1\" workbookViewId=\"0\"/></sheetViews>")
+            + Margins
+            + Invariant($"<pageSetup paperSize=\"{paper}\" orientation=\"landscape\"/>")
+            + $"<headerFooter><oddHeader>{XlsxXml.Text(this.Header(false))}</oddHeader><oddFooter>{XlsxXml.Text(this.Footer())}</oddFooter></headerFooter>"
+            + "<drawing r:id=\"rId1\"/></chartsheet>";
+    }
+
+    // The chart part, on its sheet's cells, in the brand's text font with the table's lines as the grid.
+    private void ChartPart(ChartPart part, ChartPlan chart) =>
+        ChartWriter.Write(part, chart.Spec, chart.Cells, null, ChartWriter.Solid(this.plan.Colors.Line), this.textFont);
+
+    private static string Drawing(string anchors) =>
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        + "<xdr:wsDr xmlns:xdr=\"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing\" "
+        + $"xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"{Relationships}\">"
+        + anchors + "</xdr:wsDr>";
+
+    // The frame that shows a chart part in a drawing.
+    private static string Frame(int id, ChartPlan chart, string relationship) =>
+        Invariant($"<xdr:graphicFrame macro=\"\"><xdr:nvGraphicFramePr><xdr:cNvPr id=\"{id}\" name=\"{XlsxXml.Attribute(chart.Spec.Title ?? "Chart " + (id - 1).ToString(CultureInfo.InvariantCulture))}\"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr>")
+        + "<xdr:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/></xdr:xfrm>"
+        + $"<a:graphic><a:graphicData uri=\"{ChartWriter.GraphicUri}\"><c:chart xmlns:c=\"{ChartWriter.GraphicUri}\" r:id=\"{relationship}\"/></a:graphicData></a:graphic></xdr:graphicFrame>";
 
     private string Worksheet(WorksheetPart part, int index, string dimension, int? frozen, string columns, Rows rows, string afterData, string asText, string? drawing)
     {

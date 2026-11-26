@@ -8,7 +8,7 @@ namespace wwosik.DocLibs.DocumentGeneration.Xlsx;
 /// <summary>
 /// Writes Excel workbooks (<c>.xlsx</c>) from an <see cref="XlsxWorkbook"/> in a brand's look: an info sheet first, then
 /// one table per sheet with typed values in the culture's number formats, a frozen and filtered header row, banding that
-/// survives sorting, totals that follow the filter, formulas, and print setup. <see cref="Check"/> reports every problem at once; <see cref="Preview"/> shows the
+/// survives sorting, totals that follow the filter, formulas, native charts on the tables' cells, and print setup. <see cref="Check"/> reports every problem at once; <see cref="Preview"/> shows the
 /// workbook as plain HTML.
 /// </summary>
 public static class XlsxGenerator
@@ -16,11 +16,11 @@ public static class XlsxGenerator
     /// <summary>
     /// Writes <paramref name="workbook"/> as an <c>.xlsx</c> to <paramref name="output"/>. Returns the notes for whoever
     /// made the workbook (a character the fonts lack, a language without texts) and in <see cref="GenerationResult.Pages"/>
-    /// the number of sheets, the info sheet included. The same workbook, options and clock give the same bytes.
+    /// the number of sheets, the info sheet and chart sheets included. The same workbook, options and clock give the same bytes.
     /// </summary>
     /// <exception cref="DocumentConversionException">
     /// The workbook has problems (a value that does not fit its column, an invalid sheet name or column, a row wider than
-    /// the columns, a formula that does not parse, names an unknown column or refers to itself, something past Excel's limits; the message lists the first ten, <see cref="Check"/> all of them), names
+    /// the columns, a formula that does not parse, names an unknown column or refers to itself, a chart that names an unknown or text column, something past Excel's limits; the message lists the first ten, <see cref="Check"/> all of them), names
     /// an unknown brand, or its language is not a language tag.
     /// </exception>
     /// <exception cref="ArgumentException">A brand is invalid, or two of <see cref="XlsxOptions.Brands"/> share a name.</exception>
@@ -35,7 +35,7 @@ public static class XlsxGenerator
         }
 
         XlsxWriter.Write(plan, output);
-        return plan.Notes.Result(plan.Sheets.Count + (plan.Info ? 1 : 0));
+        return plan.Notes.Result(plan.Statistics().Sheets);
     }
 
     /// <summary>
@@ -195,11 +195,25 @@ public static class XlsxGenerator
                 html.Append("</tfoot>\n");
             }
 
-            html.Append("</table>\n</section>\n");
+            html.Append("</table>\n");
+            foreach (var chart in sheet.Charts.Where(c => c.SheetName is null))
+            {
+                html.Append("<p>").Append(Encode(Chart(plan, chart))).Append("</p>\n");
+            }
+
+            html.Append("</section>\n");
+            foreach (var chart in sheet.Charts.Where(c => c.SheetName is not null))
+            {
+                html.Append("<section>\n<h2>").Append(Encode(chart.SheetName!)).Append("</h2>\n<p>").Append(Encode(Chart(plan, chart))).Append("</p>\n</section>\n");
+            }
         }
 
         return html.ToString();
     }
+
+    // A chart as one line: "Chart – Column – Orders by month – Plan, Actual". Charts are not drawn.
+    private static string Chart(XlsxPlan plan, ChartPlan chart) =>
+        string.Join(" – ", new[] { plan.Texts.Chart, chart.Chart.Kind.ToString(), chart.Spec.Title, string.Join(", ", chart.Spec.Series.Select(s => s.Name)) }.Where(t => !string.IsNullOrEmpty(t)));
 
     // A formula as Excel shows it in the formula bar, for one row; as given when it does not parse.
     private static string Formula(XlsxPlan plan, SheetPlan sheet, string source, int row)

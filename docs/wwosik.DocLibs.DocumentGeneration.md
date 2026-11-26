@@ -332,6 +332,8 @@ if (result.HasNotes)
 | `character-missing` | XLSX | A character the brand's fonts lack, which Excel shows in a substitute font; once per character, without a line |
 | `formula-invalid` | XLSX | A formula does not parse, names a `[Header]` the sheet does not have or two columns share, holds a bare name, refers to itself within its row, or gives a function the wrong number of arguments; with the character it happens at, see [the workbook generator](wwosik.DocLibs.DocumentGeneration.Xlsx.md#formulas) |
 | `function-unknown` | XLSX | A formula calls a function the generator does not know; it is written as it is, for Excel or an add-in to know. Once per function, without a line |
+| `chart-invalid` | XLSX | A workbook chart names a column the sheet does not have, takes a series from a column that is not numeric, stands on a sheet without rows, has no series, or names a chart sheet that is invalid or taken; see [the workbook generator](wwosik.DocLibs.DocumentGeneration.Xlsx.md#charts) |
+| `chart-colors-repeat` | XLSX | A warning: a workbook chart has more series than the brand's diagram palette has colours, so colours repeat; without a line |
 
 ## Checking a document
 

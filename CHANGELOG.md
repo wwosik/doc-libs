@@ -165,6 +165,15 @@ updating, breaking changes first.
   have no cached values, and `Preview` shows them as code. `XlsxColumn`'s `Type` is now nullable:
   without one a column is `Text`, a column of formulas `Number` or `Currency`. Nothing else changes for
   workbooks without totals and formulas.
+- **Charts on sheet cells in workbooks.** `XlsxSheet.Charts` holds `XlsxChart`s (`Column`, `Bar`,
+  `Line`, `Area`, stacked or not) whose series refer to the table's own cells, so changing a value
+  in Excel changes the chart; numeric and date categories and the value axis keep their columns'
+  formats (dates, currency). A chart stands beside the table or on a chart sheet of its own
+  (`Placement`, `SheetName`, default "Chart 1"), linked from the info sheet's contents; `Source` is a
+  second line of its title. Colours come from the diagram palette. New note codes `chart-invalid`
+  and the warning `chart-colors-repeat`; `CheckStatistics.Diagrams` counts the charts, `Sheets` and
+  `GenerationResult.Pages` the chart sheets; `Preview` names each chart in a line. Workbooks without
+  charts and charts in decks and Word documents do not change.
 
 - **Front-matter keys `description` and `keywords`** (comma-separated), in every generator:
   `dc:description` and `cp:keywords` in Word documents and decks; in PDFs `keywords` are `/Keywords`,
