@@ -21,7 +21,7 @@ A deck or PDF is only useful to a consumer if it looks like theirs. Everything a
 | [E01-S05](../60-verify/E01-S05-brand-template-features.md) | Brand template features | in verification |
 | [E01-S06](../60-verify/E01-S06-template-roles-for-decks.md) | Template roles for decks | in verification |
 | [E01-S07](../60-verify/E01-S07-chapter-numbers-and-layouts-across-placeholders.md) | Chapter numbers and layouts across placeholders | in verification |
-| [E01-S08](E01-S08-cover-image.md) | Cover image | todo |
+| [E01-S08](../55-in-progress/port-1/E01-S08-cover-image.md) | Cover image | in progress (port-1) |
 
 Stories marked *to plan* come from the
 [2026-11-13 analysis](../10-analysis/2026-11-13%20feature-plan.md); each is written and agreed

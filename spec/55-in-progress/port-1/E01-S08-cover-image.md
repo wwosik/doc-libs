@@ -1,7 +1,7 @@
 # E01-S08 Cover image
 
-> Status: todo
-> Epic: [E01 Brands and templates](E01-brands-and-templates.md)
+> Status: in progress (port-1)
+> Epic: [E01 Brands and templates](../../50-todo/E01-brands-and-templates.md)
 
 ## Summary
 
