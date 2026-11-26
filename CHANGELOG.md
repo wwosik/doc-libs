@@ -11,6 +11,18 @@ updating, breaking changes first.
 
 ### New
 
+- **Contact sheet in the tool reply.** `DocumentToolOptions.Preview` takes an `IDeckPreview`; with
+  `new DeckContactSheet()` from `wwosik.DocLibs.DocumentConversions.Svg`, every deck `DocumentTool`
+  writes comes with a PNG of its slides, four to a row and numbered, in `DocumentToolRun.ContactSheet`,
+  and the reply adds `"contactSheet": "attached"` (and `contactSheetNote` above 60 slides, of which
+  the sheet shows the first 60). The guide then has a section *Looking at the slides*. No browser,
+  no network; the same deck gives the same PNG. Pass the image in the same tool result as the
+  reply: in Anthropic's Messages API as an `image` block in the `tool_result` content, in OpenAI's
+  Responses API as an `input_image` in the `function_call_output`. PDFs and Word documents get no
+  sheet. Without `Preview`, replies and guide are unchanged.
+- **`wwosik.DocLibs.DocumentConversions.Svg` now depends on `wwosik.DocLibs.DocumentGeneration.Pptx`**
+  (for `DeckContactSheet`), and so on the Open XML SDK and Markdig.
+
 - **Slide lines for editor previews.** `GenerationResult.SlideLines` gives, for a deck, the Markdown
   line (from 1, front matter included) each slide starts at; the parts of a split slide share their
   slide's line. `PptxGenerator.Generate` returns it and keeps each slide's line in the slide, in an

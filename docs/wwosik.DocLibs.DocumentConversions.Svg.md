@@ -2,8 +2,10 @@
 
 Converts SVG to PNG with [SkiaSharp](https://github.com/mono/SkiaSharp) and
 [Svg.Skia](https://github.com/wieslawsoltes/Svg.Skia) (both MIT), lets the document generators
-place `.svg` images, and paints previews of decks: each slide as a PNG and a contact sheet. Depends on
-[wwosik.DocLibs.DocumentConversions](wwosik.DocLibs.DocumentConversions.md); AOT-compatible (a
+place `.svg` images, and paints previews of decks: each slide as a PNG and a contact sheet, also for
+`DocumentTool`. Depends on [wwosik.DocLibs.DocumentConversions](wwosik.DocLibs.DocumentConversions.md)
+and, for `DeckContactSheet`, on
+[wwosik.DocLibs.DocumentGeneration.Pptx](wwosik.DocLibs.DocumentGeneration.Pptx.md); AOT-compatible (a
 Native AOT app publishes and runs with it without warnings).
 
 ```csharp
@@ -53,8 +55,9 @@ It paints the slide SVGs that `DeckSvg.Write` in
 [wwosik.DocLibs.DocumentGeneration.Pptx](wwosik.DocLibs.DocumentGeneration.Pptx.md#slide-svgs-for-previews)
 writes from any `.pptx`: the same drawing as that package's HTML deck, so a preview breaks lines
 where the HTML deck does and shows what it shows. A host that wants previews references both
-packages and makes two calls; neither package references the other, they meet in
-`SlideSvg` from [wwosik.DocLibs.DocumentConversions](wwosik.DocLibs.DocumentConversions.md#slide-svgs).
+packages and makes two calls; `DeckPreview` itself takes only `SlideSvg` from
+[wwosik.DocLibs.DocumentConversions](wwosik.DocLibs.DocumentConversions.md#slide-svgs), and
+`DeckContactSheet` (below) makes both calls for you.
 
 ```csharp
 using wwosik.DocLibs.DocumentConversions.Svg;
@@ -134,3 +137,25 @@ needs one more package in the application:
   slightly from a browser's.
 - External images, stylesheets and fonts referenced by the SVG are never loaded (see above): embed
   them as `data:` URIs.
+
+## Contact sheets for DocumentTool
+
+`DeckContactSheet` is the `IDeckPreview` that
+[`DocumentTool`](wwosik.DocLibs.DocumentGeneration.md#contact-sheet) calls for each deck it writes:
+it reads the deck with `DeckSvg.Write`, paints the slides with `DeckPreview.Render` at twice the
+thumbnail width, and lays them out with `DeckPreview.ContactSheet`, four to a row, numbered, labels in
+Liberation Sans. At most `IDeckPreview.MaxSlides` (60) slides, from the first; the same deck gives the
+same PNG.
+
+```csharp
+var tool = new DocumentTool([PptxGenerator.ForOptions(options)], new() { Preview = new DeckContactSheet() });
+var wider = new DeckContactSheet(sheet: new ContactSheetOptions { Columns = 6, ThumbnailWidth = 240 });
+```
+
+- **`new DeckContactSheet(fonts, sheet)`**: `fonts` are TrueType files for families the decks name but
+  do not embed (`DeckSvgOptions.Fonts`; generated decks embed brand fonts by default); `sheet` the
+  `ContactSheetOptions`, its `LabelFont` defaulting to Liberation Sans.
+- **`ContactSheet(pptx, result)`** returns `null` for empty bytes or a deck without slides. It
+  throws `DocumentConversionException` when the deck cannot be read or a slide painted (`DocumentTool`
+  then replies without a sheet), and `ArgumentException` when `sheet` makes the sheet larger than
+  16 384 pixels a side (a host error: `DocumentTool.Run` passes it on). The defaults fit 60 slides.

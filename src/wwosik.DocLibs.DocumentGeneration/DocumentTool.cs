@@ -26,6 +26,7 @@ public sealed class DocumentTool
 
     private const string Generating = "generate";
     private const string Checking = "check";
+    private const string DeckContentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
     private static readonly JsonWriterOptions WriterOptions = new()
     {
@@ -38,6 +39,7 @@ public sealed class DocumentTool
 
     private readonly IMarkdownGenerator[] generators;
     private readonly bool offerCheck;
+    private readonly IDeckPreview? preview;
 
     /// <summary>Creates the tool for <paramref name="generators"/>, in the order they are offered.</summary>
     /// <exception cref="ArgumentException">
@@ -85,6 +87,7 @@ public sealed class DocumentTool
 
         this.generators = [.. generators];
         this.offerCheck = options.OfferCheck;
+        this.preview = options.Preview;
         this.Name = options.Name;
         this.Description = options.Description ?? this.DefaultDescription();
         this.ParametersSchema = this.Schema();
@@ -145,18 +148,47 @@ public sealed class DocumentTool
             return new DocumentToolRun(CheckedReply(generator, result)) { Generator = generator, Check = result };
         }
 
+        // With a preview, a deck is written to a buffer first, so the painter can read it back.
+        var sheet = this.preview is not null && IsDeck(generator);
+        using var buffer = sheet ? new MemoryStream() : null;
         GenerationResult generated;
         try
         {
-            generated = generator.Generate(document, output);
+            generated = generator.Generate(document, buffer ?? output);
         }
         catch (DocumentConversionException exception)
         {
             return new DocumentToolRun(ErrorReply(exception.Reason)) { Generator = generator };
         }
 
-        return new DocumentToolRun(OkReply(generator, generated)) { Succeeded = true, Generator = generator, Result = generated };
+        byte[]? contactSheet = null;
+        if (buffer is not null)
+        {
+            buffer.Position = 0;
+            buffer.CopyTo(output);
+            try
+            {
+                contactSheet = this.preview!.ContactSheet(buffer.GetBuffer().AsMemory(0, (int)buffer.Length), generated);
+            }
+            catch (DocumentConversionException)
+            {
+                // The deck is written; a deck the painter cannot paint only goes without its sheet.
+            }
+        }
+
+        return new DocumentToolRun(OkReply(generator, generated, contactSheet is not null))
+        {
+            Succeeded = true,
+            Generator = generator,
+            Result = generated,
+            ContactSheet = contactSheet,
+        };
     }
+
+    /// <summary>Whether <paramref name="generator"/> writes decks, the only files that get a contact sheet.</summary>
+    private static bool IsDeck(IMarkdownGenerator generator) =>
+        string.Equals(generator.ContentType, DeckContentType, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(generator.FileExtension, ".pptx", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsValidName(string? name) =>
         name is { Length: >= 1 and <= 64 } && name.All(c => c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '_' or '-');
@@ -422,6 +454,17 @@ public sealed class DocumentTool
 
         text.Append("- **`\"status\": \"error\"`**: nothing was written. `error` says what to change, in the call or in the Markdown.\n");
 
+        if (this.preview is not null && this.generators.Any(IsDeck))
+        {
+            text.Append("\n## Looking at the slides\n\n");
+            text.Append("When a deck is written, the reply has `\"contactSheet\": \"attached\"`, and an image comes with it: ");
+            text.Append("a contact sheet of the slides, four to a row, each numbered as in the deck. ");
+            text.Append(CultureInfo.InvariantCulture, $"It shows at most {IDeckPreview.MaxSlides} slides; for a longer deck, `contactSheetNote` says which. ");
+            text.Append("Look at it before you finish: text that is cut off or crowded, a slide that is nearly empty, ");
+            text.Append("a picture that is too small, slides that look alike. Fix the Markdown and call again. ");
+            text.Append("Without `contactSheet` in the reply, there is no image for that file.\n");
+        }
+
         foreach (var generator in this.generators)
         {
             text.Append(CultureInfo.InvariantCulture, $"\n## {generator.Title} (format: \"{generator.Format}\")\n\n");
@@ -499,13 +542,24 @@ public sealed class DocumentTool
         }
     }
 
-    private static string OkReply(IMarkdownGenerator generator, GenerationResult result) => Write(writer =>
+    private static string OkReply(IMarkdownGenerator generator, GenerationResult result, bool contactSheet) => Write(writer =>
     {
         writer.WriteStartObject();
         writer.WriteString("status", "ok");
         writer.WriteString("format", generator.Format);
         writer.WriteNumber("pages", result.Pages);
         Notes(writer, result.Notes);
+        if (contactSheet)
+        {
+            writer.WriteString("contactSheet", "attached");
+            if (result.Pages > IDeckPreview.MaxSlides)
+            {
+                writer.WriteString(
+                    "contactSheetNote",
+                    string.Create(CultureInfo.InvariantCulture, $"The contact sheet shows slides 1 to {IDeckPreview.MaxSlides} of {result.Pages}."));
+            }
+        }
+
         writer.WriteEndObject();
     });
 
@@ -589,6 +643,14 @@ public sealed record DocumentToolOptions
 
     /// <summary>Whether the tool offers <c>"mode": "check"</c>. Default <see langword="true"/>.</summary>
     public bool OfferCheck { get; init; } = true;
+
+    /// <summary>
+    /// Paints a contact sheet of every deck the tool writes, such as <c>new DeckContactSheet()</c> from
+    /// <c>wwosik.DocLibs.DocumentConversions.Svg</c>: the run then has <see cref="DocumentToolRun.ContactSheet"/>, the reply
+    /// <c>"contactSheet": "attached"</c>, and the guide a section on looking at the slides. PDFs and Word documents get
+    /// none. Default <see langword="null"/>: no sheet, and replies and guide as without this option.
+    /// </summary>
+    public IDeckPreview? Preview { get; init; }
 }
 
 /// <summary>What one <see cref="DocumentTool.Run"/> did.</summary>
@@ -606,4 +668,11 @@ public sealed record DocumentToolRun(string Reply)
 
     /// <summary>The check's result, in check mode.</summary>
     public CheckResult? Check { get; init; }
+
+    /// <summary>
+    /// A contact sheet of the deck as a PNG (<c>image/png</c>), when <see cref="DocumentToolOptions.Preview"/> is set and
+    /// a deck was written; the reply then says <c>"contactSheet": "attached"</c>. Pass it to the model with the reply, as
+    /// an image in the same tool result.
+    /// </summary>
+    public byte[]? ContactSheet { get; init; }
 }

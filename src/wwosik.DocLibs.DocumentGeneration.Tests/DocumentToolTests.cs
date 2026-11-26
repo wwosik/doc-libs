@@ -351,6 +351,107 @@ public class DocumentToolTests
         Assert.True(new DocumentTool([PdfGenerator.ForOptions(Pdf)]).Run("{\"format\":null,\"markdown\":\"# Plan\\n\",\"mode\":null}", [], Stream.Null).Succeeded);
     }
 
+    // ---- Run: contact sheet ----------------------------------------------------------------------------------------
+
+    [Fact]
+    public void Run_WithAPreview_AttachesAContactSheet_ToADeck()
+    {
+        var document = Deck();
+        var preview = new FakePreview();
+        using var output = new MemoryStream();
+        var run = Tool(new DocumentToolOptions { Preview = preview }).Run(Arguments("pptx", document.Markdown), document.Resources, output);
+
+        using var plain = new MemoryStream();
+        var without = Tool().Run(Arguments("pptx", document.Markdown), document.Resources, plain);
+        Assert.True(run.Succeeded);
+        Assert.Equal(FakePreview.Png, run.ContactSheet);
+        Assert.Equal(output.ToArray(), preview.Deck);
+        Assert.Same(run.Result, preview.Result);
+        Assert.Equal(Parts(plain.ToArray()), Parts(output.ToArray()));
+        Assert.Null(without.ContactSheet);
+
+        using var reply = JsonDocument.Parse(run.Reply);
+        using var plainReply = JsonDocument.Parse(without.Reply);
+        Assert.Equal([.. plainReply.RootElement.EnumerateObject().Select(p => p.Name), "contactSheet"], reply.RootElement.EnumerateObject().Select(p => p.Name));
+        Assert.Equal("attached", reply.RootElement.GetProperty("contactSheet").GetString());
+    }
+
+    [Fact]
+    public void Run_WithAPreview_GivesNoSheet_ForPdfs_WordDocuments_OrChecks()
+    {
+        var document = Report();
+        var preview = new FakePreview();
+        var options = new DocumentToolOptions { Preview = preview };
+        var pdf = Tool(options).Run(Arguments("pdf", document.Markdown), document.Resources, Stream.Null);
+        var docx = new DocumentTool([DocxGenerator.ForOptions(Docx)], options).Run(Arguments(null, document.Markdown), document.Resources, Stream.Null);
+        var check = Tool(options).Run(Arguments("pptx", Deck().Markdown, "check"), Deck().Resources, Stream.Null);
+
+        Assert.Equal(Tool().Run(Arguments("pdf", document.Markdown), document.Resources, Stream.Null).Reply, pdf.Reply);
+        Assert.Null(pdf.ContactSheet);
+        Assert.Null(docx.ContactSheet);
+        Assert.Null(check.ContactSheet);
+        Assert.DoesNotContain("contactSheet", docx.Reply, StringComparison.Ordinal);
+        Assert.DoesNotContain("contactSheet", check.Reply, StringComparison.Ordinal);
+        Assert.Equal(0, preview.Calls);
+    }
+
+    [Fact]
+    public void Run_WithAPreview_NotesALongDeck()
+    {
+        var markdown = string.Concat(Enumerable.Range(1, IDeckPreview.MaxSlides + 2).Select(i => $"## Slide {i}\n\nText.\n\n"));
+        var run = Tool(new DocumentToolOptions { Preview = new FakePreview() }).Run(Arguments("pptx", markdown), [], Stream.Null);
+
+        using var reply = JsonDocument.Parse(run.Reply);
+        Assert.Equal(IDeckPreview.MaxSlides + 2, run.Result!.Pages);
+        Assert.Equal("The contact sheet shows slides 1 to 60 of 62.", reply.RootElement.GetProperty("contactSheetNote").GetString());
+    }
+
+    [Fact]
+    public void Run_WithAPreviewThatCannotPaint_RepliesWithoutASheet()
+    {
+        var document = Deck();
+        using var output = new MemoryStream();
+        var run = Tool(new DocumentToolOptions { Preview = new FakePreview { Fail = true } }).Run(Arguments("pptx", document.Markdown), document.Resources, output);
+
+        Assert.True(run.Succeeded);
+        Assert.Null(run.ContactSheet);
+        Assert.True(output.Length > 0);
+        Assert.Equal(Tool().Run(Arguments("pptx", document.Markdown), document.Resources, Stream.Null).Reply, run.Reply);
+    }
+
+    [Fact]
+    public void Guide_WithAPreview_HasLookingAtTheSlides()
+    {
+        var guide = Tool(new DocumentToolOptions { Preview = new FakePreview() }).Guide;
+
+        Assert.Contains("\n## Looking at the slides\n", guide, StringComparison.Ordinal);
+        Assert.Contains("\"contactSheet\": \"attached\"", guide, StringComparison.Ordinal);
+        Assert.Equal(Tool().Guide, guide.Remove(guide.IndexOf("\n## Looking at the slides", StringComparison.Ordinal), guide.IndexOf("\n## PowerPoint deck", StringComparison.Ordinal) - guide.IndexOf("\n## Looking at the slides", StringComparison.Ordinal)));
+        Assert.DoesNotContain("Looking at the slides", Tool().Guide, StringComparison.Ordinal);
+        Assert.DoesNotContain("Looking at the slides", new DocumentTool([PdfGenerator.ForOptions(Pdf)], new DocumentToolOptions { Preview = new FakePreview() }).Guide, StringComparison.Ordinal);
+    }
+
+    private sealed class FakePreview : IDeckPreview
+    {
+        public static readonly byte[] Png = [0x89, (byte)'P', (byte)'N', (byte)'G'];
+
+        public bool Fail { get; init; }
+
+        public int Calls { get; private set; }
+
+        public byte[]? Deck { get; private set; }
+
+        public GenerationResult? Result { get; private set; }
+
+        public byte[]? ContactSheet(ReadOnlyMemory<byte> pptx, GenerationResult result)
+        {
+            this.Calls++;
+            this.Deck = pptx.ToArray();
+            this.Result = result;
+            return this.Fail ? throw new DocumentConversionException(DocumentFormat.Svg, "Slide 1 cannot be painted.") : Png;
+        }
+    }
+
     // ---- Run: argument errors -------------------------------------------------------------------------------------
 
     [Theory]

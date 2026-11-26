@@ -2,11 +2,13 @@
 
   <PropertyGroup>
     <IsAotCompatible>true</IsAotCompatible>
-    <Description>Converts SVG to PNG with SkiaSharp and Svg.Skia, lets the wwosik.DocLibs document generators place .svg images in decks and PDFs, and paints deck previews: each slide as a PNG and a contact sheet.</Description>
+    <Description>Converts SVG to PNG with SkiaSharp and Svg.Skia, lets the wwosik.DocLibs document generators place .svg images in decks and PDFs, paints deck previews: each slide as a PNG and a contact sheet, and gives DocumentTool a contact sheet of each deck it writes.</Description>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\wwosik.DocLibs.DocumentConversions\wwosik.DocLibs.DocumentConversions.csproj" />
+    <!-- DeckContactSheet reads decks with DeckSvg, for DocumentTool. -->
+    <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration.Pptx\wwosik.DocLibs.DocumentGeneration.Pptx.csproj" />
   </ItemGroup>
 
   <ItemGroup>

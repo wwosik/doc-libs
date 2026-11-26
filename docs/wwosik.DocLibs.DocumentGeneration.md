@@ -446,7 +446,7 @@ return run.Reply;   // the tool result, as it is
   `ArgumentException` for no generator, a `null` one, two with the same `Format`, a name that does
   not match `^[a-zA-Z0-9_-]{1,64}$`, or a blank description. `DocumentToolOptions`: `Name` (default
   `create_document`), `Description` (replaces the generated one), `OfferCheck` (default `true`: the
-  `mode` parameter).
+  `mode` parameter), `Preview` (default none: a [contact sheet](#contact-sheet) of each deck).
 - **`Description`** is one paragraph naming the formats, how to call the tool, what it returns,
   and the guide by its title.
 - **`Guide`** is Markdown under one `#` heading, *Writing documents with create_document* (with
@@ -514,6 +514,51 @@ camelCase:
 - **`error`**: only `status` and `error`.
 - **Stable.** The statuses and keys are a public contract; a change to the shape is a breaking change
   in the changelog. Non-ASCII letters are written as they are, not as `\u` escapes.
+
+### Contact sheet
+
+An agent that sees images can look at the deck it wrote. Set `DocumentToolOptions.Preview` to an
+`IDeckPreview`, normally `new DeckContactSheet()` from
+[wwosik.DocLibs.DocumentConversions.Svg](wwosik.DocLibs.DocumentConversions.Svg.md#contact-sheets-for-documenttool),
+which paints the slides with SkiaSharp: no browser, no network, and the same deck gives the same
+PNG. This package knows no painter; the hook keeps it free of SkiaSharp.
+
+```csharp
+var tool = new DocumentTool(
+    [PptxGenerator.ForOptions(pptxOptions), PdfGenerator.ForOptions(pdfOptions)],
+    new DocumentToolOptions { Preview = new DeckContactSheet() });
+
+DocumentToolRun run = tool.Run(arguments, images, buffer);
+// run.ContactSheet: the PNG, when a deck was written; run.Reply then has "contactSheet": "attached".
+```
+
+- **Decks only.** When a deck is written, the tool generates it into a buffer, copies it to
+  `output` unchanged, and passes it with its `GenerationResult` to
+  `IDeckPreview.ContactSheet(pptx, result)`. PDFs, Word documents and checks get no sheet.
+- **The reply** adds `"contactSheet": "attached"` after `notes`; for a deck of more than
+  `IDeckPreview.MaxSlides` (60) slides, the sheet shows the first 60 and the reply adds
+  `"contactSheetNote": "The contact sheet shows slides 1 to 60 of 75."`. A deck the painter cannot
+  paint (`DocumentConversionException`) is still written, and the reply has neither key.
+- **The guide** gets a section *Looking at the slides*, after *What comes back*, that tells the agent
+  what the image is and what to look for. Without `Preview`, replies and guide are exactly as before.
+- **Pass the image with the reply**, in the same tool result. With Anthropic's Messages API, the
+  `tool_result` block takes a content array:
+
+  ```json
+  { "type": "tool_result", "tool_use_id": "…", "content": [
+      { "type": "text", "text": "<run.Reply>" },
+      { "type": "image", "source": { "type": "base64", "media_type": "image/png", "data": "<base64 of run.ContactSheet>" } }
+  ] }
+  ```
+
+  With OpenAI's Responses API, a `function_call_output` takes a list as its `output`:
+  `[{ "type": "input_text", "text": "<run.Reply>" }, { "type": "input_image", "image_url":
+  "data:image/png;base64,…" }]`. Where a tool result can hold text only (Chat Completions' `tool`
+  message), send the reply as the tool message and the image in the next `user` message, as an
+  `image_url` part with that data URL.
+- **Size.** Four thumbnails of 320 pixels to a row give a sheet 1 360 pixels wide, about 200 pixels
+  per row of 16:9 slides; 60 slides make it about 3 000 pixels tall. APIs scale large images down,
+  so for long decks consider fewer slides per call, or `ContactSheetOptions` with more columns.
 
 ### Errors
 

@@ -21,7 +21,7 @@ tests generate every example and compare the guides with `authoring-guide-*.expe
   `.pptx` to Markdown with images, and Markdown ↔ JIRA wiki markup. Cross-platform.
 - [wwosik.DocLibs.DocumentConversions.Svg](wwosik.DocLibs.DocumentConversions.Svg.md): SVG to
   PNG with SkiaSharp, `.svg` images in decks and PDFs, and deck previews (each slide as a PNG and a
-  contact sheet).
+  contact sheet, also attached to `DocumentTool`'s replies).
 - [wwosik.DocLibs.DocumentConversions.WindowsOnly](wwosik.DocLibs.DocumentConversions.WindowsOnly.md):
   `.doc`, `.rtf`, `.xls` and `.xlsx` through Office automation.
 - [wwosik.DocLibs.DocumentGeneration](wwosik.DocLibs.DocumentGeneration.md): what the generators

@@ -18,7 +18,9 @@ same change that made it untrue — a stale fact here is worse than a missing on
   - `wwosik.DocLibs.DocumentConversions.WindowsOnly` — Office automation for `.doc`, `.rtf`,
     `.xls`, `.xlsx`.
   - `wwosik.DocLibs.DocumentConversions.Svg` — SVG to PNG with SkiaSharp, `SvgImageConverter`, and
-    deck previews (`DeckPreview`, E07-S03).
+    deck previews (`DeckPreview`, E07-S03), and `DeckContactSheet`, the `IDeckPreview` for `DocumentTool`
+    (E05-S06); since then it references the Pptx package (and so `DocumentGeneration`); the Pptx package
+    must never reference it back.
   - `wwosik.DocLibs.DocumentGeneration` — shared by the generators: the public brand API
     (`Brand`, `BrandColors`, `BrandImage`, `BrandFonts`, `BrandFont`, `PptxBrandTemplate`,
     `BrandPack`), the drawing model (`Drawing` …), `ICodeBlockRenderer` and the AI tool (`DocumentTool`,
