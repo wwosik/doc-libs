@@ -29,7 +29,7 @@ table colours (`TableHeader`, `TableBand`, `TableLine`), a diagram palette and a
 | [E10-S02](../60-verify/E10-S02-totals-and-formulas.md) | Totals and formulas | in verification |
 | [E10-S03](../60-verify/E10-S03-charts-on-sheet-cells.md) | Charts on sheet cells | in verification |
 | [E10-S04](../60-verify/E10-S04-workbooks-from-markdown.md) | Workbooks from Markdown | in verification |
-| [E10-S05](E10-S05-workbooks-as-json-and-structured-tool-input.md) | Workbooks as JSON, and structured input for the document tool | todo |
+| [E10-S05](../55-in-progress/port-1/E10-S05-workbooks-as-json-and-structured-tool-input.md) | Workbooks as JSON, and structured input for the document tool | in progress (port-1) |
 | [E10-S06](E10-S06-cross-sheet-references.md) | Cross-sheet references in formulas | to plan |
 
 Order: S01 first; S02 and S03 in any order; S04 after S01 (the totals, formulas and charts of S02 and

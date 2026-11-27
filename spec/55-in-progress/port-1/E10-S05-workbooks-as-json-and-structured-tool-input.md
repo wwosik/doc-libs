@@ -1,7 +1,7 @@
 # E10-S05 Workbooks as JSON, and structured input for the document tool
 
-> Status: todo
-> Epic: [E10 Workbook generator](E10-workbook-generator.md)
+> Status: in progress (port-1)
+> Epic: [E10 Workbook generator](../../50-todo/E10-workbook-generator.md)
 
 ## Summary
 
