@@ -96,4 +96,16 @@ public class ChartPartTests
         using var reader = new StreamReader(part.GetStream());
         return Regex.Replace(reader.ReadToEnd(), "r:id=\"R[0-9a-f]{16}\"", "r:id=\"R…\"");
     }
+
+    // The workbook form of the chart block, which names a table's columns, is an error in a deck that names that form.
+    [Fact]
+    public void ColumnForm_InADeck_ThrowsNamingTheWorkbookForm()
+    {
+        var ex = Assert.ThrowsAny<Exception>(() => Samples.Generate(
+            Samples.Markdown("# Deck\n\n## Orders\n\n```chart\ncategory: Month\nseries: Plan, Actual\n```\n"),
+            new PptxOptions { CodeBlockRenderers = [new ChartRenderer()] }));
+
+        Assert.Contains("workbook form", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("'category'", ex.Message, StringComparison.Ordinal);
+    }
 }

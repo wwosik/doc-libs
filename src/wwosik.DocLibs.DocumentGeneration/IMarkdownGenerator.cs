@@ -3,13 +3,13 @@ using wwosik.DocLibs.DocumentConversions;
 namespace wwosik.DocLibs.DocumentGeneration;
 
 /// <summary>
-/// A generator bound to its options: <c>PptxGenerator.ForOptions</c>, <c>PdfGenerator.ForOptions</c> and
-/// <c>DocxGenerator.ForOptions</c> return one. It joins the generators, which live in packages of their own, so that
+/// A generator bound to its options: <c>PptxGenerator.ForOptions</c>, <c>PdfGenerator.ForOptions</c>,
+/// <c>DocxGenerator.ForOptions</c> and <c>XlsxGenerator.ForOptions</c> return one. It joins the generators, which live in packages of their own, so that
 /// <see cref="DocumentTool"/> can offer them without depending on any of them.
 /// </summary>
 public interface IMarkdownGenerator
 {
-    /// <summary>The format's short name, the value of the tool's <c>format</c> parameter: <c>pptx</c>, <c>pdf</c>, <c>docx</c>.</summary>
+    /// <summary>The format's short name, the value of the tool's <c>format</c> parameter: <c>pptx</c>, <c>pdf</c>, <c>docx</c>, <c>xlsx</c>.</summary>
     string Format { get; }
 
     /// <summary>What the format is called in prose: <c>PowerPoint deck</c>, <c>PDF document</c>, <c>Word document</c>.</summary>

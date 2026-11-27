@@ -78,6 +78,11 @@ updating, breaking changes first.
   sentences of its cover table are shorter to stay under its word limit; the tool guide changes
   with it.
 
+- **A `chart` block with `category`, `series`, `placement` or `sheet`** in a deck, PDF or Word
+  document still throws, but the message now names the workbook form of the block instead of an
+  unknown setting; a block of only such settings, without `---`, used to fail as malformed data and
+  fails with the same message. Code that matches the message adjusts.
+
 ### New
 
 - **Backup slides.** `# Backup {.backup}` makes that chapter and every later one a deck's backup:
@@ -192,6 +197,20 @@ updating, breaking changes first.
   and the warning `chart-colors-repeat`; `CheckStatistics.Diagrams` counts the charts, `Sheets` and
   `GenerationResult.Pages` the chart sheets; `Preview` names each chart in a line. Workbooks without
   charts and charts in decks and Word documents do not change.
+- **Workbooks from Markdown.** `XlsxGenerator.Generate`, `Check` and `Preview` take a
+  `MarkdownDocument`, and `XlsxGenerator.ForOptions` returns an `IMarkdownGenerator` with the format
+  `xlsx` for `DocumentTool`; `XlsxGenerator.AuthoringGuide` describes the Markdown. A leading `#` is
+  the title, each `##` a sheet whose first table is the data (`Table: …` its title, the paragraphs
+  above it its description); a further table under the same `##` goes to the sheet `Name 2`. Header
+  cells take attributes: `{.currency=EUR decimals=2 total=sum width=20}`, `.text`, `.number`,
+  `.integer`, `.percent`, `.date`, `.datetime`, `.boolean`; the separator row aligns. Columns without
+  a type take it from their values in the document's culture (two thirds must agree). A `chart`
+  block names the table's columns (`category`, `series`, `placement`, `sheet`) or carries CSV data,
+  which becomes a table on the chart's sheet. Front matter `info`, `showDate`, `subtitle`, `date`;
+  versions apply (`## Sheet {.internal}`). `XlsxOptions.Audience` is new. New note codes
+  `column-mixed`, `sheet-split` and `content-ignored`; `language-unknown`, `classification-kept`,
+  `audience-omitted` and `caption-ignored` now also list workbooks. Workbooks from the model do not
+  change.
 
 - **Front-matter keys `description` and `keywords`** (comma-separated), in every generator:
   `dc:description` and `cp:keywords` in Word documents and decks; in PDFs `keywords` are `/Keywords`,

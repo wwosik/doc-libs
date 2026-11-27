@@ -177,6 +177,12 @@ public sealed record XlsxColumn(string Header, XlsxColumnType? Type = null)
 
     /// <summary>The alignment. Default: text left, booleans centred, numbers and dates right.</summary>
     public XlsxAlign? Align { get; init; }
+
+    /// <summary>
+    /// Markdown: the column's type was inferred, and the values that did not fit it stay text (<c>column-mixed</c>), so a
+    /// text cell is no problem here.
+    /// </summary>
+    internal bool KeepsText { get; init; }
 }
 
 /// <summary>What the values of a column are.</summary>

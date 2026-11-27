@@ -1,6 +1,6 @@
 # wwosik.DocLibs.DocumentGeneration.Xlsx
 
-Generates Excel workbooks (`.xlsx`) from a typed model, in a brand's colours and fonts: an info
+Generates Excel workbooks (`.xlsx`) from a typed model or from Markdown, in a brand's colours and fonts: an info
 sheet first, then one table per sheet with real, typed values in the culture's number formats, a
 frozen and filtered header row, banding that survives sorting, totals that follow the filter,
 formulas checked before they are written, native charts on the tables' own cells, and print setup. `Check` reports
@@ -89,6 +89,7 @@ An `Integer` value has no decimals.
 | `Culture` | the language's | the culture of the number and date formats; a neutral language is its main country (`de` → `de-DE`) |
 | `Texts` | none | `GeneratedTexts` for further languages, by tag |
 | `Marking` | none | the host's marking; the workbook's can raise it, not lower it (`classification-kept`) |
+| `Audience` | `null` | Markdown: the version, over the front matter's `audience` |
 | `PageSize` | `A4` | `A4`, `A3` or `Letter` when printed |
 | `TimeProvider` | `TimeProvider.System` | today's date and the created and modified dates |
 
@@ -243,6 +244,118 @@ size comes from `PageSize`, the margins from the PDF generator (20 mm at the sid
 brand's logo at the right as a header picture; the footer the brand's footer text at the left and
 "Page n of m" (`GeneratedTexts.PageOfFormat`) at the right.
 
+## Markdown
+
+`XlsxGenerator.Generate(MarkdownDocument, Stream, XlsxOptions?)`, `Check(MarkdownDocument, …)` and
+`Preview(MarkdownDocument, …)` read the workbook from Markdown, then go on as for the model.
+`XlsxGenerator.ForOptions(options)` is an `IMarkdownGenerator` (format `xlsx`, "Excel workbook")
+for `DocumentTool`, and `AuthoringGuide(options)` the guide for whoever writes the Markdown
+(checked by a test to name every attribute, key and note code, and to stay under 2,500 words).
+This sample, `Samples/features.md` of the tests, gives a workbook that opens without repair and
+without notes:
+
+````markdown
+---
+title: Quarterly figures
+subtitle: First quarter 2026
+author: Planning team
+date: 2026-03-31
+lang: en
+classification: internal
+---
+
+# Quarterly figures
+
+Sales, orders and stock of the first quarter, with every kind of column.
+
+## Sales
+
+Net revenue per region.
+
+| Region {width=18} | Units {.integer total=sum} | Revenue {.currency=EUR decimals=2 total=sum} | Share {.percent decimals=1 total=sum} | Factor {.number decimals=3 total=average} | Since {.date} | Counted {.datetime} | Active {.boolean total=count} | Code {.text} |
+| :---------------- | -------------------------: | -------------------------------------------: | ------------------------------------: | ----------------------------------------: | ------------: | ------------------: | :---------------------------: | :----------- |
+| North | 1,200 | 15,000.50 | 25 % | 1.234 | 2024-01-01 | 2026-03-01 14:30 | true | 01234 |
+| South | 800 | 9,800 | 18 % | 0.987 | 6/1/2025 | 2026-03-02 09:05 | false | A-77 |
+| West | 3,100 | 41,000.75 | 57 % | 1.5 | 2025-09-15 | 2026-03-03 16:00 | yes | B\|C |
+
+Table: Sales by region
+
+```chart
+category: Region
+series: Revenue
+title: Revenue by region
+source: Ledger
+```
+
+## Orders
+
+| Item | Price | Quantity {total=sum} | Amount {total=sum} | Ordered | Paid |
+| ---- | ----: | -------------------: | -----------------: | ------- | ---- |
+| Pens | $1.50 | 10 | =[Price]*[Quantity] | 2026-01-15 | true |
+| Pads | $3.20 | 4 | =[Price]*[Quantity] | 2026-02-03 | false |
+| Ink | $12.00 | 2 | =[Price]*[Quantity] | 2026-03-09 | true |
+
+```chart
+type: horizontal-bar
+category: Item
+series: Quantity
+placement: sheet
+sheet: Quantities
+```
+
+## Months
+
+Orders by month, from the controlling report.
+
+```chart
+type: line
+title: Orders by month
+unit: k
+---
+month, plan, actual
+Jan, 120, 132.5
+Feb, 118, 121
+Mar, 125, 140
+```
+````
+
+- **Structure:** a `#` as the first block is the title, the paragraphs under it the description.
+  Each `##` is a sheet: the paragraphs above its table are its description, the first table the
+  data, `Table: …` right after it its title. A further table (or a chart with data) under the same
+  `##` goes to the sheet `Name 2` (`sheet-split`); a table before any `##` to a sheet named
+  `GeneratedTexts.Table` ("Table", "Tabelle"). A `##` without a table is no sheet. Lists, quotes,
+  code other than `chart`, images, rules and `###` or lower headings are left out
+  (`content-ignored`), as are paragraphs after a section's last table. Inline Markdown in cells is
+  reduced to its text; a cell starting with `=` is a formula, taken from the source as written so
+  that `*` and `[…]` stay as they are, `\|` a pipe.
+- **Header attributes**, at the end of a header cell: `.text`, `.number`, `.integer`, `.currency`
+  or `.currency=EUR`, `.percent`, `.date`, `.datetime`, `.boolean`, and `decimals=N`,
+  `total=sum|average|count|min|max`, `width=N`, unquoted or quoted. An unknown one is `column-invalid`
+  with the closest names; a value that does not fit a declared type is `cell-type`, with its line.
+  The separator row's `:--`, `:-:` and `--:` set `Align`. In a percent column a bare number is the
+  fraction (`0.25`), `25 %` the percentage; in a currency column a plain number is an amount.
+- **Inference**, for a column without a type, with the culture of `lang` (or `XlsxOptions.Culture`):
+  numbers with the culture's decimal mark and thousands separator in groups of three; amounts with
+  the culture's symbol, `€`, `$`, `£`, `¥`, `₹`, `₩`, `₺`, `zł` or any ISO code before or after;
+  percentages; the culture's short date (also with one-digit day and month) and ISO dates; those
+  with a time; booleans in English and in the language (`true`, `yes`, `wahr`, `ja`, …). A leading
+  zero or more than 15 digits keeps text. The type at least two thirds of the values fit wins (a
+  plain number fits a currency, a date a date-time column; ties go to the narrower type); whole
+  numbers only give `Integer`; the decimals are the most the values have. The other values stay text
+  in the typed column, with `column-mixed` naming the first one's line. A column of only formulas is
+  left to the model (`Number`, or `Currency`).
+- **Chart blocks:** settings only, after a table, name its columns (`category`, `series`, `type`,
+  `stacked`, `title`, `unit`, `source`, `placement: beside|sheet`, `sheet`); `type` is `bar` (upright,
+  as in the other formats), `horizontal-bar`, `line` or `area`. With `---` and CSV they carry their
+  data, read as in decks; it becomes a table (text categories, number series with the decimals of
+  the data) with the chart beside it. Mistakes are `chart-invalid`, with the block's line.
+- **Front matter:** `title`, `subtitle`, `author`, `description`, `date` (ISO), `lang`, `template`
+  (a brand of the options), `classification`, `draft`, `audience`, `info` and `showDate`; keys of
+  decks and documents are accepted and ignored. Versions apply as in the other generators
+  (`XlsxOptions.Audience` wins over `audience:`).
+- Problems of the model that the Markdown causes (an invalid sheet name, a formula) carry no line,
+  only their sheet, row and cell.
+
 ## Check
 
 `XlsxGenerator.Check(workbook, options)` writes nothing and returns a `CheckResult` with every
@@ -262,6 +375,9 @@ return. With problems, `Error` is the message `Generate` would throw. `Statistic
 | `function-unknown` | A warning: a formula calls a function the generator does not know |
 | `chart-invalid` | A chart names an unknown or shared column, takes a series from a column that is not numeric, has no series, stands on a sheet without rows, or names a chart sheet that is invalid or taken |
 | `chart-colors-repeat` | A warning: a chart has more series than the diagram palette has colours |
+| `column-mixed` | Markdown, a warning: most values of a column share a type; the others stay text |
+| `sheet-split` | Markdown, a warning: a further table under one `##` went to the sheet `Name 2` |
+| `content-ignored` | Markdown, a warning: a block a workbook cannot hold was left out |
 
 ## Preview
 
@@ -289,4 +405,4 @@ checked: a value of the wrong kind is shown as it is.
 - A chart's value axis is fixed to start at zero (or below) from the values written; a value turned
   negative in Excel later falls below the axis until its minimum is reset.
 - The info sheet links a chart sheet like any sheet (`'Chart 1'!A1`).
-- References to other sheets, Markdown and JSON input come in later stories.
+- References to other sheets and JSON input come in later stories.

@@ -19,6 +19,13 @@ internal static class ChartParser
         var lines = code.Replace("\r", string.Empty, StringComparison.Ordinal).Split('\n');
         var separator = Array.FindIndex(lines, l => l.Trim() == "---");
         var settings = separator < 0 ? [] : lines[..separator];
+
+        // The workbook form has settings only, without '---': named here, so the block means the same everywhere.
+        if (separator < 0 && lines.Select(l => l.Split(':', 2)[0].Trim().ToLowerInvariant()).FirstOrDefault(k => WorkbookKeys.Contains(k)) is { } workbookKey)
+        {
+            throw WorkbookForm(line, workbookKey);
+        }
+
         var data = (separator < 0 ? lines : lines[(separator + 1)..]).Where(l => l.Trim().Length > 0).ToList();
 
         var (kind, stacked, title, unit, source) = (ChartKind.Bar, false, (string?)null, (string?)null, (string?)null);
@@ -68,6 +75,8 @@ internal static class ChartParser
                         _ => throw Error(line, $"stacked is true or false, not '{value}'."),
                     };
                     break;
+                case var workbookSetting when WorkbookKeys.Contains(workbookSetting):
+                    throw WorkbookForm(line, key);
                 default:
                     throw Error(line, $"Unknown setting '{key}'. Valid settings: type, title, unit, stacked, source, decimal.");
             }
@@ -180,6 +189,13 @@ internal static class ChartParser
         cells.Add(cell.ToString().Trim());
         return cells;
     }
+
+    // The settings of the workbook form, which names a table's columns instead of carrying data.
+    private static readonly string[] WorkbookKeys = ["category", "series", "placement", "sheet"];
+
+    private static ArgumentException WorkbookForm(int line, string key) => Error(
+        line,
+        $"'{key}' belongs to the workbook form of the chart block, which draws the columns of a table in a workbook. Here a chart carries its own data: write it as CSV below a line '---' (a header row, then a row per category), and leave out '{key}'.");
 
     private static ArgumentException Error(int line, string reason) =>
         new(line > 0 ? $"The chart code block at line {line} cannot be drawn: {reason}" : $"The chart code block cannot be drawn: {reason}");

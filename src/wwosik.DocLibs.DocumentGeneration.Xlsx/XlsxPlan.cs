@@ -7,7 +7,7 @@ namespace wwosik.DocLibs.DocumentGeneration.Xlsx;
 
 /// <summary>
 /// One workbook resolved for writing, checking and previewing: brand, language, culture, marking, where every sheet's
-/// rows go, each column's format and width, and every problem found, which <see cref="XlsxGenerator.Generate"/> throws.
+/// rows go, each column's format and width, and every problem found, which <see cref="XlsxGenerator.Generate(XlsxWorkbook, Stream, XlsxOptions?)"/> throws.
 /// </summary>
 internal sealed class XlsxPlan
 {
@@ -99,13 +99,13 @@ internal sealed class XlsxPlan
             : string.Create(CultureInfo.InvariantCulture, $"The workbook has {(this.problems.Count >= MaxProblems ? "at least " : string.Empty)}{this.problems.Count} problems:"));
         if (this.problems.Count == 1)
         {
-            text.Append(this.problems[0].Message);
+            text.Append(Located(this.problems[0]));
         }
         else
         {
             foreach (var problem in this.problems.Take(10))
             {
-                text.Append("\n- ").Append(problem.Message);
+                text.Append("\n- ").Append(Located(problem));
             }
 
             if (this.problems.Count > 10)
@@ -116,6 +116,22 @@ internal sealed class XlsxPlan
 
         return new DocumentConversionException(Format.Xlsx, text.ToString());
     }
+
+    /// <summary>
+    /// Puts <paramref name="found"/>, problems found before the plan (in the Markdown a workbook was read from), before the
+    /// plan's own, at most <see cref="MaxProblems"/> in all.
+    /// </summary>
+    public void Prepend(IReadOnlyList<GenerationNote> found)
+    {
+        this.problems.InsertRange(0, found);
+        if (this.problems.Count > MaxProblems)
+        {
+            this.problems.RemoveRange(MaxProblems, this.problems.Count - MaxProblems);
+        }
+    }
+
+    // A problem for the exception's message: with its Markdown line, when it has one.
+    private static string Located(GenerationNote problem) => problem.Line > 0 ? problem.ToString() : problem.Message;
 
     /// <summary>The statistics of a check.</summary>
     public CheckStatistics Statistics()
@@ -1019,7 +1035,7 @@ internal sealed class XlsxPlan
             case XlsxCellKind.Text:
                 this.CheckText(cell.Text, where);
                 this.CheckCharacters(cell.Text, false, where);
-                if (type != XlsxColumnType.Text)
+                if (type != XlsxColumnType.Text && !column.Column.KeepsText)
                 {
                     this.Problem(NoteCodes.CellType, $"{where}: the text '{GenerationNotes.Quote(cell.Text!)}' is in a {type} column. Give a value of the column's type, or make it a Text column.");
                 }

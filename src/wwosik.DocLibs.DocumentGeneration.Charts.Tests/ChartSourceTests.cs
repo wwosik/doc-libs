@@ -136,4 +136,16 @@ public class ChartSourceTests
         var text = string.Concat(document.GetPages().Select(p => p.Text)).Replace(" ", string.Empty, StringComparison.Ordinal);
         Assert.Contains("Quelle:Annualreport", text, StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData("category: Month\nseries: Plan\n")]
+    [InlineData("series: Plan\n---\nx, a\n1, 2\n")]
+    [InlineData("placement: sheet\n---\nx, a\n1, 2\n")]
+    public void WorkbookSettings_OutsideAWorkbook_NameTheWorkbookForm(string block)
+    {
+        var error = Assert.Throws<ArgumentException>(() => ChartParser.Parse(block, 4));
+
+        Assert.Contains("line 4", error.Message, StringComparison.Ordinal);
+        Assert.Contains("workbook form", error.Message, StringComparison.Ordinal);
+    }
 }

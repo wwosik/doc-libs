@@ -46,7 +46,7 @@ tests generate every example and compare the guides with `authoring-guide-*.expe
   layout syntax of decks in Word styles, page breaks and a classification marking.
   Cross-platform.
 - [wwosik.DocLibs.DocumentGeneration.Xlsx](wwosik.DocLibs.DocumentGeneration.Xlsx.md): Excel
-  workbooks from a typed model in a brand's look, with an info sheet, typed values in the culture's
+  workbooks from a typed model or Markdown in a brand's look, with an info sheet, typed values in the culture's
   formats, filtered and banded tables, print setup, a check and an HTML preview. Cross-platform.
 - [wwosik.DocLibs.DocumentGeneration.Pdf](wwosik.DocLibs.DocumentGeneration.Pdf.md): Markdown to
   PDF/A-2b, in a brand's design, with embedded fonts (the brand's, else Liberation).

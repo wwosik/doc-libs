@@ -92,11 +92,13 @@ keep 640 × 380.
 
 ## In workbooks
 
-Workbooks do not take `chart` blocks: an `XlsxChart` names the columns of its sheet's table, and the
-chart refers to those cells instead of carrying a workbook of its own, through the same chart writer
-(see [the workbook generator](wwosik.DocLibs.DocumentGeneration.Xlsx.md#charts)). The writer's
-cell-reference path is shared, so decks and Word documents can later draw a chart from cells of a
-workbook the caller passes; today their charts keep their embedded workbook, unchanged.
+A workbook's `chart` block (see [the workbook generator](wwosik.DocLibs.DocumentGeneration.Xlsx.md#markdown))
+either carries its data as here, which then becomes a visible table on the chart's sheet, or names
+the columns of the table above it (`category`, `series`, `placement`, `sheet`); either way the chart
+refers to the sheet's cells instead of carrying a workbook of its own, through the same chart writer.
+In decks, PDFs and Word documents those four settings are an error that names the workbook form, so
+a block means the same thing everywhere. Charts of decks and Word documents keep their embedded
+workbook, unchanged.
 
 ## Financial charts
 

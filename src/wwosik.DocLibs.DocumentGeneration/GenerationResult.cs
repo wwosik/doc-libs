@@ -221,6 +221,18 @@ public static class NoteCodes
     /// <summary>Workbooks: a chart has more series than the brand's diagram palette has colours, so colours repeat.</summary>
     public const string ChartColorsRepeat = "chart-colors-repeat";
 
+    /// <summary>
+    /// Workbooks from Markdown: a column's type was inferred from most of its values, and the values that do not fit it
+    /// stay as written, as text.
+    /// </summary>
+    public const string ColumnMixed = "column-mixed";
+
+    /// <summary>Workbooks from Markdown: a further table under the same <c>##</c> went to a sheet of its own, <c>Name 2</c>.</summary>
+    public const string SheetSplit = "sheet-split";
+
+    /// <summary>Workbooks from Markdown: a block a workbook cannot hold (a list, a quote, code, an image, a <c>###</c> heading) was left out.</summary>
+    public const string ContentIgnored = "content-ignored";
+
     /// <summary>Every code, with the formats it occurs in and what a writer changes about it, for the authoring guides.</summary>
     internal static readonly IReadOnlyList<(string Code, DocumentFormat[] Formats, string Advice)> All =
     [
@@ -234,20 +246,20 @@ public static class NoteCodes
         (CharacterReplaced, [DocumentFormat.Pdf], "a character the fonts lack was replaced. Write it as one of the replacements under *Characters*."),
         (FootnoteMissing, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "a footnote reference such as `[^1]` has no definition `[^1]: text`, so it is shown as written. Add the definition, or remove the reference."),
         (FootnoteSplit, [DocumentFormat.Pdf], "a footnote was too long for the foot of its page and continues at the foot of the next. Shorten it, or move the detail into the text."),
-        (LanguageUnknown, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "the language in `lang` has no texts of its own, so alert titles and similar texts are in English. Use `en` or `de`."),
+        (LanguageUnknown, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx, DocumentFormat.Xlsx], "the language in `lang` has no texts of its own, so alert titles and similar texts are in English. Use `en` or `de`."),
         (NotesDropped, [DocumentFormat.Pptx], "a `::: notes` stands before the first heading, so it belongs to no slide and was left out. Move it under the heading of the slide it is for."),
         (NotesSimplified, [DocumentFormat.Pptx], "speaker notes hold only paragraphs and lists; a table, code block, image or quote in `::: notes` was written as plain text. Keep speaker notes to text and lists."),
         (AttributeIgnored, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "an image or heading attribute has no effect here, for example `fit=cover` on an image of its own in a PDF, or `{.appendix}` in a deck. Remove it, or use it where it works."),
         (IconNotDrawn, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx],"an icon was left out where it cannot be drawn. Move it as the *Icons* section says."),
         (LayoutFallback, [DocumentFormat.Pptx], "the design has no layout for that kind of slide (`{.quote}` and the others), so it is drawn as a layout slide with the same content. Nothing to fix, unless the design's own look matters."),
         (AgendaEmpty, [DocumentFormat.Pptx, DocumentFormat.Pdf], "an empty `{.agenda}` found no `#` chapters to list. Add the chapters, or write the agenda as a list."),
-        (CaptionIgnored, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text."),
+        (CaptionIgnored, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx, DocumentFormat.Xlsx], "a `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text. Move it right after its table, or write it as ordinary text."),
         (TocEmpty, [DocumentFormat.Pdf], "`toc: true` asked for a table of contents, but the document has no headings at the depth it lists, so there is none. Add headings, raise `tocDepth`, or leave `toc` out."),
         (ListTooDeep, [DocumentFormat.Docx], "a list is nested deeper than three levels; the deeper items are set at the third level. Flatten the list to three levels."),
-        (ClassificationKept, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "front matter cannot lower the host's `classification`, which applies. Leave the key out."),
+        (ClassificationKept, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx, DocumentFormat.Xlsx], "front matter cannot lower the host's `classification`, which applies. Leave the key out."),
         (TypographySkipped, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "with `typography: true`, a character the fonts lack was kept as typed. Nothing to fix."),
         (CodeLanguageUnknown, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "with `highlight: true`, a code block's language is unknown. Check the spelling, or write `text`."),
-        (AudienceOmitted, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx], "this version left out parts marked for other versions (*Versions*). Nothing to fix."),
+        (AudienceOmitted, [DocumentFormat.Pptx, DocumentFormat.Pdf, DocumentFormat.Docx, DocumentFormat.Xlsx], "this version left out parts marked for other versions (*Versions*). Nothing to fix."),
         (TooManyBullets, [DocumentFormat.Pptx], "a slide has more list items, counting every level, than *Limits* allows. Cut them, or split the slide into slides of your own."),
         (TooManyWords, [DocumentFormat.Pptx], "a slide has more words than *Limits* allows, its title and speaker notes not counted. Shorten it, or move detail into `::: notes`."),
         (LongParagraph, [DocumentFormat.Pdf, DocumentFormat.Docx], "a paragraph has more words than *Limits* allows. Split it, or make a list of it."),
@@ -267,6 +279,9 @@ public static class NoteCodes
         (FunctionUnknown, [DocumentFormat.Xlsx], "a formula calls a function the generator does not know. Check the spelling and use the English name; an add-in's function is fine as it is."),
         (ChartInvalid, [DocumentFormat.Xlsx], "a chart names a column the sheet does not have, takes a series from a column that is not a number, integer, currency or percent column, stands on a sheet without rows, has no series, or names a chart sheet that is invalid or taken. Fix the chart."),
         (ChartColorsRepeat, [DocumentFormat.Xlsx], "a chart has more series than the brand's diagram palette has colours, so two series share a colour. Split the chart, or use fewer series."),
+        (ColumnMixed, [DocumentFormat.Xlsx], "most values of a column share a type, which the column takes; the others stay as written, as text. Fix those values, or give the column a type such as `{.text}`."),
+        (SheetSplit, [DocumentFormat.Xlsx], "a further table, or a chart with data, under the same `##` went to a sheet of its own, named like the first with a number. Give it a `##` heading of its own."),
+        (ContentIgnored, [DocumentFormat.Xlsx], "a list, quote, code block, image, `###` heading or other block a workbook cannot hold was left out. Remove it, or put its content in a table."),
     ];
 
     /// <summary>The codes only a check returns, never <c>Generate</c>: the guides list them apart.</summary>

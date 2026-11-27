@@ -301,7 +301,7 @@ if (result.HasNotes)
 | `character-replaced` | PDF | `PdfOptions.ReplaceUnsupported` replaced a character the fonts lack; once per character, without a line |
 | `footnote-missing` | PPTX, DOCX, PDF | A footnote reference such as `[^1]` has no definition, so it is shown as written |
 | `footnote-split` | PDF | A footnote was too long for the foot of its page and continues at the foot of the next; with the line of its definition |
-| `language-unknown` | PPTX, DOCX, PDF | The document language has no `GeneratedTexts` of its own, built in or from the options; the texts are English, the tag is kept; without a line |
+| `language-unknown` | PPTX, DOCX, PDF, XLSX | The document language has no `GeneratedTexts` of its own, built in or from the options; the texts are English, the tag is kept; without a line |
 | `code-language-unknown` | PPTX, DOCX, PDF | With [highlighting](#code-highlighting) on, a fenced code block names a language that neither a renderer nor the highlighter knows, so it is not highlighted; not for `text`, `plain`, `console`, `output` |
 | `typography-skipped` | PPTX, DOCX, PDF | With [typography](#typography) on, a typographic character (a quote, dash, `…` or the no-break space) was not used because a face the text can be set in lacks it; the character stays as typed. Once per character, with the line of its first paragraph |
 | `notes-dropped` | PPTX | A `::: notes` stands before the first heading, so it belongs to no slide and was left out |
@@ -310,11 +310,11 @@ if (result.HasNotes)
 
 | `attribute-ignored` | PPTX, DOCX, PDF | An image attribute has no effect where it is: `fit=cover` on an image of its own in a PDF or Word document, `focus` on an image that is not cropped, `scale` with `fit=cover`, `.grey` on an SVG in a Word document (only its grey PNG goes in), or any attribute on an image shown as its alt text (in a heading or a table cell) |
 | `icon-not-drawn` | PPTX, PDF, DOCX | An icon (`:icon-name:`) stands where the format cannot draw it and was left out of the text: in decks anywhere but a card's figure or an icon list (inside text, a heading, a table cell, speaker notes, a list where not every item starts with an icon); in PDFs in a heading, a table cell or on the cover; in Word documents anywhere when no image converter is registered |
-| `caption-ignored` | PPTX, DOCX, PDF | A `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text, prefix included |
+| `caption-ignored` | PPTX, DOCX, PDF, XLSX | A `Table: …` or `Figure: …` paragraph does not directly follow a table or a drawn diagram, so it is shown as text, prefix included (left out in workbooks) |
 | `toc-empty` | PDF | `toc: true` (or `PdfOptions.TableOfContents`) asked for a table of contents, but no heading is at the depth it lists, so the PDF has none; the line is the `toc` key's, 0 when the option asked |
 | `list-too-deep` | DOCX | A list is nested deeper than three levels; the deeper items are set at the third level, once per list |
-| `classification-kept` | PPTX, PDF, DOCX | The front matter's `classification` is lower than the host's (`PptxOptions`, `PdfOptions` or `DocxOptions.Classification`); the host's applies. The PDF and deck guides leave it out of their notes list: their front matter table already says when lower values have no effect |
-| `audience-omitted` | PPTX, PDF, DOCX | The version generated left out parts marked for other versions (see [Audience versions](#audience-versions)): `internal` parts in the customer's version, solutions in all but the trainer's. Once per document, with the count and the lines; its line is the first of them. The deck guide leaves it out of its notes list |
+| `classification-kept` | PPTX, PDF, DOCX, XLSX | The front matter's `classification` is lower than the host's (`PptxOptions`, `PdfOptions` or `DocxOptions.Classification`); the host's applies. The PDF and deck guides leave it out of their notes list: their front matter table already says when lower values have no effect |
+| `audience-omitted` | PPTX, PDF, DOCX, XLSX | The version generated left out parts marked for other versions (see [Audience versions](#audience-versions)): `internal` parts in the customer's version, solutions in all but the trainer's. Once per document, with the count and the lines; its line is the first of them. The deck guide leaves it out of its notes list |
 | `too-many-bullets` | PPTX | Check only: a `#` or `##` section has more list items, all levels, than `CheckOptions.MaxBulletsPerSlide` |
 | `too-many-words` | PPTX | Check only: a `#` or `##` section has more words than `CheckOptions.MaxWordsPerSlide`; its title, speaker notes, tables, code and drawn containers are not counted |
 | `long-paragraph` | PDF, DOCX | Check only: a paragraph (not a table cell) has more words than `CheckOptions.MaxWordsPerParagraph` |
@@ -334,6 +334,9 @@ if (result.HasNotes)
 | `function-unknown` | XLSX | A formula calls a function the generator does not know; it is written as it is, for Excel or an add-in to know. Once per function, without a line |
 | `chart-invalid` | XLSX | A workbook chart names a column the sheet does not have, takes a series from a column that is not numeric, stands on a sheet without rows, has no series, or names a chart sheet that is invalid or taken; see [the workbook generator](wwosik.DocLibs.DocumentGeneration.Xlsx.md#charts) |
 | `chart-colors-repeat` | XLSX | A warning: a workbook chart has more series than the brand's diagram palette has colours, so colours repeat; without a line |
+| `column-mixed` | XLSX | Markdown: a column took the type most of its values share; the others stay text. See [the workbook generator](wwosik.DocLibs.DocumentGeneration.Xlsx.md#markdown) |
+| `sheet-split` | XLSX | Markdown: a further table, or a chart with data, under the same `##` went to a sheet of its own, `Name 2` |
+| `content-ignored` | XLSX | Markdown: a list, quote, code block, image, `###` heading or other block a workbook cannot hold was left out |
 
 ## Checking a document
 
@@ -455,10 +458,10 @@ if (run.Succeeded)
 return run.Reply;   // the tool result, as it is
 ```
 
-- **The generators.** `PptxGenerator.ForOptions(options)`, `PdfGenerator.ForOptions(options)` and
-  `DocxGenerator.ForOptions(options)` return an `IMarkdownGenerator`: the generator bound to its
-  options, with `Format` (`pptx`, `pdf`, `docx`), `Title` (`PowerPoint deck`, `PDF document`,
-  `Word document`), `FileExtension`, `ContentType`, `AuthoringGuide()`, `Generate(document,
+- **The generators.** `PptxGenerator.ForOptions(options)`, `PdfGenerator.ForOptions(options)`,
+  `DocxGenerator.ForOptions(options)` and `XlsxGenerator.ForOptions(options)` return an
+  `IMarkdownGenerator`: the generator bound to its options, with `Format` (`pptx`, `pdf`, `docx`,
+  `xlsx`), `Title` (`PowerPoint deck`, `PDF document`, `Word document`, `Excel workbook`), `FileExtension`, `ContentType`, `AuthoringGuide()`, `Generate(document,
   output)` and `Check(document)`. The options are checked when one of the methods runs. The static
   methods stay as they were. `ForAudience(audience)` returns the generator for that version, unless
   its options already set one; its default implementation returns the generator itself, so a host's

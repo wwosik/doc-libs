@@ -43,6 +43,12 @@ public sealed record XlsxOptions
     /// </summary>
     public XlsxMarking? Marking { get; init; }
 
+    /// <summary>
+    /// Markdown only: the version to generate (<see cref="DocumentGeneration.Audience"/>), which wins over the front
+    /// matter's <c>audience</c>. Default <see langword="null"/>: the front matter's, else <see cref="Audience.Customer"/>.
+    /// </summary>
+    public Audience? Audience { get; init; }
+
     /// <summary>The paper size when printed. Default <see cref="XlsxPageSize.A4"/>.</summary>
     public XlsxPageSize PageSize { get; init; } = XlsxPageSize.A4;
 
