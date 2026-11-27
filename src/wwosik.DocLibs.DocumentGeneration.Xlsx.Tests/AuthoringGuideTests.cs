@@ -47,7 +47,11 @@ public partial class AuthoringGuideTests
         Assert.All(
             XlsxMarkdown.Keys.Concat(XlsxMarkdown.OtherFormatKeys).Concat(["title", "author", "lang", "template", "classification", "draft", "audience", "description", "keywords"]),
             key => Assert.Contains($"`{key}`", guide, StringComparison.Ordinal));
-        Assert.All(NoteCodes.All.Where(n => n.Formats.Contains(Format.Xlsx)), note => Assert.Contains($"`{note.Code}`", guide, StringComparison.Ordinal));
+        Assert.All(NoteCodes.All.Where(n => n.Formats.Contains(Format.Xlsx) && n.Code != NoteCodes.JsonInvalid), note => Assert.Contains($"`{note.Code}`", guide, StringComparison.Ordinal));
+
+        // The code of the JSON form is in its own guide, not in the Markdown's.
+        Assert.DoesNotContain("`json-invalid`", guide, StringComparison.Ordinal);
+        Assert.Contains("`json-invalid`", XlsxWorkbookJson.Guide(), StringComparison.Ordinal);
     }
 
     [Fact]

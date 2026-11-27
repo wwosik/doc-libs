@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using wwosik.DocLibs.DocumentConversions;
 
 namespace wwosik.DocLibs.DocumentGeneration.Xlsx;
@@ -276,7 +277,9 @@ public static class XlsxGenerator
     /// <summary>
     /// This generator bound to <paramref name="options"/>, as an <see cref="IMarkdownGenerator"/> (format <c>xlsx</c>) for
     /// <see cref="DocumentTool"/>: its <c>Generate</c>, <c>Check</c> and <c>AuthoringGuide</c> are this class's Markdown
-    /// methods with these options. The options are not checked until one of them is called.
+    /// methods with these options. It is also an <see cref="IStructuredGenerator"/> with the parameter <c>workbook</c>,
+    /// which takes the workbook as JSON (<see cref="XlsxWorkbookJson"/>), so the tool offers both. The options are not
+    /// checked until one of them is called.
     /// </summary>
     public static IMarkdownGenerator ForOptions(XlsxOptions? options = null) => new Bound(options ?? XlsxOptions.Default);
 
@@ -315,7 +318,7 @@ public static class XlsxGenerator
 
     private static string Encode(string text) => WebUtility.HtmlEncode(text).Replace("\n", "<br>", StringComparison.Ordinal);
 
-    private sealed class Bound(XlsxOptions options) : IMarkdownGenerator
+    private sealed class Bound(XlsxOptions options) : IMarkdownGenerator, IStructuredGenerator
     {
         public string Format => "xlsx";
 
@@ -332,6 +335,20 @@ public static class XlsxGenerator
         public CheckResult Check(MarkdownDocument document) => XlsxGenerator.Check(document, options);
 
         public IMarkdownGenerator ForAudience(Audience audience) => options.Audience is null ? new Bound(options with { Audience = audience }) : this;
+
+        public string ParameterName => "workbook";
+
+        public string ParameterSchema => XlsxWorkbookJson.Schema;
+
+        public string StructuredGuide() => XlsxWorkbookJson.Guide();
+
+        public GenerationResult Generate(JsonElement input, IReadOnlyList<DocumentResource> resources, Stream output)
+        {
+            ArgumentNullException.ThrowIfNull(output);
+            return XlsxWorkbookJson.Generate(input, output, options);
+        }
+
+        public CheckResult Check(JsonElement input) => XlsxWorkbookJson.Check(input, options);
 
         public override string ToString() => $"{this.Title} ({this.Format})";
     }

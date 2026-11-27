@@ -211,6 +211,20 @@ updating, breaking changes first.
   `column-mixed`, `sheet-split` and `content-ignored`; `language-unknown`, `classification-kept`,
   `audience-omitted` and `caption-ignored` now also list workbooks. Workbooks from the model do not
   change.
+- **Workbooks as JSON, and structured input for `DocumentTool`.** `XlsxWorkbookJson.Schema` is the
+  JSON Schema of a workbook as JSON (camelCase names and enum values, closed objects, descriptions
+  from the model's documentation), generated with `JsonSchemaExporter` and AOT-safe.
+  `XlsxWorkbookJson.Check(json, options)` returns `XlsxJsonProblem`s with their JSON path
+  (`$.sheets[0].rows[2][1]`), code, `IsError` and message: shape problems first (new code
+  `json-invalid`), then the workbook's own check; `XlsxWorkbookJson.Read` returns the
+  `XlsxWorkbook` or throws listing every error. A cell is a number, a string (ISO dates in date
+  columns), a boolean, `null` or `{"formula": "…"}`. The new interface `IStructuredGenerator`
+  (`Format`, `ParameterName`, `ParameterSchema`, `StructuredGuide()`, `Generate(JsonElement, …)`,
+  `Check(JsonElement)`) takes structured input beside `IMarkdownGenerator`; `XlsxGenerator.ForOptions`
+  implements both. `DocumentTool` offers such a generator's input as the parameter `workbook`
+  (inline) and `workbookResource` (the path of an attached `.json` file), each implying its format;
+  `markdown` is then no longer required, and check mode returns the problems as notes
+  `"$.path: message"`. A tool without a structured generator keeps its schema, guide and replies.
 
 - **Front-matter keys `description` and `keywords`** (comma-separated), in every generator:
   `dc:description` and `cp:keywords` in Word documents and decks; in PDFs `keywords` are `/Keywords`,

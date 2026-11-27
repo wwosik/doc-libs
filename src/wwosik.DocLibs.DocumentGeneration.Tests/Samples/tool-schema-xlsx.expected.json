@@ -1,0 +1,369 @@
+{
+  "type": "object",
+  "properties": {
+    "format": {
+      "type": "string",
+      "enum": [
+        "pptx",
+        "pdf",
+        "docx",
+        "xlsx"
+      ],
+      "description": "The file to create: \"pptx\" for a PowerPoint deck, \"pdf\" for a PDF document, \"docx\" for a Word document or \"xlsx\" for an Excel workbook. The guide has a section on the Markdown of each."
+    },
+    "markdown": {
+      "type": "string",
+      "description": "The whole document as Markdown, front matter included, written as the guide describes for the format. Leave it out when you give 'workbook' or 'workbookResource'."
+    },
+    "workbook": {
+      "description": "The Excel workbook as data, instead of 'markdown'; it implies the format \"xlsx\". A workbook for XlsxGenerator: what its info sheet says, and its sheets, each one table. Everything but `sheets` is optional.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "description": "The title: on the info sheet, in the printed page header and in the core properties.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "subtitle": {
+          "description": "The subtitle: on the info sheet under the title, and the subject in the core properties.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "description": "What the workbook holds: on the info sheet, and the description in the core properties.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "author": {
+          "description": "The author: on the info sheet, and the creator in the core properties.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "date": {
+          "description": "The date shown on the info sheet and above every table. Default: today, from XlsxOptions.TimeProvider.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "language": {
+          "description": "The language, a BCP 47 tag such as `en`, `de` or `de-CH`: it picks the texts the generator writes itself (XlsxOptions.Texts) and, unless XlsxOptions.Culture is set, the culture of the number and date formats. Default `en`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "marking": {
+          "description": "The classification marking: on the info sheet and in the printed page header, never in the properties. It can raise XlsxOptions.Marking but not lower it, like front matter.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "classification": {
+              "description": "How confidential the workbook is. Values: \"public\": Not marked: the default, which shows nothing. \"internal\": For the organisation only: \"Internal\". \"confidential\": For named readers only: \"Confidential\".",
+              "enum": [
+                "public",
+                "internal",
+                "confidential"
+              ]
+            },
+            "draft": {
+              "description": "Whether it is a draft.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "classification"
+          ],
+          "additionalProperties": false
+        },
+        "brand": {
+          "description": "The name of the brand: `neutral`, the brand of XlsxOptions.Brand or one of XlsxOptions.Brands. Default: XlsxOptions.Brand.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sheets": {
+          "description": "The sheets, in order; the info sheet comes before them.",
+          "type": "array",
+          "items": {
+            "description": "A sheet holding one table: a title and a description above it, the header row, the rows.",
+            "type": "object",
+            "properties": {
+              "name": {
+                "description": "The sheet's name on its tab, by Excel's rules: 1 to 31 characters, none of `[]:*?/\\`, not starting or ending with `'`, and unique ignoring case.",
+                "type": "string"
+              },
+              "columns": {
+                "description": "The columns, left to right.",
+                "type": "array",
+                "items": {
+                  "description": "A column of a sheet's table: its header and the type of its values.",
+                  "type": "object",
+                  "properties": {
+                    "header": {
+                      "description": "The text of the header row, and the name a formula refers to it by: `[Header]`.",
+                      "type": "string"
+                    },
+                    "type": {
+                      "description": "What the values are, and so how they are shown. Default: \"text\"; for a column of formulas, \"number\", or \"currency\" when its formulas refer only to currency columns of one currency. Values: \"text\": Text, kept as written: `01234` stays `01234`. \"number\": A number with the culture's decimals and thousands separator. \"integer\": A whole number with the thousands separator. \"currency\": An amount with a currency symbol (`currency`). \"percent\": A share, stored as a fraction: `0.25` is shown as 25 %. \"date\": A date in the culture's short format. \"dateTime\": A date and time in the culture's short formats. \"boolean\": A truth value, which Excel shows as TRUE or FALSE in its own language.",
+                      "enum": [
+                        "text",
+                        "number",
+                        "integer",
+                        "currency",
+                        "percent",
+                        "date",
+                        "dateTime",
+                        "boolean",
+                        null
+                      ]
+                    },
+                    "currency": {
+                      "description": "The ISO 4217 code of a \"currency\" column, such as `EUR`; its symbol is shown where the culture puts its own. Default: the culture's currency.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "decimals": {
+                      "description": "Digits after the decimal point, 0 to 10, for \"number\", \"currency\" and \"percent\". Default: the culture's (the currency's for a currency of another country).",
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "width": {
+                      "description": "The width in characters, 1 to 255. Default: measured from the header and the values, 6 to 50.",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "align": {
+                      "description": "The alignment. Default: text left, booleans centred, numbers and dates right. Values: \"left\": At the left. \"center\": Centred. \"right\": At the right.",
+                      "enum": [
+                        "left",
+                        "center",
+                        "right",
+                        null
+                      ]
+                    },
+                    "total": {
+                      "description": "The column's total in the totals row under the table, written as `SUBTOTAL` so that a filter changes it to the visible rows. Only \"count\" on a text or boolean column. Default: none. Values: \"sum\": The sum of the visible values: `SUBTOTAL(109, …)`. \"average\": Their average: `SUBTOTAL(101, …)`. \"count\": How many visible cells are not empty: `SUBTOTAL(103, …)`. \"min\": The smallest visible value: `SUBTOTAL(105, …)`. \"max\": The largest visible value: `SUBTOTAL(104, …)`.",
+                      "enum": [
+                        "sum",
+                        "average",
+                        "count",
+                        "min",
+                        "max",
+                        null
+                      ]
+                    }
+                  },
+                  "required": [
+                    "header"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "title": {
+                "description": "The title above the table and in the info sheet's contents list.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "description": {
+                "description": "The line under the title, and the text beside the sheet in the contents list.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "totalsLabel": {
+                "description": "The label of the totals row, in the first column without a `total`. Default: GeneratedTexts.Total (\"Total\").",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "rows": {
+                "description": "The rows, each at most as many cells as there are columns; a short row is filled with empty cells.",
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "description": "One value of a row, in the order of the columns: a number (a percentage as a share, 0.12 for 12 %), a string (in a date column an ISO date such as \"2026-03-15\", in a dateTime column \"2026-03-15T14:30:00\"), true or false, null for an empty cell, or {\"formula\": \"[Price]*[Quantity]\"}.",
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "formula": {
+                            "description": "A formula in Excel's English form, with or without the leading '=': [Header] is the cell of the column with that header in the same row, {row} the row's number; A1 references are kept as written. Excel computes it on opening.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "formula"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                }
+              },
+              "charts": {
+                "description": "The sheet's native charts on its table's cells, beside the table or each on a chart sheet of its own.",
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "description": "A native chart whose series refer to the cells of its sheet's table, so that changing a value changes the chart: the categories from one column, a series from each further column.",
+                  "type": "object",
+                  "properties": {
+                    "category": {
+                      "description": "The header of the column whose values label the categories; any type. Numbers and dates keep their format on the axis.",
+                      "type": "string"
+                    },
+                    "series": {
+                      "description": "The headers of the columns drawn as series, in order: each a number, integer, currency or percent column.",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "type": {
+                      "description": "Upright columns, bars across, lines or areas. Default \"column\". Values: \"column\": Upright columns, clustered or stacked. \"bar\": Bars across, the categories down the left from top to bottom, clustered or stacked. \"line\": Lines with markers. \"area\": Filled areas, overlapping or stacked.",
+                      "enum": [
+                        "column",
+                        "bar",
+                        "line",
+                        "area",
+                        null
+                      ]
+                    },
+                    "stacked": {
+                      "description": "Columns, bars or areas stacked on each other rather than side by side or overlapping; lines ignore it.",
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "title": {
+                      "description": "The chart's title; null: none.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "unit": {
+                      "description": "The unit of the values, shown with the value axis (`k`, `%`); the axis also shows the first series' number format.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "source": {
+                      "description": "Where the data comes from: a second, smaller line of the title, after GeneratedTexts.Source (\"Source: Annual report\").",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "placement": {
+                      "description": "Beside the table, or on a chart sheet of its own after the table's sheet. Default \"beside\". Values: \"beside\": On the table's sheet, right of the table, 8 columns by 16 rows; further charts below it. \"sheet\": On a chart sheet of its own, right after the table's sheet, linked from the info sheet's contents.",
+                      "enum": [
+                        "beside",
+                        "sheet",
+                        null
+                      ]
+                    },
+                    "sheetName": {
+                      "description": "The name of the chart sheet, for \"sheet\", by the rules of `name`. Default: GeneratedTexts.Chart with the number of the chart sheet in the workbook (\"Chart 1\").",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "category",
+                    "series"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "name",
+              "columns"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "sheets"
+      ],
+      "additionalProperties": false
+    },
+    "workbookResource": {
+      "type": "string",
+      "description": "The path of an attached .json file that holds what 'workbook' would hold, instead of 'workbook' or 'markdown'; it implies the format \"xlsx\"."
+    },
+    "audience": {
+      "type": "string",
+      "enum": [
+        "customer",
+        "internal",
+        "trainer"
+      ],
+      "default": "customer",
+      "description": "The version to write, as the guide's section *Versions* describes: \"customer\" (the default) leaves out what is marked internal and the solutions, \"internal\" shows what is marked internal, \"trainer\" also the solutions. Wins over the front matter's 'audience'."
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "generate",
+        "check"
+      ],
+      "default": "generate",
+      "description": "\"generate\" (the default) writes the file; \"check\" writes nothing and returns every problem in the Markdown at once, with statistics."
+    }
+  },
+  "required": [
+    "format"
+  ],
+  "additionalProperties": false
+}

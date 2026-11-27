@@ -17,6 +17,7 @@
     <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration.Pptx\wwosik.DocLibs.DocumentGeneration.Pptx.csproj" />
     <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration.Pdf\wwosik.DocLibs.DocumentGeneration.Pdf.csproj" />
     <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration.Docx\wwosik.DocLibs.DocumentGeneration.Docx.csproj" />
+    <ProjectReference Include="..\wwosik.DocLibs.DocumentGeneration.Xlsx\wwosik.DocLibs.DocumentGeneration.Xlsx.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -24,6 +25,8 @@
     <None Include="..\wwosik.DocLibs.DocumentGeneration.Pptx.Tests\Samples\deck.md" Link="Samples\deck.md" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\wwosik.DocLibs.DocumentGeneration.Pptx.Tests\Samples\scenes.md" Link="Samples\scenes.md" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="..\wwosik.DocLibs.DocumentGeneration.Diagrams.Tests\DrawingFormat.cs" Link="DrawingFormat.cs" />
+    <None Include="..\wwosik.DocLibs.DocumentGeneration.Xlsx.Tests\Samples\features.md" Link="Samples\workbook.md" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\wwosik.DocLibs.DocumentGeneration.Xlsx.Tests\Samples\features.json" Link="Samples\workbook.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\wwosik.DocLibs.DocumentGeneration.Pdf.Tests\Samples\report.md" Link="Samples\report.md" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\wwosik.DocLibs.DocumentGeneration.Pdf.Tests\Samples\diagram.png" Link="Samples\diagram.png" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\wwosik.DocLibs.DocumentGeneration.Pdf.Tests\Samples\photo.png" Link="Samples\photo.png" CopyToOutputDirectory="PreserveNewest" />

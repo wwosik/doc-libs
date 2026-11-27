@@ -14,6 +14,9 @@ internal sealed class XlsxPlan
     /// <summary>The most problems a check reports.</summary>
     public const int MaxProblems = 500;
 
+    /// <summary>The key of <see cref="Exception.Data"/> that holds the JSON path of a <see cref="DocumentConversionException"/> the plan throws.</summary>
+    public const string PathKey = "wwosik.DocLibs.Xlsx.Path";
+
     public const int MaxRows = 1_048_576;
     public const int MaxColumns = 16_384;
     public const int MaxText = 32_767;
@@ -26,7 +29,12 @@ internal sealed class XlsxPlan
 
     private static readonly DateTime FirstDate = new(1900, 1, 1);
 
+    // Where in the workbook's JSON form the plan is, for the problems and notes it finds there.
+    private string at = "$";
+
     private readonly List<GenerationNote> problems = [];
+    private readonly List<string> problemPaths = [];
+    private readonly Dictionary<(string Code, string Message), string> notePaths = [];
     private readonly HashSet<int> missing = [];
     private readonly Dictionary<string, XlsxFormula> formulas = new(StringComparer.Ordinal);
     private readonly HashSet<string> unknownFunctions = new(StringComparer.Ordinal);
@@ -44,6 +52,12 @@ internal sealed class XlsxPlan
     public GenerationNotes Notes { get; } = new();
 
     public IReadOnlyList<GenerationNote> Problems => this.problems;
+
+    /// <summary>
+    /// Where each of <see cref="Problems"/> is in the workbook's JSON form, such as <c>$.sheets[0].rows[2][1]</c>: the
+    /// indexes of the model's lists, which are the JSON's; <c>$</c> for a problem found before the plan.
+    /// </summary>
+    public IReadOnlyList<string> ProblemPaths => this.problemPaths;
 
     public ResolvedBrand Brand { get; private set; } = null!;
 
@@ -124,9 +138,11 @@ internal sealed class XlsxPlan
     public void Prepend(IReadOnlyList<GenerationNote> found)
     {
         this.problems.InsertRange(0, found);
+        this.problemPaths.InsertRange(0, found.Select(_ => "$"));
         if (this.problems.Count > MaxProblems)
         {
             this.problems.RemoveRange(MaxProblems, this.problems.Count - MaxProblems);
+            this.problemPaths.RemoveRange(MaxProblems, this.problemPaths.Count - MaxProblems);
         }
     }
 
@@ -188,6 +204,16 @@ internal sealed class XlsxPlan
         return formula;
     }
 
+    // The JSON path of the sheet at `index`.
+    private static string Path(int index) => string.Create(CultureInfo.InvariantCulture, $"$.sheets[{index}]");
+
+    // `exception` with the JSON path of what it is about, for the JSON form's check.
+    private static DocumentConversionException At(string path, DocumentConversionException exception)
+    {
+        exception.Data[PathKey] = path;
+        return exception;
+    }
+
     private static int Words(string? text) => string.IsNullOrWhiteSpace(text) ? 0 : DocumentCheck.Words(text);
 
     private void Resolve(bool measure)
@@ -196,10 +222,19 @@ internal sealed class XlsxPlan
         var workbook = this.Workbook;
         var registry = BrandRegistry.Of(options.Brand, options.Brands);
         var brand = workbook.Brand is { } name
-            ? registry.Find(name.Trim()) ?? throw new DocumentConversionException(Format.Xlsx, $"The workbook names the brand '{name}'; expected {registry.Expected}.")
+            ? registry.Find(name.Trim()) ?? throw At("$.brand", new DocumentConversionException(Format.Xlsx, $"The workbook names the brand '{name}'; expected {registry.Expected}."))
             : options.Brand ?? DocumentGeneration.Brand.Neutral;
         this.Brand = ResolvedBrand.Resolve(brand);
-        var language = DocumentLanguage.Resolve(workbook.Language, "en", options.Texts, this.Notes, Format.Xlsx);
+        DocumentLanguage language;
+        try
+        {
+            language = DocumentLanguage.Resolve(workbook.Language, "en", options.Texts, this.Notes, Format.Xlsx);
+        }
+        catch (DocumentConversionException ex)
+        {
+            throw At("$.language", ex);
+        }
+
         this.Texts = language.Texts;
         this.LanguageTag = language.Tag;
         this.Culture = options.Culture ?? XlsxFormat.Culture(language.Tag);
@@ -213,7 +248,7 @@ internal sealed class XlsxPlan
         {
             if (!this.Info)
             {
-                this.Problem(NoteCodes.ExcelLimit, "The workbook has no sheet, and Excel needs at least one. Add a sheet, or a title for the info sheet.");
+                this.Problem(NoteCodes.ExcelLimit, "The workbook has no sheet, and Excel needs at least one. Add a sheet, or a title for the info sheet.", "$.sheets");
             }
 
             this.Sheets = [];
@@ -233,10 +268,15 @@ internal sealed class XlsxPlan
         this.NameChartSheets();
         if (this.Info)
         {
+            this.at = "$.title";
             this.CheckCharacters(workbook.Title, true, "the workbook's title");
+            this.at = "$.subtitle";
             this.CheckCharacters(workbook.Subtitle, true, "the workbook's subtitle");
+            this.at = "$.description";
             this.CheckCharacters(workbook.Description, true, "the workbook's description");
+            this.at = "$.author";
             this.CheckCharacters(workbook.Author, true, "the workbook's author");
+            this.at = "$";
         }
     }
 
@@ -249,12 +289,13 @@ internal sealed class XlsxPlan
         {
             if (own.Classification < host.Classification)
             {
-                this.Notes.Add(
+                this.at = "$.marking.classification";
+                this.Note(
                     NoteCodes.ClassificationKept,
-                    0,
                     $"The workbook asks for the classification '{own.Classification.ToString().ToLowerInvariant()}', but the host marks it '{host.Classification.ToString().ToLowerInvariant()}', which is kept: the workbook can raise the classification, not lower it.");
             }
 
+            this.at = "$";
             classification = own.Classification > classification ? own.Classification : classification;
         }
 
@@ -318,6 +359,7 @@ internal sealed class XlsxPlan
             ArgumentNullException.ThrowIfNull(sheets[i], nameof(XlsxWorkbook.Sheets));
             var name = sheets[i].Name ?? string.Empty;
             var where = string.Create(CultureInfo.InvariantCulture, $"Sheet {i + 1} ('{name}')");
+            this.at = Path(i) + ".name";
             foreach (var rule in NameRules(name))
             {
                 this.Problem(NoteCodes.SheetName, $"{where}: {rule}");
@@ -332,6 +374,8 @@ internal sealed class XlsxPlan
                 seen[name] = i;
             }
         }
+
+        this.at = "$";
     }
 
     private SheetPlan Sheet(XlsxSheet sheet, int index, bool measure)
@@ -350,10 +394,14 @@ internal sealed class XlsxPlan
         var headerRow = above == 0 ? 1 : above + 2;
         var columns = sheet.Columns ?? [];
         var rows = sheet.Rows ?? [];
+        var path = Path(index);
+        this.at = path + ".title";
         this.CheckCharacters(title, true, $"{label}, its title");
-        this.CheckCharacters(subtitle, true, $"{label}, its description");
         this.CheckText(title, $"{label}, its title");
+        this.at = path + ".description";
+        this.CheckCharacters(subtitle, true, $"{label}, its description");
         this.CheckText(subtitle, $"{label}, its description");
+        this.at = path + ".columns";
 
         if (columns.Count == 0)
         {
@@ -368,7 +416,7 @@ internal sealed class XlsxPlan
         var hasTotals = rows.Count > 0 && columns.Any(c => c?.Total is not null);
         if (headerRow + rows.Count + (hasTotals ? 1 : 0) > MaxRows)
         {
-            this.Problem(NoteCodes.ExcelLimit, string.Create(CultureInfo.InvariantCulture, $"{label} has {rows.Count:N0} rows below row {headerRow}; Excel allows {MaxRows:N0} rows in all. Split the data over sheets."));
+            this.Problem(NoteCodes.ExcelLimit, string.Create(CultureInfo.InvariantCulture, $"{label} has {rows.Count:N0} rows below row {headerRow}; Excel allows {MaxRows:N0} rows in all. Split the data over sheets."), path + ".rows");
         }
 
         var lookup = Lookup(columns);
@@ -376,6 +424,7 @@ internal sealed class XlsxPlan
         var plans = new List<ColumnPlan>(columns.Count);
         for (var c = 0; c < columns.Count; c++)
         {
+            this.at = string.Create(CultureInfo.InvariantCulture, $"{path}.columns[{c}]");
             plans.Add(this.Column(columns[c], c, types[c], currencies[c], label, headerRow, rows, measure));
         }
 
@@ -383,9 +432,10 @@ internal sealed class XlsxPlan
         {
             var row = rows[r] ?? [];
             var excelRow = headerRow + 1 + r;
+            var rowPath = string.Create(CultureInfo.InvariantCulture, $"{path}.rows[{r}]");
             if (row.Count > columns.Count)
             {
-                this.Problem(NoteCodes.RowTooWide, string.Create(CultureInfo.InvariantCulture, $"{label}, row {r + 1} ({ColumnName(columns.Count)}{excelRow}): the row has {row.Count} cells, but the sheet has {columns.Count} columns."));
+                this.Problem(NoteCodes.RowTooWide, string.Create(CultureInfo.InvariantCulture, $"{label}, row {r + 1} ({ColumnName(columns.Count)}{excelRow}): the row has {row.Count} cells, but the sheet has {columns.Count} columns."), string.Create(CultureInfo.InvariantCulture, $"{rowPath}[{columns.Count}]"));
             }
 
             var hasFormula = false;
@@ -393,9 +443,11 @@ internal sealed class XlsxPlan
             {
                 var cell = row[c] ?? XlsxCell.Empty;
                 var where = string.Create(CultureInfo.InvariantCulture, $"{label}, row {r + 1}, column '{plans[c].Column.Header}' ({ColumnName(c)}{excelRow})");
+                this.at = string.Create(CultureInfo.InvariantCulture, $"{rowPath}[{c}]");
                 if (cell.Kind == XlsxCellKind.Formula)
                 {
                     hasFormula = true;
+                    this.at += ".formula";
                     this.FormulaCell(cell.Text!, lookup, where);
                 }
                 else
@@ -406,7 +458,7 @@ internal sealed class XlsxPlan
 
             if (hasFormula)
             {
-                this.Circular(row, plans, lookup, label, r, excelRow);
+                this.Circular(row, plans, lookup, label, r, excelRow, rowPath);
             }
         }
 
@@ -417,6 +469,7 @@ internal sealed class XlsxPlan
         {
             labelColumn = first;
             totalsLabel = string.IsNullOrWhiteSpace(sheet.TotalsLabel) ? this.Texts.Total : sheet.TotalsLabel.Trim();
+            this.at = path + ".totalsLabel";
             this.CheckText(totalsLabel, $"{label}, its totals label");
             this.CheckCharacters(totalsLabel, false, $"{label}, its totals label");
         }
@@ -433,7 +486,8 @@ internal sealed class XlsxPlan
             }
         }
 
-        var charts = this.Charts(sheet, label, headerRow, plans, lookup);
+        var charts = this.Charts(sheet, path, label, headerRow, plans, lookup);
+        this.at = "$";
         return new SheetPlan(sheet, index, title, subtitle, showsDate, headerRow, plans)
         {
             Charts = charts,
@@ -445,7 +499,7 @@ internal sealed class XlsxPlan
     }
 
     // The sheet's charts, checked: their columns, kind and placement; a chart sheet's name is checked across the workbook.
-    private List<ChartPlan> Charts(XlsxSheet sheet, string label, int headerRow, List<ColumnPlan> plans, Dictionary<string, int> lookup)
+    private List<ChartPlan> Charts(XlsxSheet sheet, string sheetPath, string label, int headerRow, List<ColumnPlan> plans, Dictionary<string, int> lookup)
     {
         var charts = new List<ChartPlan>();
         var rows = sheet.Rows ?? [];
@@ -455,9 +509,12 @@ internal sealed class XlsxPlan
             var chart = given[n];
             ArgumentNullException.ThrowIfNull(chart, nameof(XlsxSheet.Charts));
             var where = string.Create(CultureInfo.InvariantCulture, $"{label}, chart {n + 1}");
+            var path = string.Create(CultureInfo.InvariantCulture, $"{sheetPath}.charts[{n}]");
+            this.at = path;
             var problems = this.problems.Count;
-            int? Column(string? header, string role)
+            int? Column(string? header, string role, string at)
             {
+                this.at = at;
                 if (string.IsNullOrWhiteSpace(header))
                 {
                     this.Problem(NoteCodes.ChartInvalid, $"{where}: the {role} names no column. Give a column header.");
@@ -481,11 +538,12 @@ internal sealed class XlsxPlan
                 return c;
             }
 
-            var category = Column(chart.Category, "category");
+            var category = Column(chart.Category, "category", path + ".category");
             var series = new List<int>();
+            var k = 0;
             foreach (var header in chart.Series ?? [])
             {
-                if (Column(header, "series") is not { } c)
+                if (Column(header, "series", string.Create(CultureInfo.InvariantCulture, $"{path}.series[{k++}]")) is not { } c)
                 {
                     continue;
                 }
@@ -500,9 +558,10 @@ internal sealed class XlsxPlan
                 series.Add(c);
             }
 
+            this.at = path;
             if (chart.Series is null || chart.Series.Count == 0)
             {
-                this.Problem(NoteCodes.ChartInvalid, $"{where}: the chart has no series. Name at least one numeric column in Series.");
+                this.Problem(NoteCodes.ChartInvalid, $"{where}: the chart has no series. Name at least one numeric column in Series.", path + ".series");
             }
 
             if (rows.Count == 0)
@@ -512,26 +571,29 @@ internal sealed class XlsxPlan
 
             if (!Enum.IsDefined(chart.Kind))
             {
-                this.Problem(NoteCodes.ChartInvalid, $"{where}: the kind {chart.Kind} is not one of Column, Bar, Line, Area.");
+                this.Problem(NoteCodes.ChartInvalid, $"{where}: the kind {chart.Kind} is not one of Column, Bar, Line, Area.", path + ".type");
             }
 
             if (!Enum.IsDefined(chart.Placement))
             {
-                this.Problem(NoteCodes.ChartInvalid, $"{where}: the placement {chart.Placement} is not one of Beside, Sheet.");
+                this.Problem(NoteCodes.ChartInvalid, $"{where}: the placement {chart.Placement} is not one of Beside, Sheet.", path + ".placement");
             }
 
             var title = string.IsNullOrWhiteSpace(chart.Title) ? null : chart.Title.Trim();
             var unit = string.IsNullOrWhiteSpace(chart.Unit) ? null : chart.Unit.Trim();
             var source = string.IsNullOrWhiteSpace(chart.Source) ? null : chart.Source.Trim();
+            this.at = path + ".title";
             this.CheckCharacters(title, true, $"{where}, its title");
+            this.at = path + ".unit";
             this.CheckCharacters(unit, true, $"{where}, its unit");
+            this.at = path + ".source";
             this.CheckCharacters(source, true, $"{where}, its source");
+            this.at = path + ".series";
             var palette = this.Brand.Diagram.Palette;
             if (series.Count > palette.Count)
             {
-                this.Notes.Add(
+                this.Note(
                     NoteCodes.ChartColorsRepeat,
-                    0,
                     string.Create(CultureInfo.InvariantCulture, $"{where}: the chart has {series.Count} series, but the brand's diagram palette has {palette.Count} colours, so colours repeat. Split the chart, or use fewer series."));
             }
 
@@ -605,6 +667,7 @@ internal sealed class XlsxPlan
                 }
 
                 var where = string.Create(CultureInfo.InvariantCulture, $"Sheet '{sheet.Sheet.Name}', chart {chart.Number}");
+                this.at = string.Create(CultureInfo.InvariantCulture, $"{Path(sheet.Index)}.charts[{chart.Number - 1}].sheetName");
                 foreach (var rule in NameRules(name))
                 {
                     this.Problem(NoteCodes.ChartInvalid, $"{where}: its chart sheet's name '{name}': {rule}");
@@ -616,6 +679,8 @@ internal sealed class XlsxPlan
                 }
             }
         }
+
+        this.at = "$";
     }
 
     // Chart sheets without a name of their own: GeneratedTexts.Chart and a number, "Chart 1", the next free one.
@@ -788,16 +853,15 @@ internal sealed class XlsxPlan
             {
                 var close = XlsxFormula.Closest(name, XlsxFormula.Functions.Keys);
                 var hint = close.Count > 0 ? $" Did you mean {string.Join(" or ", close)}?" : string.Empty;
-                this.Notes.Add(
+                this.Note(
                     NoteCodes.FunctionUnknown,
-                    0,
                     string.Create(CultureInfo.InvariantCulture, $"{where}: the formula '{quoted}' calls {name} at character {position}, a function the generator does not know; it is written as it is, and Excel shows #NAME? unless it or an add-in knows it.{hint}"));
             }
         }
     }
 
     // A formula that needs its own value within its row, through [Header] or an A1 reference to the row: once per row.
-    private void Circular(IReadOnlyList<XlsxCell> row, List<ColumnPlan> plans, Dictionary<string, int> lookup, string label, int index, int excelRow)
+    private void Circular(IReadOnlyList<XlsxCell> row, List<ColumnPlan> plans, Dictionary<string, int> lookup, string label, int index, int excelRow, string rowPath)
     {
         var count = Math.Min(row.Count, plans.Count);
         var edges = new List<(int Target, int Position)>?[count];
@@ -848,7 +912,7 @@ internal sealed class XlsxPlan
                     var cycle = path[start..];
                     var names = string.Join(" → ", cycle.Select(p => "[" + plans[p.Column].Column.Header + "]").Append("[" + plans[target].Column.Header + "]"));
                     var (from, at) = cycle[0];
-                    this.Problem(NoteCodes.FormulaInvalid, string.Create(CultureInfo.InvariantCulture, $"{label}, row {index + 1}, column '{plans[from].Column.Header}' ({ColumnName(from)}{excelRow}): the formula refers to itself within its row at character {at}: {names}. Excel cannot compute a circular reference; take one of the references out."));
+                    this.Problem(NoteCodes.FormulaInvalid, string.Create(CultureInfo.InvariantCulture, $"{label}, row {index + 1}, column '{plans[from].Column.Header}' ({ColumnName(from)}{excelRow}): the formula refers to itself within its row at character {at}: {names}. Excel cannot compute a circular reference; take one of the references out."), string.Create(CultureInfo.InvariantCulture, $"{rowPath}[{from}].formula"));
                     return true;
                 }
 
@@ -947,22 +1011,25 @@ internal sealed class XlsxPlan
         var where = string.Create(CultureInfo.InvariantCulture, $"{label}, column {index + 1} ('{column.Header}', {ColumnName(index)}{headerRow})");
         if (string.IsNullOrWhiteSpace(column.Header))
         {
-            this.Problem(NoteCodes.ColumnInvalid, $"{where}: the header is empty. Give the column a header.");
+            this.Problem(NoteCodes.ColumnInvalid, $"{where}: the header is empty. Give the column a header.", this.at + ".header");
         }
 
+        var at = this.at;
+        this.at += ".header";
         this.CheckText(column.Header, where);
         this.CheckCharacters(column.Header, false, where);
+        this.at = at;
         var decimals = column.Decimals;
         if (decimals is { } d)
         {
             if (type is not (XlsxColumnType.Number or XlsxColumnType.Currency or XlsxColumnType.Percent))
             {
-                this.Problem(NoteCodes.ColumnInvalid, $"{where}: a {type} column has no decimals; only Number, Currency and Percent columns do.");
+                this.Problem(NoteCodes.ColumnInvalid, $"{where}: a {type} column has no decimals; only Number, Currency and Percent columns do.", this.at + ".decimals");
                 decimals = null;
             }
             else if (d is < 0 or > 10)
             {
-                this.Problem(NoteCodes.ColumnInvalid, string.Create(CultureInfo.InvariantCulture, $"{where}: {d} decimals; use 0 to 10."));
+                this.Problem(NoteCodes.ColumnInvalid, string.Create(CultureInfo.InvariantCulture, $"{where}: {d} decimals; use 0 to 10."), this.at + ".decimals");
                 decimals = null;
             }
         }
@@ -972,7 +1039,7 @@ internal sealed class XlsxPlan
         {
             if (type != XlsxColumnType.Currency)
             {
-                this.Problem(NoteCodes.ColumnInvalid, $"{where}: the currency '{currency}' is set on a {type} column; only a Currency column has one.");
+                this.Problem(NoteCodes.ColumnInvalid, $"{where}: the currency '{currency}' is set on a {type} column; only a Currency column has one.", this.at + ".currency");
                 currency = null;
             }
             else if (column.Currency is null && !XlsxFormat.IsKnownCurrency(currency))
@@ -982,35 +1049,35 @@ internal sealed class XlsxPlan
             }
             else if (!XlsxFormat.IsKnownCurrency(currency))
             {
-                this.Problem(NoteCodes.ColumnInvalid, $"{where}: '{currency}' is not an ISO 4217 currency code such as EUR or USD.");
+                this.Problem(NoteCodes.ColumnInvalid, $"{where}: '{currency}' is not an ISO 4217 currency code such as EUR or USD.", this.at + ".currency");
                 currency = null;
             }
         }
 
         if (column.Width is { } width && (double.IsNaN(width) || width < 1 || width > 255))
         {
-            this.Problem(NoteCodes.ColumnInvalid, string.Create(CultureInfo.InvariantCulture, $"{where}: the width {width} is outside 1–255 characters."));
+            this.Problem(NoteCodes.ColumnInvalid, string.Create(CultureInfo.InvariantCulture, $"{where}: the width {width} is outside 1–255 characters."), this.at + ".width");
         }
 
         if (column.Align is { } align && !Enum.IsDefined(align))
         {
-            this.Problem(NoteCodes.ColumnInvalid, $"{where}: the alignment {align} is not one of Left, Center, Right.");
+            this.Problem(NoteCodes.ColumnInvalid, $"{where}: the alignment {align} is not one of Left, Center, Right.", this.at + ".align");
         }
 
         if (!Enum.IsDefined(type))
         {
-            this.Problem(NoteCodes.ColumnInvalid, $"{where}: the type {type} is not a column type.");
+            this.Problem(NoteCodes.ColumnInvalid, $"{where}: the type {type} is not a column type.", this.at + ".type");
         }
 
         if (column.Total is { } total)
         {
             if (!Enum.IsDefined(total))
             {
-                this.Problem(NoteCodes.ColumnInvalid, $"{where}: the total {total} is not one of Sum, Average, Count, Min, Max.");
+                this.Problem(NoteCodes.ColumnInvalid, $"{where}: the total {total} is not one of Sum, Average, Count, Min, Max.", this.at + ".total");
             }
             else if (type is XlsxColumnType.Text or XlsxColumnType.Boolean && total != XlsxTotal.Count)
             {
-                this.Problem(NoteCodes.ColumnInvalid, $"{where}: a {type} column cannot have the total {total}; only Count. Give the column a numeric type, or count it.");
+                this.Problem(NoteCodes.ColumnInvalid, $"{where}: a {type} column cannot have the total {total}; only Count. Give the column a numeric type, or count it.", this.at + ".total");
             }
         }
 
@@ -1109,9 +1176,8 @@ internal sealed class XlsxPlan
             }
 
             this.missing.Add(c);
-            this.Notes.Add(
+            this.Note(
                 NoteCodes.CharacterMissing,
-                0,
                 string.Create(CultureInfo.InvariantCulture, $"{where}: the font '{family}' lacks '{rune}' (U+{c:X4}), which Excel shows in a substitute font. Write it as a plain character, or leave it out."));
         }
     }
@@ -1150,13 +1216,25 @@ internal sealed class XlsxPlan
         return TextMetrics.Width(text, 1100, bold) / TextMetrics.Width("0", 1100, false);
     }
 
-    private void Problem(string code, string message)
+    /// <summary>The JSON path of the note of <paramref name="code"/> with <paramref name="message"/>, where the plan made it.</summary>
+    public string? NotePath(string code, string message) => this.notePaths.GetValueOrDefault((code, message));
+
+    // A problem at the JSON path `path`, or at the place the plan is at.
+    private void Problem(string code, string message, string? path = null)
     {
         if (this.problems.Count < MaxProblems)
         {
             var note = new GenerationNote(code, 0, message);
             this.problems.Add(note);
+            this.problemPaths.Add(path ?? this.at);
         }
+    }
+
+    // A note at the place the plan is at.
+    private void Note(string code, string message, string? path = null)
+    {
+        this.notePaths.TryAdd((code, message), path ?? this.at);
+        this.Notes.Add(code, 0, message);
     }
 }
 

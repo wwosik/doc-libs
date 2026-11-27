@@ -1,0 +1,71 @@
+{
+  "title": "Quarterly figures",
+  "subtitle": "First quarter 2026",
+  "description": "Sales, orders and stock of the first quarter, with every kind of column.",
+  "author": "Planning team",
+  "date": "2026-03-31",
+  "language": "en",
+  "marking": { "classification": "internal" },
+  "sheets": [
+    {
+      "name": "Sales",
+      "title": "Sales by region",
+      "description": "Net revenue per region.",
+      "columns": [
+        { "header": "Region", "type": "text", "width": 18, "align": "left" },
+        { "header": "Units", "type": "integer", "total": "sum", "align": "right" },
+        { "header": "Revenue", "type": "currency", "currency": "EUR", "decimals": 2, "total": "sum", "align": "right" },
+        { "header": "Share", "type": "percent", "decimals": 1, "total": "sum", "align": "right" },
+        { "header": "Factor", "type": "number", "decimals": 3, "total": "average", "align": "right" },
+        { "header": "Since", "type": "date", "align": "right" },
+        { "header": "Counted", "type": "dateTime", "align": "right" },
+        { "header": "Active", "type": "boolean", "total": "count", "align": "center" },
+        { "header": "Code", "type": "text", "align": "left" }
+      ],
+      "rows": [
+        ["North", 1200, 15000.5, 0.25, 1.234, "2024-01-01", "2026-03-01T14:30:00", true, "01234"],
+        ["South", 800, 9800, 0.18, 0.987, "2025-06-01", "2026-03-02T09:05", false, "A-77"],
+        ["West", 3100, 41000.75, 0.57, 1.5, "2025-09-15", "2026-03-03T16:00:00", true, "B|C"]
+      ],
+      "charts": [
+        { "category": "Region", "series": ["Revenue"], "title": "Revenue by region", "source": "Ledger" }
+      ]
+    },
+    {
+      "name": "Orders",
+      "columns": [
+        { "header": "Item", "type": "text" },
+        { "header": "Price", "type": "currency", "currency": "USD", "align": "right" },
+        { "header": "Quantity", "type": "integer", "total": "sum", "align": "right" },
+        { "header": "Amount", "total": "sum", "align": "right" },
+        { "header": "Ordered", "type": "date" },
+        { "header": "Paid", "type": "boolean" }
+      ],
+      "rows": [
+        ["Pens", 1.5, 10, { "formula": "[Price]*[Quantity]" }, "2026-01-15", true],
+        ["Pads", 3.2, 4, { "formula": "=[Price]*[Quantity]" }, "2026-02-03", false],
+        ["Ink", 12, 2, { "formula": "[Price]*[Quantity]" }, "2026-03-09", true]
+      ],
+      "charts": [
+        { "type": "bar", "category": "Item", "series": ["Quantity"], "placement": "sheet", "sheetName": "Quantities" }
+      ]
+    },
+    {
+      "name": "Months",
+      "description": "Orders by month, from the controlling report.",
+      "columns": [
+        { "header": "month", "type": "text" },
+        { "header": "plan", "type": "number", "decimals": 0 },
+        { "header": "actual", "type": "number", "decimals": 1 }
+      ],
+      "rows": [
+        ["Jan", 120, 132.5],
+        ["Feb", 118, 121],
+        ["Mar", 125, 140]
+      ],
+      "charts": [
+        { "type": "line", "category": "month", "series": ["plan", "actual"], "title": "Orders by month", "unit": "k" }
+      ]
+    }
+  ]
+}

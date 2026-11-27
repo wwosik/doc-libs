@@ -10,7 +10,7 @@ internal static class XlsxGuide
     public static readonly IReadOnlySet<string> Errors = new HashSet<string>(StringComparer.Ordinal)
     {
         NoteCodes.CellType, NoteCodes.SheetName, NoteCodes.ColumnInvalid, NoteCodes.RowTooWide, NoteCodes.ExcelLimit,
-        NoteCodes.FormulaInvalid, NoteCodes.ChartInvalid,
+        NoteCodes.FormulaInvalid, NoteCodes.ChartInvalid, NoteCodes.JsonInvalid,
     };
 
     /// <exception cref="ArgumentException">A brand is invalid, or two share a name.</exception>
@@ -29,7 +29,7 @@ internal static class XlsxGuide
     }
 
     private static string Codes(bool error) => string.Join("\n", NoteCodes.All
-        .Where(n => n.Formats.Contains(Format.Xlsx) && Errors.Contains(n.Code) == error)
+        .Where(n => n.Formats.Contains(Format.Xlsx) && n.Code != NoteCodes.JsonInvalid && Errors.Contains(n.Code) == error)
         .Select(n => $"- `{n.Code}`: {n.Advice}"));
 
     private static string FrontMatter(XlsxOptions options, string templates)

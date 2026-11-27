@@ -597,6 +597,13 @@ same change that made it untrue — a stale fact here is worse than a missing on
   shift the sheets' ids and `localSheetId`s. `ChartWriter.Add` must stay byte for byte: `ChartPartTests` in the PPTX
   and DOCX tests compare its parts with `Samples/chart-parts-*.expected.md` (refresh only on an intended change, with
   `DOCLIBS_UPDATE_EXPECTED=1`).
+- **Workbooks as JSON and structured tool input (E10-S05):** the schema is exported from internal DTOs
+  (`XlsxJsonTypes.cs`, source-generated) with descriptions from `XlsxJsonDescriptions.cs`, which a test regenerates
+  from the XML docs (`DOCLIBS_UPDATE_EXPECTED=1`): a change to the model's docs or a new JSON property needs that run
+  and a new `workbook.schema.expected.json`. `JsonShape` (DocumentGeneration) checks only the schema keywords in use;
+  a new keyword in a schema needs support there. `XlsxPlan` keeps a JSON path per problem and note (`this.at` set
+  while walking): a new problem in the plan should set or pass its path. `DocumentTool` finds structured input by
+  `is IStructuredGenerator` on the generators it is given; without one, schema and replies must stay byte for byte.
 - **Word round trip (E08-S02):** `DocxConverter` hands a generated document to `GeneratedDocx`
   (recognised by `dl:generated` in `settings.xml`, else by the styles `CoverDetails` + `ImageRow`);
   everything else keeps the old path. The generator's `DocxRoundTrip` writes the ignorable

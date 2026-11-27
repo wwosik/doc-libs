@@ -337,6 +337,7 @@ if (result.HasNotes)
 | `column-mixed` | XLSX | Markdown: a column took the type most of its values share; the others stay text. See [the workbook generator](wwosik.DocLibs.DocumentGeneration.Xlsx.md#markdown) |
 | `sheet-split` | XLSX | Markdown: a further table, or a chart with data, under the same `##` went to a sheet of its own, `Name 2` |
 | `content-ignored` | XLSX | Markdown: a list, quote, code block, image, `###` heading or other block a workbook cannot hold was left out |
+| `json-invalid` | XLSX | Structured input (a workbook as JSON): a value does not have the shape the schema asks for, with its JSON path; see [the workbook generator](wwosik.DocLibs.DocumentGeneration.Xlsx.md#json) |
 
 ## Checking a document
 
@@ -465,7 +466,8 @@ return run.Reply;   // the tool result, as it is
   output)` and `Check(document)`. The options are checked when one of the methods runs. The static
   methods stay as they were. `ForAudience(audience)` returns the generator for that version, unless
   its options already set one; its default implementation returns the generator itself, so a host's
-  own `IMarkdownGenerator` keeps compiling.
+  own `IMarkdownGenerator` keeps compiling. `XlsxGenerator.ForOptions` also implements
+  `IStructuredGenerator`, see [Structured input](#structured-input).
 - **No generator in the shared package.** `DocumentTool` knows only `IMarkdownGenerator`, so a host
   pays for the formats it offers: one that offers only PDFs references no Open XML SDK.
 - **`new DocumentTool(generators, options)`** offers the generators in their order. It throws
@@ -492,6 +494,41 @@ all accept:
 | `markdown` | string, required | The whole document, front matter included. |
 | `audience` | `"customer"` (default), `"internal"` or `"trainer"` | The version (see [Audience versions](#audience-versions)), through `IMarkdownGenerator.ForAudience`. Wins over the front matter's `audience`, not over a version the generator's options set. Optional. |
 | `mode` | `"generate"` (default) or `"check"` | Only with `OfferCheck`. `check` calls `Check` and writes nothing. |
+
+With a [structured generator](#structured-input) the table has two more rows after `markdown`,
+`workbook` and `workbookResource` for workbooks, and `markdown` is no longer required.
+
+### Structured input
+
+Some files are data rather than prose: a workbook of figures is easier to send as JSON than to
+write as a Markdown table. A generator that also implements `IStructuredGenerator` takes such input
+beside Markdown; `XlsxGenerator.ForOptions` is the first, and the interface is not tied to
+workbooks.
+
+- **`IStructuredGenerator`**: `Format` (the same as the Markdown generator's), `ParameterName`
+  (`workbook`), `ParameterSchema` (the input's JSON Schema, indented), `StructuredGuide()` (Markdown
+  from `##`), `Generate(JsonElement input, resources, output)` and `Check(JsonElement input)`. Every
+  problem names its JSON path, such as `$.sheets[0].rows[2][1]`: in `Check`'s notes (line 0, the
+  message starting with `$.path: `) and in the message of the `DocumentConversionException` that
+  `Generate` throws.
+- **The tool finds it by itself.** Pass the generator as an `IMarkdownGenerator`, as before; when it
+  is also an `IStructuredGenerator`, the tool offers both kinds of input. It throws
+  `ArgumentException` when the two formats differ, the parameter name is not lower camelCase ASCII
+  or is taken, or the schema is not a JSON object.
+- **Parameters.** The schema gets the parameter (`workbook`) with the generator's schema, the tool's
+  sentence in front of its description, and `<parameter>Resource` (`workbookResource`), the path of
+  an attached `.json` resource with the same content (UTF-8, a byte-order mark allowed). Both are
+  optional, and `markdown` is no longer required. The generator's schema may use `items`, `anyOf`,
+  `format` and `type` lists besides the keywords above.
+- **A call** gives one of `markdown`, the parameter and its resource. Each implies its format, so
+  `format` may be left out; giving two of them, a structured parameter with another `format`, a
+  parameter that is not an object, or a resource that is not attached or not JSON is an `error`
+  reply. In check mode the problems come back as notes `"$.path: message"`.
+- **Guide and description.** *Calling the tool* gets a bullet on data instead of Markdown, and the
+  format's section ends with the generator's `StructuredGuide()`, its headings moved down. The
+  description names the parameters.
+- **Without a structured generator** the schema, description, guide and replies are exactly as
+  before.
 
 ### Replies
 

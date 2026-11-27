@@ -233,6 +233,12 @@ public static class NoteCodes
     /// <summary>Workbooks from Markdown: a block a workbook cannot hold (a list, a quote, code, an image, a <c>###</c> heading) was left out.</summary>
     public const string ContentIgnored = "content-ignored";
 
+    /// <summary>
+    /// Structured input such as a workbook as JSON: a value does not have the shape its JSON Schema asks for (a missing or
+    /// unknown property, a wrong type, an unknown value).
+    /// </summary>
+    public const string JsonInvalid = "json-invalid";
+
     /// <summary>Every code, with the formats it occurs in and what a writer changes about it, for the authoring guides.</summary>
     internal static readonly IReadOnlyList<(string Code, DocumentFormat[] Formats, string Advice)> All =
     [
@@ -282,6 +288,7 @@ public static class NoteCodes
         (ColumnMixed, [DocumentFormat.Xlsx], "most values of a column share a type, which the column takes; the others stay as written, as text. Fix those values, or give the column a type such as `{.text}`."),
         (SheetSplit, [DocumentFormat.Xlsx], "a further table, or a chart with data, under the same `##` went to a sheet of its own, named like the first with a number. Give it a `##` heading of its own."),
         (ContentIgnored, [DocumentFormat.Xlsx], "a list, quote, code block, image, `###` heading or other block a workbook cannot hold was left out. Remove it, or put its content in a table."),
+        (JsonInvalid, [DocumentFormat.Xlsx], "the JSON does not have the shape the schema asks for: a property is missing, unknown or of the wrong type, a value is not one of those allowed, or a date is not written as `2026-03-15`. Fix the value at the path named."),
     ];
 
     /// <summary>The codes only a check returns, never <c>Generate</c>: the guides list them apart.</summary>

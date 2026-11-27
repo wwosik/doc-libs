@@ -30,6 +30,12 @@ public sealed class DocumentTool
     /// <summary>The parameter that picks <c>generate</c> or <c>check</c>.</summary>
     public const string ModeParameter = "mode";
 
+    /// <summary>
+    /// The end of the parameter that names an attached <c>.json</c> resource in place of a structured parameter:
+    /// <c>workbookResource</c> for <c>workbook</c> (<see cref="IStructuredGenerator.ParameterName"/>).
+    /// </summary>
+    public const string ResourceSuffix = "Resource";
+
     private const string Generating = "generate";
     private const string Checking = "check";
     private const string DeckContentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
@@ -44,13 +50,21 @@ public sealed class DocumentTool
     };
 
     private readonly IMarkdownGenerator[] generators;
+    private readonly Structured[] structured;
     private readonly bool offerCheck;
     private readonly IDeckPreview? preview;
 
-    /// <summary>Creates the tool for <paramref name="generators"/>, in the order they are offered.</summary>
+    /// <summary>
+    /// Creates the tool for <paramref name="generators"/>, in the order they are offered. A generator that is also an
+    /// <see cref="IStructuredGenerator"/>, such as <c>XlsxGenerator.ForOptions</c>, is offered with its structured input
+    /// too: the parameters get its <see cref="IStructuredGenerator.ParameterName"/> and that name with
+    /// <see cref="ResourceSuffix"/>.
+    /// </summary>
     /// <exception cref="ArgumentException">
     /// There is no generator, one is <see langword="null"/> or has an empty <see cref="IMarkdownGenerator.Format"/>, two
-    /// share a format, the name does not match <c>^[a-zA-Z0-9_-]{1,64}$</c>, or the description is blank.
+    /// share a format, the name does not match <c>^[a-zA-Z0-9_-]{1,64}$</c>, or the description is blank; or a structured
+    /// generator's format differs from its Markdown format, its parameter name is invalid or taken, or its schema is not a
+    /// JSON object.
     /// </exception>
     public DocumentTool(IReadOnlyList<IMarkdownGenerator> generators, DocumentToolOptions? options = null)
     {
@@ -92,6 +106,16 @@ public sealed class DocumentTool
         }
 
         this.generators = [.. generators];
+        this.structured = [.. this.generators.Select(StructuredOf).OfType<Structured>()];
+        var names = new HashSet<string>(StringComparer.Ordinal) { FormatParameter, MarkdownParameter, AudienceParameter, ModeParameter };
+        foreach (var offered in this.structured)
+        {
+            if (!names.Add(offered.Name) || !names.Add(offered.ResourceName))
+            {
+                throw new ArgumentException($"The structured parameter '{offered.Name}' of format '{offered.Generator.Format}' is taken.", nameof(generators));
+            }
+        }
+
         this.offerCheck = options.OfferCheck;
         this.preview = options.Preview;
         this.Name = options.Name;
@@ -110,7 +134,10 @@ public sealed class DocumentTool
     /// formats, required when there are several), <c>markdown</c> (required), <c>audience</c> (optional) and, with
     /// <see cref="DocumentToolOptions.OfferCheck"/>, <c>mode</c>; no other properties. It uses only <c>type</c>,
     /// <c>properties</c>, <c>enum</c>, <c>description</c>, <c>required</c>, <c>default</c> and
-    /// <c>additionalProperties</c>, which the major tool APIs all accept.
+    /// <c>additionalProperties</c>, which the major tool APIs all accept. With a structured generator, the object also has
+    /// its parameter with its schema (which may use <c>items</c>, <c>anyOf</c> and <c>format</c> as well) and the
+    /// parameter of its resource, both optional, after <c>markdown</c>, and <c>markdown</c> is no longer required: a
+    /// call gives one of them.
     /// </summary>
     public string ParametersSchema { get; }
 
@@ -140,18 +167,32 @@ public sealed class DocumentTool
         ArgumentNullException.ThrowIfNull(resources);
         ArgumentNullException.ThrowIfNull(output);
 
-        var call = this.Parse(arguments, out var problem);
+        var call = this.Parse(arguments, resources, out var problem);
         if (call is null)
         {
             return new DocumentToolRun(ErrorReply(problem!));
         }
 
-        var (generator, markdown, check, audience) = call.Value;
-        var document = new MarkdownDocument(markdown, resources, new Dictionary<string, string>());
-        var version = audience is { } asked ? generator.ForAudience(asked) : generator;
-        if (check)
+        var generator = call.Generator;
+        var version = call.Audience is { } asked ? generator.ForAudience(asked) : generator;
+        Func<CheckResult> checking;
+        Func<Stream, GenerationResult> generating;
+        if (call.Input is { } input)
         {
-            var result = version.Check(document);
+            var data = version as IStructuredGenerator ?? call.Structured!.Input;
+            checking = () => data.Check(input);
+            generating = stream => data.Generate(input, resources, stream);
+        }
+        else
+        {
+            var document = new MarkdownDocument(call.Markdown!, resources, new Dictionary<string, string>());
+            checking = () => version.Check(document);
+            generating = stream => version.Generate(document, stream);
+        }
+
+        if (call.Check)
+        {
+            var result = checking();
             return new DocumentToolRun(CheckedReply(generator, result)) { Generator = generator, Check = result };
         }
 
@@ -161,7 +202,7 @@ public sealed class DocumentTool
         GenerationResult generated;
         try
         {
-            generated = version.Generate(document, buffer ?? output);
+            generated = generating(buffer ?? output);
         }
         catch (DocumentConversionException exception)
         {
@@ -192,6 +233,43 @@ public sealed class DocumentTool
         };
     }
 
+    // The structured input of `generator`, checked, or null when it takes Markdown only.
+    private static Structured? StructuredOf(IMarkdownGenerator generator)
+    {
+        if (generator is not IStructuredGenerator input)
+        {
+            return null;
+        }
+
+        if (!string.Equals(input.Format, generator.Format, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException($"The generator of format '{generator.Format}' takes structured input of format '{input.Format}'.", "generators");
+        }
+
+        if (input.ParameterName is not { Length: >= 1 and <= 40 } name || !char.IsAsciiLetterLower(name[0]) || !name.All(char.IsAsciiLetterOrDigit))
+        {
+            throw new ArgumentException($"The structured parameter '{input.ParameterName}' of format '{generator.Format}' must be 1 to 40 ASCII letters and digits, starting with a lower-case letter.", "generators");
+        }
+
+        JsonElement schema;
+        try
+        {
+            using var document = JsonDocument.Parse(input.ParameterSchema);
+            schema = document.RootElement.Clone();
+        }
+        catch (JsonException exception)
+        {
+            throw new ArgumentException($"The schema of '{name}' is not valid JSON: {exception.Message}", "generators", exception);
+        }
+
+        if (schema.ValueKind != JsonValueKind.Object)
+        {
+            throw new ArgumentException($"The schema of '{name}' is not a JSON object.", "generators");
+        }
+
+        return new Structured(generator, input, name, schema);
+    }
+
     /// <summary>Whether <paramref name="generator"/> writes decks, the only files that get a contact sheet.</summary>
     private static bool IsDeck(IMarkdownGenerator generator) =>
         string.Equals(generator.ContentType, DeckContentType, StringComparison.OrdinalIgnoreCase)
@@ -200,7 +278,7 @@ public sealed class DocumentTool
     private static bool IsValidName(string? name) =>
         name is { Length: >= 1 and <= 64 } && name.All(c => c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '_' or '-');
 
-    private (IMarkdownGenerator Generator, string Markdown, bool Check, Audience? Audience)? Parse(string arguments, out string? problem)
+    private Call? Parse(string arguments, IReadOnlyList<DocumentResource> resources, out string? problem)
     {
         problem = null;
         JsonDocument json;
@@ -224,10 +302,12 @@ public sealed class DocumentTool
             }
 
             string? format = null, markdown = null, mode = null, audience = null;
+            var data = new List<(Structured Offered, string Name, JsonElement? Inline, string? Resource)>();
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var property in root.EnumerateObject())
             {
-                var known = property.Name is FormatParameter or MarkdownParameter or AudienceParameter || (this.offerCheck && property.Name == ModeParameter);
+                var offered = Array.Find(this.structured, s => s.Name == property.Name || s.ResourceName == property.Name);
+                var known = offered is not null || property.Name is FormatParameter or MarkdownParameter or AudienceParameter || (this.offerCheck && property.Name == ModeParameter);
                 if (!known)
                 {
                     problem = $"Unknown property '{property.Name}'. The tool takes {this.PropertyList()}.";
@@ -246,6 +326,18 @@ public sealed class DocumentTool
                     continue;
                 }
 
+                if (offered is not null && property.Name == offered.Name)
+                {
+                    if (property.Value.ValueKind != JsonValueKind.Object)
+                    {
+                        problem = $"'{property.Name}' must be an object, not {Kind(property.Value.ValueKind)}.";
+                        return null;
+                    }
+
+                    data.Add((offered, property.Name, property.Value.Clone(), null));
+                    continue;
+                }
+
                 if (property.Value.ValueKind != JsonValueKind.String)
                 {
                     problem = $"'{property.Name}' must be a string, not {Kind(property.Value.ValueKind)}.";
@@ -253,6 +345,12 @@ public sealed class DocumentTool
                 }
 
                 var value = property.Value.GetString()!;
+                if (offered is not null)
+                {
+                    data.Add((offered, property.Name, null, value));
+                    continue;
+                }
+
                 switch (property.Name)
                 {
                     case FormatParameter: format = value; break;
@@ -262,16 +360,35 @@ public sealed class DocumentTool
                 }
             }
 
+            if (data.Count > 1)
+            {
+                problem = $"Give only one of {Join([.. data.Select(d => $"'{d.Name}'")], "and")}.";
+                return null;
+            }
+
+            var given = data.Count == 1 ? data[0] : default;
+            if (given.Offered is not null && markdown is not null)
+            {
+                problem = $"Give either '{MarkdownParameter}' or '{given.Name}', not both.";
+                return null;
+            }
+
             IMarkdownGenerator? generator;
             if (format is null)
             {
-                if (this.generators.Length > 1)
+                if (given.Offered is not null)
+                {
+                    generator = given.Offered.Generator;
+                }
+                else if (this.generators.Length > 1)
                 {
                     problem = $"'{FormatParameter}' is missing: give one of {this.FormatList("or")}.";
                     return null;
                 }
-
-                generator = this.generators[0];
+                else
+                {
+                    generator = this.generators[0];
+                }
             }
             else
             {
@@ -281,6 +398,12 @@ public sealed class DocumentTool
                     problem = this.generators.Length > 1
                         ? $"Unknown format '{format}': give one of {this.FormatList("or")}."
                         : $"Unknown format '{format}': the only format is {Quoted(this.generators[0].Format)}.";
+                    return null;
+                }
+
+                if (given.Offered is not null && generator != given.Offered.Generator)
+                {
+                    problem = $"'{given.Name}' is for the format {Quoted(given.Offered.Generator.Format)}, but '{FormatParameter}' is {Quoted(format)}. Leave '{FormatParameter}' out, or give {Quoted(given.Offered.Generator.Format)}.";
                     return null;
                 }
             }
@@ -313,19 +436,64 @@ public sealed class DocumentTool
                 }
             }
 
+            if (given.Offered is { } structured)
+            {
+                var input = given.Inline ?? Load(given.Resource!, given.Name, resources, out problem);
+                return input is null ? null : new Call(generator, null, structured, input, check, version);
+            }
+
             if (markdown is null)
             {
-                problem = $"'{MarkdownParameter}' is missing: put the whole document in it, front matter included.";
+                problem = $"'{MarkdownParameter}' is missing: {this.WhatToPut()}";
                 return null;
             }
 
             if (string.IsNullOrWhiteSpace(markdown))
             {
-                problem = $"'{MarkdownParameter}' is empty: put the whole document in it, front matter included.";
+                problem = $"'{MarkdownParameter}' is empty: {this.WhatToPut()}";
                 return null;
             }
 
-            return (generator, markdown.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n'), check, version);
+            return new Call(generator, markdown.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n'), null, null, check, version);
+        }
+    }
+
+    // What goes into 'markdown', or into a structured parameter instead.
+    private string WhatToPut() => this.structured.Length == 0
+        ? "put the whole document in it, front matter included."
+        : "put the whole document in it, front matter included, or " + Join(
+            [.. this.structured.Select(s => $"for the format {Quoted(s.Generator.Format)} the data in '{s.Name}' or '{s.ResourceName}'")], "or") + ".";
+
+    // The JSON of the resource at `path`, or null with the problem.
+    private static JsonElement? Load(string path, string parameter, IReadOnlyList<DocumentResource> resources, out string? problem)
+    {
+        problem = null;
+        var resource = resources.FirstOrDefault(r => string.Equals(r.Path, path, StringComparison.Ordinal))
+            ?? resources.FirstOrDefault(r => string.Equals(r.Path, path, StringComparison.OrdinalIgnoreCase));
+        if (resource is null)
+        {
+            problem = resources.Count == 0
+                ? $"'{parameter}' names the file '{path}', but no file is attached."
+                : $"'{parameter}' names the file '{path}', which is not attached; the attached files are {Join([.. resources.Select(r => $"'{r.Path}'")], "and")}.";
+            return null;
+        }
+
+        try
+        {
+            var content = resource.Content.Span;
+            if (content.StartsWith("\uFEFF"u8))
+            {
+                content = content[3..];
+            }
+
+            var reader = new Utf8JsonReader(content, new JsonReaderOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
+            using var document = JsonDocument.ParseValue(ref reader);
+            return document.RootElement.Clone();
+        }
+        catch (JsonException exception)
+        {
+            problem = $"The file '{path}' that '{parameter}' names is not valid JSON ({exception.Message}).";
+            return null;
         }
     }
 
@@ -339,6 +507,9 @@ public sealed class DocumentTool
         _ => "null",
     };
 
+    // A title with its article: "a PDF document", "an Excel workbook".
+    private static string A(string title) => (title.Length > 0 && "AEIOUaeiou".Contains(title[0], StringComparison.Ordinal) ? "an " : "a ") + title;
+
     private static string Quoted(string value) => "\"" + value + "\"";
 
     private static string Join(IReadOnlyList<string> items, string last) =>
@@ -351,6 +522,12 @@ public sealed class DocumentTool
         var names = new List<string>();
         names.Add(this.generators.Length > 1 ? $"'{FormatParameter}'" : $"'{FormatParameter}' (optional)");
         names.Add($"'{MarkdownParameter}'");
+        foreach (var offered in this.structured)
+        {
+            names.Add($"'{offered.Name}' (optional)");
+            names.Add($"'{offered.ResourceName}' (optional)");
+        }
+
         names.Add($"'{AudienceParameter}' (optional)");
         if (this.offerCheck)
         {
@@ -360,13 +537,18 @@ public sealed class DocumentTool
         return "the properties " + Join(names, "and");
     }
 
-    private string Offered(string last) => Join([.. this.generators.Select(g => $"a {g.Title} (format \"{g.Format}\")")], last);
+    private string Offered(string last) => Join([.. this.generators.Select(g => $"{A(g.Title)} (format \"{g.Format}\")")], last);
 
     private string DefaultDescription()
     {
         var text = new StringBuilder();
         text.Append(CultureInfo.InvariantCulture, $"Creates a document from Markdown: {this.Offered("or")}. ");
         text.Append("Pass the whole document, front matter included, in 'markdown', one call per document. ");
+        foreach (var offered in this.structured)
+        {
+            text.Append(CultureInfo.InvariantCulture, $"For {A(offered.Generator.Title)} (format \"{offered.Generator.Format}\") the data may go in '{offered.Name}' as JSON instead, or in an attached .json file named by '{offered.ResourceName}'. ");
+        }
+
         if (this.offerCheck)
         {
             text.Append("With mode \"check\" it checks the Markdown and writes nothing, returning every problem at once; check first, fix, then generate. ");
@@ -407,14 +589,39 @@ public sealed class DocumentTool
             writer.WriteString(
                 "description",
                 several
-                    ? $"The file to create: {Join([.. this.generators.Select(g => $"\"{g.Format}\" for a {g.Title}")], "or")}. The guide has a section on the Markdown of each."
-                    : $"The file to create; the only format is \"{this.generators[0].Format}\", a {this.generators[0].Title}, so it may be left out.");
+                    ? $"The file to create: {Join([.. this.generators.Select(g => $"\"{g.Format}\" for {A(g.Title)}")], "or")}. The guide has a section on the Markdown of each."
+                    : $"The file to create; the only format is \"{this.generators[0].Format}\", {A(this.generators[0].Title)}, so it may be left out.");
             writer.WriteEndObject();
 
             writer.WriteStartObject(MarkdownParameter);
             writer.WriteString("type", "string");
-            writer.WriteString("description", "The whole document as Markdown, front matter included, written as the guide describes for the format.");
+            writer.WriteString(
+                "description",
+                this.structured.Length == 0
+                    ? "The whole document as Markdown, front matter included, written as the guide describes for the format."
+                    : $"The whole document as Markdown, front matter included, written as the guide describes for the format. Leave it out when you give {Join([.. this.structured.Select(s => $"'{s.Name}' or '{s.ResourceName}'")], "or")}.");
             writer.WriteEndObject();
+
+            foreach (var offered in this.structured)
+            {
+                var format = Quoted(offered.Generator.Format);
+                writer.WriteStartObject(offered.Name);
+                var own = offered.Schema.TryGetProperty("description", out var d) && d.ValueKind == JsonValueKind.String ? " " + d.GetString() : string.Empty;
+                writer.WriteString("description", $"The {offered.Generator.Title} as data, instead of '{MarkdownParameter}'; it implies the format {format}.{own}");
+                foreach (var keyword in offered.Schema.EnumerateObject().Where(k => k.Name != "description"))
+                {
+                    keyword.WriteTo(writer);
+                }
+
+                writer.WriteEndObject();
+
+                writer.WriteStartObject(offered.ResourceName);
+                writer.WriteString("type", "string");
+                writer.WriteString(
+                    "description",
+                    $"The path of an attached .json file that holds what '{offered.Name}' would hold, instead of '{offered.Name}' or '{MarkdownParameter}'; it implies the format {format}.");
+                writer.WriteEndObject();
+            }
 
             writer.WriteStartObject(AudienceParameter);
             writer.WriteString("type", "string");
@@ -451,7 +658,11 @@ public sealed class DocumentTool
                 writer.WriteStringValue(FormatParameter);
             }
 
-            writer.WriteStringValue(MarkdownParameter);
+            if (this.structured.Length == 0)
+            {
+                writer.WriteStringValue(MarkdownParameter);
+            }
+
             writer.WriteEndArray();
             writer.WriteBoolean("additionalProperties", false);
             writer.WriteEndObject();
@@ -471,6 +682,13 @@ public sealed class DocumentTool
         text.Append(several
             ? $"- **`format`** picks the file: {this.FormatList("or")}. It is required.\n"
             : $"- **`format`** may be left out: the only format is {Quoted(this.generators[0].Format)}.\n");
+        foreach (var offered in this.structured)
+        {
+            text.Append(CultureInfo.InvariantCulture, $"- **Data instead of Markdown.** For {A(offered.Generator.Title)} (`{offered.Generator.Format}`), give the data as JSON in `{offered.Name}` instead of `markdown`, ");
+            text.Append(CultureInfo.InvariantCulture, $"or attach a `.json` file and give its path in `{offered.ResourceName}`; its section says how. Either one implies the format. ");
+            text.Append(CultureInfo.InvariantCulture, $"Giving it with `markdown`, both of them, or with another `format` is an error. Each problem names the JSON path of its value, `$.sheets[0].rows[2][1]: …`.\n");
+        }
+
         text.Append("- **`audience`** may be left out; it picks the version, `customer`, `internal` or `trainer`, as each format's section *Versions* says.\n");
         if (this.offerCheck)
         {
@@ -510,6 +728,10 @@ public sealed class DocumentTool
             text.Append(CultureInfo.InvariantCulture, $"\n## {generator.Title} (format: \"{generator.Format}\")\n\n");
             text.Append(HeadingsDown(generator.AuthoringGuide().ReplaceLineEndings("\n")).TrimEnd('\n'));
             text.Append('\n');
+            if (Array.Find(this.structured, s => s.Generator == generator) is { } offered)
+            {
+                text.Append('\n').Append(HeadingsDown(offered.Input.StructuredGuide().ReplaceLineEndings("\n")).TrimEnd('\n')).Append('\n');
+            }
         }
 
         return text.ToString();
@@ -659,6 +881,15 @@ public sealed class DocumentTool
 
         writer.WriteEndArray();
     }
+
+    /// <summary>A generator's structured input as the tool offers it.</summary>
+    private sealed record Structured(IMarkdownGenerator Generator, IStructuredGenerator Input, string Name, JsonElement Schema)
+    {
+        public string ResourceName => this.Name + ResourceSuffix;
+    }
+
+    /// <summary>One valid call: the generator and either the Markdown or the structured input.</summary>
+    private sealed record Call(IMarkdownGenerator Generator, string? Markdown, Structured? Structured, JsonElement? Input, bool Check, Audience? Audience);
 
     private static string Write(Action<Utf8JsonWriter> write)
     {

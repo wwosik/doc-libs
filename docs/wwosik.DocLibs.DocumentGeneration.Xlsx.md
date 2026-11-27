@@ -1,6 +1,6 @@
 # wwosik.DocLibs.DocumentGeneration.Xlsx
 
-Generates Excel workbooks (`.xlsx`) from a typed model or from Markdown, in a brand's colours and fonts: an info
+Generates Excel workbooks (`.xlsx`) from a typed model, from Markdown or from JSON, in a brand's colours and fonts: an info
 sheet first, then one table per sheet with real, typed values in the culture's number formats, a
 frozen and filtered header row, banding that survives sorting, totals that follow the filter,
 formulas checked before they are written, native charts on the tables' own cells, and print setup. `Check` reports
@@ -249,7 +249,7 @@ brand's logo at the right as a header picture; the footer the brand's footer tex
 `XlsxGenerator.Generate(MarkdownDocument, Stream, XlsxOptions?)`, `Check(MarkdownDocument, …)` and
 `Preview(MarkdownDocument, …)` read the workbook from Markdown, then go on as for the model.
 `XlsxGenerator.ForOptions(options)` is an `IMarkdownGenerator` (format `xlsx`, "Excel workbook")
-for `DocumentTool`, and `AuthoringGuide(options)` the guide for whoever writes the Markdown
+for `DocumentTool`, and also its `IStructuredGenerator` for [JSON](#json), and `AuthoringGuide(options)` the guide for whoever writes the Markdown
 (checked by a test to name every attribute, key and note code, and to stay under 2,500 words).
 This sample, `Samples/features.md` of the tests, gives a workbook that opens without repair and
 without notes:
@@ -356,6 +356,64 @@ Mar, 125, 140
 - Problems of the model that the Markdown causes (an invalid sheet name, a formula) carry no line,
   only their sheet, row and cell.
 
+## JSON
+
+`XlsxWorkbookJson` reads the same workbook from JSON, which suits figures that come from a program
+or an AI agent's tool call. `XlsxWorkbookJson.Schema` is its JSON Schema, generated with
+System.Text.Json's `JsonSchemaExporter` from source-generated type information (no reflection, AOT-
+and trimming-safe), with the descriptions of the model's XML documentation: a test regenerates
+`XlsxJsonDescriptions.cs` from it (`DOCLIBS_UPDATE_EXPECTED=1`) and checks the schema against
+`Samples/workbook.schema.expected.json`. `Samples/features.json` of the tests is the Markdown sample
+as JSON and gives the same bytes.
+
+```json
+{
+  "title": "Quarterly figures",
+  "marking": { "classification": "internal" },
+  "sheets": [
+    {
+      "name": "Orders",
+      "columns": [
+        { "header": "Item" },
+        { "header": "Price", "type": "currency", "currency": "USD" },
+        { "header": "Quantity", "type": "integer", "total": "sum" },
+        { "header": "Amount", "total": "sum" },
+        { "header": "Ordered", "type": "date" }
+      ],
+      "rows": [["Pens", 1.5, 10, { "formula": "[Price]*[Quantity]" }, "2026-01-15"]],
+      "charts": [{ "type": "bar", "category": "Item", "series": ["Quantity"] }]
+    }
+  ]
+}
+```
+
+- **Shape:** names are camelCase, enums camelCase strings (`dateTime`, `average`, `bar`), and
+  every object is closed (`additionalProperties: false`). The workbook has `title`, `subtitle`,
+  `description`, `author`, `date` (ISO), `language`, `marking` (`classification`, `draft`), `brand`
+  and the required `sheets`; a sheet the required `name` and `columns`, and `title`, `description`,
+  `totalsLabel`, `rows`, `charts`; a column the required `header`, and `type`, `currency`,
+  `decimals`, `width`, `align`, `total`; a chart the required `category` and `series`, and `type`
+  (the model's `Kind`), `stacked`, `title`, `unit`, `source`, `placement`, `sheetName`. `null`
+  counts as not given.
+- **Cells:** a number (a percentage as a share, `0.12`), a string, `true`/`false`, `null` (empty) or
+  `{"formula": "…"}`. In a `date` column a string is an ISO date (`2026-03-15`), in a `dateTime`
+  column a date and time (`2026-03-15T14:30:00`, `…T14:30`, or a date alone); anything else there is
+  `json-invalid`. In other columns a string is text.
+- **`XlsxWorkbookJson.Check(json, options)`** returns `XlsxJsonProblem`s (`Path`, `Code`, `IsError`,
+  `Message`; `ToString()` is `"$.path: message"`), at most 500: first what does not have the
+  schema's shape, all of it, as `json-invalid`; only when the shape is right the model's check, its
+  problems mapped back to the JSON paths (`$.sheets[0].rows[2][1]`, `….formula` for a formula,
+  `$.sheets[0].columns[1].currency`, `$.sheets[0].charts[0].series[0]`), errors first, then the
+  notes (`IsError` false). An unknown brand or a language that is not a tag is `json-invalid` at
+  `$.brand` or `$.language`; text that is not JSON at `$`.
+- **`XlsxWorkbookJson.Read(json, options)`** returns the `XlsxWorkbook`, or throws
+  `DocumentConversionException` listing every error with its path.
+- **In `DocumentTool`** the workbook comes inline in `workbook` or as an attached `.json` file named
+  by `workbookResource` (see
+  [Structured input](wwosik.DocLibs.DocumentGeneration.md#structured-input)); generating notes and
+  check notes have their path in front of the message, and the guide gets the section *Workbooks as
+  JSON*.
+
 ## Check
 
 `XlsxGenerator.Check(workbook, options)` writes nothing and returns a `CheckResult` with every
@@ -378,6 +436,7 @@ return. With problems, `Error` is the message `Generate` would throw. `Statistic
 | `column-mixed` | Markdown, a warning: most values of a column share a type; the others stay text |
 | `sheet-split` | Markdown, a warning: a further table under one `##` went to the sheet `Name 2` |
 | `content-ignored` | Markdown, a warning: a block a workbook cannot hold was left out |
+| `json-invalid` | JSON: a value does not have the shape of the schema, or a date is not ISO; see [JSON](#json) |
 
 ## Preview
 
@@ -405,4 +464,4 @@ checked: a value of the wrong kind is shown as it is.
 - A chart's value axis is fixed to start at zero (or below) from the values written; a value turned
   negative in Excel later falls below the axis until its minimum is reset.
 - The info sheet links a chart sheet like any sheet (`'Chart 1'!A1`).
-- References to other sheets and JSON input come in later stories.
+- References to other sheets come in a later story.
